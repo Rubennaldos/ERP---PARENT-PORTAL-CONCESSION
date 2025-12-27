@@ -67,15 +67,22 @@ export default function Auth() {
       } else {
         const { error } = await signUp(values.email, values.password);
         if (error) {
+          // Mostrar error técnico exacto para debug
+          const technicalError = `[SignUp Error] ${error.name || 'Error'}: ${error.message}${error.status ? ` (HTTP ${error.status})` : ''}`;
+          console.error(technicalError, error);
+          alert(technicalError);
+          
           let message = 'Error al crear la cuenta';
           if (error.message.includes('User already registered')) {
             message = 'Este email ya está registrado. Intenta iniciar sesión.';
           } else if (error.message.includes('Password')) {
             message = 'La contraseña no cumple con los requisitos de seguridad.';
+          } else {
+            message = error.message; // Mostrar mensaje real en el toast también
           }
           toast({
             variant: 'destructive',
-            title: 'Error',
+            title: 'Error de Registro',
             description: message,
           });
         } else {
