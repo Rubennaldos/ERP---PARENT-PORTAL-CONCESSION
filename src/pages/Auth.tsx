@@ -230,22 +230,26 @@ export default function Auth() {
                   <div className="space-y-3 pt-2">
                     <Label className="font-semibold">Ingresar como:</Label>
                     <RadioGroup value={userType} onValueChange={(value: 'parent' | 'staff') => setUserType(value)} className="grid grid-cols-1 gap-3">
-                      <Label htmlFor="parent-type" className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground [&:has([data-state=checked])]:border-primary cursor-pointer">
-                        <RadioGroupItem value="parent" id="parent-type" className="sr-only" />
-                        <div className="flex items-center space-x-2 w-full">
-                          <GraduationCap className="h-5 w-5 text-primary" />
-                          <span className="font-medium">Padre de Familia</span>
-                        </div>
-                        <p className="text-sm text-muted-foreground mt-1 w-full text-left">Ver mis hijos y saldos</p>
-                      </Label>
-                      <Label htmlFor="staff-type" className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground [&:has([data-state=checked])]:border-primary cursor-pointer">
-                        <RadioGroupItem value="staff" id="staff-type" className="sr-only" />
-                        <div className="flex items-center space-x-2 w-full">
-                          <ShieldAlert className="h-5 w-5 text-primary" />
-                          <span className="font-medium">Personal Administrativo</span>
-                        </div>
-                        <p className="text-sm text-muted-foreground mt-1 w-full text-left">Acceso a admin, POS, cocina</p>
-                      </Label>
+                      <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="parent" id="parent-type" />
+                        <Label htmlFor="parent-type" className="flex flex-col flex-1 rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground cursor-pointer">
+                          <div className="flex items-center space-x-2 w-full">
+                            <GraduationCap className="h-5 w-5 text-primary" />
+                            <span className="font-medium">Padre de Familia</span>
+                          </div>
+                          <p className="text-sm text-muted-foreground mt-1 w-full text-left">Ver mis hijos y saldos</p>
+                        </Label>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="staff" id="staff-type" />
+                        <Label htmlFor="staff-type" className="flex flex-col flex-1 rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground cursor-pointer">
+                          <div className="flex items-center space-x-2 w-full">
+                            <ShieldAlert className="h-5 w-5 text-primary" />
+                            <span className="font-medium">Personal Administrativo</span>
+                          </div>
+                          <p className="text-sm text-muted-foreground mt-1 w-full text-left">Acceso a admin, POS, cocina</p>
+                        </Label>
+                      </div>
                     </RadioGroup>
                   </div>
 
