@@ -28,7 +28,7 @@ import { es } from 'date-fns/locale';
 
 interface Student {
   id: string;
-  name: string;
+  full_name: string;
   photo_url: string | null;
   balance: number;
   daily_limit: number;
@@ -313,15 +313,15 @@ const Index = () => {
                   {/* Foto del Estudiante */}
                   <div className="flex justify-center -mt-12 mb-4">
                     <img
-                      src={student.photo_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${student.name}`}
-                      alt={student.name}
+                      src={student.photo_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${student.full_name}`}
+                      alt={student.full_name}
                       className="w-24 h-24 rounded-full border-4 border-white shadow-lg"
                     />
                   </div>
 
                   {/* Información del Estudiante */}
                   <div className="text-center mb-4">
-                    <h3 className="text-xl font-bold text-gray-800 mb-1">{student.name}</h3>
+                    <h3 className="text-xl font-bold text-gray-800 mb-1">{student.full_name}</h3>
                     <p className="text-sm text-gray-600">{student.grade} - {student.section}</p>
                   </div>
 
@@ -357,7 +357,7 @@ const Index = () => {
                         <DialogHeader>
                           <DialogTitle>Recargar Saldo</DialogTitle>
                           <DialogDescription>
-                            Recarga el saldo de {selectedStudent?.name}
+                            Recarga el saldo de {selectedStudent?.full_name}
                           </DialogDescription>
                         </DialogHeader>
                         
@@ -452,7 +452,7 @@ const Index = () => {
                         <DialogHeader>
                           <DialogTitle>Límite de Gasto Diario</DialogTitle>
                           <DialogDescription>
-                            Configura el monto máximo que {selectedStudent?.name} puede gastar por día
+                            Configura el monto máximo que {selectedStudent?.full_name} puede gastar por día
                           </DialogDescription>
                         </DialogHeader>
                         
@@ -499,7 +499,7 @@ const Index = () => {
             <DialogHeader>
               <DialogTitle>Historial de Movimientos</DialogTitle>
               <DialogDescription>
-                Últimas transacciones de {selectedStudent?.name}
+                Últimas transacciones de {selectedStudent?.full_name}
               </DialogDescription>
             </DialogHeader>
 

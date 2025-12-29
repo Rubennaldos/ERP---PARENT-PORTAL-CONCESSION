@@ -22,7 +22,7 @@ import { useToast } from '@/hooks/use-toast';
 
 interface Student {
   id: string;
-  name: string;
+  full_name: string;
   photo_url: string | null;
   balance: number;
   grade: string;
@@ -127,7 +127,7 @@ const POS = () => {
         .from('students')
         .select('*')
         .eq('is_active', true)
-        .ilike('name', `%${query}%`)
+        .ilike('full_name', `%${query}%`)
         .limit(5);
 
       if (error) throw error;
@@ -139,7 +139,7 @@ const POS = () => {
 
   const selectStudent = (student: Student) => {
     setSelectedStudent(student);
-    setStudentSearch(student.name);
+    setStudentSearch(student.full_name);
     setShowStudentResults(false);
     setCart([]); // Limpiar carrito al cambiar de estudiante
   };
@@ -325,12 +325,12 @@ const POS = () => {
                         className="w-full p-3 hover:bg-green-50 text-left flex items-center gap-3"
                       >
                         <img
-                          src={student.photo_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${student.name}`}
-                          alt={student.name}
+                          src={student.photo_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${student.full_name}`}
+                          alt={student.full_name}
                           className="w-10 h-10 rounded-full"
                         />
                         <div className="flex-1">
-                          <p className="font-medium">{student.name}</p>
+                          <p className="font-medium">{student.full_name}</p>
                           <p className="text-xs text-gray-500">{student.grade} - {student.section}</p>
                         </div>
                         <Badge variant="secondary">S/ {student.balance.toFixed(2)}</Badge>
@@ -343,12 +343,12 @@ const POS = () => {
                 {selectedStudent && !showStudentResults && (
                   <div className="bg-green-50 border-2 border-green-200 rounded-lg p-4 flex items-center gap-4">
                     <img
-                      src={selectedStudent.photo_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${selectedStudent.name}`}
-                      alt={selectedStudent.name}
+                      src={selectedStudent.photo_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${selectedStudent.full_name}`}
+                      alt={selectedStudent.full_name}
                       className="w-16 h-16 rounded-full border-2 border-green-600"
                     />
                     <div className="flex-1">
-                      <h3 className="font-bold text-lg">{selectedStudent.name}</h3>
+                      <h3 className="font-bold text-lg">{selectedStudent.full_name}</h3>
                       <p className="text-sm text-gray-600">{selectedStudent.grade} - {selectedStudent.section}</p>
                     </div>
                     <div className="text-right">
