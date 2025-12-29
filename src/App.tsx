@@ -47,11 +47,11 @@ const App = () => (
               }
             />
             
-            {/* Dashboard de Módulos - SuperAdmin y Admin General */}
+            {/* Dashboard de Módulos - Solo Admin General y roles de negocio */}
             <Route
               path="/dashboard"
               element={
-                <ProtectedRoute allowedRoles={['superadmin', 'admin_general']}>
+                <ProtectedRoute allowedRoles={['admin_general', 'pos', 'kitchen']}>
                   <Dashboard />
                 </ProtectedRoute>
               }

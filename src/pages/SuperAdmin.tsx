@@ -210,9 +210,9 @@ const SuperAdmin = () => {
           <TabsContent value="users" className="space-y-4">
             <Card className="border max-w-lg">
               <CardHeader>
-                <CardTitle className="text-base">Create Admin</CardTitle>
+                <CardTitle className="text-base">Create Business Owner / Admin</CardTitle>
                 <CardDescription>
-                  Add a new admin_general user to the system
+                  Add a new admin_general user (business owner/manager). This user will have access to the Business Dashboard with all modules (POS, Collections, Finance, etc.)
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -246,6 +246,12 @@ const SuperAdmin = () => {
                 >
                   {creatingAdmin ? 'Creating...' : 'Create Admin'}
                 </Button>
+                
+                <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-3 mt-4">
+                  <p className="text-xs text-blue-300">
+                    <strong>ℹ️ Note:</strong> admin_general users will access the <strong>Business Dashboard</strong> (/dashboard) with business modules (POS, Collections, Finance, etc.). They will NOT see this technical panel.
+                  </p>
+                </div>
               </CardContent>
             </Card>
           </TabsContent>

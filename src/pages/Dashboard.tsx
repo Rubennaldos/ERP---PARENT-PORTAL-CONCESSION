@@ -66,8 +66,8 @@ const Dashboard = () => {
     try {
       setLoading(true);
 
-      // Si es superadmin, tiene todos los módulos
-      if (role === 'superadmin') {
+      // Admin General (dueño del negocio) tiene todos los módulos
+      if (role === 'admin_general') {
         setModules([
           {
             id: '1',
@@ -144,7 +144,7 @@ const Dashboard = () => {
         ]);
       } else {
         // TODO: Consultar módulos asignados desde la BD
-        // Por ahora, solo POS para admin_general
+        // Personal específico (POS, Kitchen) ve solo sus módulos asignados
         setModules([
           {
             id: '1',
@@ -190,9 +190,9 @@ const Dashboard = () => {
       <header className="bg-white border-b sticky top-0 z-10 shadow-sm">
         <div className="container mx-auto px-4 py-4 flex justify-between items-center">
           <div>
-            <h1 className="text-2xl font-bold text-gray-800">Dashboard de Módulos</h1>
+            <h1 className="text-2xl font-bold text-gray-800">Dashboard de Negocio</h1>
             <p className="text-sm text-gray-500">
-              {role === 'superadmin' ? 'Acceso Total - Dueño' : 'Admin General'}
+              {role === 'admin_general' ? 'Dueño / Gerente General' : 'Personal del Negocio'}
             </p>
           </div>
           <div className="flex items-center gap-4">
@@ -290,8 +290,8 @@ const Dashboard = () => {
               <li>✅ <strong>Módulo POS:</strong> Completamente funcional</li>
               <li>🚧 <strong>Otros módulos:</strong> En desarrollo</li>
               <li>🔐 <strong>Acceso:</strong> Los módulos habilitados son configurados por el SuperAdmin</li>
-              {role === 'superadmin' && (
-                <li>👑 <strong>SuperAdmin:</strong> Tienes acceso total a todos los módulos</li>
+              {role === 'admin_general' && (
+                <li>👑 <strong>Dueño/Gerente:</strong> Tienes acceso total a todos los módulos del negocio</li>
               )}
             </ul>
           </CardContent>

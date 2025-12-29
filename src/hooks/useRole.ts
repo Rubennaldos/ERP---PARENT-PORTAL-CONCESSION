@@ -69,9 +69,9 @@ export function useRole(): UseRoleReturn {
       case 'parent':
         return '/';
       case 'superadmin':
-        return '/dashboard'; // Dashboard de módulos
+        return '/superadmin'; // Panel técnico del programador
       case 'admin_general':
-        return '/dashboard'; // Dashboard de módulos
+        return '/dashboard'; // Dashboard de módulos de negocio
       case 'pos':
         return '/pos';
       case 'kitchen':
