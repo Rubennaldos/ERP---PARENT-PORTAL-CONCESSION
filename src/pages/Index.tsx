@@ -23,7 +23,15 @@ import {
   Receipt,
   MessageSquare,
   UtensilsCrossed,
-  AlertTriangle
+  AlertTriangle,
+  Nfc,
+  Mail,
+  Calendar,
+  Sliders,
+  Key,
+  Bell,
+  Shield,
+  HelpCircle
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useToast } from '@/hooks/use-toast';
@@ -260,7 +268,7 @@ const Index = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 pb-20">
       {/* Header */}
       <header className="bg-white border-b shadow-sm sticky top-0 z-10">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
@@ -273,52 +281,25 @@ const Index = () => {
               <p className="text-xs text-gray-500">Kiosco Escolar - Lima Café 28</p>
             </div>
           </div>
-          <div className="flex items-center gap-4">
-            <span className="text-sm text-gray-600 hidden sm:block">
-              {user?.email}
-            </span>
-            <Button variant="outline" size="sm" onClick={handleSignOut}>
-              <LogOut className="h-4 w-4 mr-2" />
-              Salir
-            </Button>
-          </div>
+          <span className="text-sm text-gray-600 hidden sm:block">
+            {user?.email}
+          </span>
         </div>
       </header>
 
       {/* Main Content */}
-      <main className="container mx-auto px-4 py-8">
-        <div className="mb-8">
-          <h2 className="text-3xl font-bold text-gray-800">¡Bienvenido!</h2>
-          <p className="text-gray-600 mt-1">Gestiona las cuentas del kiosco de tus hijos</p>
-        </div>
-
+      <main className="container mx-auto px-4 py-6">
         {/* Pestañas Principales */}
         <Tabs defaultValue="alumnos" className="w-full">
-          <TabsList className="grid w-full grid-cols-5 mb-6 bg-white shadow-sm border">
-            <TabsTrigger value="alumnos" className="flex items-center gap-2">
-              <Users className="h-4 w-4" />
-              <span className="hidden sm:inline">Alumnos</span>
-            </TabsTrigger>
-            <TabsTrigger value="pagos" className="flex items-center gap-2">
-              <Receipt className="h-4 w-4" />
-              <span className="hidden sm:inline">Pagos</span>
-            </TabsTrigger>
-            <TabsTrigger value="consultas" className="flex items-center gap-2">
-              <MessageSquare className="h-4 w-4" />
-              <span className="hidden sm:inline">Consultas</span>
-            </TabsTrigger>
-            <TabsTrigger value="nutricion" className="flex items-center gap-2">
-              <UtensilsCrossed className="h-4 w-4" />
-              <span className="hidden sm:inline">Nutrición</span>
-            </TabsTrigger>
-            <TabsTrigger value="alergias" className="flex items-center gap-2">
-              <AlertTriangle className="h-4 w-4" />
-              <span className="hidden sm:inline">Alergias</span>
-            </TabsTrigger>
-          </TabsList>
+          {/* Contenido de las pestañas */}
 
           {/* Pestaña: Alumnos */}
-          <TabsContent value="alumnos" className="space-y-6">
+          <TabsContent value="alumnos" className="space-y-4">
+            <div className="mb-4">
+              <h2 className="text-2xl font-bold text-gray-800">Mis Alumnos</h2>
+              <p className="text-gray-600 text-sm mt-1">Gestiona las cuentas del kiosco de tus hijos</p>
+            </div>
+            
             {/* Estado Vacío */}
             {students.length === 0 && (
           <Card className="border-2 border-dashed border-gray-300 bg-white/50">
@@ -667,17 +648,13 @@ const Index = () => {
 
           {/* Pestaña: Alergias */}
           <TabsContent value="alergias" className="space-y-6">
+            <div className="mb-4">
+              <h2 className="text-2xl font-bold text-gray-800">Alergias</h2>
+              <p className="text-gray-600 text-sm mt-1">Registro de alergias de tus hijos</p>
+            </div>
+            
             <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <AlertTriangle className="h-5 w-5 text-orange-600" />
-                  Registro de Alergias
-                </CardTitle>
-                <CardDescription>
-                  Mantén actualizada la información de alergias de tus hijos
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
+              <CardContent className="pt-6">
                 {students.length === 0 ? (
                   <div className="text-center py-8 text-gray-500">
                     <AlertTriangle className="h-12 w-12 mx-auto mb-4 opacity-50" />
@@ -721,6 +698,188 @@ const Index = () => {
               </CardContent>
             </Card>
           </TabsContent>
+
+          {/* Pestaña: Configuración */}
+          <TabsContent value="config" className="space-y-4">
+            <div className="mb-4">
+              <h2 className="text-2xl font-bold text-gray-800">Configuración</h2>
+              <p className="text-gray-600 text-sm mt-1">Ajusta tu cuenta y preferencias</p>
+            </div>
+
+            <div className="space-y-3">
+              {/* Información del Usuario */}
+              <Card>
+                <CardContent className="pt-6">
+                  <div className="flex items-center gap-4 mb-4">
+                    <div className="w-16 h-16 bg-gradient-to-br from-blue-600 to-purple-600 rounded-full flex items-center justify-center">
+                      <span className="text-2xl font-bold text-white">
+                        {user?.email?.charAt(0).toUpperCase()}
+                      </span>
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-lg">{user?.email}</h3>
+                      <Badge variant="secondary">Padre de Familia</Badge>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Opciones de Configuración */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base">Opciones de Cuenta</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-2">
+                  <Button variant="outline" className="w-full justify-start" onClick={() => {
+                    toast({
+                      title: 'Cambiar Contraseña',
+                      description: 'Función próximamente disponible',
+                    });
+                  }}>
+                    <Key className="h-4 w-4 mr-2" />
+                    Cambiar Contraseña
+                  </Button>
+                  
+                  <Button variant="outline" className="w-full justify-start" onClick={() => {
+                    toast({
+                      title: 'Notificaciones',
+                      description: 'Configuración de notificaciones próximamente',
+                    });
+                  }}>
+                    <Bell className="h-4 w-4 mr-2" />
+                    Notificaciones
+                  </Button>
+
+                  <Button variant="outline" className="w-full justify-start" onClick={() => {
+                    toast({
+                      title: 'Configuración de App',
+                      description: 'Opciones avanzadas próximamente',
+                    });
+                  }}>
+                    <Sliders className="h-4 w-4 mr-2" />
+                    Configuración de App
+                  </Button>
+                </CardContent>
+              </Card>
+
+              {/* Funciones Próximamente */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base">Próximamente</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-2">
+                  <Button variant="outline" className="w-full justify-start" disabled>
+                    <Nfc className="h-4 w-4 mr-2" />
+                    Activar NFC
+                    <Badge variant="secondary" className="ml-auto">Próximamente</Badge>
+                  </Button>
+                  
+                  <Button variant="outline" className="w-full justify-start" onClick={() => {
+                    toast({
+                      title: 'Evento Privado',
+                      description: 'Función próximamente disponible',
+                    });
+                  }}>
+                    <Calendar className="h-4 w-4 mr-2" />
+                    Eventos Privados
+                  </Button>
+                </CardContent>
+              </Card>
+
+              {/* Soporte y Contacto */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base">Soporte</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-2">
+                  <Button variant="outline" className="w-full justify-start" onClick={() => {
+                    toast({
+                      title: 'Contacto',
+                      description: 'Envíanos un correo a: soporte@limacafe28.com',
+                    });
+                  }}>
+                    <Mail className="h-4 w-4 mr-2" />
+                    Contacto
+                  </Button>
+                  
+                  <Button variant="outline" className="w-full justify-start" onClick={() => {
+                    toast({
+                      title: 'Ayuda',
+                      description: 'Visita nuestra sección de preguntas frecuentes',
+                    });
+                  }}>
+                    <HelpCircle className="h-4 w-4 mr-2" />
+                    Ayuda
+                  </Button>
+
+                  <Button variant="outline" className="w-full justify-start" onClick={() => {
+                    toast({
+                      title: 'Privacidad',
+                      description: 'Consulta nuestras políticas de privacidad',
+                    });
+                  }}>
+                    <Shield className="h-4 w-4 mr-2" />
+                    Privacidad y Seguridad
+                  </Button>
+                </CardContent>
+              </Card>
+
+              {/* Cerrar Sesión */}
+              <Card className="border-red-200">
+                <CardContent className="pt-6">
+                  <Button 
+                    variant="destructive" 
+                    className="w-full" 
+                    onClick={handleSignOut}
+                  >
+                    <LogOut className="h-4 w-4 mr-2" />
+                    Cerrar Sesión
+                  </Button>
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
+
+          {/* Barra de Navegación Inferior (Bottom Navigation) */}
+          <div className="fixed bottom-0 left-0 right-0 bg-white border-t shadow-lg z-50">
+            <TabsList className="grid w-full grid-cols-5 h-16 bg-white rounded-none">
+              <TabsTrigger 
+                value="alumnos" 
+                className="flex flex-col items-center gap-1 data-[state=active]:bg-blue-50 data-[state=active]:text-blue-600"
+              >
+                <Users className="h-5 w-5" />
+                <span className="text-xs">Alumnos</span>
+              </TabsTrigger>
+              <TabsTrigger 
+                value="pagos" 
+                className="flex flex-col items-center gap-1 data-[state=active]:bg-blue-50 data-[state=active]:text-blue-600"
+              >
+                <Receipt className="h-5 w-5" />
+                <span className="text-xs">Pagos</span>
+              </TabsTrigger>
+              <TabsTrigger 
+                value="nutricion" 
+                className="flex flex-col items-center gap-1 data-[state=active]:bg-blue-50 data-[state=active]:text-blue-600"
+              >
+                <UtensilsCrossed className="h-5 w-5" />
+                <span className="text-xs">Menú</span>
+              </TabsTrigger>
+              <TabsTrigger 
+                value="alergias" 
+                className="flex flex-col items-center gap-1 data-[state=active]:bg-blue-50 data-[state=active]:text-blue-600"
+              >
+                <AlertTriangle className="h-5 w-5" />
+                <span className="text-xs">Alergias</span>
+              </TabsTrigger>
+              <TabsTrigger 
+                value="config" 
+                className="flex flex-col items-center gap-1 data-[state=active]:bg-blue-50 data-[state=active]:text-blue-600"
+              >
+                <Settings className="h-5 w-5" />
+                <span className="text-xs">Config</span>
+              </TabsTrigger>
+            </TabsList>
+          </div>
         </Tabs>
 
         {/* Modal de Historial */}
