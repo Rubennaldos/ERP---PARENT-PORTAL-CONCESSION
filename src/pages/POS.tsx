@@ -4,12 +4,21 @@ import { useRole } from '@/hooks/useRole';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { 
   ShoppingCart, 
   LogOut, 
@@ -25,7 +34,8 @@ import {
   UtensilsCrossed,
   X,
   Printer,
-  Receipt
+  Receipt,
+  Users
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useToast } from '@/hooks/use-toast';
@@ -59,43 +69,46 @@ const POS = () => {
   const { role } = useRole();
   const { toast } = useToast();
 
-  // Estados
+  // Estados de cliente
+  const [clientMode, setClientMode] = useState<'student' | 'generic' | null>(null);
   const [studentSearch, setStudentSearch] = useState('');
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
   const [students, setStudents] = useState<Student[]>([]);
   const [showStudentResults, setShowStudentResults] = useState(false);
+  const [studentWillPay, setStudentWillPay] = useState(false); // Switch para que estudiante pague
 
+  // Estados de productos
   const [productSearch, setProductSearch] = useState('');
   const [products, setProducts] = useState<Product[]>([]);
   const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
   const [selectedCategory, setSelectedCategory] = useState('todos');
 
+  // Estados de carrito y venta
   const [cart, setCart] = useState<CartItem[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [lastTicket, setLastTicket] = useState<{
-    code: string;
-    student: string;
-    items: CartItem[];
-    total: number;
-    timestamp: Date;
-  } | null>(null);
-  const [showTicketModal, setShowTicketModal] = useState(false);
+
+  // Estados de pago (solo para cliente genérico)
+  const [paymentMethod, setPaymentMethod] = useState<'efectivo' | 'yape' | 'tarjeta'>('efectivo');
+  const [documentType, setDocumentType] = useState<'ticket' | 'boleta' | 'factura'>('ticket');
+  const [showPaymentDialog, setShowPaymentDialog] = useState(false);
+
+  // Estado de ticket generado
+  const [showTicketPrint, setShowTicketPrint] = useState(false);
+  const [ticketData, setTicketData] = useState<any>(null);
 
   // Cargar productos al inicio
   useEffect(() => {
     fetchProducts();
   }, []);
 
-  // Filtrar productos por búsqueda y categoría
+  // Filtrar productos
   useEffect(() => {
     let filtered = products;
 
-    // Filtrar por categoría
     if (selectedCategory !== 'todos') {
       filtered = filtered.filter(p => p.category === selectedCategory);
     }
 
-    // Filtrar por búsqueda
     if (productSearch.trim()) {
       filtered = filtered.filter(p => 
         p.name.toLowerCase().includes(productSearch.toLowerCase())
@@ -105,16 +118,16 @@ const POS = () => {
     setFilteredProducts(filtered);
   }, [productSearch, selectedCategory, products]);
 
-  // Buscar estudiantes cuando se escribe
+  // Buscar estudiantes
   useEffect(() => {
-    if (studentSearch.trim().length >= 2) {
+    if (clientMode === 'student' && studentSearch.trim().length >= 2) {
       searchStudents(studentSearch);
       setShowStudentResults(true);
     } else {
       setStudents([]);
       setShowStudentResults(false);
     }
-  }, [studentSearch]);
+  }, [studentSearch, clientMode]);
 
   const fetchProducts = async () => {
     try {
@@ -158,7 +171,22 @@ const POS = () => {
     setSelectedStudent(student);
     setStudentSearch(student.full_name);
     setShowStudentResults(false);
-    setCart([]); // Limpiar carrito al cambiar de estudiante
+    setStudentWillPay(false); // Por defecto, estudiante va a crédito
+  };
+
+  const selectGenericClient = () => {
+    setClientMode('generic');
+    setSelectedStudent(null);
+    setStudentSearch('');
+  };
+
+  const resetClient = () => {
+    setClientMode(null);
+    setSelectedStudent(null);
+    setStudentSearch('');
+    setStudentWillPay(false);
+    setCart([]);
+    setProductSearch('');
   };
 
   const addToCart = (product: Product) => {
@@ -173,13 +201,6 @@ const POS = () => {
     } else {
       setCart([...cart, { product, quantity: 1 }]);
     }
-
-    // Feedback visual
-    toast({
-      title: '✅ Agregado',
-      description: `${product.name} agregado al carrito`,
-      duration: 1500,
-    });
   };
 
   const updateQuantity = (productId: string, delta: number) => {
@@ -201,104 +222,161 @@ const POS = () => {
   };
 
   const canCheckout = () => {
-    if (!selectedStudent) return false;
+    if (!clientMode) return false;
     if (cart.length === 0) return false;
-    const total = getTotal();
-    return selectedStudent.balance >= total;
+    
+    // Si es estudiante pagando al contado o a crédito
+    if (clientMode === 'student' && selectedStudent) {
+      if (studentWillPay) {
+        return true; // Estudiante pagará al contado
+      } else {
+        // Estudiante a crédito - verificar saldo
+        return selectedStudent.balance >= getTotal();
+      }
+    }
+    
+    // Si es cliente genérico
+    if (clientMode === 'generic') {
+      return true;
+    }
+    
+    return false;
   };
 
-  const handleCheckout = async () => {
-    if (!selectedStudent) return;
+  const handleCheckoutClick = () => {
     if (!canCheckout()) return;
 
+    // Si es cliente genérico, mostrar opciones de pago
+    if (clientMode === 'generic') {
+      setShowPaymentDialog(true);
+    } else {
+      // Si es estudiante, procesar directo
+      processCheckout();
+    }
+  };
+
+  const processCheckout = async () => {
     setIsProcessing(true);
 
     try {
       const total = getTotal();
-      const newBalance = selectedStudent.balance - total;
-
-      // 🎫 1. GENERAR CORRELATIVO DE TICKET
       let ticketCode = '';
+
+      // Generar correlativo
       try {
         const { data: ticketNumber, error: ticketError } = await supabase
           .rpc('get_next_ticket_number', { p_user_id: user?.id });
 
         if (ticketError) {
-          console.warn('Error generando correlativo, usando timestamp:', ticketError);
+          console.warn('Error generando correlativo:', ticketError);
           ticketCode = `TMP-${Date.now()}`;
         } else {
           ticketCode = ticketNumber;
         }
       } catch (err) {
-        console.warn('Error en correlativo, usando fallback:', err);
+        console.warn('Error en correlativo:', err);
         ticketCode = `TMP-${Date.now()}`;
       }
 
-      // 2. Crear transacción con ticket_code
-      const { data: transaction, error: transError } = await supabase
-        .from('transactions')
-        .insert({
-          student_id: selectedStudent.id,
-          type: 'purchase',
-          amount: -total,
-          description: `Compra en POS - ${cart.length} items`,
-          balance_after: newBalance,
-          created_by: user?.id,
-          ticket_code: ticketCode, // ← Correlativo único
-        })
-        .select()
-        .single();
-
-      if (transError) throw transError;
-
-      // 3. Crear items de la transacción
-      const items = cart.map(item => ({
-        transaction_id: transaction.id,
-        product_id: item.product.id,
-        product_name: item.product.name,
-        quantity: item.quantity,
-        unit_price: item.product.price,
-        subtotal: item.product.price * item.quantity,
-      }));
-
-      const { error: itemsError } = await supabase
-        .from('transaction_items')
-        .insert(items);
-
-      if (itemsError) throw itemsError;
-
-      // 4. Actualizar saldo del estudiante
-      const { error: updateError } = await supabase
-        .from('students')
-        .update({ balance: newBalance })
-        .eq('id', selectedStudent.id);
-
-      if (updateError) throw updateError;
-
-      // 5. Éxito - Guardar ticket y mostrar modal
-      setLastTicket({
+      // Preparar datos del ticket
+      const ticketInfo: any = {
         code: ticketCode,
-        student: selectedStudent.full_name,
-        items: [...cart],
+        clientName: clientMode === 'student' ? selectedStudent?.full_name : 'CLIENTE GENÉRICO',
+        clientType: clientMode,
+        items: cart,
         total: total,
+        paymentMethod: clientMode === 'generic' ? paymentMethod : (studentWillPay ? 'efectivo' : 'credito'),
+        documentType: clientMode === 'generic' ? documentType : 'ticket',
         timestamp: new Date(),
-      });
-      setShowTicketModal(true);
+        cashierEmail: user?.email || 'No disponible',
+      };
 
-      console.log('🎫 Ticket generado:', ticketCode);
-      console.log('📊 Detalles:', {
-        ticket: ticketCode,
-        estudiante: selectedStudent.full_name,
-        total: `S/ ${total.toFixed(2)}`,
-        saldoAnterior: `S/ ${selectedStudent.balance.toFixed(2)}`,
-        saldoNuevo: `S/ ${newBalance.toFixed(2)}`,
-        items: cart.length,
-      });
+      // Si es estudiante a crédito (no paga)
+      if (clientMode === 'student' && !studentWillPay && selectedStudent) {
+        const newBalance = selectedStudent.balance - total;
 
-      // 6. Limpiar y actualizar
-      setSelectedStudent({ ...selectedStudent, balance: newBalance });
-      setCart([]);
-      setProductSearch('');
+        // Crear transacción
+        const { data: transaction, error: transError } = await supabase
+          .from('transactions')
+          .insert({
+            student_id: selectedStudent.id,
+            type: 'purchase',
+            amount: -total,
+            description: `Compra en POS - ${cart.length} items`,
+            balance_after: newBalance,
+            created_by: user?.id,
+            ticket_code: ticketCode,
+          })
+          .select()
+          .single();
+
+        if (transError) throw transError;
+
+        // Crear items
+        const items = cart.map(item => ({
+          transaction_id: transaction.id,
+          product_id: item.product.id,
+          product_name: item.product.name,
+          quantity: item.quantity,
+          unit_price: item.product.price,
+          subtotal: item.product.price * item.quantity,
+        }));
+
+        const { error: itemsError } = await supabase
+          .from('transaction_items')
+          .insert(items);
+
+        if (itemsError) throw itemsError;
+
+        // Actualizar saldo
+        const { error: updateError } = await supabase
+          .from('students')
+          .update({ balance: newBalance })
+          .eq('id', selectedStudent.id);
+
+        if (updateError) throw updateError;
+
+        ticketInfo.newBalance = newBalance;
+      } else {
+        // Cliente genérico o estudiante pagando - Solo registrar la venta (sin afectar saldo)
+        const { data: transaction, error: transError } = await supabase
+          .from('transactions')
+          .insert({
+            student_id: selectedStudent?.id || null,
+            type: 'purchase',
+            amount: -total,
+            description: `Compra ${clientMode === 'generic' ? 'Cliente Genérico' : 'Estudiante (Efectivo)'} - ${cart.length} items`,
+            balance_after: selectedStudent?.balance || 0,
+            created_by: user?.id,
+            ticket_code: ticketCode,
+          })
+          .select()
+          .single();
+
+        if (transError) throw transError;
+
+        const items = cart.map(item => ({
+          transaction_id: transaction.id,
+          product_id: item.product.id,
+          product_name: item.product.name,
+          quantity: item.quantity,
+          unit_price: item.product.price,
+          subtotal: item.product.price * item.quantity,
+        }));
+
+        await supabase.from('transaction_items').insert(items);
+      }
+
+      // Mostrar ticket e imprimir
+      setTicketData(ticketInfo);
+      setShowTicketPrint(true);
+      setShowPaymentDialog(false);
+
+      toast({
+        title: '✅ Venta Realizada',
+        description: `Ticket: ${ticketCode}`,
+        duration: 2000,
+      });
 
     } catch (error: any) {
       console.error('Error processing checkout:', error);
@@ -312,12 +390,22 @@ const POS = () => {
     }
   };
 
+  const handlePrintAndContinue = () => {
+    // Imprimir ticket
+    window.print();
+    
+    // Reset y preparar para siguiente cliente
+    setShowTicketPrint(false);
+    setTicketData(null);
+    resetClient();
+  };
+
   const handleLogout = async () => {
     await signOut();
   };
 
   const total = getTotal();
-  const insufficientBalance = selectedStudent && (selectedStudent.balance < total);
+  const insufficientBalance = selectedStudent && !studentWillPay && (selectedStudent.balance < total);
 
   const categories = [
     { id: 'todos', label: 'Todos', icon: ShoppingCart },
@@ -328,8 +416,8 @@ const POS = () => {
 
   return (
     <div className="h-screen flex flex-col bg-gray-100">
-      {/* Header Compacto */}
-      <header className="bg-slate-900 text-white px-6 py-3 flex justify-between items-center shadow-lg">
+      {/* Header */}
+      <header className="bg-slate-900 text-white px-6 py-3 flex justify-between items-center shadow-lg print:hidden">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 bg-emerald-500 rounded-lg flex items-center justify-center">
             <ShoppingCart className="h-6 w-6" />
@@ -345,14 +433,48 @@ const POS = () => {
         </Button>
       </header>
 
-      {/* Modal de Búsqueda de Estudiante */}
-      {!selectedStudent && (
+      {/* Modal de Selección de Cliente (Solo si no hay cliente) */}
+      {!clientMode && (
         <div className="absolute inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full p-6">
-            <h2 className="text-2xl font-bold mb-4 flex items-center gap-2">
-              <User className="h-6 w-6 text-emerald-600" />
-              Seleccionar Estudiante
-            </h2>
+            <h2 className="text-2xl font-bold mb-6 text-center">Seleccionar Tipo de Cliente</h2>
+            
+            <div className="grid grid-cols-2 gap-4">
+              {/* Cliente Genérico */}
+              <button
+                onClick={selectGenericClient}
+                className="p-8 border-2 border-gray-300 rounded-xl hover:border-emerald-500 hover:bg-emerald-50 transition-all group"
+              >
+                <Users className="h-16 w-16 mx-auto mb-4 text-gray-400 group-hover:text-emerald-600" />
+                <h3 className="text-xl font-bold mb-2">Cliente Genérico</h3>
+                <p className="text-sm text-gray-600">Venta al contado (Efectivo/Yape/Tarjeta)</p>
+              </button>
+
+              {/* Estudiante */}
+              <button
+                onClick={() => setClientMode('student')}
+                className="p-8 border-2 border-gray-300 rounded-xl hover:border-blue-500 hover:bg-blue-50 transition-all group"
+              >
+                <User className="h-16 w-16 mx-auto mb-4 text-gray-400 group-hover:text-blue-600" />
+                <h3 className="text-xl font-bold mb-2">Estudiante</h3>
+                <p className="text-sm text-gray-600">Compra a crédito (Descuenta de saldo)</p>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Búsqueda de Estudiante */}
+      {clientMode === 'student' && !selectedStudent && (
+        <div className="absolute inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-2xl font-bold">Buscar Estudiante</h2>
+              <Button variant="ghost" onClick={resetClient}>
+                <X className="h-5 w-5" />
+              </Button>
+            </div>
+            
             <div className="relative mb-4">
               <Search className="absolute left-4 top-4 h-5 w-5 text-gray-400" />
               <Input
@@ -372,11 +494,6 @@ const POS = () => {
                     onClick={() => selectStudent(student)}
                     className="w-full p-4 hover:bg-emerald-50 border-2 border-gray-200 hover:border-emerald-500 rounded-xl text-left flex items-center gap-4 transition-all"
                   >
-                    <img
-                      src={student.photo_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${student.full_name}`}
-                      alt={student.full_name}
-                      className="w-16 h-16 rounded-full border-2 border-emerald-500"
-                    />
                     <div className="flex-1">
                       <p className="font-bold text-lg">{student.full_name}</p>
                       <p className="text-sm text-gray-500">{student.grade} - {student.section}</p>
@@ -402,325 +519,343 @@ const POS = () => {
         </div>
       )}
 
-      {/* Layout de 3 Zonas */}
-      <div className="flex-1 flex overflow-hidden">
-        
-        {/* ZONA 1: BARRA LATERAL DE CATEGORÍAS (15%) */}
-        <aside className="w-[15%] bg-slate-800 p-4 flex flex-col gap-2 overflow-y-auto">
-          {categories.map((cat) => {
-            const Icon = cat.icon;
-            const isActive = selectedCategory === cat.id;
-            return (
-              <button
-                key={cat.id}
-                onClick={() => setSelectedCategory(cat.id)}
-                className={cn(
-                  "flex flex-col items-center justify-center gap-2 py-6 rounded-xl font-semibold transition-all",
-                  "hover:bg-slate-700 active:scale-95",
-                  isActive 
-                    ? "bg-emerald-500 text-white shadow-lg" 
-                    : "bg-slate-700 text-gray-300"
-                )}
-              >
-                <Icon className="h-8 w-8" />
-                <span className="text-sm">{cat.label}</span>
-              </button>
-            );
-          })}
-        </aside>
+      {/* Layout de 3 Zonas (Solo si hay cliente seleccionado) */}
+      {(clientMode === 'generic' || (clientMode === 'student' && selectedStudent)) && (
+        <div className="flex-1 flex overflow-hidden print:hidden">
+          
+          {/* ZONA 1: CATEGORÍAS */}
+          <aside className="w-[15%] bg-slate-800 p-4 flex flex-col gap-2 overflow-y-auto">
+            {categories.map((cat) => {
+              const Icon = cat.icon;
+              const isActive = selectedCategory === cat.id;
+              return (
+                <button
+                  key={cat.id}
+                  onClick={() => setSelectedCategory(cat.id)}
+                  className={cn(
+                    "flex flex-col items-center justify-center gap-2 py-6 rounded-xl font-semibold transition-all",
+                    "hover:bg-slate-700 active:scale-95",
+                    isActive 
+                      ? "bg-emerald-500 text-white shadow-lg" 
+                      : "bg-slate-700 text-gray-300"
+                  )}
+                >
+                  <Icon className="h-8 w-8" />
+                  <span className="text-sm">{cat.label}</span>
+                </button>
+              );
+            })}
+          </aside>
 
-        {/* ZONA 2: VITRINA DE PRODUCTOS (55%) */}
-        <main className="w-[55%] bg-white flex flex-col">
-          {/* Buscador de Productos */}
-          <div className="p-4 border-b bg-gray-50">
-            <div className="relative">
-              <Search className="absolute left-4 top-4 h-5 w-5 text-gray-400" />
-              <Input
-                placeholder="Buscar productos..."
-                value={productSearch}
-                onChange={(e) => setProductSearch(e.target.value)}
-                className="pl-12 h-14 text-lg border-2"
-              />
-            </div>
-          </div>
-
-          {/* Grid de Productos */}
-          <div className="flex-1 overflow-y-auto p-4">
-            {filteredProducts.length === 0 ? (
-              <div className="flex flex-col items-center justify-center h-full text-gray-400">
-                <Search className="h-24 w-24 mb-4 opacity-30" />
-                <p className="text-xl font-semibold">No hay productos disponibles</p>
+          {/* ZONA 2: PRODUCTOS */}
+          <main className="w-[55%] bg-white flex flex-col">
+            <div className="p-4 border-b bg-gray-50">
+              <div className="relative">
+                <Search className="absolute left-4 top-4 h-5 w-5 text-gray-400" />
+                <Input
+                  placeholder="Buscar productos..."
+                  value={productSearch}
+                  onChange={(e) => setProductSearch(e.target.value)}
+                  className="pl-12 h-14 text-lg border-2"
+                />
               </div>
-            ) : (
-              <div className="grid grid-cols-3 gap-4">
-                {filteredProducts.map((product) => (
-                  <button
-                    key={product.id}
-                    onClick={() => addToCart(product)}
-                    disabled={!selectedStudent}
-                    className={cn(
-                      "group bg-white border-2 rounded-2xl overflow-hidden transition-all",
-                      "hover:shadow-xl hover:border-emerald-500 hover:-translate-y-1",
-                      "disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:transform-none",
-                      "active:scale-95 flex flex-col h-full"
-                    )}
-                  >
-                    {/* Imagen (70% de la tarjeta) */}
-                    <div className="relative h-48 bg-gray-100 overflow-hidden">
-                      <img
-                        src={product.image_url || 'https://via.placeholder.com/300x300?text=Producto'}
-                        alt={product.name}
-                        className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
-                      />
-                    </div>
-                    
-                    {/* Info (30% de la tarjeta) */}
-                    <div className="p-3 flex-1 flex flex-col">
-                      <h3 className="font-bold text-sm mb-1 line-clamp-2 flex-1">
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-4">
+              {filteredProducts.length === 0 ? (
+                <div className="flex flex-col items-center justify-center h-full text-gray-400">
+                  <Search className="h-24 w-24 mb-4 opacity-30" />
+                  <p className="text-xl font-semibold">No hay productos disponibles</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-3 gap-4">
+                  {filteredProducts.map((product) => (
+                    <button
+                      key={product.id}
+                      onClick={() => addToCart(product)}
+                      className="group bg-white border-2 rounded-2xl overflow-hidden transition-all hover:shadow-xl hover:border-emerald-500 hover:-translate-y-1 active:scale-95 p-4"
+                    >
+                      <h3 className="font-bold text-base mb-2 line-clamp-2 min-h-[3rem]">
                         {product.name}
                       </h3>
-                      <p className="text-2xl font-black text-emerald-600">
+                      <p className="text-3xl font-black text-emerald-600">
                         S/ {product.price.toFixed(2)}
                       </p>
-                    </div>
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-        </main>
-
-        {/* ZONA 3: TICKET / CARRITO (30%) */}
-        <aside className="w-[30%] bg-slate-50 flex flex-col border-l-2 border-slate-200">
-          {/* Info del Estudiante */}
-          {selectedStudent && (
-            <div className="bg-gradient-to-r from-emerald-500 to-emerald-600 text-white p-4">
-              <div className="flex items-center gap-3 mb-2">
-                <img
-                  src={selectedStudent.photo_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${selectedStudent.full_name}`}
-                  alt={selectedStudent.full_name}
-                  className="w-14 h-14 rounded-full border-2 border-white"
-                />
-                <div className="flex-1">
-                  <h3 className="font-bold text-base">{selectedStudent.full_name}</h3>
-                  <p className="text-xs text-emerald-100">{selectedStudent.grade} - {selectedStudent.section}</p>
+                    </button>
+                  ))}
                 </div>
-                <button
-                  onClick={() => {
-                    setSelectedStudent(null);
-                    setStudentSearch('');
-                    setCart([]);
-                  }}
-                  className="hover:bg-emerald-700 p-2 rounded-lg transition-colors"
-                >
-                  <X className="h-5 w-5" />
-                </button>
-              </div>
-              <div className="flex justify-between items-center bg-emerald-700/50 rounded-lg px-3 py-2">
-                <span className="text-sm">SALDO DISPONIBLE</span>
-                <span className="text-2xl font-black">S/ {selectedStudent.balance.toFixed(2)}</span>
-              </div>
+              )}
             </div>
-          )}
+          </main>
 
-          {/* Items del Carrito */}
-          <div className="flex-1 overflow-y-auto p-3">
-            {cart.length === 0 ? (
-              <div className="flex flex-col items-center justify-center h-full text-gray-400">
-                <ShoppingCart className="h-20 w-20 mb-3 opacity-30" />
-                <p className="font-semibold">Carrito vacío</p>
-                <p className="text-sm text-center mt-1">Toca un producto para agregarlo</p>
-              </div>
-            ) : (
-              <div className="space-y-2">
-                {cart.map((item) => (
-                  <div
-                    key={item.product.id}
-                    className="bg-white border-2 border-gray-200 rounded-xl p-3 flex items-center gap-3"
-                  >
-                    <img
-                      src={item.product.image_url || 'https://via.placeholder.com/80'}
-                      alt={item.product.name}
-                      className="w-16 h-16 object-cover rounded-lg"
-                    />
-                    <div className="flex-1 min-w-0">
-                      <p className="font-bold text-sm line-clamp-1">{item.product.name}</p>
-                      <p className="text-xs text-gray-500">S/ {item.product.price.toFixed(2)} c/u</p>
-                      <p className="text-sm font-bold text-emerald-600 mt-1">
-                        S/ {(item.product.price * item.quantity).toFixed(2)}
-                      </p>
+          {/* ZONA 3: CARRITO */}
+          <aside className="w-[30%] bg-slate-50 flex flex-col border-l-2 border-slate-200">
+            {/* Info del Cliente */}
+            <div className="bg-gradient-to-r from-emerald-500 to-emerald-600 text-white p-4">
+              {clientMode === 'generic' ? (
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <h3 className="font-bold text-lg">CLIENTE GENÉRICO</h3>
+                    <button
+                      onClick={resetClient}
+                      className="hover:bg-emerald-700 p-2 rounded-lg transition-colors"
+                    >
+                      <X className="h-5 w-5" />
+                    </button>
+                  </div>
+                  <p className="text-sm text-emerald-100">Venta al contado</p>
+                </div>
+              ) : selectedStudent && (
+                <div>
+                  <div className="flex items-center gap-3 mb-2">
+                    <div className="flex-1">
+                      <h3 className="font-bold text-base">{selectedStudent.full_name}</h3>
+                      <p className="text-xs text-emerald-100">{selectedStudent.grade} - {selectedStudent.section}</p>
                     </div>
-                    <div className="flex flex-col gap-2">
-                      <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-1">
+                    <button
+                      onClick={resetClient}
+                      className="hover:bg-emerald-700 p-2 rounded-lg transition-colors"
+                    >
+                      <X className="h-5 w-5" />
+                    </button>
+                  </div>
+                  <div className="flex justify-between items-center bg-emerald-700/50 rounded-lg px-3 py-2 mb-2">
+                    <span className="text-sm">SALDO</span>
+                    <span className="text-2xl font-black">S/ {selectedStudent.balance.toFixed(2)}</span>
+                  </div>
+                  
+                  {/* Switch: ¿Estudiante pagará? */}
+                  <div className="flex items-center justify-between bg-emerald-700/30 rounded-lg px-3 py-2">
+                    <Label htmlFor="student-pay" className="text-sm cursor-pointer">
+                      Estudiante pagará en efectivo
+                    </Label>
+                    <Switch
+                      id="student-pay"
+                      checked={studentWillPay}
+                      onCheckedChange={setStudentWillPay}
+                      className="data-[state=checked]:bg-yellow-400"
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Items del Carrito */}
+            <div className="flex-1 overflow-y-auto p-3">
+              {cart.length === 0 ? (
+                <div className="flex flex-col items-center justify-center h-full text-gray-400">
+                  <ShoppingCart className="h-20 w-20 mb-3 opacity-30" />
+                  <p className="font-semibold">Carrito vacío</p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {cart.map((item) => (
+                    <div
+                      key={item.product.id}
+                      className="bg-white border-2 border-gray-200 rounded-xl p-3"
+                    >
+                      <div className="flex justify-between items-start mb-2">
+                        <p className="font-bold text-sm flex-1">{item.product.name}</p>
                         <button
-                          onClick={() => updateQuantity(item.product.id, -1)}
-                          className="w-8 h-8 flex items-center justify-center bg-white rounded-md hover:bg-red-50 hover:text-red-600 transition-colors"
+                          onClick={() => removeFromCart(item.product.id)}
+                          className="text-red-600 hover:bg-red-50 p-1 rounded"
                         >
-                          <Minus className="h-4 w-4" />
-                        </button>
-                        <span className="w-10 text-center font-black text-lg">{item.quantity}</span>
-                        <button
-                          onClick={() => updateQuantity(item.product.id, 1)}
-                          className="w-8 h-8 flex items-center justify-center bg-white rounded-md hover:bg-emerald-50 hover:text-emerald-600 transition-colors"
-                        >
-                          <Plus className="h-4 w-4" />
+                          <Trash2 className="h-4 w-4" />
                         </button>
                       </div>
-                      <button
-                        onClick={() => removeFromCart(item.product.id)}
-                        className="w-full py-1 text-xs text-red-600 hover:bg-red-50 rounded transition-colors"
-                      >
-                        <Trash2 className="h-3 w-3 mx-auto" />
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* Total y Botón Cobrar */}
-          {cart.length > 0 && (
-            <div className="bg-white border-t-2 border-slate-300 p-4 space-y-3">
-              {/* Total */}
-              <div className="bg-slate-900 text-white rounded-xl p-4">
-                <p className="text-sm mb-1">TOTAL A PAGAR</p>
-                <p className="text-5xl font-black">S/ {total.toFixed(2)}</p>
-                <p className="text-xs text-gray-400 mt-2">{cart.length} productos</p>
-              </div>
-
-              {/* Validación */}
-              {selectedStudent && insufficientBalance && (
-                <div className="bg-red-50 border-2 border-red-300 rounded-xl p-3 flex items-center gap-2">
-                  <AlertCircle className="h-5 w-5 text-red-600 flex-shrink-0" />
-                  <div>
-                    <p className="font-bold text-red-800 text-sm">Saldo Insuficiente</p>
-                    <p className="text-xs text-red-600">Falta: S/ {(total - selectedStudent.balance).toFixed(2)}</p>
-                  </div>
-                </div>
-              )}
-
-              {selectedStudent && !insufficientBalance && (
-                <div className="bg-emerald-50 border-2 border-emerald-300 rounded-xl p-3 flex items-center gap-2">
-                  <CheckCircle2 className="h-5 w-5 text-emerald-600 flex-shrink-0" />
-                  <div>
-                    <p className="font-bold text-emerald-800 text-sm">Saldo OK</p>
-                    <p className="text-xs text-emerald-600">
-                      Saldo después: S/ {(selectedStudent.balance - total).toFixed(2)}
-                    </p>
-                  </div>
-                </div>
-              )}
-
-              {/* Botón Cobrar */}
-              <Button
-                onClick={handleCheckout}
-                disabled={!canCheckout() || isProcessing}
-                className={cn(
-                  "w-full h-16 text-xl font-black rounded-xl shadow-lg",
-                  "bg-emerald-500 hover:bg-emerald-600 active:scale-95",
-                  "disabled:bg-gray-300 disabled:cursor-not-allowed"
-                )}
-              >
-                {isProcessing ? (
-                  <span>PROCESANDO...</span>
-                ) : (
-                  <>
-                    <CheckCircle2 className="h-6 w-6 mr-2" />
-                    COBRAR
-                  </>
-                )}
-              </Button>
-            </div>
-          )}
-        </aside>
-      </div>
-
-      {/* MODAL DE TICKET GENERADO */}
-      <Dialog open={showTicketModal} onOpenChange={setShowTicketModal}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-emerald-600">
-              <Receipt className="h-6 w-6" />
-              Venta Realizada
-            </DialogTitle>
-          </DialogHeader>
-
-          {lastTicket && (
-            <div className="space-y-4">
-              {/* Ticket Header */}
-              <div className="bg-slate-900 text-white p-4 rounded-xl text-center">
-                <p className="text-xs text-gray-400 mb-1">TICKET N°</p>
-                <p className="text-3xl font-black tracking-wider">{lastTicket.code}</p>
-                <p className="text-xs text-gray-400 mt-2">
-                  {lastTicket.timestamp.toLocaleDateString('es-PE', { 
-                    day: '2-digit', 
-                    month: '2-digit', 
-                    year: 'numeric',
-                    hour: '2-digit',
-                    minute: '2-digit'
-                  })}
-                </p>
-              </div>
-
-              {/* Estudiante */}
-              <div className="border-2 border-gray-200 rounded-lg p-3">
-                <p className="text-xs text-gray-500 mb-1">CLIENTE</p>
-                <p className="font-bold text-lg">{lastTicket.student}</p>
-              </div>
-
-              {/* Items */}
-              <div className="border-2 border-gray-200 rounded-lg p-3">
-                <p className="text-xs text-gray-500 mb-2">DETALLE DE COMPRA</p>
-                <div className="space-y-2">
-                  {lastTicket.items.map((item, idx) => (
-                    <div key={idx} className="flex justify-between text-sm">
-                      <span className="flex-1">
-                        {item.quantity}x {item.product.name}
-                      </span>
-                      <span className="font-semibold">
-                        S/ {(item.product.price * item.quantity).toFixed(2)}
-                      </span>
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-1">
+                          <button
+                            onClick={() => updateQuantity(item.product.id, -1)}
+                            className="w-8 h-8 flex items-center justify-center bg-white rounded-md hover:bg-red-50 hover:text-red-600"
+                          >
+                            <Minus className="h-4 w-4" />
+                          </button>
+                          <span className="w-10 text-center font-black text-lg">{item.quantity}</span>
+                          <button
+                            onClick={() => updateQuantity(item.product.id, 1)}
+                            className="w-8 h-8 flex items-center justify-center bg-white rounded-md hover:bg-emerald-50 hover:text-emerald-600"
+                          >
+                            <Plus className="h-4 w-4" />
+                          </button>
+                        </div>
+                        <p className="text-lg font-bold text-emerald-600">
+                          S/ {(item.product.price * item.quantity).toFixed(2)}
+                        </p>
+                      </div>
                     </div>
                   ))}
                 </div>
-                <div className="border-t-2 border-gray-300 mt-3 pt-3 flex justify-between font-bold text-lg">
-                  <span>TOTAL</span>
-                  <span className="text-emerald-600">S/ {lastTicket.total.toFixed(2)}</span>
-                </div>
-              </div>
-
-              {/* Acciones */}
-              <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  className="flex-1"
-                  onClick={() => {
-                    toast({
-                      title: '🖨️ Función de Impresión',
-                      description: 'La impresión estará disponible próximamente',
-                    });
-                  }}
-                >
-                  <Printer className="h-4 w-4 mr-2" />
-                  Imprimir
-                </Button>
-                <Button
-                  className="flex-1 bg-emerald-500 hover:bg-emerald-600"
-                  onClick={() => setShowTicketModal(false)}
-                >
-                  <CheckCircle2 className="h-4 w-4 mr-2" />
-                  Continuar
-                </Button>
-              </div>
-
-              <p className="text-xs text-center text-gray-500">
-                ¡Gracias por tu compra! 🎉
-              </p>
+              )}
             </div>
-          )}
+
+            {/* Total y Botón */}
+            {cart.length > 0 && (
+              <div className="bg-white border-t-2 border-slate-300 p-4 space-y-3">
+                <div className="bg-slate-900 text-white rounded-xl p-4">
+                  <p className="text-sm mb-1">TOTAL A PAGAR</p>
+                  <p className="text-5xl font-black">S/ {total.toFixed(2)}</p>
+                  <p className="text-xs text-gray-400 mt-2">{cart.length} productos</p>
+                </div>
+
+                {selectedStudent && !studentWillPay && insufficientBalance && (
+                  <div className="bg-red-50 border-2 border-red-300 rounded-xl p-3 flex items-center gap-2">
+                    <AlertCircle className="h-5 w-5 text-red-600 flex-shrink-0" />
+                    <div>
+                      <p className="font-bold text-red-800 text-sm">Saldo Insuficiente</p>
+                      <p className="text-xs text-red-600">Falta: S/ {(total - selectedStudent.balance).toFixed(2)}</p>
+                    </div>
+                  </div>
+                )}
+
+                <Button
+                  onClick={handleCheckoutClick}
+                  disabled={!canCheckout() || isProcessing}
+                  className="w-full h-20 text-2xl font-black rounded-xl shadow-lg bg-emerald-500 hover:bg-emerald-600 active:scale-95 disabled:bg-gray-300"
+                >
+                  {isProcessing ? 'PROCESANDO...' : 'COBRAR'}
+                </Button>
+              </div>
+            )}
+          </aside>
+        </div>
+      )}
+
+      {/* MODAL DE PAGO (Solo Cliente Genérico) */}
+      <Dialog open={showPaymentDialog} onOpenChange={setShowPaymentDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Opciones de Pago</DialogTitle>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            <div>
+              <Label className="mb-2 block">Método de Pago</Label>
+              <Select value={paymentMethod} onValueChange={(v: any) => setPaymentMethod(v)}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="efectivo">Efectivo</SelectItem>
+                  <SelectItem value="yape">Yape/Plin</SelectItem>
+                  <SelectItem value="tarjeta">Tarjeta</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <Label className="mb-2 block">Tipo de Documento</Label>
+              <Select value={documentType} onValueChange={(v: any) => setDocumentType(v)}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ticket">Ticket</SelectItem>
+                  <SelectItem value="boleta">Boleta</SelectItem>
+                  <SelectItem value="factura">Factura</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <Button
+              onClick={processCheckout}
+              disabled={isProcessing}
+              className="w-full h-14 text-xl font-bold"
+            >
+              {isProcessing ? 'Procesando...' : 'Confirmar Pago'}
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
+
+      {/* TICKET TÉRMICO 80MM (Solo para impresión) */}
+      {showTicketPrint && ticketData && (
+        <div className="hidden print:block">
+          <style>{`
+            @media print {
+              @page {
+                size: 80mm auto;
+                margin: 0;
+              }
+              body {
+                width: 80mm;
+                margin: 0;
+                padding: 0;
+              }
+            }
+          `}</style>
+          <div style={{ width: '80mm', fontFamily: 'monospace', fontSize: '12px', padding: '10px' }}>
+            <div style={{ textAlign: 'center', marginBottom: '10px' }}>
+              <h2 style={{ margin: '0', fontSize: '16px', fontWeight: 'bold' }}>LIMA CAFÉ 28</h2>
+              <p style={{ margin: '2px 0', fontSize: '10px' }}>Kiosco Escolar</p>
+              <p style={{ margin: '2px 0', fontSize: '10px' }}>RUC: 20XXXXXXXXX</p>
+              <p style={{ margin: '2px 0', fontSize: '10px' }}>──────────────────────</p>
+            </div>
+
+            <div style={{ marginBottom: '10px' }}>
+              <p style={{ margin: '2px 0' }}><strong>TICKET:</strong> {ticketData.code}</p>
+              <p style={{ margin: '2px 0' }}><strong>FECHA:</strong> {ticketData.timestamp.toLocaleDateString('es-PE')} {ticketData.timestamp.toLocaleTimeString('es-PE')}</p>
+              <p style={{ margin: '2px 0' }}><strong>CAJERO:</strong> {ticketData.cashierEmail}</p>
+              <p style={{ margin: '2px 0' }}><strong>CLIENTE:</strong> {ticketData.clientName}</p>
+              {ticketData.documentType !== 'ticket' && (
+                <p style={{ margin: '2px 0' }}><strong>DOC:</strong> {ticketData.documentType.toUpperCase()}</p>
+              )}
+            </div>
+
+            <p style={{ margin: '10px 0', fontSize: '10px' }}>──────────────────────</p>
+
+            <div style={{ marginBottom: '10px' }}>
+              {ticketData.items.map((item: CartItem, idx: number) => (
+                <div key={idx} style={{ marginBottom: '8px' }}>
+                  <p style={{ margin: '0', fontWeight: 'bold' }}>{item.product.name}</p>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span>{item.quantity} x S/ {item.product.price.toFixed(2)}</span>
+                    <span style={{ fontWeight: 'bold' }}>S/ {(item.product.price * item.quantity).toFixed(2)}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <p style={{ margin: '10px 0', fontSize: '10px' }}>──────────────────────</p>
+
+            <div style={{ textAlign: 'right', marginBottom: '10px' }}>
+              <p style={{ margin: '4px 0', fontSize: '16px', fontWeight: 'bold' }}>
+                TOTAL: S/ {ticketData.total.toFixed(2)}
+              </p>
+              {ticketData.paymentMethod && (
+                <p style={{ margin: '2px 0', fontSize: '10px' }}>
+                  Pago: {ticketData.paymentMethod.toUpperCase()}
+                </p>
+              )}
+              {ticketData.newBalance !== undefined && (
+                <p style={{ margin: '2px 0', fontSize: '10px' }}>
+                  Saldo restante: S/ {ticketData.newBalance.toFixed(2)}
+                </p>
+              )}
+            </div>
+
+            <div style={{ textAlign: 'center', marginTop: '15px' }}>
+              <p style={{ margin: '2px 0', fontSize: '10px' }}>¡Gracias por su compra!</p>
+              <p style={{ margin: '2px 0', fontSize: '10px' }}>──────────────────────</p>
+            </div>
+          </div>
+
+          {/* Botón para continuar (no se imprime) */}
+          <div className="print:hidden fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-xl p-6 max-w-md">
+              <h3 className="text-xl font-bold mb-4 text-center">Ticket Generado</h3>
+              <p className="text-center mb-6">El ticket se imprimirá automáticamente</p>
+              <Button
+                onClick={handlePrintAndContinue}
+                className="w-full h-14 text-lg font-bold bg-emerald-500 hover:bg-emerald-600"
+              >
+                <Printer className="h-5 w-5 mr-2" />
+                Imprimir y Continuar
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
