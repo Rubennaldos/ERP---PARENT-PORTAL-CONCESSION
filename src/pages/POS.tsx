@@ -451,12 +451,29 @@ const POS = () => {
   };
 
   const handleContinue = () => {
+    console.log('🔘 BOTÓN CONTINUAR PRESIONADO');
     console.log('🔄 CONTINUANDO - Reseteando POS para siguiente cliente');
+    console.log('Estado antes del reset:', {
+      clientMode,
+      selectedStudent: selectedStudent?.full_name,
+      cart: cart.length,
+      showTicketPrint
+    });
+    
     // Reset y preparar para siguiente cliente
     setShowTicketPrint(false);
     setTicketData(null);
     resetClient();
+    
     console.log('✅ POS reseteado - Listo para nuevo cliente');
+    
+    // Forzar verificación del estado después del reset
+    setTimeout(() => {
+      console.log('Estado después del reset:', {
+        clientMode,
+        showTicketPrint
+      });
+    }, 100);
   };
 
   const handleLogout = async () => {
