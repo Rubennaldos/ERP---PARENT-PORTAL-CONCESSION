@@ -25,6 +25,7 @@ import { supabase } from '@/lib/supabase';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { AddStudentModal } from '@/components/AddStudentModal';
 
 interface Student {
   id: string;
@@ -53,6 +54,9 @@ const Index = () => {
   const [students, setStudents] = useState<Student[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
+  
+  // Estado para Modal de Agregar Estudiante
+  const [showAddStudent, setShowAddStudent] = useState(false);
   
   // Estados para Modal de Recarga
   const [rechargeAmount, setRechargeAmount] = useState('');
@@ -295,7 +299,7 @@ const Index = () => {
               <p className="text-gray-600 mb-6 max-w-md mx-auto">
                 Comienza agregando a tus hijos para gestionar sus cuentas del kiosco escolar
               </p>
-              <Button size="lg" className="shadow-lg">
+              <Button size="lg" className="shadow-lg" onClick={() => setShowAddStudent(true)}>
                 <Plus className="h-5 w-5 mr-2" />
                 Registrar mi Primer Estudiante
               </Button>
@@ -553,6 +557,14 @@ const Index = () => {
             </div>
           </DialogContent>
         </Dialog>
+
+        {/* Modal de Agregar Estudiante */}
+        <AddStudentModal
+          open={showAddStudent}
+          onOpenChange={setShowAddStudent}
+          onStudentAdded={fetchStudents}
+          parentId={user?.id || ''}
+        />
       </main>
     </div>
   );
