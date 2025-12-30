@@ -91,6 +91,7 @@ const POS = () => {
   const [paymentMethod, setPaymentMethod] = useState<'efectivo' | 'yape' | 'tarjeta'>('efectivo');
   const [documentType, setDocumentType] = useState<'ticket' | 'boleta' | 'factura'>('ticket');
   const [showPaymentDialog, setShowPaymentDialog] = useState(false);
+  const [showConfirmDialog, setShowConfirmDialog] = useState(false); // NUEVO: confirmación
 
   // Estado de ticket generado
   const [showTicketPrint, setShowTicketPrint] = useState(false);
@@ -246,6 +247,13 @@ const POS = () => {
   const handleCheckoutClick = () => {
     if (!canCheckout()) return;
 
+    // Siempre mostrar modal de confirmación primero
+    setShowConfirmDialog(true);
+  };
+
+  const handleConfirmCheckout = () => {
+    setShowConfirmDialog(false);
+    
     // Si es cliente genérico, mostrar opciones de pago
     if (clientMode === 'generic') {
       setShowPaymentDialog(true);
@@ -390,10 +398,11 @@ const POS = () => {
     }
   };
 
-  const handlePrintAndContinue = () => {
-    // Imprimir ticket
+  const handlePrintTicket = () => {
     window.print();
-    
+  };
+
+  const handleContinue = () => {
     // Reset y preparar para siguiente cliente
     setShowTicketPrint(false);
     setTicketData(null);
@@ -700,36 +709,144 @@ const POS = () => {
             </div>
 
             {/* Total y Botón */}
-            {cart.length > 0 && (
-              <div className="bg-white border-t-2 border-slate-300 p-4 space-y-3">
-                <div className="bg-slate-900 text-white rounded-xl p-4">
-                  <p className="text-sm mb-1">TOTAL A PAGAR</p>
-                  <p className="text-5xl font-black">S/ {total.toFixed(2)}</p>
-                  <p className="text-xs text-gray-400 mt-2">{cart.length} productos</p>
-                </div>
-
-                {selectedStudent && !studentWillPay && insufficientBalance && (
-                  <div className="bg-red-50 border-2 border-red-300 rounded-xl p-3 flex items-center gap-2">
-                    <AlertCircle className="h-5 w-5 text-red-600 flex-shrink-0" />
-                    <div>
-                      <p className="font-bold text-red-800 text-sm">Saldo Insuficiente</p>
-                      <p className="text-xs text-red-600">Falta: S/ {(total - selectedStudent.balance).toFixed(2)}</p>
-                    </div>
+            <div className="bg-white border-t-2 border-slate-300 p-4 space-y-3">
+              {cart.length > 0 ? (
+                <>
+                  <div className="bg-slate-900 text-white rounded-xl p-4">
+                    <p className="text-sm mb-1">TOTAL A PAGAR</p>
+                    <p className="text-5xl font-black">S/ {total.toFixed(2)}</p>
+                    <p className="text-xs text-gray-400 mt-2">{cart.length} productos</p>
                   </div>
-                )}
 
-                <Button
-                  onClick={handleCheckoutClick}
-                  disabled={!canCheckout() || isProcessing}
-                  className="w-full h-20 text-2xl font-black rounded-xl shadow-lg bg-emerald-500 hover:bg-emerald-600 active:scale-95 disabled:bg-gray-300"
-                >
-                  {isProcessing ? 'PROCESANDO...' : 'COBRAR'}
-                </Button>
-              </div>
-            )}
+                  {selectedStudent && !studentWillPay && insufficientBalance && (
+                    <div className="bg-red-50 border-2 border-red-300 rounded-xl p-3 flex items-center gap-2">
+                      <AlertCircle className="h-5 w-5 text-red-600 flex-shrink-0" />
+                      <div>
+                        <p className="font-bold text-red-800 text-sm">Saldo Insuficiente</p>
+                        <p className="text-xs text-red-600">Falta: S/ {(total - selectedStudent.balance).toFixed(2)}</p>
+                      </div>
+                    </div>
+                  )}
+
+                  <Button
+                    onClick={handleCheckoutClick}
+                    disabled={!canCheckout() || isProcessing}
+                    className="w-full h-20 text-2xl font-black rounded-xl shadow-lg bg-emerald-500 hover:bg-emerald-600 active:scale-95 disabled:bg-gray-300"
+                  >
+                    {isProcessing ? 'PROCESANDO...' : 'COBRAR'}
+                  </Button>
+                </>
+              ) : (
+                <div className="text-center py-8 text-gray-400">
+                  <p className="text-sm">Agrega productos para continuar</p>
+                </div>
+              )}
+            </div>
           </aside>
         </div>
       )}
+
+      {/* MODAL DE CONFIRMACIÓN (ANTES DE COBRAR) */}
+      <Dialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="text-2xl flex items-center gap-2">
+              <CheckCircle2 className="h-6 w-6 text-emerald-600" />
+              Confirmar Compra
+            </DialogTitle>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            {/* Info del Cliente */}
+            <div className="bg-blue-50 border-2 border-blue-200 rounded-xl p-4">
+              <p className="text-sm text-blue-600 font-semibold mb-1">CLIENTE</p>
+              <p className="text-xl font-bold text-blue-900">
+                {clientMode === 'generic' 
+                  ? 'CLIENTE GENÉRICO' 
+                  : selectedStudent?.full_name}
+              </p>
+              {selectedStudent && (
+                <p className="text-sm text-blue-700 mt-1">
+                  {selectedStudent.grade} - {selectedStudent.section}
+                </p>
+              )}
+            </div>
+
+            {/* Detalle de Productos */}
+            <div className="border-2 border-gray-200 rounded-xl p-4">
+              <p className="text-sm text-gray-600 font-semibold mb-3">DETALLE DE COMPRA</p>
+              <div className="space-y-2 max-h-64 overflow-y-auto">
+                {cart.map((item, idx) => (
+                  <div key={idx} className="flex justify-between items-center py-2 border-b border-gray-100 last:border-0">
+                    <div className="flex-1">
+                      <p className="font-semibold text-sm">{item.product.name}</p>
+                      <p className="text-xs text-gray-500">
+                        {item.quantity} x S/ {item.product.price.toFixed(2)}
+                      </p>
+                    </div>
+                    <p className="font-bold text-emerald-600">
+                      S/ {(item.product.price * item.quantity).toFixed(2)}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Total */}
+            <div className="bg-slate-900 text-white rounded-xl p-4">
+              <div className="flex justify-between items-center">
+                <span className="text-lg font-semibold">TOTAL A PAGAR</span>
+                <span className="text-3xl font-black">S/ {getTotal().toFixed(2)}</span>
+              </div>
+              <p className="text-xs text-gray-400 mt-2">{cart.length} productos</p>
+            </div>
+
+            {/* Saldo (si es estudiante) */}
+            {selectedStudent && (
+              <div className="bg-emerald-50 border-2 border-emerald-200 rounded-xl p-3">
+                <div className="flex justify-between items-center">
+                  <div>
+                    <p className="text-sm text-emerald-700">Saldo Actual</p>
+                    <p className="text-xl font-bold text-emerald-900">
+                      S/ {selectedStudent.balance.toFixed(2)}
+                    </p>
+                  </div>
+                  {!studentWillPay && (
+                    <div className="text-right">
+                      <p className="text-sm text-emerald-700">Saldo Después</p>
+                      <p className="text-xl font-bold text-emerald-900">
+                        S/ {(selectedStudent.balance - getTotal()).toFixed(2)}
+                      </p>
+                    </div>
+                  )}
+                </div>
+                {studentWillPay && (
+                  <p className="text-xs text-amber-700 mt-2 font-semibold">
+                    ⚠️ Estudiante pagará en efectivo (no se descuenta saldo)
+                  </p>
+                )}
+              </div>
+            )}
+
+            {/* Botones */}
+            <div className="flex gap-3">
+              <Button
+                variant="outline"
+                onClick={() => setShowConfirmDialog(false)}
+                className="flex-1 h-12"
+              >
+                Cancelar
+              </Button>
+              <Button
+                onClick={handleConfirmCheckout}
+                className="flex-1 h-12 bg-emerald-500 hover:bg-emerald-600 text-white font-bold"
+              >
+                Confirmar Compra
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* MODAL DE PAGO (Solo Cliente Genérico) */}
       <Dialog open={showPaymentDialog} onOpenChange={setShowPaymentDialog}>
@@ -852,16 +969,36 @@ const POS = () => {
 
           {/* Botón para continuar (no se imprime) */}
           <div className="print:hidden fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-xl p-6 max-w-md">
-              <h3 className="text-xl font-bold mb-4 text-center">Ticket Generado</h3>
-              <p className="text-center mb-6">El ticket se imprimirá automáticamente</p>
-              <Button
-                onClick={handlePrintAndContinue}
-                className="w-full h-14 text-lg font-bold bg-emerald-500 hover:bg-emerald-600"
-              >
-                <Printer className="h-5 w-5 mr-2" />
-                Imprimir y Continuar
-              </Button>
+            <div className="bg-white rounded-xl p-6 max-w-md w-full mx-4">
+              <h3 className="text-2xl font-bold mb-2 text-center text-emerald-600">
+                ✅ Venta Realizada
+              </h3>
+              <p className="text-center text-gray-600 mb-6">
+                Ticket generado correctamente
+              </p>
+              
+              {/* Botones de acción */}
+              <div className="space-y-3">
+                <Button
+                  onClick={handlePrintTicket}
+                  className="w-full h-16 text-xl font-bold bg-blue-500 hover:bg-blue-600"
+                >
+                  <Printer className="h-6 w-6 mr-2" />
+                  🖨️ Imprimir Ticket
+                </Button>
+                
+                <Button
+                  onClick={handleContinue}
+                  className="w-full h-16 text-xl font-bold bg-emerald-500 hover:bg-emerald-600"
+                >
+                  <CheckCircle2 className="h-6 w-6 mr-2" />
+                  Continuar (Siguiente Cliente)
+                </Button>
+              </div>
+
+              <p className="text-xs text-center text-gray-500 mt-4">
+                Presiona "Imprimir" para generar el ticket físico
+              </p>
             </div>
           </div>
         </div>
