@@ -573,12 +573,12 @@ const POS = () => {
                     <button
                       key={product.id}
                       onClick={() => addToCart(product)}
-                      className="group bg-white border-2 rounded-2xl overflow-hidden transition-all hover:shadow-xl hover:border-emerald-500 hover:-translate-y-1 active:scale-95 p-4"
+                      className="group bg-white border-2 rounded-2xl overflow-hidden transition-all hover:shadow-xl hover:border-emerald-500 hover:-translate-y-1 active:scale-95 p-4 min-h-[140px] flex flex-col justify-center"
                     >
-                      <h3 className="font-bold text-base mb-2 line-clamp-2 min-h-[3rem]">
+                      <h3 className="font-black text-xl mb-3 line-clamp-2 leading-tight">
                         {product.name}
                       </h3>
-                      <p className="text-3xl font-black text-emerald-600">
+                      <p className="text-lg font-semibold text-emerald-600">
                         S/ {product.price.toFixed(2)}
                       </p>
                     </button>
