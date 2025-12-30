@@ -7,6 +7,8 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
+import Register from "./pages/Register";
+import Onboarding from "./pages/Onboarding";
 import SuperAdmin from "./pages/SuperAdmin";
 import Dashboard from "./pages/Dashboard";
 import Admin from "./pages/Admin";
@@ -24,8 +26,19 @@ const App = () => (
       <BrowserRouter>
         <AuthProvider>
           <Routes>
-            {/* Ruta pública de autenticación */}
+            {/* Rutas públicas */}
             <Route path="/auth" element={<Auth />} />
+            <Route path="/register" element={<Register />} />
+            
+            {/* Onboarding - Solo para padres nuevos */}
+            <Route
+              path="/onboarding"
+              element={
+                <ProtectedRoute allowedRoles={['parent']}>
+                  <Onboarding />
+                </ProtectedRoute>
+              }
+            />
             
             {/* Dashboard de Padres - Solo para rol 'parent' */}
             <Route
