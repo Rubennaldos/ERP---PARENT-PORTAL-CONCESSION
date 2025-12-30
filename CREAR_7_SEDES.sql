@@ -7,14 +7,14 @@
 -- DELETE FROM schools WHERE code IN ('NRD', 'SGV', 'SGM', 'LSG', 'JLB', 'MC1', 'MC2');
 
 -- 2. Crear las 7 sedes
-INSERT INTO schools (id, name, code, created_at) VALUES
-(gen_random_uuid(), 'Nordic', 'NRD', now()),
-(gen_random_uuid(), 'Saint George Villa', 'SGV', now()),
-(gen_random_uuid(), 'Saint George Miraflores', 'SGM', now()),
-(gen_random_uuid(), 'Little Saint George', 'LSG', now()),
-(gen_random_uuid(), 'Jean LeBouch', 'JLB', now()),
-(gen_random_uuid(), 'Maristas Champagnat 1', 'MC1', now()),
-(gen_random_uuid(), 'Maristas Champagnat 2', 'MC2', now());
+INSERT INTO schools (id, name, code, is_active, created_at) VALUES
+(gen_random_uuid(), 'Nordic', 'NRD', true, now()),
+(gen_random_uuid(), 'Saint George Villa', 'SGV', true, now()),
+(gen_random_uuid(), 'Saint George Miraflores', 'SGM', true, now()),
+(gen_random_uuid(), 'Little Saint George', 'LSG', true, now()),
+(gen_random_uuid(), 'Jean LeBouch', 'JLB', true, now()),
+(gen_random_uuid(), 'Maristas Champagnat 1', 'MC1', true, now()),
+(gen_random_uuid(), 'Maristas Champagnat 2', 'MC2', true, now());
 
 -- 3. Verificar que se crearon correctamente
 SELECT * FROM schools ORDER BY name;
