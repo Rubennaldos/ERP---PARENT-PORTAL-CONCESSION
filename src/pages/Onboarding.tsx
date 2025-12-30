@@ -140,6 +140,11 @@ export default function Onboarding() {
     setLoading(true);
 
     try {
+      // Validar que tengamos school_id
+      if (!schoolId) {
+        throw new Error('No se pudo obtener el colegio. Por favor, intenta de nuevo.');
+      }
+
       // Insertar cada estudiante
       for (const student of students) {
         // 1. Crear estudiante
@@ -147,6 +152,7 @@ export default function Onboarding() {
           .from('students')
           .insert({
             parent_id: user?.id,
+            school_id: schoolId, // Agregar el school_id del padre
             full_name: student.full_name,
             name: student.full_name,
             grade: student.grade,

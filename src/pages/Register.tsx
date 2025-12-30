@@ -155,7 +155,21 @@ export default function Register() {
         throw new Error('No se pudo crear el usuario');
       }
 
-      // 2. Crear perfil de padre
+      // IMPORTANTE: Esperar un poco para que Supabase procese la creación
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
+      // 2. Actualizar perfil en profiles (rol parent)
+      const { error: roleError } = await supabase
+        .from('profiles')
+        .upsert({
+          id: authData.user.id,
+          email: authData.user.email,
+          role: 'parent',
+        }, { onConflict: 'id' });
+
+      if (roleError) console.error('Error setting role:', roleError);
+
+      // 3. Crear perfil de padre
       const { error: profileError } = await supabase
         .from('parent_profiles')
         .insert({
@@ -172,7 +186,7 @@ export default function Register() {
 
       if (profileError) throw profileError;
 
-      // 3. Guardar términos aceptados
+      // 4. Guardar términos aceptados
       const { error: termsError } = await supabase
         .from('terms_and_conditions')
         .insert({
@@ -189,6 +203,9 @@ export default function Register() {
         description: 'Ahora registra a tus hijos',
       });
 
+      // Esperar otro segundo antes de redirigir
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
       navigate('/onboarding');
 
     } catch (error: any) {
