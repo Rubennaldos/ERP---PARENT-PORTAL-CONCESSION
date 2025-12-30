@@ -35,7 +35,6 @@ interface Product {
   price: number;
   category: string;
   image_url: string | null;
-  stock: number;
   is_active: boolean;
 }
 
