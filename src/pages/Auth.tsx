@@ -9,7 +9,6 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
@@ -26,11 +25,10 @@ type AuthFormValues = z.infer<typeof authSchema>;
 
 export default function Auth() {
   const [isLoading, setIsLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState('login');
   const [userType, setUserType] = useState<'parent' | 'staff'>('parent');
   const [justLoggedIn, setJustLoggedIn] = useState(false);
   const [showSplash, setShowSplash] = useState(true);
-  const { signIn, signUp, user, loading, signOut } = useAuth();
+  const { signIn, user, loading, signOut } = useAuth();
   const { role, loading: roleLoading, isParent, isStaff, getDefaultRoute } = useRole();
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -98,65 +96,34 @@ export default function Auth() {
   }, [justLoggedIn, roleLoading, role, userType, isParent, isStaff, getDefaultRoute, navigate, signOut, toast]);
 
   const onSubmit = async (values: AuthFormValues) => {
-    if (activeTab === 'login') {
-      setIsLoading(true);
-      try {
-        const { error } = await signIn(values.email, values.password);
-        if (error) {
-          let message = 'Error al iniciar sesión';
-          if (error.message.includes('Invalid login credentials')) {
-            message = 'Credenciales inválidas. Verifica tu email y contraseña.';
-          } else if (error.message.includes('Email not confirmed')) {
-            message = 'Por favor confirma tu email antes de iniciar sesión.';
-          }
-          toast({
-            variant: 'destructive',
-            title: 'Error',
-            description: message,
-          });
-          setIsLoading(false);
-        } else {
-          // Login exitoso, marcar para validación
-          setJustLoggedIn(true);
-          // El useEffect se encargará de validar y redirigir
+    setIsLoading(true);
+    try {
+      const { error } = await signIn(values.email, values.password);
+      if (error) {
+        let message = 'Error al iniciar sesión';
+        if (error.message.includes('Invalid login credentials')) {
+          message = 'Credenciales inválidas. Verifica tu email y contraseña.';
+        } else if (error.message.includes('Email not confirmed')) {
+          message = 'Por favor confirma tu email antes de iniciar sesión.';
         }
-      } catch (err) {
         toast({
           variant: 'destructive',
           title: 'Error',
-          description: 'Error inesperado al iniciar sesión',
+          description: message,
         });
         setIsLoading(false);
+      } else {
+        // Login exitoso, marcar para validación
+        setJustLoggedIn(true);
+        // El useEffect se encargará de validar y redirigir
       }
-    } else {
-      setIsLoading(true);
-      try {
-        const { error } = await signUp(values.email, values.password);
-        if (error) {
-          let message = 'Error al crear la cuenta';
-          if (error.message.includes('User already registered')) {
-            message = 'Este email ya está registrado. Intenta iniciar sesión.';
-          } else if (error.message.includes('Password')) {
-            message = 'La contraseña no cumple con los requisitos de seguridad.';
-          } else {
-            message = error.message;
-          }
-          toast({
-            variant: 'destructive',
-            title: 'Error de Registro',
-            description: message,
-          });
-        } else {
-          toast({
-            title: 'Cuenta creada',
-            description: 'Revisa tu email para confirmar tu cuenta.',
-          });
-          form.reset();
-          setActiveTab('login');
-        }
-      } finally {
-        setIsLoading(false);
-      }
+    } catch (err) {
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'Error inesperado al iniciar sesión',
+      });
+      setIsLoading(false);
     }
   };
 
@@ -196,174 +163,100 @@ export default function Auth() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-              <TabsList className="grid w-full grid-cols-2 mb-6 bg-muted/50">
-                <TabsTrigger 
-                  value="login" 
-                  className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
-                >
-                  Iniciar Sesión
-                </TabsTrigger>
-                <TabsTrigger 
-                  value="register"
-                  className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
-                >
-                  Registrarse
-                </TabsTrigger>
-              </TabsList>
-
-              <Form {...form}>
-                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-                  <TabsContent value="login" className="space-y-4 mt-0">
-                    <FormField
-                      control={form.control}
-                      name="email"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel className="text-foreground">Email</FormLabel>
-                          <FormControl>
-                            <Input
-                              type="email"
-                              placeholder="correo@ejemplo.com"
-                              autoComplete="email"
-                              className="bg-background/50 border-border focus:border-primary"
-                              {...field}
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name="password"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel className="text-foreground">Contraseña</FormLabel>
-                          <FormControl>
-                            <Input
-                              type="password"
-                              placeholder="••••••••"
-                              autoComplete="current-password"
-                              className="bg-background/50 border-border focus:border-primary"
-                              {...field}
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    
-                    {/* Selector de Tipo de Usuario */}
-                    <div className="space-y-3 pt-2">
-                      <Label className="font-medium text-foreground">Tipo de acceso:</Label>
-                      <RadioGroup 
-                        value={userType} 
-                        onValueChange={(value: 'parent' | 'staff') => setUserType(value)} 
-                        className="grid grid-cols-1 gap-3"
+            <Form {...form}>
+              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                <FormField
+                  control={form.control}
+                  name="email"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-foreground">Email</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="email"
+                          placeholder="correo@ejemplo.com"
+                          autoComplete="email"
+                          className="bg-background/50 border-border focus:border-primary"
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="password"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-foreground">Contraseña</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="password"
+                          placeholder="••••••••"
+                          autoComplete="current-password"
+                          className="bg-background/50 border-border focus:border-primary"
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                {/* Selector de Tipo de Usuario */}
+                <div className="space-y-3 pt-2">
+                  <Label className="font-medium text-foreground">Tipo de acceso:</Label>
+                  <RadioGroup 
+                    value={userType} 
+                    onValueChange={(value: 'parent' | 'staff') => setUserType(value)} 
+                    className="grid grid-cols-1 gap-3"
+                  >
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="parent" id="parent-type" className="border-primary text-primary" />
+                      <Label 
+                        htmlFor="parent-type" 
+                        className="flex flex-col flex-1 rounded-lg border border-border bg-background/50 p-4 hover:bg-muted/50 cursor-pointer transition-colors"
                       >
-                        <div className="flex items-center space-x-2">
-                          <RadioGroupItem value="parent" id="parent-type" className="border-primary text-primary" />
-                          <Label 
-                            htmlFor="parent-type" 
-                            className="flex flex-col flex-1 rounded-lg border border-border bg-background/50 p-4 hover:bg-muted/50 cursor-pointer transition-colors"
-                          >
-                            <div className="flex items-center gap-2 w-full">
-                              <User className="h-4 w-4 text-primary" />
-                              <span className="font-medium text-foreground">Padre de Familia</span>
-                            </div>
-                            <p className="text-sm text-muted-foreground mt-1">Ver información de mis hijos</p>
-                          </Label>
+                        <div className="flex items-center gap-2 w-full">
+                          <User className="h-4 w-4 text-primary" />
+                          <span className="font-medium text-foreground">Padre de Familia</span>
                         </div>
-                        <div className="flex items-center space-x-2">
-                          <RadioGroupItem value="staff" id="staff-type" className="border-primary text-primary" />
-                          <Label 
-                            htmlFor="staff-type" 
-                            className="flex flex-col flex-1 rounded-lg border border-border bg-background/50 p-4 hover:bg-muted/50 cursor-pointer transition-colors"
-                          >
-                            <div className="flex items-center gap-2 w-full">
-                              <ShieldCheck className="h-4 w-4 text-primary" />
-                              <span className="font-medium text-foreground">Personal Administrativo</span>
-                            </div>
-                            <p className="text-sm text-muted-foreground mt-1">Acceso a panel de gestión</p>
-                          </Label>
-                        </div>
-                      </RadioGroup>
+                        <p className="text-sm text-muted-foreground mt-1">Ver información de mis hijos</p>
+                      </Label>
                     </div>
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="staff" id="staff-type" className="border-primary text-primary" />
+                      <Label 
+                        htmlFor="staff-type" 
+                        className="flex flex-col flex-1 rounded-lg border border-border bg-background/50 p-4 hover:bg-muted/50 cursor-pointer transition-colors"
+                      >
+                        <div className="flex items-center gap-2 w-full">
+                          <ShieldCheck className="h-4 w-4 text-primary" />
+                          <span className="font-medium text-foreground">Personal Administrativo</span>
+                        </div>
+                        <p className="text-sm text-muted-foreground mt-1">Acceso a panel de gestión</p>
+                      </Label>
+                    </div>
+                  </RadioGroup>
+                </div>
 
-                    <Button 
-                      type="submit" 
-                      className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-medium" 
-                      disabled={isLoading}
-                    >
-                      {isLoading ? (
-                        <>
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          Iniciando sesión...
-                        </>
-                      ) : (
-                        'Iniciar Sesión'
-                      )}
-                    </Button>
-                  </TabsContent>
-
-                  <TabsContent value="register" className="space-y-4 mt-0">
-                    <FormField
-                      control={form.control}
-                      name="email"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel className="text-foreground">Email</FormLabel>
-                          <FormControl>
-                            <Input
-                              type="email"
-                              placeholder="correo@ejemplo.com"
-                              autoComplete="email"
-                              className="bg-background/50 border-border focus:border-primary"
-                              {...field}
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name="password"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel className="text-foreground">Contraseña</FormLabel>
-                          <FormControl>
-                            <Input
-                              type="password"
-                              placeholder="Mínimo 6 caracteres"
-                              autoComplete="new-password"
-                              className="bg-background/50 border-border focus:border-primary"
-                              {...field}
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <Button 
-                      type="submit" 
-                      className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-medium" 
-                      disabled={isLoading}
-                    >
-                      {isLoading ? (
-                        <>
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          Creando cuenta...
-                        </>
-                      ) : (
-                        'Crear Cuenta'
-                      )}
-                    </Button>
-                  </TabsContent>
-                </form>
-              </Form>
-            </Tabs>
+                <Button 
+                  type="submit" 
+                  className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-medium" 
+                  disabled={isLoading}
+                >
+                  {isLoading ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Iniciando sesión...
+                    </>
+                  ) : (
+                    'Iniciar Sesión'
+                  )}
+                </Button>
+              </form>
+            </Form>
           </CardContent>
         </Card>
       </main>
