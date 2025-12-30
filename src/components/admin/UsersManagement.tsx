@@ -91,6 +91,7 @@ export function UsersManagement() {
   const [deletingUser, setDeletingUser] = useState<UserWithProfile | null>(null);
   const [resetPasswordUser, setResetPasswordUser] = useState<UserWithProfile | null>(null);
   const [newPassword, setNewPassword] = useState('');
+  const [editingRole, setEditingRole] = useState<string>('');
 
   // Estadísticas
   const [stats, setStats] = useState({
@@ -160,6 +161,35 @@ export function UsersManagement() {
       });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleUpdateRole = async () => {
+    if (!editingUser || !editingRole) return;
+
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ role: editingRole })
+        .eq('id', editingUser.id);
+
+      if (error) throw error;
+
+      toast({
+        title: '✅ Rol Actualizado',
+        description: `El rol de ${editingUser.email} se cambió a ${editingRole}`,
+      });
+
+      setEditingUser(null);
+      setEditingRole('');
+      fetchUsers();
+    } catch (error: any) {
+      console.error('Error updating role:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'No se pudo actualizar el rol',
+      });
     }
   };
 
@@ -421,6 +451,18 @@ export function UsersManagement() {
                         <Button
                           variant="ghost"
                           size="sm"
+                          onClick={() => {
+                            setEditingUser(user);
+                            setEditingRole(user.profile?.role || '');
+                          }}
+                          disabled={user.profile?.role === 'superadmin'}
+                          title="Cambiar rol"
+                        >
+                          <Edit2 className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
                           onClick={() => setResetPasswordUser(user)}
                           title="Cambiar contraseña"
                         >
@@ -444,6 +486,47 @@ export function UsersManagement() {
           )}
         </CardContent>
       </Card>
+
+      {/* Dialog: Editar Rol */}
+      <Dialog open={!!editingUser} onOpenChange={(open) => !open && setEditingUser(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Cambiar Rol de Usuario</DialogTitle>
+            <DialogDescription>
+              Usuario: <strong>{editingUser?.email}</strong>
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="role-select">Nuevo Rol</Label>
+              <Select value={editingRole} onValueChange={setEditingRole}>
+                <SelectTrigger id="role-select">
+                  <SelectValue placeholder="Selecciona un rol" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="parent">Padre de Familia</SelectItem>
+                  <SelectItem value="admin_general">Admin General</SelectItem>
+                  <SelectItem value="pos">Cajero (POS)</SelectItem>
+                  <SelectItem value="kitchen">Cocina (Kitchen)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+              <p className="text-sm text-yellow-800">
+                <strong>⚠️ Importante:</strong> Al cambiar el rol, el usuario tendrá diferentes permisos y acceso a diferentes módulos.
+              </p>
+            </div>
+            <div className="flex gap-2 justify-end">
+              <Button variant="outline" onClick={() => setEditingUser(null)}>
+                Cancelar
+              </Button>
+              <Button onClick={handleUpdateRole} disabled={!editingRole}>
+                Cambiar Rol
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Dialog: Cambiar Contraseña */}
       <Dialog open={!!resetPasswordUser} onOpenChange={(open) => !open && setResetPasswordUser(null)}>
