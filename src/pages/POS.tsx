@@ -188,6 +188,10 @@ const POS = () => {
     setStudentWillPay(false);
     setCart([]);
     setProductSearch('');
+    setSelectedCategory('todos');
+    setShowStudentResults(false);
+    setPaymentMethod('efectivo');
+    setDocumentType('ticket');
   };
 
   const addToCart = (product: Product) => {
