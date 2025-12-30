@@ -4,6 +4,12 @@ import { useRole } from '@/hooks/useRole';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { 
   ShoppingCart, 
   LogOut, 
@@ -17,7 +23,9 @@ import {
   Coffee,
   Cookie,
   UtensilsCrossed,
-  X
+  X,
+  Printer,
+  Receipt
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useToast } from '@/hooks/use-toast';
@@ -64,6 +72,14 @@ const POS = () => {
 
   const [cart, setCart] = useState<CartItem[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [lastTicket, setLastTicket] = useState<{
+    code: string;
+    student: string;
+    items: CartItem[];
+    total: number;
+    timestamp: Date;
+  } | null>(null);
+  const [showTicketModal, setShowTicketModal] = useState(false);
 
   // Cargar productos al inicio
   useEffect(() => {
@@ -201,7 +217,24 @@ const POS = () => {
       const total = getTotal();
       const newBalance = selectedStudent.balance - total;
 
-      // 1. Crear transacción
+      // 🎫 1. GENERAR CORRELATIVO DE TICKET
+      let ticketCode = '';
+      try {
+        const { data: ticketNumber, error: ticketError } = await supabase
+          .rpc('get_next_ticket_number', { p_user_id: user?.id });
+
+        if (ticketError) {
+          console.warn('Error generando correlativo, usando timestamp:', ticketError);
+          ticketCode = `TMP-${Date.now()}`;
+        } else {
+          ticketCode = ticketNumber;
+        }
+      } catch (err) {
+        console.warn('Error en correlativo, usando fallback:', err);
+        ticketCode = `TMP-${Date.now()}`;
+      }
+
+      // 2. Crear transacción con ticket_code
       const { data: transaction, error: transError } = await supabase
         .from('transactions')
         .insert({
@@ -211,13 +244,14 @@ const POS = () => {
           description: `Compra en POS - ${cart.length} items`,
           balance_after: newBalance,
           created_by: user?.id,
+          ticket_code: ticketCode, // ← Correlativo único
         })
         .select()
         .single();
 
       if (transError) throw transError;
 
-      // 2. Crear items de la transacción
+      // 3. Crear items de la transacción
       const items = cart.map(item => ({
         transaction_id: transaction.id,
         product_id: item.product.id,
@@ -233,7 +267,7 @@ const POS = () => {
 
       if (itemsError) throw itemsError;
 
-      // 3. Actualizar saldo del estudiante
+      // 4. Actualizar saldo del estudiante
       const { error: updateError } = await supabase
         .from('students')
         .update({ balance: newBalance })
@@ -241,14 +275,27 @@ const POS = () => {
 
       if (updateError) throw updateError;
 
-      // 4. Éxito
-      toast({
-        title: '✅ Venta Realizada',
-        description: `Nuevo saldo: S/ ${newBalance.toFixed(2)}`,
-        duration: 3000,
+      // 5. Éxito - Guardar ticket y mostrar modal
+      setLastTicket({
+        code: ticketCode,
+        student: selectedStudent.full_name,
+        items: [...cart],
+        total: total,
+        timestamp: new Date(),
+      });
+      setShowTicketModal(true);
+
+      console.log('🎫 Ticket generado:', ticketCode);
+      console.log('📊 Detalles:', {
+        ticket: ticketCode,
+        estudiante: selectedStudent.full_name,
+        total: `S/ ${total.toFixed(2)}`,
+        saldoAnterior: `S/ ${selectedStudent.balance.toFixed(2)}`,
+        saldoNuevo: `S/ ${newBalance.toFixed(2)}`,
+        items: cart.length,
       });
 
-      // 5. Limpiar y actualizar
+      // 6. Limpiar y actualizar
       setSelectedStudent({ ...selectedStudent, balance: newBalance });
       setCart([]);
       setProductSearch('');
@@ -588,6 +635,92 @@ const POS = () => {
           )}
         </aside>
       </div>
+
+      {/* MODAL DE TICKET GENERADO */}
+      <Dialog open={showTicketModal} onOpenChange={setShowTicketModal}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-emerald-600">
+              <Receipt className="h-6 w-6" />
+              Venta Realizada
+            </DialogTitle>
+          </DialogHeader>
+
+          {lastTicket && (
+            <div className="space-y-4">
+              {/* Ticket Header */}
+              <div className="bg-slate-900 text-white p-4 rounded-xl text-center">
+                <p className="text-xs text-gray-400 mb-1">TICKET N°</p>
+                <p className="text-3xl font-black tracking-wider">{lastTicket.code}</p>
+                <p className="text-xs text-gray-400 mt-2">
+                  {lastTicket.timestamp.toLocaleDateString('es-PE', { 
+                    day: '2-digit', 
+                    month: '2-digit', 
+                    year: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                  })}
+                </p>
+              </div>
+
+              {/* Estudiante */}
+              <div className="border-2 border-gray-200 rounded-lg p-3">
+                <p className="text-xs text-gray-500 mb-1">CLIENTE</p>
+                <p className="font-bold text-lg">{lastTicket.student}</p>
+              </div>
+
+              {/* Items */}
+              <div className="border-2 border-gray-200 rounded-lg p-3">
+                <p className="text-xs text-gray-500 mb-2">DETALLE DE COMPRA</p>
+                <div className="space-y-2">
+                  {lastTicket.items.map((item, idx) => (
+                    <div key={idx} className="flex justify-between text-sm">
+                      <span className="flex-1">
+                        {item.quantity}x {item.product.name}
+                      </span>
+                      <span className="font-semibold">
+                        S/ {(item.product.price * item.quantity).toFixed(2)}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+                <div className="border-t-2 border-gray-300 mt-3 pt-3 flex justify-between font-bold text-lg">
+                  <span>TOTAL</span>
+                  <span className="text-emerald-600">S/ {lastTicket.total.toFixed(2)}</span>
+                </div>
+              </div>
+
+              {/* Acciones */}
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  className="flex-1"
+                  onClick={() => {
+                    toast({
+                      title: '🖨️ Función de Impresión',
+                      description: 'La impresión estará disponible próximamente',
+                    });
+                  }}
+                >
+                  <Printer className="h-4 w-4 mr-2" />
+                  Imprimir
+                </Button>
+                <Button
+                  className="flex-1 bg-emerald-500 hover:bg-emerald-600"
+                  onClick={() => setShowTicketModal(false)}
+                >
+                  <CheckCircle2 className="h-4 w-4 mr-2" />
+                  Continuar
+                </Button>
+              </div>
+
+              <p className="text-xs text-center text-gray-500">
+                ¡Gracias por tu compra! 🎉
+              </p>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
