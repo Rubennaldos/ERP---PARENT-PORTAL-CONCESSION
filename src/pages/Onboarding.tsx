@@ -195,23 +195,34 @@ export default function Onboarding() {
     setLoading(true);
 
     try {
-      // Validar que tengamos school_id
-      if (!schoolId) {
-        throw new Error('No se pudo obtener el colegio. Por favor, intenta de nuevo.');
+      // 1. Asegurar que existe el perfil básico en 'profiles'
+      // Esto evita el error de foreign key con 'students'
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .upsert({
+          id: user?.id,
+          email: user?.email,
+          role: 'parent',
+          full_name: parentData.full_name,
+        });
+
+      if (profileError) {
+        console.error('Error al crear perfil base:', profileError);
+        throw new Error('No se pudo crear tu perfil de usuario básico.');
       }
 
-      // 1. Crear o actualizar datos del padre en parent_profiles (UPSERT)
+      // 2. Crear o actualizar datos del padre en parent_profiles (UPSERT)
       const { error: parentError } = await supabase
         .from('parent_profiles')
         .upsert({
           user_id: user?.id,
-          school_id: schoolId,
+          school_id: schoolId || 'ba6219dd-05ce-43a4-b91b-47ca94748f97', // Nordic por defecto si no hay
           full_name: parentData.full_name,
           dni: parentData.dni,
           phone_1: parentData.phone_1,
           phone_2: parentData.phone_2 || null,
           address: parentData.address,
-          onboarding_completed: false, // Se marcará como true al final
+          onboarding_completed: false,
         }, {
           onConflict: 'user_id'
         });
@@ -223,14 +234,14 @@ export default function Onboarding() {
 
       console.log('✅ Datos del padre guardados correctamente');
 
-      // 2. Insertar cada estudiante
+      // 3. Insertar cada estudiante
       for (const student of students) {
         // Crear estudiante
         const { data: studentData, error: studentError } = await supabase
           .from('students')
           .insert({
             parent_id: user?.id,
-            school_id: schoolId, // Agregar el school_id del padre
+            school_id: schoolId || 'ba6219dd-05ce-43a4-b91b-47ca94748f97',
             full_name: student.full_name,
             name: student.full_name,
             grade: student.grade,
@@ -244,7 +255,7 @@ export default function Onboarding() {
 
         if (studentError) throw studentError;
 
-        // 2. Crear relación familiar
+        // 4. Crear relación familiar
         const { error: relationError } = await supabase
           .from('student_relationships')
           .insert({
@@ -256,7 +267,7 @@ export default function Onboarding() {
 
         if (relationError) throw relationError;
 
-        // 3. Registrar alergias si tiene
+        // 5. Registrar alergias si tiene
         if (student.has_allergies && student.allergy_notes.trim()) {
           const { error: allergyError } = await supabase
             .from('allergies')
