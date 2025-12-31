@@ -37,7 +37,27 @@ export function useOnboardingCheck() {
           return;
         }
 
-        // Verificar si tiene hijos registrados
+        // PASO 1: Verificar si tiene parent_profile con datos completos
+        const { data: parentProfile, error: parentError } = await supabase
+          .from('parent_profiles')
+          .select('full_name, dni, phone_1, address')
+          .eq('user_id', user.id)
+          .single();
+
+        // Si no tiene parent_profile o le faltan datos, redirigir a onboarding
+        if (parentError || !parentProfile || 
+            !parentProfile.full_name || 
+            !parentProfile.dni || 
+            !parentProfile.phone_1 || 
+            !parentProfile.address) {
+          console.log('🔄 Padre sin datos completos, redirigiendo a onboarding...');
+          setNeedsOnboarding(true);
+          setIsChecking(false);
+          navigate('/onboarding', { replace: true });
+          return;
+        }
+
+        // PASO 2: Verificar si tiene hijos registrados
         const { data: students, error: studentsError } = await supabase
           .from('students')
           .select('id')
@@ -49,16 +69,16 @@ export function useOnboardingCheck() {
           throw studentsError;
         }
 
-        // Si NO tiene hijos, necesita hacer onboarding
+        // Si NO tiene hijos, redirigir a onboarding
         if (!students || students.length === 0) {
-          console.log('🔄 Usuario sin hijos, redirigiendo a onboarding...');
+          console.log('🔄 Padre sin hijos, redirigiendo a onboarding...');
           setNeedsOnboarding(true);
           setIsChecking(false);
           navigate('/onboarding', { replace: true });
           return;
         }
 
-        console.log('✅ Usuario tiene hijos, puede acceder al dashboard');
+        console.log('✅ Padre con datos completos y con hijos, puede acceder al dashboard');
 
         setNeedsOnboarding(false);
         setIsChecking(false);

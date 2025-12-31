@@ -200,19 +200,28 @@ export default function Onboarding() {
         throw new Error('No se pudo obtener el colegio. Por favor, intenta de nuevo.');
       }
 
-      // 1. Actualizar datos del padre en parent_profiles
+      // 1. Crear o actualizar datos del padre en parent_profiles (UPSERT)
       const { error: parentError } = await supabase
         .from('parent_profiles')
-        .update({
+        .upsert({
+          user_id: user?.id,
+          school_id: schoolId,
           full_name: parentData.full_name,
           dni: parentData.dni,
           phone_1: parentData.phone_1,
           phone_2: parentData.phone_2 || null,
           address: parentData.address,
-        })
-        .eq('user_id', user?.id);
+          onboarding_completed: false, // Se marcará como true al final
+        }, {
+          onConflict: 'user_id'
+        });
 
-      if (parentError) throw parentError;
+      if (parentError) {
+        console.error('Error guardando datos del padre:', parentError);
+        throw parentError;
+      }
+
+      console.log('✅ Datos del padre guardados correctamente');
 
       // 2. Insertar cada estudiante
       for (const student of students) {
