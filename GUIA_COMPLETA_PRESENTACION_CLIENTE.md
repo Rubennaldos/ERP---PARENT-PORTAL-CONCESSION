@@ -29,7 +29,7 @@ Si tienen alguna pregunta o sugerencia durante las pruebas, no duden en contacta
 https://rubennaldos.github.io/parent-portal-connect/#/register?school=NRD
 ```
 
-> **NOTA IMPORTANTE:** Este link actualmente se ingresa manualmente, pero en la versión final se convertirá en un **código QR** que podrán escanear fácilmente con su celular. Por ahora, pueden copiarlo y pegarlo en el navegador.
+> **NOTA IMPORTANTE:** Este link actualmente se ingresa manualmente, pero en la versión final se convertirá en un **código QR** que podrán escanear fácilmente con su celular. Por ahora, pueden copiarlo y pegarlo en el navegador. Asegúrense de copiar el link completo incluyendo el `#`.
 
 ### 📝 Pasos para Registrarse:
 
@@ -137,7 +137,7 @@ Sede: Naciones Unidas - Sede Principal (Nordic)
 ### 🌐 Link de Acceso al Sistema:
 
 ```
-https://rubennaldos.github.io/parent-portal-connect/
+https://rubennaldos.github.io/parent-portal-connect/#/auth
 ```
 
 ### 📝 Pasos para Ingresar al POS:
