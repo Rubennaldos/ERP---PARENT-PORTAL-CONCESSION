@@ -37,6 +37,14 @@ export default function Auth() {
 
   // Detectar si viene desde OAuth (tiene hash con access_token)
   const isOAuthCallback = window.location.hash.includes('access_token');
+  
+  // DEBUG: Log inicial para verificar que el código nuevo se está ejecutando
+  console.log('🔍 Auth.tsx - VERSION: v2.0');
+  console.log('🔍 Auth.tsx - URL completa:', window.location.href);
+  console.log('🔍 Auth.tsx - Hash:', window.location.hash);
+  console.log('🔍 Auth.tsx - isOAuthCallback:', isOAuthCallback);
+  console.log('🔍 Auth.tsx - user:', user);
+  console.log('🔍 Auth.tsx - role:', role);
 
   const form = useForm<AuthFormValues>({
     resolver: zodResolver(authSchema),
