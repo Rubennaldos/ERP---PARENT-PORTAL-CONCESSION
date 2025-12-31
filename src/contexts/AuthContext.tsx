@@ -103,12 +103,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       localStorage.clear();
       sessionStorage.clear();
       
-      // 4. Redirigir a login
-      window.location.href = '/auth';
+      // 4. Redirigir a login con HashRouter
+      window.location.href = `${window.location.origin}/parent-portal-connect/#/auth`;
     } catch (error) {
       console.error('Error signing out:', error);
       // Aún así, forzar redirección
-      window.location.href = '/auth';
+      window.location.href = `${window.location.origin}/parent-portal-connect/#/auth`;
     }
   };
 

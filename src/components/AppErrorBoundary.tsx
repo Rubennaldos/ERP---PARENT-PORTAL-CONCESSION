@@ -54,7 +54,7 @@ export class AppErrorBoundary extends React.Component<
               <Button
                 variant="outline"
                 onClick={() => {
-                  window.location.href = "/auth";
+                  window.location.href = `${window.location.origin}/parent-portal-connect/#/auth`;
                 }}
               >
                 Ir a iniciar sesión
