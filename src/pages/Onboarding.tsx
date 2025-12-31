@@ -65,24 +65,51 @@ export default function Onboarding() {
   ]);
 
   const [schoolId, setSchoolId] = useState<string>('');
+  const [schools, setSchools] = useState<{id: string, name: string, code: string}[]>([]);
 
-  // Obtener el school_id del padre
+  // Obtener el school_id del padre o desde el URL
   useEffect(() => {
     if (user) {
-      fetchParentSchool();
+      fetchSchoolInfo();
     }
   }, [user]);
 
-  const fetchParentSchool = async () => {
+  const fetchSchoolInfo = async () => {
     try {
-      const { data, error } = await supabase
+      // 1. Primero intentar obtener desde parent_profiles
+      const { data: parentData } = await supabase
         .from('parent_profiles')
         .select('school_id')
         .eq('user_id', user?.id)
-        .single();
+        .maybeSingle();
 
-      if (error) throw error;
-      setSchoolId(data.school_id);
+      if (parentData?.school_id) {
+        setSchoolId(parentData.school_id);
+        console.log('✅ School ID desde parent_profile:', parentData.school_id);
+        return;
+      }
+
+      // 2. Si no existe, obtener lista de colegios para que elija
+      const { data: schoolsData } = await supabase
+        .from('schools')
+        .select('id, name, code')
+        .eq('is_active', true)
+        .order('name');
+
+      if (schoolsData && schoolsData.length > 0) {
+        setSchools(schoolsData);
+        // Si viene desde /register?sede=NRD, buscar ese colegio
+        const urlParams = new URLSearchParams(window.location.search);
+        const sedeCode = urlParams.get('sede') || urlParams.get('school');
+        
+        if (sedeCode) {
+          const school = schoolsData.find(s => s.code === sedeCode);
+          if (school) {
+            setSchoolId(school.id);
+            console.log('✅ School ID desde URL:', school.id, school.name);
+          }
+        }
+      }
     } catch (error) {
       console.error('Error fetching school:', error);
     }
@@ -116,6 +143,14 @@ export default function Onboarding() {
   };
 
   const validateParentData = () => {
+    if (!schoolId) {
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'Por favor selecciona tu colegio/sede',
+      });
+      return false;
+    }
     if (!parentData.full_name.trim()) {
       toast({
         variant: 'destructive',
@@ -212,11 +247,16 @@ export default function Onboarding() {
       }
 
       // 2. Crear o actualizar datos del padre en parent_profiles (UPSERT)
+      // Validar que tengamos school_id
+      if (!schoolId) {
+        throw new Error('No se pudo determinar el colegio. Por favor, selecciona uno.');
+      }
+
       const { error: parentError } = await supabase
         .from('parent_profiles')
         .upsert({
           user_id: user?.id,
-          school_id: schoolId || 'ba6219dd-05ce-43a4-b91b-47ca94748f97', // Nordic por defecto si no hay
+          school_id: schoolId,
           full_name: parentData.full_name,
           dni: parentData.dni,
           phone_1: parentData.phone_1,
@@ -241,7 +281,7 @@ export default function Onboarding() {
           .from('students')
           .insert({
             parent_id: user?.id,
-            school_id: schoolId || 'ba6219dd-05ce-43a4-b91b-47ca94748f97',
+            school_id: schoolId,
             full_name: student.full_name,
             name: student.full_name,
             grade: student.grade,
@@ -337,6 +377,28 @@ export default function Onboarding() {
             {/* PASO 1: Datos del Padre */}
             {currentStep === 1 && (
               <div className="space-y-4">
+                {/* Selector de Colegio (solo si no se detectó automáticamente) */}
+                {!schoolId && schools.length > 0 && (
+                  <div>
+                    <Label>Colegio/Sede *</Label>
+                    <Select
+                      value={schoolId}
+                      onValueChange={(value) => setSchoolId(value)}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecciona tu colegio" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {schools.map((school) => (
+                          <SelectItem key={school.id} value={school.id}>
+                            {school.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+
                 <div>
                   <Label>Nombre Completo *</Label>
                   <Input
