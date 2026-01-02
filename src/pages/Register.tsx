@@ -45,6 +45,7 @@ export default function Register() {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [showExistingUserModal, setShowExistingUserModal] = useState(false);
   const [existingUserEmail, setExistingUserEmail] = useState('');
+  const [detectedSchoolName, setDetectedSchoolName] = useState<string>('');
 
   // Si ya está logueado (OAuth o manual), redirigir al dashboard
   // El sistema detectará automáticamente si necesita onboarding
@@ -62,11 +63,13 @@ export default function Register() {
 
   // Pre-seleccionar sede del QR
   useEffect(() => {
-    const sedeCode = searchParams.get('sede') || searchParams.get('school');
+    const sedeCode = searchParams.get('school') || searchParams.get('sede');
     if (sedeCode && schools.length > 0) {
       const school = schools.find(s => s.code === sedeCode);
       if (school) {
         setFormData(prev => ({ ...prev, school_id: school.id }));
+        setDetectedSchoolName(school.name);
+        console.log('✅ Sede detectada desde URL:', school.name);
       }
     }
   }, [searchParams, schools]);
@@ -346,22 +349,53 @@ export default function Register() {
                 </div>
               </div>
 
-              <div>
-                <Label htmlFor="school_id">Colegio/Sede *</Label>
-                <Select value={formData.school_id} onValueChange={(value) => setFormData({ ...formData, school_id: value })}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecciona el colegio" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {schools.map((school) => (
-                      <SelectItem key={school.id} value={school.id}>
-                        {school.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                {errors.school_id && <p className="text-xs text-red-600 mt-1">{errors.school_id}</p>}
-              </div>
+              {/* Selector de Sede - SOLO si NO viene del QR */}
+              {detectedSchoolName ? (
+                <div className="bg-blue-50 border-2 border-blue-200 rounded-lg p-4 flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                      <GraduationCap className="h-5 w-5 text-blue-600" />
+                    </div>
+                    <div>
+                      <p className="text-xs text-blue-600 font-semibold uppercase">Sede Detectada</p>
+                      <p className="text-lg font-bold text-blue-900">{detectedSchoolName}</p>
+                    </div>
+                  </div>
+                  <Button 
+                    type="button"
+                    variant="ghost" 
+                    size="sm" 
+                    onClick={() => { 
+                      setFormData({ ...formData, school_id: '' }); 
+                      setDetectedSchoolName(''); 
+                    }}
+                    className="text-xs text-blue-600 hover:bg-blue-100"
+                  >
+                    Cambiar
+                  </Button>
+                </div>
+              ) : (
+                <div>
+                  <Label htmlFor="school_id">Colegio/Sede *</Label>
+                  <Select value={formData.school_id} onValueChange={(value) => {
+                    setFormData({ ...formData, school_id: value });
+                    const school = schools.find(s => s.id === value);
+                    if (school) setDetectedSchoolName(school.name);
+                  }}>
+                    <SelectTrigger className="h-12">
+                      <SelectValue placeholder="Selecciona el colegio" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {schools.map((school) => (
+                        <SelectItem key={school.id} value={school.id}>
+                          {school.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {errors.school_id && <p className="text-xs text-red-600 mt-1">{errors.school_id}</p>}
+                </div>
+              )}
 
               <div>
                 <Label htmlFor="email">Correo Electrónico *</Label>
