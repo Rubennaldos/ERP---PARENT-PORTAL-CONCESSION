@@ -80,6 +80,8 @@ export const SalesList = () => {
       const startDate = startOfDay(today).toISOString();
       const endDate = endOfDay(today).toISOString();
 
+      console.log('🔍 Buscando transacciones del día:', { startDate, endDate, activeTab });
+
       let query = supabase
         .from('transactions')
         .select(`
@@ -91,20 +93,25 @@ export const SalesList = () => {
         .lte('created_at', endDate)
         .order('created_at', { ascending: false });
 
-      // Filtrar según la pestaña activa
-      if (activeTab === 'deleted') {
-        query = query.eq('is_deleted', true);
-      } else if (activeTab === 'errors') {
-        query = query.eq('has_error', true);
-      } else {
-        // Ventas del día normales (no borradas, sin errores)
-        query = query.or('is_deleted.is.null,is_deleted.eq.false');
-        query = query.or('has_error.is.null,has_error.eq.false');
+      // Por ahora, solo mostrar todas las ventas del día
+      // TODO: Implementar columnas is_deleted y has_error en la tabla
+      if (activeTab === 'today') {
+        // Mostrar todas las ventas normales del día
+      } else if (activeTab === 'deleted' || activeTab === 'errors') {
+        // Por ahora no hay datos, mostrar vacío
+        setTransactions([]);
+        setLoading(false);
+        return;
       }
 
       const { data, error } = await query;
 
-      if (error) throw error;
+      if (error) {
+        console.error('❌ Error en query:', error);
+        throw error;
+      }
+      
+      console.log('✅ Transacciones obtenidas:', data?.length || 0);
       setTransactions(data || []);
     } catch (error: any) {
       console.error('Error fetching transactions:', error);
