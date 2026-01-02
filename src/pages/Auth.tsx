@@ -9,10 +9,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, User, ShieldCheck } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import SplashScreen from '@/components/SplashScreen';
 import limaCafeLogo from '@/assets/lima-cafe-logo.png';
 import { supabase } from '@/lib/supabase';
@@ -28,11 +27,10 @@ type AuthFormValues = z.infer<typeof authSchema>;
 export default function Auth() {
   const location = useLocation();
   const [isLoading, setIsLoading] = useState(false);
-  const [userType, setUserType] = useState<'parent' | 'staff'>('parent');
   const [justLoggedIn, setJustLoggedIn] = useState(false);
   const [showSplash, setShowSplash] = useState(true);
-  const { signIn, user, loading, signOut } = useAuth();
-  const { role, loading: roleLoading, isParent, isStaff, getDefaultRoute } = useRole();
+  const { signIn, user, loading } = useAuth();
+  const { role, loading: roleLoading, getDefaultRoute } = useRole();
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -75,40 +73,7 @@ export default function Auth() {
   // Validar después del login
   useEffect(() => {
     if (justLoggedIn && !roleLoading && role) {
-      // Validar que el tipo seleccionado coincida con el rol
-      if (userType === 'parent') {
-        // Usuario seleccionó "Padre de Familia"
-        if (!isParent) {
-          // Pero su rol es staff
-          toast({
-            variant: 'destructive',
-            title: 'Acceso Denegado',
-            description: 'No tienes acceso como Padre de Familia. Tu cuenta es de Personal Administrativo.',
-            duration: 6000,
-          });
-          signOut();
-          setIsLoading(false);
-          setJustLoggedIn(false);
-          return;
-        }
-      } else {
-        // Usuario seleccionó "Personal Administrativo"
-        if (!isStaff) {
-          // Pero su rol es parent
-          toast({
-            variant: 'destructive',
-            title: 'Acceso Denegado',
-            description: 'No tienes acceso administrativo. Tu cuenta es de Padre de Familia.',
-            duration: 6000,
-          });
-          signOut();
-          setIsLoading(false);
-          setJustLoggedIn(false);
-          return;
-        }
-      }
-
-      // Si llegamos aquí, la validación fue exitosa
+      // Login exitoso -> redirigir automáticamente según el rol real en `profiles.role`
       toast({
         title: 'Bienvenido',
         description: 'Has iniciado sesión correctamente.',
@@ -117,7 +82,7 @@ export default function Auth() {
       setIsLoading(false);
       setJustLoggedIn(false);
     }
-  }, [justLoggedIn, roleLoading, role, userType, isParent, isStaff, getDefaultRoute, navigate, signOut, toast]);
+  }, [justLoggedIn, roleLoading, role, getDefaultRoute, navigate, toast]);
 
   const handleSocialLogin = async (provider: 'google' | 'azure') => {
     setIsLoading(true);
@@ -314,43 +279,6 @@ export default function Auth() {
                   )}
                 />
                 
-                {/* Selector de Tipo de Usuario */}
-                <div className="space-y-3 pt-2">
-                  <Label className="font-medium text-foreground">Tipo de acceso:</Label>
-                  <RadioGroup 
-                    value={userType} 
-                    onValueChange={(value: 'parent' | 'staff') => setUserType(value)} 
-                    className="grid grid-cols-1 gap-3"
-                  >
-                    <div className="flex items-center space-x-2">
-                      <RadioGroupItem value="parent" id="parent-type" className="border-primary text-primary" />
-                      <Label 
-                        htmlFor="parent-type" 
-                        className="flex flex-col flex-1 rounded-lg border border-border bg-background/50 p-4 hover:bg-muted/50 cursor-pointer transition-colors"
-                      >
-                        <div className="flex items-center gap-2 w-full">
-                          <User className="h-4 w-4 text-primary" />
-                          <span className="font-medium text-foreground">Padre de Familia</span>
-                        </div>
-                        <p className="text-sm text-muted-foreground mt-1">Ver información de mis hijos</p>
-                      </Label>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <RadioGroupItem value="staff" id="staff-type" className="border-primary text-primary" />
-                      <Label 
-                        htmlFor="staff-type" 
-                        className="flex flex-col flex-1 rounded-lg border border-border bg-background/50 p-4 hover:bg-muted/50 cursor-pointer transition-colors"
-                      >
-                        <div className="flex items-center gap-2 w-full">
-                          <ShieldCheck className="h-4 w-4 text-primary" />
-                          <span className="font-medium text-foreground">Personal Administrativo</span>
-                        </div>
-                        <p className="text-sm text-muted-foreground mt-1">Acceso a panel de gestión</p>
-                      </Label>
-                    </div>
-                  </RadioGroup>
-                </div>
-
                 <Button 
                   type="submit" 
                   className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-medium" 
