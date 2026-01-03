@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
+import { PermissionButton } from "@/components/PermissionButton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -648,24 +649,28 @@ export const SalesList = () => {
 
                               {!t.is_deleted && (
                                 <>
-                                  <Button 
+                                  <PermissionButton
+                                    permission="ventas.editar"
                                     variant="ghost" 
                                     size="sm"
                                     className="h-8 w-8 p-0"
                                     onClick={() => handleOpenEditClient(t)}
-                                    title="Editar datos del cliente"
+                                    fallbackMessage="Solo Admin General puede editar ventas"
+                                    showLockIcon={false}
                                   >
                                     <Edit className="h-4 w-4" />
-                                  </Button>
-                                  <Button 
+                                  </PermissionButton>
+                                  <PermissionButton
+                                    permission="ventas.anular"
                                     variant="ghost" 
                                     size="sm"
                                     className="h-8 w-8 p-0"
                                     onClick={() => handleOpenAnnul(t)}
-                                    title="Anular venta"
+                                    fallbackMessage="Solo Admin General puede anular ventas"
+                                    showLockIcon={false}
                                   >
                                     <Trash2 className="h-4 w-4 text-red-600" />
-                                  </Button>
+                                  </PermissionButton>
                                 </>
                               )}
                             </div>

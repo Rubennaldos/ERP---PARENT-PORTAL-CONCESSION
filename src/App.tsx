@@ -15,6 +15,8 @@ import Admin from "./pages/Admin";
 import POS from "./pages/POS";
 import Comedor from "./pages/Comedor";
 import SalesList from "./pages/SalesList";
+import PermissionsControl from "./components/admin/PermissionsControl";
+import ParentsManagement from "./components/admin/ParentsManagement";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -107,6 +109,26 @@ const App = () => (
               element={
                 <ProtectedRoute allowedRoles={['superadmin', 'admin_general', 'comedor']}>
                   <Comedor />
+                </ProtectedRoute>
+              }
+            />
+            
+            {/* Control de Permisos - Solo Admin General y SuperAdmin */}
+            <Route
+              path="/permissions"
+              element={
+                <ProtectedRoute allowedRoles={['superadmin', 'admin_general']}>
+                  <PermissionsControl />
+                </ProtectedRoute>
+              }
+            />
+            
+            {/* Gestión de Padres - Solo Admin General y SuperAdmin */}
+            <Route
+              path="/parents"
+              element={
+                <ProtectedRoute allowedRoles={['superadmin', 'admin_general']}>
+                  <ParentsManagement />
                 </ProtectedRoute>
               }
             />
