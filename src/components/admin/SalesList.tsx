@@ -75,30 +75,43 @@ export const SalesList = () => {
     try {
       setLoading(true);
       
-      // Obtener rango de hoy (00:00 - 23:59)
+      // Obtener rango de hoy (ampliado a las últimas 48 horas para descartar temas de zona horaria)
       const today = new Date();
-      const startDate = startOfDay(today).toISOString();
+      const startDate = startOfDay(new Date(today.getTime() - 48 * 60 * 60 * 1000)).toISOString();
       const endDate = endOfDay(today).toISOString();
 
-      console.log('🔍 Buscando transacciones del día:', { startDate, endDate, activeTab });
+      console.log('🔍 INICIANDO BÚSQUEDA DE TRANSACCIONES');
+      console.log('📅 Rango:', { startDate, endDate });
 
+      // Primero intentamos una búsqueda simple sin joins complejos para ver si hay datos
+      const { data: rawData, error: rawError } = await supabase
+        .from('transactions')
+        .select('*')
+        .gte('created_at', startDate)
+        .lte('created_at', endDate)
+        .order('created_at', { ascending: false });
+
+      if (rawError) {
+        console.error('❌ Error en búsqueda simple:', rawError);
+      } else {
+        console.log('📊 Datos crudos encontrados:', rawData?.length || 0);
+        if (rawData && rawData.length > 0) {
+          console.log('📝 Ejemplo de transacción:', rawData[0]);
+        }
+      }
+
+      // Ahora la búsqueda completa con joins
       let query = supabase
         .from('transactions')
         .select(`
           *,
-          student:students(full_name, school:schools(name)),
-          profiles:profiles!transactions_created_by_fkey(email)
+          student:students(full_name, school:schools(name))
         `)
         .gte('created_at', startDate)
         .lte('created_at', endDate)
         .order('created_at', { ascending: false });
 
-      // Por ahora, solo mostrar todas las ventas del día
-      // TODO: Implementar columnas is_deleted y has_error en la tabla
-      if (activeTab === 'today') {
-        // Mostrar todas las ventas normales del día
-      } else if (activeTab === 'deleted' || activeTab === 'errors') {
-        // Por ahora no hay datos, mostrar vacío
+      if (activeTab === 'deleted' || activeTab === 'errors') {
         setTransactions([]);
         setLoading(false);
         return;
@@ -107,11 +120,15 @@ export const SalesList = () => {
       const { data, error } = await query;
 
       if (error) {
-        console.error('❌ Error en query:', error);
+        console.error('❌ Error en query con joins:', error);
+        // Si falla el join, usamos la data cruda para que al menos se vea algo
+        if (rawData) {
+          setTransactions(rawData as any);
+        }
         throw error;
       }
       
-      console.log('✅ Transacciones obtenidas:', data?.length || 0);
+      console.log('✅ Transacciones finales:', data?.length || 0);
       setTransactions(data || []);
     } catch (error: any) {
       console.error('Error fetching transactions:', error);
