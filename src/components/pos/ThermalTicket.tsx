@@ -60,40 +60,52 @@ export const ThermalTicket = ({
             width: 80mm;
             margin: 0;
             padding: 0;
+            background: white;
+          }
+          * {
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
           }
         }
       `}</style>
       
       <div style={{ 
         width: '80mm', 
-        fontFamily: 'monospace', 
-        fontSize: '11px', 
-        padding: '8px',
-        lineHeight: '1.3'
+        fontFamily: '"Courier New", Courier, monospace', 
+        fontSize: '12px', 
+        padding: '10mm 5mm',
+        lineHeight: '1.4',
+        color: '#000',
+        backgroundColor: '#fff'
       }}>
         {/* HEADER - Logo y Datos de la Empresa */}
-        <div style={{ textAlign: 'center', marginBottom: '12px', borderBottom: '2px dashed #000', paddingBottom: '10px' }}>
+        <div style={{ textAlign: 'center', marginBottom: '15px', paddingBottom: '10px', borderBottom: '1px dashed #000' }}>
           <div style={{ 
-            fontSize: '18px', 
+            fontSize: '20px', 
             fontWeight: 'bold', 
-            letterSpacing: '1px',
-            marginBottom: '4px'
+            letterSpacing: '2px',
+            marginBottom: '6px'
           }}>
-            LIMA CAFÉ 28
+            LIMA CAFE 28
           </div>
-          <div style={{ fontSize: '9px', marginBottom: '2px' }}>
+          <div style={{ fontSize: '11px', marginBottom: '3px' }}>
             Kiosco Escolar
           </div>
-          <div style={{ fontSize: '9px', marginBottom: '2px' }}>
+          <div style={{ fontSize: '10px', marginBottom: '3px' }}>
             RUC: 20XXXXXXXXX
+          </div>
+          <div style={{ fontSize: '10px' }}>
+            Av. Principal 123 - Lima, Perú
           </div>
           {documentType !== 'ticket' && (
             <div style={{ 
-              fontSize: '10px', 
+              fontSize: '11px', 
               fontWeight: 'bold',
-              marginTop: '6px',
-              padding: '4px',
-              border: '1px solid #000'
+              marginTop: '8px',
+              padding: '5px',
+              border: '2px solid #000',
+              backgroundColor: '#000',
+              color: '#fff'
             }}>
               {getDocumentTitle()}
             </div>
@@ -101,158 +113,197 @@ export const ThermalTicket = ({
         </div>
 
         {/* DATOS DEL COMPROBANTE */}
-        <div style={{ fontSize: '10px', marginBottom: '10px' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '2px' }}>
-            <span style={{ fontWeight: 'bold' }}>N°:</span>
-            <span style={{ fontFamily: 'monospace', fontWeight: 'bold' }}>{ticketCode}</span>
-          </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '2px' }}>
-            <span style={{ fontWeight: 'bold' }}>FECHA:</span>
-            <span>{format(date, "dd/MM/yyyy HH:mm", { locale: es })}</span>
-          </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '2px' }}>
-            <span style={{ fontWeight: 'bold' }}>CAJERO:</span>
-            <span style={{ fontSize: '9px' }}>{cashierEmail.split('@')[0]}</span>
-          </div>
+        <div style={{ fontSize: '11px', marginBottom: '12px' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <tbody>
+              <tr>
+                <td style={{ fontWeight: 'bold', paddingBottom: '3px' }}>TICKET:</td>
+                <td style={{ textAlign: 'right', fontFamily: '"Courier New", monospace', fontWeight: 'bold', paddingBottom: '3px' }}>{ticketCode}</td>
+              </tr>
+              <tr>
+                <td style={{ fontWeight: 'bold', paddingBottom: '3px' }}>FECHA:</td>
+                <td style={{ textAlign: 'right', paddingBottom: '3px' }}>{format(date, "dd/MM/yyyy", { locale: es })}</td>
+              </tr>
+              <tr>
+                <td style={{ fontWeight: 'bold', paddingBottom: '3px' }}>HORA:</td>
+                <td style={{ textAlign: 'right', paddingBottom: '3px' }}>{format(date, "HH:mm:ss", { locale: es })}</td>
+              </tr>
+              <tr>
+                <td style={{ fontWeight: 'bold', paddingBottom: '3px' }}>CAJERO:</td>
+                <td style={{ textAlign: 'right', fontSize: '10px', paddingBottom: '3px' }}>{cashierEmail.split('@')[0].toUpperCase()}</td>
+              </tr>
+            </tbody>
+          </table>
         </div>
 
         {/* DATOS DEL CLIENTE */}
-        <div style={{ 
-          fontSize: '10px', 
-          marginBottom: '10px',
-          paddingTop: '6px',
-          borderTop: '1px solid #000'
-        }}>
-          <div style={{ marginBottom: '2px' }}>
-            <span style={{ fontWeight: 'bold' }}>CLIENTE: </span>
-            <span>{clientName}</span>
-          </div>
-          {documentType === 'boleta' && clientDNI && (
-            <div style={{ marginBottom: '2px' }}>
-              <span style={{ fontWeight: 'bold' }}>DNI: </span>
-              <span>{clientDNI}</span>
-            </div>
-          )}
-          {documentType === 'factura' && clientRUC && (
-            <div style={{ marginBottom: '2px' }}>
-              <span style={{ fontWeight: 'bold' }}>RUC: </span>
-              <span>{clientRUC}</span>
-            </div>
-          )}
-        </div>
-
-        {/* SEPARADOR */}
-        <div style={{ 
-          borderTop: '2px dashed #000', 
-          margin: '8px 0' 
-        }}></div>
-
-        {/* ITEMS */}
-        <div style={{ marginBottom: '10px' }}>
+        {(clientName !== 'CLIENTE GENÉRICO' || clientDNI || clientRUC) && (
           <div style={{ 
-            display: 'flex', 
-            justifyContent: 'space-between',
-            fontSize: '9px',
-            fontWeight: 'bold',
-            marginBottom: '4px',
-            paddingBottom: '2px',
+            fontSize: '11px', 
+            marginBottom: '12px',
+            paddingTop: '8px',
+            paddingBottom: '8px',
+            borderTop: '1px solid #000',
             borderBottom: '1px solid #000'
           }}>
-            <span>DESCRIPCIÓN</span>
-            <span>IMPORTE</span>
-          </div>
-          
-          {items.map((item, idx) => (
-            <div key={idx} style={{ marginBottom: '6px' }}>
-              <div style={{ 
-                fontSize: '10px', 
-                fontWeight: 'bold',
-                marginBottom: '1px'
-              }}>
-                {item.product_name}
-              </div>
-              <div style={{ 
-                display: 'flex', 
-                justifyContent: 'space-between',
-                fontSize: '9px'
-              }}>
-                <span>{item.quantity} x S/ {item.unit_price.toFixed(2)}</span>
-                <span style={{ fontWeight: 'bold' }}>S/ {item.subtotal.toFixed(2)}</span>
-              </div>
+            <div style={{ marginBottom: '3px' }}>
+              <span style={{ fontWeight: 'bold' }}>CLIENTE:</span>
             </div>
-          ))}
-        </div>
+            <div style={{ marginBottom: '2px', fontSize: '10px' }}>
+              {clientName}
+            </div>
+            {documentType === 'boleta' && clientDNI && (
+              <div style={{ fontSize: '10px' }}>
+                <span style={{ fontWeight: 'bold' }}>DNI: </span>
+                <span>{clientDNI}</span>
+              </div>
+            )}
+            {documentType === 'factura' && clientRUC && (
+              <div style={{ fontSize: '10px' }}>
+                <span style={{ fontWeight: 'bold' }}>RUC: </span>
+                <span>{clientRUC}</span>
+              </div>
+            )}
+          </div>
+        )}
 
-        {/* SEPARADOR */}
-        <div style={{ 
-          borderTop: '2px dashed #000', 
-          margin: '8px 0' 
-        }}></div>
+        {/* ITEMS */}
+        <div style={{ marginBottom: '12px' }}>
+          <table style={{ 
+            width: '100%', 
+            borderCollapse: 'collapse',
+            fontSize: '11px',
+            marginBottom: '5px'
+          }}>
+            <thead>
+              <tr style={{ borderBottom: '2px solid #000' }}>
+                <th style={{ textAlign: 'left', paddingBottom: '5px', fontWeight: 'bold' }}>CANT</th>
+                <th style={{ textAlign: 'left', paddingBottom: '5px', fontWeight: 'bold' }}>DESCRIPCION</th>
+                <th style={{ textAlign: 'right', paddingBottom: '5px', fontWeight: 'bold' }}>IMPORTE</th>
+              </tr>
+            </thead>
+            <tbody>
+              {items.map((item, idx) => (
+                <tr key={idx} style={{ borderBottom: '1px dotted #999' }}>
+                  <td style={{ paddingTop: '6px', paddingBottom: '6px', verticalAlign: 'top', fontWeight: 'bold' }}>
+                    {item.quantity}
+                  </td>
+                  <td style={{ paddingTop: '6px', paddingBottom: '6px', paddingRight: '5px', verticalAlign: 'top' }}>
+                    <div style={{ marginBottom: '2px', fontWeight: 'bold', fontSize: '11px' }}>
+                      {item.product_name}
+                    </div>
+                    <div style={{ fontSize: '9px', color: '#444' }}>
+                      S/ {item.unit_price.toFixed(2)} c/u
+                    </div>
+                  </td>
+                  <td style={{ paddingTop: '6px', paddingBottom: '6px', textAlign: 'right', verticalAlign: 'top', fontWeight: 'bold' }}>
+                    {item.subtotal.toFixed(2)}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
 
         {/* TOTAL */}
         <div style={{ 
-          textAlign: 'right',
-          marginBottom: '10px'
+          borderTop: '2px double #000',
+          paddingTop: '10px',
+          marginBottom: '15px'
         }}>
-          <div style={{ 
-            fontSize: '14px', 
-            fontWeight: 'bold',
-            marginBottom: '4px'
-          }}>
-            TOTAL: S/ {total.toFixed(2)}
-          </div>
+          <table style={{ width: '100%', fontSize: '14px', marginBottom: '8px' }}>
+            <tbody>
+              <tr>
+                <td style={{ fontWeight: 'bold', fontSize: '16px' }}>TOTAL:</td>
+                <td style={{ textAlign: 'right', fontWeight: 'bold', fontSize: '18px', letterSpacing: '1px' }}>
+                  S/ {total.toFixed(2)}
+                </td>
+              </tr>
+            </tbody>
+          </table>
+          
           {paymentMethod && (
-            <div style={{ fontSize: '9px' }}>
-              Forma de pago: {paymentMethod.toUpperCase()}
+            <div style={{ fontSize: '11px', marginBottom: '5px' }}>
+              <span style={{ fontWeight: 'bold' }}>Pago: </span>
+              <span>{paymentMethod.toUpperCase()}</span>
             </div>
           )}
+          
           {newBalance !== undefined && (
             <div style={{ 
-              fontSize: '9px',
-              marginTop: '4px',
-              padding: '3px',
-              backgroundColor: '#f0f0f0',
-              borderRadius: '2px'
+              fontSize: '11px',
+              marginTop: '8px',
+              padding: '6px',
+              backgroundColor: '#f5f5f5',
+              border: '1px solid #ddd',
+              borderRadius: '3px'
             }}>
-              Saldo restante: S/ {newBalance.toFixed(2)}
+              <span style={{ fontWeight: 'bold' }}>Saldo restante: </span>
+              <span style={{ fontWeight: 'bold' }}>S/ {newBalance.toFixed(2)}</span>
             </div>
           )}
         </div>
 
         {/* FOOTER */}
         <div style={{ 
-          borderTop: '1px solid #000',
-          paddingTop: '8px',
+          borderTop: '1px dashed #000',
+          paddingTop: '12px',
           textAlign: 'center',
-          fontSize: '9px'
+          fontSize: '10px'
         }}>
           {isReprint && (
             <div style={{ 
-              marginBottom: '6px',
+              marginBottom: '10px',
               fontWeight: 'bold',
-              fontSize: '8px'
+              fontSize: '11px',
+              padding: '5px',
+              border: '1px solid #000',
+              backgroundColor: '#000',
+              color: '#fff'
             }}>
-              *** REIMPRESIÓN ***
+              *** REIMPRESION ***
             </div>
           )}
-          <div style={{ marginBottom: '3px' }}>
+          
+          <div style={{ marginBottom: '8px', fontSize: '12px', fontWeight: 'bold' }}>
             ¡Gracias por su compra!
           </div>
-          <div style={{ fontSize: '8px', color: '#666' }}>
+          
+          <div style={{ marginBottom: '5px', fontSize: '10px' }}>
+            Vuelva pronto
+          </div>
+          
+          <div style={{ fontSize: '9px', color: '#666', marginTop: '10px' }}>
             Sistema ERP - ARQUISIA
           </div>
+          
           {documentType !== 'ticket' && (
             <div style={{ 
-              marginTop: '8px',
+              marginTop: '12px',
               fontSize: '8px',
-              padding: '4px',
-              border: '1px solid #000'
+              padding: '8px',
+              border: '1px solid #000',
+              lineHeight: '1.5'
             }}>
-              Representación impresa de comprobante electrónico
-              <br />
-              Consulte su comprobante en: www.limacafe28.com/comprobantes
+              <div style={{ fontWeight: 'bold', marginBottom: '4px' }}>
+                Representación impresa de
+              </div>
+              <div style={{ fontWeight: 'bold', marginBottom: '6px' }}>
+                comprobante electrónico
+              </div>
+              <div>
+                Consulte en: www.limacafe28.com
+              </div>
             </div>
           )}
+          
+          <div style={{ 
+            marginTop: '15px',
+            fontSize: '10px',
+            letterSpacing: '3px'
+          }}>
+            ================================
+          </div>
         </div>
       </div>
     </div>
