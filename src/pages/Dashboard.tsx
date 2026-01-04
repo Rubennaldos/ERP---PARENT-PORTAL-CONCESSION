@@ -5,6 +5,8 @@ import { useRole } from '@/hooks/useRole';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { WelcomeHeader } from '@/components/WelcomeHeader';
+import { ViewAsSelector } from '@/components/ViewAsSelector';
 import { 
   ShoppingCart, 
   DollarSign, 
@@ -111,10 +113,10 @@ const Dashboard = () => {
           description: 'Gestión de padres y estudiantes',
           icon: 'Users',
           color: 'purple',
-          route: '/config-padres',
+          route: '/parents',
           is_active: true,
           is_enabled: false,
-          status: 'coming_soon' as const,
+          status: 'functional' as const,
         },
         {
           id: '5',
@@ -147,17 +149,27 @@ const Dashboard = () => {
         const enabledModules = allModules.map(m => ({ ...m, is_enabled: true }));
         console.log('👔 Admin General: Habilitando todos los módulos:', enabledModules.length);
         setModules(enabledModules);
-      } else if (role === 'pos') {
-        // Personal POS solo ve POS y Ventas
-        const posModules = allModules.map(m => ({
+      } else if (role === 'supervisor_red') {
+        // Supervisor de Red: puede ver todo, permisos definidos por Admin General
+        const supervisorModules = allModules.map(m => ({ ...m, is_enabled: true }));
+        console.log('🌐 Supervisor de Red: Habilitando todos los módulos');
+        setModules(supervisorModules);
+      } else if (role === 'gestor_unidad') {
+        // Gestor de Unidad: módulos definidos por Admin General
+        const gestorModules = allModules.map(m => ({ ...m, is_enabled: true }));
+        console.log('🏢 Gestor de Unidad: Habilitando módulos');
+        setModules(gestorModules);
+      } else if (role === 'operador_caja') {
+        // Operador de Caja solo ve POS y Ventas
+        const cajaModules = allModules.map(m => ({
           ...m,
           is_enabled: m.code === 'pos' || m.code === 'ventas'
         }));
-        console.log('💰 Usuario POS: Habilitando POS y Ventas');
-        setModules(posModules);
-      } else if (role === 'comedor') {
-        // Personal Comedor no ve ningún módulo del dashboard
-        console.log('🍴 Usuario Comedor: Sin módulos de dashboard');
+        console.log('💰 Operador de Caja: Habilitando POS y Ventas');
+        setModules(cajaModules);
+      } else if (role === 'operador_cocina') {
+        // Personal Cocina no ve ningún módulo del dashboard
+        console.log('👨‍🍳 Operador de Cocina: Sin módulos de dashboard');
         setModules([]);
       } else {
         // Otros roles: mostrar todos pero deshabilitados
@@ -208,12 +220,7 @@ const Dashboard = () => {
         </div>
         
         <div className="container mx-auto px-4 py-4 flex justify-between items-center">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-800">Dashboard de Negocio</h1>
-            <p className="text-sm text-gray-500">
-              {role === 'admin_general' ? 'Dueño / Gerente General' : 'Personal del Negocio'}
-            </p>
-          </div>
+          <WelcomeHeader showRole={true} />
           <div className="flex items-center gap-4">
             <span className="text-sm text-gray-600">{user?.email}</span>
             <Button variant="outline" size="sm" onClick={handleLogout}>
@@ -226,7 +233,10 @@ const Dashboard = () => {
 
       {/* Main Content */}
       <main className="container mx-auto px-4 py-8">
-        <div className="mb-6">
+        {/* ViewAsSelector - Solo para Admin General */}
+        <ViewAsSelector />
+        
+        <div className="mb-6 mt-6">
           <h2 className="text-lg font-semibold text-gray-700 mb-2">Módulos Disponibles</h2>
           <p className="text-sm text-gray-500">
             Selecciona un módulo para acceder a sus funcionalidades

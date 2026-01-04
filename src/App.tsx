@@ -66,7 +66,13 @@ const App = () => (
             <Route
               path="/dashboard"
               element={
-                <ProtectedRoute allowedRoles={['admin_general', 'pos', 'comedor']}>
+                <ProtectedRoute allowedRoles={[
+                  'admin_general', 
+                  'supervisor_red', 
+                  'gestor_unidad', 
+                  'operador_caja', 
+                  'operador_cocina'
+                ]}>
                   <Dashboard />
                 </ProtectedRoute>
               }
@@ -82,31 +88,31 @@ const App = () => (
               }
             />
             
-            {/* Punto de Venta - SuperAdmin, Admin General y POS */}
+            {/* Punto de Venta - SuperAdmin, Admin General y Operadores de Caja */}
             <Route
               path="/pos"
               element={
-                <ProtectedRoute allowedRoles={['superadmin', 'admin_general', 'pos']}>
+                <ProtectedRoute allowedRoles={['superadmin', 'admin_general', 'operador_caja']}>
                   <POS />
                 </ProtectedRoute>
               }
             />
             
-            {/* Lista de Ventas - Admin General y POS */}
+            {/* Lista de Ventas - Admin General y Operadores de Caja */}
             <Route
               path="/sales"
               element={
-                <ProtectedRoute allowedRoles={['admin_general', 'pos']}>
+                <ProtectedRoute allowedRoles={['admin_general', 'operador_caja']}>
                   <SalesList />
                 </ProtectedRoute>
               }
             />
             
-            {/* Pantalla de Comedor - SuperAdmin, Admin General y Comedor */}
+            {/* Pantalla de Comedor - SuperAdmin, Admin General y Operadores de Cocina */}
             <Route
               path="/comedor"
               element={
-                <ProtectedRoute allowedRoles={['superadmin', 'admin_general', 'comedor']}>
+                <ProtectedRoute allowedRoles={['superadmin', 'admin_general', 'operador_cocina']}>
                   <Comedor />
                 </ProtectedRoute>
               }

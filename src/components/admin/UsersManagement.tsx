@@ -98,8 +98,10 @@ export function UsersManagement() {
     total: 0,
     superadmin: 0,
     admin_general: 0,
-    pos: 0,
-    comedor: 0,
+    supervisor_red: 0,
+    gestor_unidad: 0,
+    operador_caja: 0,
+    operador_cocina: 0,
     parent: 0,
   });
 
@@ -146,8 +148,10 @@ export function UsersManagement() {
         total: profiles?.length || 0,
         superadmin: profiles?.filter(p => p.role === 'superadmin').length || 0,
         admin_general: profiles?.filter(p => p.role === 'admin_general').length || 0,
-        pos: profiles?.filter(p => p.role === 'pos').length || 0,
-        comedor: profiles?.filter(p => p.role === 'comedor').length || 0,
+        supervisor_red: profiles?.filter(p => p.role === 'supervisor_red').length || 0,
+        gestor_unidad: profiles?.filter(p => p.role === 'gestor_unidad').length || 0,
+        operador_caja: profiles?.filter(p => p.role === 'operador_caja').length || 0,
+        operador_cocina: profiles?.filter(p => p.role === 'operador_cocina').length || 0,
         parent: profiles?.filter(p => p.role === 'parent').length || 0,
       };
       setStats(statsCopy);
@@ -271,8 +275,10 @@ export function UsersManagement() {
     const badges: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' }> = {
       superadmin: { label: 'SuperAdmin', variant: 'destructive' },
       admin_general: { label: 'Admin General', variant: 'default' },
-      pos: { label: 'POS', variant: 'secondary' },
-      comedor: { label: 'Comedor', variant: 'secondary' },
+      supervisor_red: { label: 'Supervisor de Red', variant: 'secondary' },
+      gestor_unidad: { label: 'Gestor de Unidad', variant: 'secondary' },
+      operador_caja: { label: 'Operador de Caja', variant: 'secondary' },
+      operador_cocina: { label: 'Operador de Cocina', variant: 'secondary' },
       parent: { label: 'Padre', variant: 'outline' },
     };
 
@@ -311,14 +317,26 @@ export function UsersManagement() {
         </Card>
         <Card>
           <CardContent className="pt-6">
-            <div className="text-2xl font-bold">{stats.pos}</div>
-            <p className="text-xs text-muted-foreground">POS</p>
+            <div className="text-2xl font-bold">{stats.supervisor_red}</div>
+            <p className="text-xs text-muted-foreground">Supervisor de Red</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="pt-6">
-            <div className="text-2xl font-bold">{stats.comedor}</div>
-            <p className="text-xs text-muted-foreground">Comedor</p>
+            <div className="text-2xl font-bold">{stats.gestor_unidad}</div>
+            <p className="text-xs text-muted-foreground">Gestor de Unidad</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-6">
+            <div className="text-2xl font-bold">{stats.operador_caja}</div>
+            <p className="text-xs text-muted-foreground">Operador de Caja</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-6">
+            <div className="text-2xl font-bold">{stats.operador_cocina}</div>
+            <p className="text-xs text-muted-foreground">Operador de Cocina</p>
           </CardContent>
         </Card>
         <Card>
@@ -385,8 +403,10 @@ export function UsersManagement() {
                 <SelectItem value="all">Todos los roles</SelectItem>
                 <SelectItem value="superadmin">SuperAdmin</SelectItem>
                 <SelectItem value="admin_general">Admin General</SelectItem>
-                <SelectItem value="pos">POS</SelectItem>
-                <SelectItem value="comedor">Comedor</SelectItem>
+                <SelectItem value="supervisor_red">Supervisor de Red</SelectItem>
+                <SelectItem value="gestor_unidad">Gestor de Unidad</SelectItem>
+                <SelectItem value="operador_caja">Operador de Caja</SelectItem>
+                <SelectItem value="operador_cocina">Operador de Cocina</SelectItem>
                 <SelectItem value="parent">Padres</SelectItem>
               </SelectContent>
             </Select>
@@ -508,8 +528,10 @@ export function UsersManagement() {
                 <SelectContent>
                   <SelectItem value="parent">Padre de Familia</SelectItem>
                   <SelectItem value="admin_general">Admin General</SelectItem>
-                  <SelectItem value="pos">Cajero (POS)</SelectItem>
-                  <SelectItem value="comedor">Comedor</SelectItem>
+                  <SelectItem value="supervisor_red">Supervisor de Red</SelectItem>
+                  <SelectItem value="gestor_unidad">Gestor de Unidad</SelectItem>
+                  <SelectItem value="operador_caja">Operador de Caja</SelectItem>
+                  <SelectItem value="operador_cocina">Operador de Cocina</SelectItem>
                 </SelectContent>
               </Select>
             </div>

@@ -39,7 +39,7 @@ interface School {
   prefix_base: string;
 }
 
-interface POSProfile {
+interface OperatorProfile {
   id: string;
   email: string;
   role: string;
@@ -50,8 +50,8 @@ interface POSProfile {
 
 interface SchoolProfiles {
   school: School;
-  pos_users: POSProfile[];
-  comedor_users: POSProfile[];
+  operador_caja_users: OperatorProfile[];
+  operador_cocina_users: OperatorProfile[];
   total_profiles: number;
   can_add_more: boolean;
   next_pos_number: number;
@@ -136,7 +136,7 @@ export function ProfilesControl() {
             .from('profiles')
             .select('id, role, pos_number, ticket_prefix, created_at')
             .eq('school_id', school.id)
-            .in('role', ['pos', 'comedor'])
+            .in('role', ['operador_caja', 'operador_cocina'])
             .order('role')
             .order('pos_number');
 
@@ -144,12 +144,12 @@ export function ProfilesControl() {
           // Ya no necesitamos auth.admin, el email ya viene en profiles
           const profilesWithEmail = profiles || [];
 
-          const posUsers = profilesWithEmail.filter(p => p.role === 'pos');
-          const comedorUsers = profilesWithEmail.filter(p => p.role === 'comedor');
-          const totalProfiles = posUsers.length + comedorUsers.length;
+          const operadorCajaUsers = profilesWithEmail.filter(p => p.role === 'operador_caja');
+          const operadorCocinaUsers = profilesWithEmail.filter(p => p.role === 'operador_cocina');
+          const totalProfiles = operadorCajaUsers.length + operadorCocinaUsers.length;
           
           // Calcular siguiente número POS disponible
-          const usedNumbers = posUsers.map(p => p.pos_number).filter(n => n !== null);
+          const usedNumbers = operadorCajaUsers.map(p => p.pos_number).filter(n => n !== null);
           const maxNumber = usedNumbers.length > 0 ? Math.max(...usedNumbers) : 0;
           const nextPosNumber = maxNumber + 1 <= 3 ? maxNumber + 1 : 0;
           
@@ -162,8 +162,8 @@ export function ProfilesControl() {
               ...school,
               prefix_base: prefixBase,
             },
-            pos_users: posUsers,
-            comedor_users: comedorUsers,
+            operador_caja_users: operadorCajaUsers,
+            operador_cocina_users: operadorCocinaUsers,
             total_profiles: totalProfiles,
             can_add_more: totalProfiles < 3,
             next_pos_number: nextPosNumber,
@@ -262,17 +262,17 @@ export function ProfilesControl() {
               </CardHeader>
               <CardContent>
                 <div className="grid md:grid-cols-2 gap-4">
-                  {/* POS Users */}
+                  {/* Operadores de Caja */}
                   <div>
                     <h4 className="text-sm font-semibold mb-2 flex items-center gap-2">
                       <CreditCard className="h-4 w-4" />
-                      Puntos de Venta (POS)
+                      Operadores de Caja
                     </h4>
-                    {schoolData.pos_users.length === 0 ? (
+                    {schoolData.operador_caja_users.length === 0 ? (
                       <p className="text-sm text-muted-foreground">No hay cajeros asignados</p>
                     ) : (
                       <div className="space-y-2">
-                        {schoolData.pos_users.map((user) => (
+                        {schoolData.operador_caja_users.map((user) => (
                           <Card key={user.id} className="p-3">
                             <div className="flex items-center justify-between">
                               <div className="flex-1">
@@ -340,17 +340,17 @@ export function ProfilesControl() {
                     )}
                   </div>
 
-                  {/* Comedor Users */}
+                  {/* Operadores de Cocina */}
                   <div>
                     <h4 className="text-sm font-semibold mb-2 flex items-center gap-2">
                       <UtensilsCrossed className="h-4 w-4" />
-                      Gestión de Menús (Comedor)
+                      Operadores de Cocina
                     </h4>
-                    {schoolData.comedor_users.length === 0 ? (
-                      <p className="text-sm text-muted-foreground">No hay usuarios de comedor</p>
+                    {schoolData.operador_cocina_users.length === 0 ? (
+                      <p className="text-sm text-muted-foreground">No hay operadores de cocina</p>
                     ) : (
                       <div className="space-y-2">
-                        {schoolData.comedor_users.map((user) => (
+                        {schoolData.operador_cocina_users.map((user) => (
                           <Card key={user.id} className="p-3">
                             <div className="flex items-center justify-between">
                               <div>
@@ -396,7 +396,7 @@ function CreatePOSComedorForm({
   onSuccess: () => void;
 }) {
   const { toast } = useToast();
-  const [profileType, setProfileType] = useState<'pos' | 'comedor'>('pos');
+  const [profileType, setProfileType] = useState<'operador_caja' | 'operador_cocina'>('operador_caja');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
@@ -548,21 +548,21 @@ function CreatePOSComedorForm({
 
       <div>
         <Label htmlFor="profileType">Tipo de Perfil</Label>
-        <Select value={profileType} onValueChange={(v) => setProfileType(v as 'pos' | 'comedor')}>
+        <Select value={profileType} onValueChange={(v) => setProfileType(v as 'operador_caja' | 'operador_cocina')}>
           <SelectTrigger>
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="pos">
+            <SelectItem value="operador_caja">
               <div className="flex items-center gap-2">
                 <CreditCard className="h-4 w-4" />
-                Punto de Venta (POS)
+                Operador de Caja
               </div>
             </SelectItem>
-            <SelectItem value="comedor">
+            <SelectItem value="operador_cocina">
               <div className="flex items-center gap-2">
                 <UtensilsCrossed className="h-4 w-4" />
-                Gestión de Menús (Comedor)
+                Operador de Cocina
               </div>
             </SelectItem>
           </SelectContent>

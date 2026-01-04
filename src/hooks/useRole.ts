@@ -2,7 +2,15 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase';
 
-export type UserRole = 'parent' | 'superadmin' | 'admin_general' | 'pos' | 'comedor' | null;
+export type UserRole = 
+  | 'parent' 
+  | 'superadmin' 
+  | 'admin_general' 
+  | 'supervisor_red' 
+  | 'gestor_unidad' 
+  | 'operador_caja' 
+  | 'operador_cocina' 
+  | null;
 
 interface UseRoleReturn {
   role: UserRole;
@@ -52,7 +60,14 @@ export function useRole(): UseRoleReturn {
 
   const isParent = useMemo(() => role === 'parent', [role]);
   const isStaff = useMemo(
-    () => ['superadmin', 'admin_general', 'pos', 'comedor'].includes(role || ''),
+    () => [
+      'superadmin', 
+      'admin_general', 
+      'supervisor_red', 
+      'gestor_unidad', 
+      'operador_caja', 
+      'operador_cocina'
+    ].includes(role || ''),
     [role]
   );
 
@@ -72,10 +87,14 @@ export function useRole(): UseRoleReturn {
         return '/superadmin'; // Panel técnico del programador
       case 'admin_general':
         return '/dashboard'; // Dashboard de módulos de negocio
-      case 'pos':
-        return '/pos';
-      case 'comedor':
-        return '/comedor';
+      case 'supervisor_red':
+        return '/dashboard'; // Auditor multi-sede
+      case 'gestor_unidad':
+        return '/dashboard'; // Administrador de sede
+      case 'operador_caja':
+        return '/pos'; // Cajero directo al POS
+      case 'operador_cocina':
+        return '/comedor'; // Cocina directo a su pantalla
       default:
         return '/';
     }

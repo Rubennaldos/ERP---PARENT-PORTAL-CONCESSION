@@ -19,12 +19,14 @@ import {
   Circle,
   Users,
   Building2,
-  GraduationCap
+  GraduationCap,
+  Lock
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/lib/supabase';
 import { UsersManagement } from '@/components/admin/UsersManagement';
 import { ProfilesControl } from '@/components/admin/ProfilesControl';
+import { AccessControlModule } from '@/components/admin/AccessControlModule';
 import StudentsManagement from '@/components/admin/StudentsManagement';
 
 const SuperAdmin = () => {
@@ -82,6 +84,10 @@ const SuperAdmin = () => {
             <TabsTrigger value="overview" className="data-[state=active]:bg-background">
               <Activity className="h-4 w-4 mr-2" />
               Status
+            </TabsTrigger>
+            <TabsTrigger value="access-control" className="data-[state=active]:bg-background">
+              <Lock className="h-4 w-4 mr-2" />
+              Control de Acceso
             </TabsTrigger>
             <TabsTrigger value="users-management" className="data-[state=active]:bg-background">
               <Users className="h-4 w-4 mr-2" />
@@ -162,6 +168,11 @@ const SuperAdmin = () => {
                 </CardContent>
               </Card>
             </div>
+          </TabsContent>
+
+          {/* Control de Acceso Tab - NUEVO */}
+          <TabsContent value="access-control" className="space-y-4">
+            <AccessControlModule />
           </TabsContent>
 
           {/* Gestión de Usuarios Tab */}
