@@ -35,11 +35,6 @@ export const ViewAsSelector = () => {
   const [selectedRole, setSelectedRole] = useState<string>('');
   const [selectedSchoolId, setSelectedSchoolId] = useState<string>('');
 
-  // Solo mostrar para Admin General
-  if (role !== 'admin_general') {
-    return null;
-  }
-
   useEffect(() => {
     fetchSchools();
   }, []);
@@ -57,6 +52,11 @@ export const ViewAsSelector = () => {
       console.error('Error fetching schools:', error);
     }
   };
+
+  // Solo mostrar para Admin General - MOVER AL FINAL
+  if (role !== 'admin_general') {
+    return null;
+  }
 
   const handleActivateViewAs = () => {
     const roleOption = ROLES_OPTIONS.find(r => r.value === selectedRole);
