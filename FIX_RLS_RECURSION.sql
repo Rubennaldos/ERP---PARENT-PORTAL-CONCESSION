@@ -44,17 +44,7 @@ DROP POLICY IF EXISTS "admin_general_all_parent_profiles" ON parent_profiles;
 DROP POLICY IF EXISTS "parents_own_profile" ON parent_profiles;
 
 -- =====================================================
--- PASO 2: CREAR FUNCIÓN HELPER PARA OBTENER ROL
--- =====================================================
--- Esta función usa una query simple sin recursión
-
-CREATE OR REPLACE FUNCTION auth.user_role()
-RETURNS TEXT AS $$
-  SELECT role FROM profiles WHERE id = auth.uid() LIMIT 1;
-$$ LANGUAGE SQL STABLE;
-
--- =====================================================
--- PASO 3: POLÍTICAS PARA PROFILES (SIN RECURSIÓN)
+-- PASO 2: POLÍTICAS PARA PROFILES (SIN RECURSIÓN)
 -- =====================================================
 
 -- SuperAdmin y Admin General ven TODO (bypass RLS)
@@ -101,7 +91,7 @@ TO authenticated
 USING (id = auth.uid());
 
 -- =====================================================
--- PASO 4: POLÍTICAS PARA STUDENTS (OPTIMIZADAS)
+-- PASO 3: POLÍTICAS PARA STUDENTS (OPTIMIZADAS)
 -- =====================================================
 
 -- SuperAdmin y Admin General ven TODO
@@ -176,7 +166,7 @@ USING (
 );
 
 -- =====================================================
--- PASO 5: POLÍTICAS PARA TRANSACTIONS (OPTIMIZADAS)
+-- PASO 4: POLÍTICAS PARA TRANSACTIONS (OPTIMIZADAS)
 -- =====================================================
 
 -- SuperAdmin y Admin General ven TODO
@@ -262,7 +252,7 @@ USING (
 );
 
 -- =====================================================
--- PASO 6: POLÍTICAS PARA PRODUCTS (COMPARTIDOS)
+-- PASO 5: POLÍTICAS PARA PRODUCTS (COMPARTIDOS)
 -- =====================================================
 
 -- Todos los usuarios autenticados pueden ver productos
@@ -284,7 +274,7 @@ USING (
 );
 
 -- =====================================================
--- PASO 7: POLÍTICAS PARA PARENT_PROFILES
+-- PASO 6: POLÍTICAS PARA PARENT_PROFILES
 -- =====================================================
 
 -- SuperAdmin y Admin General ven TODO
