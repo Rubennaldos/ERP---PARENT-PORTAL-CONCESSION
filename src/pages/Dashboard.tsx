@@ -16,7 +16,8 @@ import {
   Package,
   LogOut,
   Lock,
-  CheckCircle2
+  CheckCircle2,
+  ShieldCheck
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 
@@ -40,6 +41,7 @@ const ICON_MAP: { [key: string]: any } = {
   FileSearch,
   TrendingUp,
   Package,
+  ShieldCheck,
 };
 
 const COLOR_MAP: { [key: string]: string } = {
@@ -120,6 +122,18 @@ const Dashboard = () => {
         },
         {
           id: '5',
+          code: 'control_acceso',
+          name: 'Control de Acceso',
+          description: 'Gestión de permisos y roles',
+          icon: 'ShieldCheck',
+          color: 'blue',
+          route: '/access-control',
+          is_active: true,
+          is_enabled: false,
+          status: 'functional' as const,
+        },
+        {
+          id: '6',
           code: 'finanzas',
           name: 'Finanzas',
           description: 'Reportes financieros y análisis',
@@ -131,7 +145,7 @@ const Dashboard = () => {
           status: 'coming_soon' as const,
         },
         {
-          id: '6',
+          id: '7',
           code: 'logistica',
           name: 'Logística',
           description: 'Inventario y compras',

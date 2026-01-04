@@ -16,6 +16,7 @@ import POS from "./pages/POS";
 import Comedor from "./pages/Comedor";
 import SalesList from "./pages/SalesList";
 import ParentsManagement from "./components/admin/ParentsManagement";
+import AccessControl from "./pages/AccessControl";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -124,6 +125,16 @@ const App = () => (
               element={
                 <ProtectedRoute allowedRoles={['superadmin', 'admin_general']}>
                   <ParentsManagement />
+                </ProtectedRoute>
+              }
+            />
+            
+            {/* Control de Acceso - Admin General */}
+            <Route
+              path="/access-control"
+              element={
+                <ProtectedRoute allowedRoles={['admin_general']}>
+                  <AccessControl />
                 </ProtectedRoute>
               }
             />
