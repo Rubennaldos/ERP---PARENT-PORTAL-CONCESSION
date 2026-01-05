@@ -8,7 +8,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { Lock, Users, Shield, ShieldCheck, AlertTriangle, CheckCircle2, XCircle, Loader2, Building2 } from "lucide-react";
+import { Lock, Users, Shield, ShieldCheck, AlertTriangle, CheckCircle2, XCircle, Loader2, Building2, UserPlus } from "lucide-react";
+import { CreateProfileModal } from './CreateProfileModal';
 
 interface School {
   id: string;
@@ -54,6 +55,7 @@ export const AccessControlModule = () => {
   const [permissions, setPermissions] = useState<Permission[]>([]);
   const [schools, setSchools] = useState<School[]>([]);
   const [activeTab, setActiveTab] = useState('roles'); // 'roles' or 'users'
+  const [createProfileModalOpen, setCreateProfileModalOpen] = useState(false);
 
   // State for Role Permissions Tab
   const [selectedRole, setSelectedRole] = useState<string>('operador_caja');
@@ -306,6 +308,18 @@ export const AccessControlModule = () => {
 
   return (
     <div className="space-y-6">
+      {/* Botón Crear Perfil */}
+      <div className="flex justify-end">
+        <Button 
+          onClick={() => setCreateProfileModalOpen(true)}
+          size="lg"
+          className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
+        >
+          <UserPlus className="h-5 w-5 mr-2" />
+          Crear Nuevo Perfil
+        </Button>
+      </div>
+
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -549,6 +563,19 @@ export const AccessControlModule = () => {
           </Tabs>
         </CardContent>
       </Card>
+
+      {/* Modal de Creación de Perfiles */}
+      <CreateProfileModal 
+        open={createProfileModalOpen}
+        onOpenChange={setCreateProfileModalOpen}
+        onSuccess={() => {
+          fetchUsers(); // Recargar lista de usuarios
+          toast({
+            title: '✅ Perfil creado',
+            description: 'El nuevo perfil ha sido agregado exitosamente.',
+          });
+        }}
+      />
     </div>
   );
 };
