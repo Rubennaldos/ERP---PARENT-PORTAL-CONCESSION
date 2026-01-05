@@ -3,6 +3,8 @@ import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRole } from '@/hooks/useRole';
 import { useToast } from '@/hooks/use-toast';
+import { useViewAsStore } from '@/stores/viewAsStore';
+import { MOCK_BILLING_PERIODS } from '@/mocks/billingData';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -69,6 +71,7 @@ export const BillingPeriods = () => {
   const { user } = useAuth();
   const { role } = useRole();
   const { toast } = useToast();
+  const { isDemoMode } = useViewAsStore();
 
   const [loading, setLoading] = useState(true);
   const [periods, setPeriods] = useState<BillingPeriod[]>([]);
@@ -100,6 +103,14 @@ export const BillingPeriods = () => {
   }, []);
 
   const fetchSchools = async () => {
+    if (isDemoMode) {
+      setSchools([
+        { id: 'mock-school-1', name: 'Nordic School', code: 'NORDIC' },
+        { id: 'mock-school-2', name: 'Jean LeBouch', code: 'JEAN' }
+      ]);
+      return;
+    }
+
     try {
       const { data, error } = await supabase
         .from('schools')
@@ -114,6 +125,14 @@ export const BillingPeriods = () => {
   };
 
   const fetchUserSchool = async () => {
+    if (isDemoMode) {
+      setUserSchoolId('mock-school-1');
+      if (!canViewAllSchools) {
+        setFormData(prev => ({ ...prev, school_id: 'mock-school-1' }));
+      }
+      return;
+    }
+
     if (!user) return;
     
     try {
@@ -136,6 +155,26 @@ export const BillingPeriods = () => {
   };
 
   const fetchPeriods = async () => {
+    if (isDemoMode) {
+      setLoading(true);
+      await new Promise(resolve => setTimeout(resolve, 500));
+      const mockPeriods: BillingPeriod[] = MOCK_BILLING_PERIODS.map(p => ({
+        id: p.id,
+        school_id: 'mock-school-1',
+        period_name: p.name,
+        start_date: p.start_date,
+        end_date: p.end_date,
+        status: p.status as any,
+        visible_to_parents: p.is_visible_to_parents,
+        notes: "Período de prueba",
+        created_at: new Date().toISOString(),
+        schools: { id: 'mock-school-1', name: 'Nordic School', code: 'NORDIC' }
+      }));
+      setPeriods(mockPeriods);
+      setLoading(false);
+      return;
+    }
+
     try {
       setLoading(true);
 
@@ -215,6 +254,18 @@ export const BillingPeriods = () => {
     }
 
     setSaving(true);
+
+    if (isDemoMode) {
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      toast({
+        title: '✅ Acción simulada (Modo Demo)',
+        description: 'Se simuló el guardado del período.',
+      });
+      setShowModal(false);
+      setSaving(false);
+      return;
+    }
+
     try {
       const periodData = {
         school_id: formData.school_id,
@@ -270,6 +321,15 @@ export const BillingPeriods = () => {
 
   const handleDelete = async (period: BillingPeriod) => {
     if (!confirm(`¿Estás seguro de eliminar el período "${period.period_name}"?`)) {
+      return;
+    }
+
+    if (isDemoMode) {
+      toast({
+        title: '✅ Eliminación simulada (Modo Demo)',
+        description: 'El período se eliminó localmente.',
+      });
+      setPeriods(prev => prev.filter(p => p.id !== period.id));
       return;
     }
 

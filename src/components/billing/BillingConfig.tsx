@@ -3,6 +3,7 @@ import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRole } from '@/hooks/useRole';
 import { useToast } from '@/hooks/use-toast';
+import { useViewAsStore } from '@/stores/viewAsStore';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -42,6 +43,7 @@ export const BillingConfig = () => {
   const { user } = useAuth();
   const { role } = useRole();
   const { toast } = useToast();
+  const { isDemoMode } = useViewAsStore();
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -68,6 +70,16 @@ export const BillingConfig = () => {
   }, [selectedSchool]);
 
   const fetchSchools = async () => {
+    if (isDemoMode) {
+      const mockSchools = [
+        { id: 'mock-school-1', name: 'Nordic School' },
+        { id: 'mock-school-2', name: 'Jean LeBouch' }
+      ];
+      setSchools(mockSchools);
+      setSelectedSchool(mockSchools[0].id);
+      return;
+    }
+
     try {
       const { data, error } = await supabase
         .from('schools')
@@ -77,7 +89,6 @@ export const BillingConfig = () => {
       if (error) throw error;
       setSchools(data || []);
 
-      // Si no es admin_general, obtener su sede
       if (!canViewAllSchools && user) {
         const { data: profile } = await supabase
           .from('profiles')
@@ -87,16 +98,43 @@ export const BillingConfig = () => {
         
         if (profile?.school_id) {
           setSelectedSchool(profile.school_id);
+        } else {
+          setLoading(false); // Detener carga si no hay sede
         }
       } else if (data && data.length > 0) {
         setSelectedSchool(data[0].id);
+      } else {
+        setLoading(false); // Detener carga si no hay sedes
       }
     } catch (error) {
       console.error('Error fetching schools:', error);
+      setLoading(false);
     }
   };
 
   const fetchConfig = async () => {
+    if (isDemoMode) {
+      setLoading(true);
+      await new Promise(resolve => setTimeout(resolve, 500));
+      setMessageTemplate(`🔔 *COBRANZA LIMA CAFÉ 28* (MODO PRUEBA)
+
+Estimado(a) {nombre_padre}
+
+El alumno *{nombre_estudiante}* tiene un consumo pendiente del período: {periodo}
+
+💰 Monto Total: S/ {monto}
+
+📎 Adjuntamos el detalle completo.
+
+Para pagar, contacte con administración.
+Gracias.`);
+      setBankInfo('BCP Ahorros: 191-xxxxxx-x-xx');
+      setYapeNumber('999888777');
+      setPlinNumber('999111222');
+      setLoading(false);
+      return;
+    }
+
     try {
       setLoading(true);
 
@@ -140,9 +178,20 @@ Gracias.`);
   };
 
   const handleSave = async () => {
-    if (!selectedSchool || !user) return;
+    if (!selectedSchool || (!user && !isDemoMode)) return;
 
     setSaving(true);
+
+    if (isDemoMode) {
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      toast({
+        title: '✅ Configuración simulada (Modo Demo)',
+        description: 'Se simuló el guardado de la configuración.',
+      });
+      setSaving(false);
+      return;
+    }
+
     try {
       const configData = {
         school_id: selectedSchool,

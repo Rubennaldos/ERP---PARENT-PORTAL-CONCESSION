@@ -50,7 +50,7 @@ export default function SplashScreen({ onComplete }: SplashScreenProps) {
           <img 
             src={limaCafeLogo} 
             alt="Lima Café 28" 
-            className="w-48 h-48 object-contain drop-shadow-xl"
+            className="w-56 h-56 object-contain mix-blend-multiply"
           />
           
           {/* Resplandor detrás del logo */}

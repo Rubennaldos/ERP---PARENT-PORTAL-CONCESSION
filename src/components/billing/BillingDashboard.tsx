@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRole } from '@/hooks/useRole';
+import { useViewAsStore } from '@/stores/viewAsStore';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -49,6 +50,7 @@ interface DashboardStats {
 export const BillingDashboard = () => {
   const { user } = useAuth();
   const { role } = useRole();
+  const { isDemoMode } = useViewAsStore();
   const [loading, setLoading] = useState(true);
   const [schools, setSchools] = useState<School[]>([]);
   const [selectedSchool, setSelectedSchool] = useState<string>('all');
@@ -69,6 +71,14 @@ export const BillingDashboard = () => {
   }, [selectedSchool]);
 
   const fetchSchools = async () => {
+    if (isDemoMode) {
+      setSchools([
+        { id: 'mock-school-1', name: 'Nordic School', code: 'NORDIC' },
+        { id: 'mock-school-2', name: 'Jean LeBouch', code: 'JEAN' }
+      ]);
+      return;
+    }
+
     try {
       const { data, error } = await supabase
         .from('schools')
@@ -83,6 +93,29 @@ export const BillingDashboard = () => {
   };
 
   const fetchDashboardStats = async () => {
+    if (isDemoMode) {
+      setLoading(true);
+      await new Promise(resolve => setTimeout(resolve, 800));
+      
+      setStats({
+        totalPending: 2450.50,
+        totalCollected: 1200.00,
+        activePeriods: 2,
+        parentsWithDebt: 15,
+        topDebtors: [
+          { student_name: "Juanito Pérez", parent_name: "Alberto Mock", amount: 150.50, school_name: "Nordic School" },
+          { student_name: "María García", parent_name: "Alberto Mock", amount: 75.00, school_name: "Nordic School" },
+          { student_name: "Ricardo Palma", parent_name: "Gisella Mock", amount: 200.00, school_name: "Jean LeBouch" }
+        ],
+        collectionBySchool: [
+          { school_name: "Nordic School", pending: 1250, collected: 800 },
+          { school_name: "Jean LeBouch", pending: 1200.50, collected: 400 }
+        ]
+      });
+      setLoading(false);
+      return;
+    }
+
     try {
       setLoading(true);
 
@@ -231,6 +264,7 @@ export const BillingDashboard = () => {
   };
 
   const getUserSchoolId = async () => {
+    if (isDemoMode) return 'mock-school-1';
     if (!user) return null;
     const { data } = await supabase
       .from('profiles')

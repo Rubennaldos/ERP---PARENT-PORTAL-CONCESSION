@@ -25,6 +25,7 @@ interface PDFData {
   total_amount: number;
   paid_amount?: number;
   pending_amount?: number;
+  logo_base64?: string;
 }
 
 export const generateBillingPDF = (data: PDFData) => {
@@ -34,81 +35,95 @@ export const generateBillingPDF = (data: PDFData) => {
 
   // Colores
   const primaryColor: [number, number, number] = [220, 38, 38]; // red-600
+  const darkColor: [number, number, number] = [31, 41, 55]; // gray-800
   const secondaryColor: [number, number, number] = [107, 114, 128]; // gray-500
-  const tableHeaderColor: [number, number, number] = [254, 226, 226]; // red-100
+  const tableHeaderColor: [number, number, number] = [243, 244, 246]; // gray-100
 
-  // Logo y Header
+  // Header decorativo lateral
   doc.setFillColor(...primaryColor);
-  doc.rect(0, 0, pageWidth, 35, 'F');
-  
-  doc.setTextColor(255, 255, 255);
-  doc.setFontSize(24);
+  doc.rect(0, 0, 5, 40, 'F');
+
+  // Logo (si existe)
+  if (data.logo_base64) {
+    try {
+      doc.addImage(data.logo_base64, 'PNG', 14, 10, 35, 35, undefined, 'FAST');
+    } catch (e) {
+      console.error('Error adding logo to PDF:', e);
+    }
+  }
+
+  // Título y Tipo de Documento
+  doc.setTextColor(...darkColor);
+  doc.setFontSize(22);
   doc.setFont('helvetica', 'bold');
-  doc.text('LIMA CAFÉ 28', pageWidth / 2, 15, { align: 'center' });
+  doc.text('LIMA CAFÉ 28', pageWidth - 14, 20, { align: 'right' });
   
-  doc.setFontSize(12);
+  doc.setFontSize(14);
+  doc.setTextColor(...secondaryColor);
   doc.setFont('helvetica', 'normal');
-  doc.text('ESTADO DE CUENTA', pageWidth / 2, 25, { align: 'center' });
+  doc.text('ESTADO DE CUENTA', pageWidth - 14, 30, { align: 'right' });
 
   // Información del período
+  let yPos = 55;
   doc.setTextColor(0, 0, 0);
+  doc.setFontSize(11);
+  doc.setFont('helvetica', 'bold');
+  doc.text('INFORMACIÓN DEL PERÍODO', 14, yPos);
+  
+  yPos += 7;
   doc.setFontSize(10);
   doc.setFont('helvetica', 'bold');
-  doc.text(`Período: ${data.period_name}`, 14, 45);
+  doc.text(`Período:`, 14, yPos);
+  doc.setFont('helvetica', 'normal');
+  doc.text(data.period_name, 40, yPos);
+  
+  yPos += 6;
+  doc.setFont('helvetica', 'bold');
+  doc.text(`Rango:`, 14, yPos);
   doc.setFont('helvetica', 'normal');
   doc.text(
-    `${format(new Date(data.start_date), 'dd MMM yyyy', { locale: es })} - ${format(new Date(data.end_date), 'dd MMM yyyy', { locale: es })}`,
-    14,
-    52
+    `${format(new Date(data.start_date), 'dd/MM/yyyy', { locale: es })} al ${format(new Date(data.end_date), 'dd/MM/yyyy', { locale: es })}`,
+    40,
+    yPos
   );
 
-  // Información del estudiante y padre
-  let yPos = 62;
-  
+  // Información del cliente
+  yPos = 55;
+  const rightColX = 110;
   doc.setFont('helvetica', 'bold');
-  doc.text('Estudiante:', 14, yPos);
-  doc.setFont('helvetica', 'normal');
-  doc.text(data.student_name, 50, yPos);
+  doc.setFontSize(11);
+  doc.text('DATOS DEL CLIENTE', rightColX, yPos);
   
   yPos += 7;
+  doc.setFontSize(10);
   doc.setFont('helvetica', 'bold');
-  doc.text('Padre/Tutor:', 14, yPos);
+  doc.text('Estudiante:', rightColX, yPos);
   doc.setFont('helvetica', 'normal');
-  doc.text(data.parent_name, 50, yPos);
-
-  if (data.parent_dni) {
-    yPos += 7;
-    doc.setFont('helvetica', 'bold');
-    doc.text('DNI:', 14, yPos);
-    doc.setFont('helvetica', 'normal');
-    doc.text(data.parent_dni, 50, yPos);
-  }
-
-  if (data.parent_phone) {
-    yPos += 7;
-    doc.setFont('helvetica', 'bold');
-    doc.text('Teléfono:', 14, yPos);
-    doc.setFont('helvetica', 'normal');
-    doc.text(data.parent_phone, 50, yPos);
-  }
-
-  yPos += 7;
+  doc.text(data.student_name, rightColX + 25, yPos);
+  
+  yPos += 6;
   doc.setFont('helvetica', 'bold');
-  doc.text('Sede:', 14, yPos);
+  doc.text('Padre/Tutor:', rightColX, yPos);
   doc.setFont('helvetica', 'normal');
-  doc.text(data.school_name, 50, yPos);
+  doc.text(data.parent_name, rightColX + 25, yPos);
+
+  yPos += 6;
+  doc.setFont('helvetica', 'bold');
+  doc.text('Sede:', rightColX, yPos);
+  doc.setFont('helvetica', 'normal');
+  doc.text(data.school_name, rightColX + 25, yPos);
 
   // Línea separadora
   yPos += 10;
-  doc.setDrawColor(...secondaryColor);
+  doc.setDrawColor(229, 231, 235); // gray-200
   doc.setLineWidth(0.5);
   doc.line(14, yPos, pageWidth - 14, yPos);
 
   // Título de la tabla
-  yPos += 10;
+  yPos += 12;
   doc.setFontSize(12);
   doc.setFont('helvetica', 'bold');
-  doc.setTextColor(...primaryColor);
+  doc.setTextColor(...darkColor);
   doc.text('DETALLE DE CONSUMOS', 14, yPos);
 
   // Tabla de transacciones
@@ -188,32 +203,38 @@ export const generateBillingPDF = (data: PDFData) => {
   }
 
   // Nota al pie
-  const noteY = Math.max(summaryY + 30, pageHeight - 40);
+  const noteY = Math.max(summaryY + 35, pageHeight - 45);
   doc.setFontSize(9);
   doc.setFont('helvetica', 'italic');
   doc.setTextColor(...secondaryColor);
   doc.text(
-    'Para realizar el pago, contacte con la administración de su sede.',
+    'Este documento es un estado de cuenta informativo de consumos realizados.',
     pageWidth / 2,
     noteY,
     { align: 'center' }
   );
+  doc.text(
+    'Para cualquier duda o aclaración, por favor contacte con administración.',
+    pageWidth / 2,
+    noteY + 5,
+    { align: 'center' }
+  );
 
   // Footer
-  const footerY = pageHeight - 25;
+  const footerY = pageHeight - 20;
   
   // Línea separadora del footer
-  doc.setDrawColor(...secondaryColor);
+  doc.setDrawColor(229, 231, 235);
   doc.setLineWidth(0.3);
   doc.line(14, footerY - 5, pageWidth - 14, footerY - 5);
 
   // Texto del footer
   doc.setFontSize(7);
   doc.setFont('helvetica', 'normal');
-  doc.setTextColor(...secondaryColor);
+  doc.setTextColor(156, 163, 175); // gray-400
   
-  const footerLine1 = `© ${new Date().getFullYear()} ERP Profesional diseñado por ARQUISIA Soluciones para Lima Café 28`;
-  const footerLine2 = `Versión ${APP_CONFIG.version} ${APP_CONFIG.status} | Generado el ${format(new Date(), 'dd/MM/yyyy HH:mm', { locale: es })}`;
+  const footerLine1 = `© 2026 ERP Profesional diseñado por ARQUISIA Soluciones para Lima Café 28 — Versión ${APP_CONFIG.version} ${APP_CONFIG.status}`;
+  const footerLine2 = `Generado automáticamente el ${format(new Date(), 'dd/MM/yyyy HH:mm', { locale: es })}`;
   
   doc.text(footerLine1, pageWidth / 2, footerY + 2, { align: 'center' });
   doc.text(footerLine2, pageWidth / 2, footerY + 7, { align: 'center' });

@@ -167,7 +167,7 @@ export default function Auth() {
         <img 
           src={limaCafeLogo} 
           alt="Lima Café 28" 
-          className="h-20 w-auto object-contain drop-shadow-sm"
+          className="h-24 w-auto object-contain mix-blend-multiply"
         />
       </header>
 
@@ -302,11 +302,11 @@ export default function Auth() {
 
       {/* Footer sutil */}
       <footer className="py-8 text-center space-y-2">
-        <p className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground/70 font-bold">
-          Versión {APP_CONFIG.version} {APP_CONFIG.status}
-        </p>
         <p className="text-sm md:text-base font-medium text-muted-foreground px-4">
-          © 2026 ERP Profesional diseñado por <span className="text-primary/90 font-bold">{APP_CONFIG.designedBy}</span> para <span className="text-foreground/80 font-black">{APP_CONFIG.appName}</span> —
+          © 2026 ERP Profesional diseñado por <span className="text-primary/90 font-bold">{APP_CONFIG.designedBy}</span> para <span className="text-foreground/80 font-black">{APP_CONFIG.appName}</span> — 
+          <span className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground/70 font-bold ml-1">
+            Versión {APP_CONFIG.version} {APP_CONFIG.status}
+          </span>
         </p>
       </footer>
     </div>

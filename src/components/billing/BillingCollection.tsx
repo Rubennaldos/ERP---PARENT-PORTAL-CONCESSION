@@ -3,6 +3,8 @@ import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRole } from '@/hooks/useRole';
 import { useToast } from '@/hooks/use-toast';
+import { useViewAsStore } from '@/stores/viewAsStore';
+import { MOCK_STUDENTS, MOCK_BILLING_PERIODS, MOCK_TRANSACTIONS } from '@/mocks/billingData';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -42,6 +44,7 @@ import {
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { generateBillingPDF } from '@/utils/pdfGenerator';
+import limaCafeLogo from '@/assets/lima-cafe-logo.png';
 
 interface School {
   id: string;
@@ -75,6 +78,7 @@ export const BillingCollection = () => {
   const { user } = useAuth();
   const { role } = useRole();
   const { toast } = useToast();
+  const { isDemoMode } = useViewAsStore();
 
   const [loading, setLoading] = useState(true);
   const [schools, setSchools] = useState<School[]>([]);
@@ -120,6 +124,14 @@ export const BillingCollection = () => {
   }, [selectedSchool, selectedPeriod]);
 
   const fetchSchools = async () => {
+    if (isDemoMode) {
+      setSchools([
+        { id: 'mock-school-1', name: 'Nordic School', code: 'NORDIC' },
+        { id: 'mock-school-2', name: 'Jean LeBouch', code: 'JEAN' }
+      ]);
+      return;
+    }
+
     try {
       const { data, error } = await supabase
         .from('schools')
@@ -134,6 +146,15 @@ export const BillingCollection = () => {
   };
 
   const fetchUserSchool = async () => {
+    if (isDemoMode) {
+      setUserSchoolId('mock-school-1');
+      if (!canViewAllSchools) {
+        setSelectedSchool('mock-school-1');
+        fetchPeriods('mock-school-1');
+      }
+      return;
+    }
+
     if (!user) return;
     
     try {
@@ -156,6 +177,21 @@ export const BillingCollection = () => {
   };
 
   const fetchPeriods = async (schoolId?: string) => {
+    if (isDemoMode) {
+      const mockPeriods = MOCK_BILLING_PERIODS.map(p => ({
+        id: p.id,
+        period_name: p.name,
+        start_date: p.start_date,
+        end_date: p.end_date,
+        school_id: schoolId || 'mock-school-1'
+      }));
+      setPeriods(mockPeriods);
+      if (mockPeriods.length > 0 && !selectedPeriod) {
+        setSelectedPeriod(mockPeriods[0].id);
+      }
+      return;
+    }
+
     try {
       const targetSchoolId = schoolId || (canViewAllSchools && selectedSchool !== 'all' ? selectedSchool : userSchoolId);
       
@@ -191,6 +227,36 @@ export const BillingCollection = () => {
   }, [selectedSchool]);
 
   const fetchDebtors = async () => {
+    if (isDemoMode) {
+      setLoading(true);
+      // Simular retraso
+      await new Promise(resolve => setTimeout(resolve, 800));
+      
+      const mockDebtors: DebtorStudent[] = MOCK_STUDENTS.map(student => ({
+        student_id: student.id,
+        student_name: student.nombre,
+        parent_id: student.parent_id,
+        parent_name: "Padre de Prueba",
+        parent_phone: "987654321",
+        parent_email: "prueba@example.com",
+        school_id: student.school_id,
+        school_name: student.school_name,
+        total_amount: Math.abs(student.saldo),
+        transaction_count: 2,
+        transactions: MOCK_TRANSACTIONS.map(t => ({...t, student_id: student.id}))
+      }));
+
+      // Filtrar por sede si no es admin general o tiene una sede seleccionada
+      const targetSchoolId = selectedSchool !== 'all' ? selectedSchool : (canViewAllSchools ? null : userSchoolId);
+      const filtered = targetSchoolId 
+        ? mockDebtors.filter(d => d.school_id === targetSchoolId)
+        : mockDebtors;
+
+      setDebtors(filtered);
+      setLoading(false);
+      return;
+    }
+
     try {
       setLoading(true);
 
@@ -317,7 +383,7 @@ export const BillingCollection = () => {
   };
 
   const handleRegisterPayment = async () => {
-    if (!currentDebtor || !user) return;
+    if (!currentDebtor || (!user && !isDemoMode)) return;
 
     if (paymentData.paid_amount <= 0 || paymentData.paid_amount > currentDebtor.total_amount) {
       toast({
@@ -329,6 +395,21 @@ export const BillingCollection = () => {
     }
 
     setSaving(true);
+    
+    if (isDemoMode) {
+      // Simular éxito en modo demo
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      toast({
+        title: '✅ Pago registrado (Modo Demo)',
+        description: `Se simuló el pago de S/ ${paymentData.paid_amount.toFixed(2)}. No se guardaron cambios reales.`,
+      });
+      setShowPaymentModal(false);
+      setSaving(false);
+      // Eliminar de la lista local para simular que ya pagó
+      setDebtors(prev => prev.filter(d => d.student_id !== currentDebtor.student_id));
+      return;
+    }
+
     try {
       // 1. Crear el registro de pago
       const { data: payment, error: paymentError } = await supabase
@@ -346,7 +427,7 @@ export const BillingCollection = () => {
           document_type: paymentData.document_type,
           notes: paymentData.notes || null,
           transaction_ids: currentDebtor.transactions.map(t => t.id),
-          created_by: user.id,
+          created_by: user!.id,
         })
         .select()
         .single();
@@ -405,9 +486,23 @@ Gracias.`;
     });
   };
 
-  const generatePDF = (debtor: DebtorStudent) => {
+  const generatePDF = async (debtor: DebtorStudent) => {
     const period = periods.find(p => p.id === selectedPeriod);
     if (!period) return;
+
+    // Intentar obtener el logo en base64
+    let logoBase64 = '';
+    try {
+      const response = await fetch(limaCafeLogo);
+      const blob = await response.blob();
+      logoBase64 = await new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result as string);
+        reader.readAsDataURL(blob);
+      });
+    } catch (error) {
+      console.error('Error cargando logo para PDF:', error);
+    }
 
     generateBillingPDF({
       student_name: debtor.student_name,
@@ -426,6 +521,7 @@ Gracias.`;
       })),
       total_amount: debtor.total_amount,
       pending_amount: debtor.total_amount,
+      logo_base64: logoBase64
     });
 
     toast({

@@ -11,7 +11,9 @@ import {
 } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Eye, EyeOff, AlertTriangle } from 'lucide-react';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
+import { Eye, EyeOff, AlertTriangle, PlayCircle } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 
 interface School {
@@ -29,7 +31,15 @@ const ROLES_OPTIONS = [
 
 export const ViewAsSelector = () => {
   const { role } = useRole();
-  const { isViewAsMode, viewAsRole, viewAsSchoolName, enableViewAs, disableViewAs } = useViewAsStore();
+  const { 
+    isViewAsMode, 
+    isDemoMode,
+    viewAsRole, 
+    viewAsSchoolName, 
+    enableViewAs, 
+    disableViewAs,
+    setDemoMode 
+  } = useViewAsStore();
   
   const [schools, setSchools] = useState<School[]>([]);
   const [selectedRole, setSelectedRole] = useState<string>('');
@@ -53,8 +63,8 @@ export const ViewAsSelector = () => {
     }
   };
 
-  // Solo mostrar para Admin General - MOVER AL FINAL
-  if (role !== 'admin_general') {
+  // Solo mostrar para Admin General o Superadmin
+  if (role !== 'admin_general' && role !== 'superadmin') {
     return null;
   }
 
@@ -88,7 +98,32 @@ export const ViewAsSelector = () => {
   const selectedRoleOption = ROLES_OPTIONS.find(r => r.value === selectedRole);
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-4">
+      {/* Selector de Modo Demo */}
+      <div className="flex items-center justify-between p-4 bg-orange-50 border border-orange-200 rounded-lg">
+        <div className="flex items-center gap-3">
+          <PlayCircle className="h-5 w-5 text-orange-600" />
+          <div>
+            <p className="text-sm font-semibold text-orange-900">🧪 Modo Demo (Pruebas)</p>
+            <p className="text-xs text-orange-700">Usa datos simulados sin afectar la base de datos real.</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          <Label htmlFor="demo-mode" className="text-xs font-medium text-orange-800">
+            {isDemoMode ? 'ACTIVADO' : 'DESACTIVADO'}
+          </Label>
+          <Switch 
+            id="demo-mode" 
+            checked={isDemoMode} 
+            onCheckedChange={(checked) => {
+              setDemoMode(checked);
+              // Recargar para limpiar estados y aplicar mocks
+              window.location.reload();
+            }}
+          />
+        </div>
+      </div>
+
       {isViewAsMode ? (
         // Modo Activo: Mostrar alerta y botón para salir
         <Alert className="bg-yellow-50 border-yellow-300">
