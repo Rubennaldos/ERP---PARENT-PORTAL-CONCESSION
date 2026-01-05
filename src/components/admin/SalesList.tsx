@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
+import { useRole } from '@/hooks/useRole';
+import { usePermissions } from '@/hooks/usePermissions';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -28,7 +30,9 @@ import {
   FileCheck,
   Receipt,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  Building2,
+  Filter
 } from "lucide-react";
 import { 
   Dialog,
@@ -56,10 +60,17 @@ import { es } from "date-fns/locale";
 import { useToast } from "@/hooks/use-toast";
 import { ThermalTicket } from "@/components/pos/ThermalTicket";
 
+interface School {
+  id: string;
+  name: string;
+  code: string;
+}
+
 interface Transaction {
   id: string;
   created_at: string;
   student_id: string | null;
+  school_id: string | null;
   type: string;
   amount: number;
   description: string;
@@ -82,6 +93,7 @@ interface Transaction {
   profiles?: {
     email: string;
   };
+  school?: School;
 }
 
 interface TransactionItem {
@@ -94,6 +106,8 @@ interface TransactionItem {
 
 export const SalesList = () => {
   const { user } = useAuth();
+  const { role } = useRole();
+  const { can } = usePermissions();
   const { toast } = useToast();
   
   const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -101,6 +115,12 @@ export const SalesList = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [activeTab, setActiveTab] = useState('today');
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+  
+  // Filtro de sedes
+  const [schools, setSchools] = useState<School[]>([]);
+  const [selectedSchool, setSelectedSchool] = useState<string>('all');
+  const [userSchoolId, setUserSchoolId] = useState<string | null>(null);
+  const canViewAllSchools = role === 'admin_general' || can('ventas.ver_todas_sedes');
   
   // Selección múltiple
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -126,9 +146,46 @@ export const SalesList = () => {
   const [showPrintOptions, setShowPrintOptions] = useState(false);
   const [printType, setPrintType] = useState<'individual' | 'consolidated'>('individual');
 
+  // Cargar escuelas y school_id del usuario
+  useEffect(() => {
+    fetchSchools();
+    fetchUserSchool();
+  }, []);
+
   useEffect(() => {
     fetchTransactions();
-  }, [activeTab, selectedDate]);
+  }, [activeTab, selectedDate, selectedSchool]);
+
+  const fetchSchools = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('schools')
+        .select('*')
+        .order('name');
+      
+      if (error) throw error;
+      setSchools(data || []);
+    } catch (error) {
+      console.error('Error fetching schools:', error);
+    }
+  };
+
+  const fetchUserSchool = async () => {
+    if (!user) return;
+    
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('school_id')
+        .eq('id', user.id)
+        .single();
+      
+      if (error) throw error;
+      setUserSchoolId(data?.school_id || null);
+    } catch (error) {
+      console.error('Error fetching user school:', error);
+    }
+  };
 
   const fetchTransactions = async () => {
     try {
@@ -139,19 +196,35 @@ export const SalesList = () => {
 
       console.log('🔍 INICIANDO BÚSQUEDA DE TRANSACCIONES:', {
         date: format(selectedDate, 'dd/MM/yyyy'),
-        activeTab
+        activeTab,
+        selectedSchool,
+        canViewAllSchools
       });
 
       let query = supabase
         .from('transactions')
         .select(`
           *,
-          student:students(id, full_name, balance)
+          student:students(id, full_name, balance),
+          school:schools(id, name, code)
         `)
         .eq('type', 'purchase') // ✅ SOLO VENTAS (no recargas)
         .gte('created_at', startDate)
         .lte('created_at', endDate)
         .order('created_at', { ascending: false });
+
+      // Filtrar por sede si corresponde
+      if (canViewAllSchools) {
+        // Si tiene permiso para ver todas las sedes
+        if (selectedSchool !== 'all') {
+          query = query.eq('school_id', selectedSchool);
+        }
+      } else {
+        // Si NO tiene permiso, solo ve su propia sede
+        if (userSchoolId) {
+          query = query.eq('school_id', userSchoolId);
+        }
+      }
 
       // Filtrar según pestaña
       if (activeTab === 'deleted') {
@@ -550,6 +623,47 @@ export const SalesList = () => {
             )}
           </div>
 
+          {/* Filtro de Sedes (solo si tiene permiso) */}
+          {canViewAllSchools && schools.length > 1 && (
+            <Card className="mb-6 bg-gradient-to-r from-blue-50 to-purple-50 border-blue-200">
+              <CardContent className="p-4">
+                <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-2">
+                    <Filter className="h-5 w-5 text-blue-600" />
+                    <Label className="font-semibold text-blue-900">Filtrar por Sede:</Label>
+                  </div>
+                  <Select value={selectedSchool} onValueChange={setSelectedSchool}>
+                    <SelectTrigger className="w-[280px] bg-white">
+                      <SelectValue placeholder="Selecciona una sede" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">
+                        <div className="flex items-center gap-2">
+                          <Building2 className="h-4 w-4 text-purple-600" />
+                          <span className="font-semibold">Todas las Sedes</span>
+                        </div>
+                      </SelectItem>
+                      {schools.map((school) => (
+                        <SelectItem key={school.id} value={school.id}>
+                          <div className="flex items-center gap-2">
+                            <Building2 className="h-4 w-4 text-blue-600" />
+                            <span>{school.name}</span>
+                            <Badge variant="outline" className="text-xs">{school.code}</Badge>
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {selectedSchool !== 'all' && (
+                    <Badge variant="default" className="ml-2">
+                      Filtrando
+                    </Badge>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
           {/* Pestañas */}
           <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
             <div className="flex items-center justify-between">
@@ -608,6 +722,12 @@ export const SalesList = () => {
                               <Badge variant="outline" className="font-mono text-xs font-bold">
                                 {t.ticket_code || '---'}
                               </Badge>
+                              {t.school && (
+                                <Badge variant="secondary" className="text-xs flex items-center gap-1">
+                                  <Building2 className="h-3 w-3" />
+                                  {t.school.name}
+                                </Badge>
+                              )}
                               <span className="text-xs text-muted-foreground">
                                 {format(new Date(t.created_at), "HH:mm", { locale: es })}
                               </span>
