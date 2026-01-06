@@ -31,13 +31,16 @@ import {
   Key,
   Bell,
   Shield,
-  HelpCircle
+  HelpCircle,
+  Camera,
+  Upload
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { AddStudentModal } from '@/components/AddStudentModal';
+import { UploadPhotoModal } from '@/components/UploadPhotoModal';
 import { useOnboardingCheck } from '@/hooks/useOnboardingCheck';
 
 interface Student {
@@ -68,6 +71,9 @@ const Index = () => {
   const [students, setStudents] = useState<Student[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
+  const [uploadingPhoto, setUploadingPhoto] = useState<string | null>(null);
+  const [showUploadPhoto, setShowUploadPhoto] = useState(false);
+  const [studentForPhoto, setStudentForPhoto] = useState<Student | null>(null);
   
   // Estado para Modal de Agregar Estudiante
   const [showAddStudent, setShowAddStudent] = useState(false);
@@ -258,6 +264,23 @@ const Index = () => {
     setShowHistory(true);
   };
 
+  const openUploadPhotoModal = (student: Student) => {
+    setStudentForPhoto(student);
+    setShowUploadPhoto(true);
+  };
+
+  const handlePhotoUploaded = (url: string) => {
+    if (studentForPhoto) {
+      setStudents(students.map(s => 
+        s.id === studentForPhoto.id ? { ...s, photo_url: url } : s
+      ));
+      if (selectedStudent?.id === studentForPhoto.id) {
+        setSelectedStudent({ ...selectedStudent, photo_url: url });
+      }
+    }
+    fetchStudents(); // Refrescar lista
+  };
+
   // Mostrar loader mientras verifica onboarding
   if (isChecking) {
     return (
@@ -341,12 +364,20 @@ const Index = () => {
                 <div className="h-24 bg-gradient-to-br from-blue-500 to-purple-600"></div>
                 <CardContent className="pt-0 px-6 pb-6">
                   {/* Foto del Estudiante */}
-                  <div className="flex justify-center -mt-12 mb-4">
+                  <div className="flex justify-center -mt-12 mb-4 relative">
                     <img
                       src={student.photo_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${student.full_name}`}
                       alt={student.full_name}
-                      className="w-24 h-24 rounded-full border-4 border-white shadow-lg"
+                      className="w-24 h-24 rounded-full border-4 border-white shadow-lg object-cover"
                     />
+                    <Button
+                      size="icon"
+                      variant="secondary"
+                      className="absolute bottom-0 right-1/4 w-8 h-8 rounded-full shadow-lg"
+                      onClick={() => openUploadPhotoModal(student)}
+                    >
+                      <Camera className="h-4 w-4" />
+                    </Button>
                   </div>
 
                   {/* Información del Estudiante */}
@@ -964,6 +995,18 @@ const Index = () => {
           onStudentAdded={fetchStudents}
           parentId={user?.id || ''}
         />
+
+        {/* Modal de Subir Foto */}
+        {studentForPhoto && (
+          <UploadPhotoModal
+            open={showUploadPhoto}
+            onOpenChange={setShowUploadPhoto}
+            studentId={studentForPhoto.id}
+            studentName={studentForPhoto.full_name}
+            currentPhotoUrl={studentForPhoto.photo_url}
+            onPhotoUploaded={handlePhotoUploaded}
+          />
+        )}
       </main>
     </div>
   );

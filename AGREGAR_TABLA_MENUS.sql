@@ -1,3 +1,7 @@
+-- =============================================
+-- TABLA DE MENÚS SEMANALES (Idempotente)
+-- =============================================
+
 -- Tabla para almacenar menús semanales
 CREATE TABLE IF NOT EXISTS weekly_menus (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -20,7 +24,7 @@ CREATE INDEX IF NOT EXISTS idx_weekly_menus_school ON weekly_menus(school_id);
 CREATE INDEX IF NOT EXISTS idx_weekly_menus_date ON weekly_menus(date);
 CREATE INDEX IF NOT EXISTS idx_weekly_menus_visible ON weekly_menus(is_visible);
 
--- Trigger para actualizar updated_at
+-- Función para actualizar updated_at
 CREATE OR REPLACE FUNCTION update_weekly_menus_updated_at()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -28,6 +32,9 @@ BEGIN
   RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
+
+-- Eliminar trigger existente y recrearlo
+DROP TRIGGER IF EXISTS trigger_update_weekly_menus_updated_at ON weekly_menus;
 
 CREATE TRIGGER trigger_update_weekly_menus_updated_at
   BEFORE UPDATE ON weekly_menus
@@ -61,3 +68,8 @@ COMMENT ON TABLE weekly_menus IS 'Almacena los menús semanales por sede escolar
 COMMENT ON COLUMN weekly_menus.visible_until IS 'Fecha límite hasta la cual el menú es visible para los padres';
 COMMENT ON COLUMN weekly_menus.is_visible IS 'Controla si el menú es visible para los padres en el momento actual';
 
+-- Verificar que todo se creó correctamente
+SELECT 
+  'Tabla creada' as status,
+  COUNT(*) as total_menus
+FROM weekly_menus;

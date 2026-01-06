@@ -1,8 +1,9 @@
-# 📱 LINKS DE REGISTRO POR SEDE
+# 📱 LINKS DE REGISTRO PARA PADRES - v1.0.9
 
 ## 🎯 CÓMO FUNCIONA:
 
 Cada sede tiene su **link único** que los padres escanean con QR o reciben por WhatsApp.
+El sistema detecta automáticamente la sede y registra al padre en la escuela correcta.
 
 ---
 
@@ -10,13 +11,13 @@ Cada sede tiene su **link único** que los padres escanean con QR o reciben por 
 
 ### Link de Registro:
 ```
-https://rubennaldos.github.io/parent-portal-connect/#/register?school=NRD
+https://parent-portal-connect.vercel.app/#/register?school=NRD
 ```
 
 ### QR Code:
 ```
 Generar QR en: https://www.qr-code-generator.com/
-Contenido: https://rubennaldos.github.io/parent-portal-connect/#/register?school=NRD
+Contenido: https://parent-portal-connect.vercel.app/#/register?school=NRD
 ```
 
 ### Mensaje para WhatsApp:
@@ -26,12 +27,15 @@ Contenido: https://rubennaldos.github.io/parent-portal-connect/#/register?school
 Bienvenido al Sistema de Kiosco Nordic.
 
 Regístrate aquí:
-https://rubennaldos.github.io/parent-portal-connect/#/register?school=NRD
+https://parent-portal-connect.vercel.app/#/register?school=NRD
 
 ✅ Usa tu cuenta de Google (más rápido)
 ✅ O crea una cuenta con email
 
 Cualquier duda, escríbenos.
+
+---
+Lima Café 28 - Sistema de Gestión Escolar v1.0.9
 ```
 
 ---
@@ -40,13 +44,13 @@ Cualquier duda, escríbenos.
 
 ### Link de Registro:
 ```
-https://rubennaldos.github.io/parent-portal-connect/#/register?school=SGV
+https://parent-portal-connect.vercel.app/#/register?school=SGV
 ```
 
 ### QR Code:
 ```
 Generar QR en: https://www.qr-code-generator.com/
-Contenido: https://rubennaldos.github.io/parent-portal-connect/#/register?school=SGV
+Contenido: https://parent-portal-connect.vercel.app/#/register?school=SGV
 ```
 
 ### Mensaje para WhatsApp:
@@ -56,256 +60,253 @@ Contenido: https://rubennaldos.github.io/parent-portal-connect/#/register?school
 Bienvenido al Sistema de Kiosco Saint George Villa.
 
 Regístrate aquí:
-https://rubennaldos.github.io/parent-portal-connect/#/register?school=SGV
+https://parent-portal-connect.vercel.app/#/register?school=SGV
 
 ✅ Usa tu cuenta de Google (más rápido)
 ✅ O crea una cuenta con email
 
 Cualquier duda, escríbenos.
+
+---
+Lima Café 28 - Sistema de Gestión Escolar v1.0.9
 ```
 
 ---
 
-## 🏫 SEDE 3: SAINT GEORGE MIRAFLORES (SGM)
+## 🏫 SEDE 3: JEAN LE BOUCH (JLB)
 
 ### Link de Registro:
 ```
-https://rubennaldos.github.io/parent-portal-connect/#/register?school=SGM
+https://parent-portal-connect.vercel.app/#/register?school=JLB
 ```
 
 ### QR Code:
 ```
 Generar QR en: https://www.qr-code-generator.com/
-Contenido: https://rubennaldos.github.io/parent-portal-connect/#/register?school=SGM
+Contenido: https://parent-portal-connect.vercel.app/#/register?school=JLB
 ```
 
 ### Mensaje para WhatsApp:
 ```
 ¡Hola! 👋
 
-Bienvenido al Sistema de Kiosco Saint George Miraflores.
+Bienvenido al Sistema de Kiosco Jean Le Bouch.
 
 Regístrate aquí:
-https://rubennaldos.github.io/parent-portal-connect/#/register?school=SGM
+https://parent-portal-connect.vercel.app/#/register?school=JLB
 
 ✅ Usa tu cuenta de Google (más rápido)
 ✅ O crea una cuenta con email
 
 Cualquier duda, escríbenos.
+
+---
+Lima Café 28 - Sistema de Gestión Escolar v1.0.9
 ```
 
 ---
 
-## 🏫 SEDE 4: LITTLE SAINT GEORGE (LSG)
+## 🏫 SEDE 4: CHICLAYO (CHI)
 
 ### Link de Registro:
 ```
-https://rubennaldos.github.io/parent-portal-connect/#/register?school=LSG
+https://parent-portal-connect.vercel.app/#/register?school=CHI
 ```
 
 ### QR Code:
 ```
 Generar QR en: https://www.qr-code-generator.com/
-Contenido: https://rubennaldos.github.io/parent-portal-connect/#/register?school=LSG
+Contenido: https://parent-portal-connect.vercel.app/#/register?school=CHI
 ```
 
 ### Mensaje para WhatsApp:
 ```
 ¡Hola! 👋
 
-Bienvenido al Sistema de Kiosco Little Saint George.
+Bienvenido al Sistema de Kiosco Chiclayo.
 
 Regístrate aquí:
-https://rubennaldos.github.io/parent-portal-connect/#/register?school=LSG
+https://parent-portal-connect.vercel.app/#/register?school=CHI
 
 ✅ Usa tu cuenta de Google (más rápido)
 ✅ O crea una cuenta con email
 
 Cualquier duda, escríbenos.
+
+---
+Lima Café 28 - Sistema de Gestión Escolar v1.0.9
 ```
 
 ---
 
-## 🏫 SEDE 5: JEAN LEBOUCH (JLB)
+## 🏫 SEDE 5: MAGDALENA (MAG)
 
 ### Link de Registro:
 ```
-https://rubennaldos.github.io/parent-portal-connect/#/register?school=JLB
+https://parent-portal-connect.vercel.app/#/register?school=MAG
 ```
 
 ### QR Code:
 ```
 Generar QR en: https://www.qr-code-generator.com/
-Contenido: https://rubennaldos.github.io/parent-portal-connect/#/register?school=JLB
+Contenido: https://parent-portal-connect.vercel.app/#/register?school=MAG
 ```
 
 ### Mensaje para WhatsApp:
 ```
 ¡Hola! 👋
 
-Bienvenido al Sistema de Kiosco Jean LeBouch.
+Bienvenido al Sistema de Kiosco Magdalena.
 
 Regístrate aquí:
-https://rubennaldos.github.io/parent-portal-connect/#/register?school=JLB
+https://parent-portal-connect.vercel.app/#/register?school=MAG
 
 ✅ Usa tu cuenta de Google (más rápido)
 ✅ O crea una cuenta con email
 
 Cualquier duda, escríbenos.
+
+---
+Lima Café 28 - Sistema de Gestión Escolar v1.0.9
 ```
 
 ---
 
-## 🏫 SEDE 6: MARISTAS CHAMPAGNAT 1 (MC1)
+## 🏫 SEDE 6: SANTA BEATRIZ (STB)
 
 ### Link de Registro:
 ```
-https://rubennaldos.github.io/parent-portal-connect/#/register?school=MC1
+https://parent-portal-connect.vercel.app/#/register?school=STB
 ```
 
 ### QR Code:
 ```
 Generar QR en: https://www.qr-code-generator.com/
-Contenido: https://rubennaldos.github.io/parent-portal-connect/#/register?school=MC1
+Contenido: https://parent-portal-connect.vercel.app/#/register?school=STB
 ```
 
 ### Mensaje para WhatsApp:
 ```
 ¡Hola! 👋
 
-Bienvenido al Sistema de Kiosco Maristas Champagnat 1.
+Bienvenido al Sistema de Kiosco Santa Beatriz.
 
 Regístrate aquí:
-https://rubennaldos.github.io/parent-portal-connect/#/register?school=MC1
+https://parent-portal-connect.vercel.app/#/register?school=STB
 
 ✅ Usa tu cuenta de Google (más rápido)
 ✅ O crea una cuenta con email
 
 Cualquier duda, escríbenos.
+
+---
+Lima Café 28 - Sistema de Gestión Escolar v1.0.9
 ```
 
 ---
 
-## 🏫 SEDE 7: MARISTAS CHAMPAGNAT 2 (MC2)
+## 🏫 SEDE 7: MARIA PARADO DE BELLIDO (MPB)
 
 ### Link de Registro:
 ```
-https://rubennaldos.github.io/parent-portal-connect/#/register?school=MC2
+https://parent-portal-connect.vercel.app/#/register?school=MPB
 ```
 
 ### QR Code:
 ```
 Generar QR en: https://www.qr-code-generator.com/
-Contenido: https://rubennaldos.github.io/parent-portal-connect/#/register?school=MC2
+Contenido: https://parent-portal-connect.vercel.app/#/register?school=MPB
 ```
 
 ### Mensaje para WhatsApp:
 ```
 ¡Hola! 👋
 
-Bienvenido al Sistema de Kiosco Maristas Champagnat 2.
+Bienvenido al Sistema de Kiosco Maria Parado de Bellido.
 
 Regístrate aquí:
-https://rubennaldos.github.io/parent-portal-connect/#/register?school=MC2
+https://parent-portal-connect.vercel.app/#/register?school=MPB
 
 ✅ Usa tu cuenta de Google (más rápido)
 ✅ O crea una cuenta con email
 
 Cualquier duda, escríbenos.
+
+---
+Lima Café 28 - Sistema de Gestión Escolar v1.0.9
 ```
 
 ---
 
-## 🎨 CÓMO GENERAR LOS QR CODES:
+## 📊 ESTADÍSTICAS DE REGISTRO
 
-### Opción 1: QR Code Generator (Gratis)
-```
-1. Ir a: https://www.qr-code-generator.com/
-2. Pegar el link de la sede
-3. Personalizar (color, logo del colegio)
-4. Descargar como PNG o PDF
-5. Imprimir y pegar en el colegio
-```
+Para ver cuántos padres se han registrado por sede:
 
-### Opción 2: QR Monkey (Más opciones)
+1. Ve a SuperAdmin → Gestión de Usuarios
+2. Filtra por "Padres"
+3. Agrupa por "Sede"
+
+---
+
+## 🔗 OTROS LINKS IMPORTANTES
+
+### Dashboard de Admin General:
 ```
-1. Ir a: https://www.qrcode-monkey.com/
-2. Pegar el link
-3. Agregar logo del colegio en el centro
-4. Elegir colores del colegio
-5. Descargar alta resolución
+https://parent-portal-connect.vercel.app/#/dashboard
 ```
 
-### Opción 3: Canva (Diseño completo)
+### Panel de SuperAdmin:
 ```
-1. Ir a: https://www.canva.com/
-2. Buscar "QR Code Poster"
-3. Diseñar poster con:
-   - Logo del colegio
-   - QR code
-   - Instrucciones
-   - Colores institucionales
-4. Descargar e imprimir
+https://parent-portal-connect.vercel.app/#/superadmin
+```
+
+### Login Principal:
+```
+https://parent-portal-connect.vercel.app/#/auth
 ```
 
 ---
 
-## 📋 CHECKLIST PARA CADA SEDE:
+## 📝 NOTAS IMPORTANTES:
 
-- [ ] Generar QR code
-- [ ] Imprimir en tamaño A4
-- [ ] Plastificar (opcional)
-- [ ] Colocar en:
-  - Entrada del colegio
-  - Kiosco
-  - Oficina administrativa
-  - Enviar por WhatsApp a padres
+1. ✅ Los padres pueden usar **Google Sign-In** para registro rápido
+2. ✅ El sistema detecta automáticamente la sede del link
+3. ✅ Cada padre puede tener hijos en múltiples sedes
+4. ✅ Los links son permanentes (no caducan)
+5. ✅ Puedes generar QR codes para imprimir en carteles
+6. ✅ Compatible con celulares y computadoras
 
 ---
 
-## 🔒 SEGURIDAD:
+## 🎨 IMPRESIÓN DE QR CODES
 
-### ✅ Los links son seguros porque:
-- Solo crean cuentas de **padres** (no staff)
-- Requieren verificación de email (si usan password)
-- Google/Microsoft validan la identidad
-- Cada padre solo ve a SUS hijos
+### Sugerencia de diseño para cartel:
 
-### ⚠️ NO compartir:
-- Credenciales de staff (POS, Kitchen, Admin)
-- Links de registro en redes sociales públicas
-- Los QR son solo para padres del colegio
-
----
-
-## 📊 ESTADÍSTICAS:
-
-Después de 1 semana, puedes ver en Supabase:
-
-```sql
--- Ver cuántos padres se registraron por sede
-SELECT 
-  s.name as sede,
-  s.code,
-  COUNT(pp.id) as total_padres
-FROM schools s
-LEFT JOIN parent_profiles pp ON pp.school_id = s.id
-GROUP BY s.id, s.name, s.code
-ORDER BY total_padres DESC;
+```
+┌─────────────────────────────────────┐
+│                                     │
+│         🎓 LIMA CAFÉ 28            │
+│                                     │
+│   Regístrate en nuestro sistema    │
+│       de kiosco escolar             │
+│                                     │
+│     [  QR CODE AQUÍ - 10x10cm  ]   │
+│                                     │
+│  Escanea con tu celular y crea     │
+│      tu cuenta en 2 minutos         │
+│                                     │
+│    ✅ Recarga saldo                │
+│    ✅ Ve los consumos              │
+│    ✅ Control de límites           │
+│    ✅ Menús de la semana           │
+│                                     │
+│         SEDE: [NOMBRE]             │
+│                                     │
+└─────────────────────────────────────┘
 ```
 
 ---
 
-## 🎯 PRÓXIMOS PASOS:
-
-1. ✅ Crear las 7 sedes en Supabase (`CREAR_7_SEDES.sql`)
-2. ✅ Borrar colegios de prueba (`BORRAR_COLEGIOS_PRUEBA.sql`)
-3. ✅ Configurar OAuth de Google/Microsoft
-4. ✅ Generar los 7 QR codes
-5. ✅ Enviar links a los colegios
-6. ✅ Capacitar al personal
-
----
-
-**¡Listo para desplegar!** 🚀
-
+**Versión del Sistema:** 1.0.9  
+**Última Actualización:** Enero 2026  
+**URL Base:** https://parent-portal-connect.vercel.app/
