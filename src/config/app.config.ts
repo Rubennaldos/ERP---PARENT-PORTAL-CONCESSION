@@ -3,6 +3,6 @@ export const APP_CONFIG = {
   status: 'BETA',
   appName: 'Lima Café 28',
   designedBy: 'ARQUISIA Soluciones',
-  fullVersion: 'v1.0.8-beta',
+  fullVersion: 'v1.0.9-beta', // Updated for deployment
 };
 
