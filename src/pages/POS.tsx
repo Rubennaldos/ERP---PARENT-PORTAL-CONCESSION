@@ -543,6 +543,7 @@ const POS = () => {
             <p className="text-xs text-gray-400">{user?.email}</p>
           </div>
         </div>
+        {/* Botones de navegación - Updated */}
         <div className="flex items-center gap-2">
           <Button 
             variant="ghost" 
