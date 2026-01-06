@@ -28,6 +28,7 @@ import { UsersManagement } from '@/components/admin/UsersManagement';
 import { ProfilesControl } from '@/components/admin/ProfilesControl';
 import { AccessControlModule } from '@/components/admin/AccessControlModule';
 import StudentsManagement from '@/components/admin/StudentsManagement';
+import ErrorDashboard from '@/components/admin/ErrorDashboard';
 import { APP_CONFIG } from '@/config/app.config';
 
 const SuperAdmin = () => {
@@ -104,7 +105,7 @@ const SuperAdmin = () => {
             </TabsTrigger>
             <TabsTrigger value="errors" className="data-[state=active]:bg-background">
               <AlertTriangle className="h-4 w-4 mr-2" />
-              Logs
+              Errores del Sistema
             </TabsTrigger>
             <TabsTrigger value="database" className="data-[state=active]:bg-background">
               <Database className="h-4 w-4 mr-2" />
@@ -228,6 +229,11 @@ const SuperAdmin = () => {
                 </Button>
               </CardContent>
             </Card>
+          </TabsContent>
+
+          {/* Errors Dashboard Tab */}
+          <TabsContent value="errors" className="space-y-4">
+            <ErrorDashboard />
           </TabsContent>
         </Tabs>
       </main>

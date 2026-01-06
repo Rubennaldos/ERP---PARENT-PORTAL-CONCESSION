@@ -8,6 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/lib/supabase';
+import { logError } from '@/utils/errorLogger';
 import { Loader2, Plus, Trash2, CheckCircle2, GraduationCap, School } from 'lucide-react';
 
 interface StudentForm {
@@ -364,10 +365,21 @@ export default function Onboarding() {
 
     } catch (error: any) {
       console.error('Error onboarding:', error);
+      
+      // Registrar error y obtener mensaje traducido
+      const translatedMessage = await logError(error, {
+        component: 'Onboarding',
+        action: 'Completar registro de padre e hijos',
+        metadata: {
+          studentCount: students.length,
+          hasSchoolId: !!schoolId
+        }
+      });
+      
       toast({
         variant: 'destructive',
         title: 'Error',
-        description: error.message || 'No se pudo completar el registro',
+        description: translatedMessage,
       });
     } finally {
       setLoading(false);
