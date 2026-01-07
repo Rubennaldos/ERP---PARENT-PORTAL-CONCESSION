@@ -21,7 +21,7 @@ interface Student {
   grade: string;
   section: string;
   is_active: boolean;
-  account_type?: string; // 'free', 'prepaid', 'limited'
+  free_account?: boolean;
 }
 
 interface StudentCardProps {
@@ -41,8 +41,7 @@ export function StudentCard({
   onOpenSettings,
   onPhotoClick
 }: StudentCardProps) {
-  const accountType = student.account_type || 'free';
-  const isFreeAccount = accountType === 'free';
+  const isFreeAccount = student.free_account !== false; // Por defecto true
 
   return (
     <Card className="overflow-hidden hover:shadow-lg transition-all">
@@ -135,15 +134,17 @@ export function StudentCard({
 
         {/* Botones principales */}
         <div className="space-y-2">
-          {/* Botón RECARGAR - Grande y prominente */}
-          <Button
-            onClick={onRecharge}
-            className="w-full h-14 text-lg font-semibold bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
-            size="lg"
-          >
-            <CreditCard className="h-5 w-5 mr-2" />
-            Recargar Saldo
-          </Button>
+          {/* Botón RECARGAR - Solo si NO es cuenta libre */}
+          {!isFreeAccount && (
+            <Button
+              onClick={onRecharge}
+              className="w-full h-14 text-lg font-semibold bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
+              size="lg"
+            >
+              <CreditCard className="h-5 w-5 mr-2" />
+              Recargar Saldo
+            </Button>
+          )}
 
           {/* Botón MENÚ - Grande y llamativo */}
           <Button

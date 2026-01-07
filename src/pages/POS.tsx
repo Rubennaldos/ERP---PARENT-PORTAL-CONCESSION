@@ -29,6 +29,7 @@ import {
   Trash2,
   AlertCircle,
   CheckCircle2,
+  Check,
   User,
   Coffee,
   Cookie,
@@ -50,6 +51,7 @@ interface Student {
   balance: number;
   grade: string;
   section: string;
+  free_account?: boolean;
 }
 
 interface Product {
@@ -83,6 +85,7 @@ const POS = () => {
   const [students, setStudents] = useState<Student[]>([]);
   const [showStudentResults, setShowStudentResults] = useState(false);
   const [studentWillPay, setStudentWillPay] = useState(false); // Switch para que estudiante pague
+  const [cashAmount, setCashAmount] = useState<number>(0); // Cantidad que el estudiante abona en efectivo
   const [showPhotoModal, setShowPhotoModal] = useState(false); // Para ampliar foto del estudiante
 
   // Estados de productos
@@ -97,7 +100,7 @@ const POS = () => {
 
   // Estados de pago (solo para cliente genérico)
   const [paymentMethod, setPaymentMethod] = useState<'efectivo' | 'yape' | 'tarjeta'>('efectivo');
-  const [documentType, setDocumentType] = useState<'ticket' | 'boleta' | 'factura'>('ticket');
+  const [documentType, setDocumentType] = useState<'ticket' | 'boleta' | 'factura' | null>(null);
   const [showPaymentDialog, setShowPaymentDialog] = useState(false);
   const [showConfirmDialog, setShowConfirmDialog] = useState(false); // NUEVO: confirmación
 
@@ -171,7 +174,7 @@ const POS = () => {
     try {
       const { data, error } = await supabase
         .from('students')
-        .select('*')
+        .select('id, full_name, photo_url, balance, grade, section, free_account')
         .eq('is_active', true)
         .ilike('full_name', `%${query}%`)
         .limit(5);
@@ -255,19 +258,20 @@ const POS = () => {
     if (!clientMode) return false;
     if (cart.length === 0) return false;
     
-    // Si es estudiante pagando al contado o a crédito
+    // Si es estudiante
     if (clientMode === 'student' && selectedStudent) {
-      if (studentWillPay) {
-        return true; // Estudiante pagará al contado
-      } else {
-        // Estudiante a crédito - verificar saldo
-        return selectedStudent.balance >= getTotal();
+      // Si tiene cuenta libre, siempre puede comprar
+      if (selectedStudent.free_account) {
+        return true;
       }
+      // Si no tiene cuenta libre, verificar saldo
+      const amountToDeduct = studentWillPay ? Math.max(0, getTotal() - cashAmount) : getTotal();
+      return selectedStudent.balance >= amountToDeduct;
     }
     
     // Si es cliente genérico
     if (clientMode === 'generic') {
-      return true;
+      return documentType !== null;
     }
     
     return false;
@@ -347,28 +351,39 @@ const POS = () => {
         cashierEmail: user?.email || 'No disponible',
       };
 
-      // Si es estudiante a crédito (no paga)
-      if (clientMode === 'student' && !studentWillPay && selectedStudent) {
-        console.log('💳 ESTUDIANTE A CRÉDITO', {
+      // Si es estudiante
+      if (clientMode === 'student' && selectedStudent) {
+        const isFreeAccount = selectedStudent.free_account !== false; // Por defecto true
+        
+        // Calcular montos
+        const amountToDeduct = studentWillPay ? Math.max(0, total - cashAmount) : total;
+        const cashPaid = studentWillPay ? cashAmount : 0;
+        
+        // Si es cuenta libre, no descontamos del saldo, solo registramos como pendiente
+        const newBalance = isFreeAccount ? selectedStudent.balance : selectedStudent.balance - amountToDeduct;
+
+        console.log('💳 PROCESANDO VENTA ESTUDIANTE', {
           studentId: selectedStudent.id,
-          balanceActual: selectedStudent.balance,
+          isFreeAccount,
           total,
-          newBalance: selectedStudent.balance - total
+          cashPaid,
+          amountToDeduct,
+          balanceActual: selectedStudent.balance,
+          newBalance
         });
 
-        const newBalance = selectedStudent.balance - total;
-
         // Crear transacción
-        const { data: transaction, error: transError } = await supabase
+        const { data: transaction, error: transError} = await supabase
           .from('transactions')
           .insert({
             student_id: selectedStudent.id,
             type: 'purchase',
             amount: -total,
-            description: `Compra en POS - ${cart.length} items`,
+            description: `Compra POS${isFreeAccount ? ' (Cuenta Libre)' : ''} - Total: S/ ${total.toFixed(2)}${cashPaid > 0 ? ` (Abono efectivo: S/ ${cashPaid.toFixed(2)})` : ''}`,
             balance_after: newBalance,
             created_by: user?.id,
             ticket_code: ticketCode,
+            payment_status: isFreeAccount ? 'pending' : 'paid', // Si es cuenta libre, queda pendiente
           })
           .select()
           .single();
@@ -377,7 +392,7 @@ const POS = () => {
           console.error('❌ Error creando transacción:', transError);
           throw transError;
         }
-        console.log('✅ Transacción creada:', transaction);
+        console.log('✅ Transacción creada:', transaction.id);
 
         // Crear items
         const items = cart.map(item => ({
@@ -393,32 +408,18 @@ const POS = () => {
           .from('transaction_items')
           .insert(items);
 
-        if (itemsError) {
-          console.error('❌ Error creando items:', itemsError);
-          throw itemsError;
-        }
-        console.log('✅ Items creados:', items.length);
+        if (itemsError) throw itemsError;
 
-        // Actualizar saldo
-        console.log('💰 ACTUALIZANDO SALDO DEL ESTUDIANTE', {
-          studentId: selectedStudent.id,
-          oldBalance: selectedStudent.balance,
-          newBalance
-        });
+        // Actualizar saldo solo si NO es cuenta libre y hubo descuento
+        if (!isFreeAccount && amountToDeduct > 0) {
+          const { error: updateError } = await supabase
+            .from('students')
+            .update({ balance: newBalance })
+            .eq('id', selectedStudent.id);
 
-        const { error: updateError } = await supabase
-          .from('students')
-          .update({ balance: newBalance })
-          .eq('id', selectedStudent.id);
-
-        if (updateError) {
-          console.error('❌ Error actualizando saldo:', updateError);
-          throw updateError;
-        }
-        console.log('✅ Saldo actualizado correctamente');
-
-        // Actualizar el saldo en el estado local del estudiante seleccionado
-        if (selectedStudent) {
+          if (updateError) throw updateError;
+          
+          // Actualizar estado local
           setSelectedStudent({
             ...selectedStudent,
             balance: newBalance
@@ -426,16 +427,19 @@ const POS = () => {
         }
 
         ticketInfo.newBalance = newBalance;
+        ticketInfo.cashPaid = cashPaid;
+        ticketInfo.amountToDeduct = amountToDeduct;
+        ticketInfo.isFreeAccount = isFreeAccount;
       } else {
-        // Cliente genérico o estudiante pagando - Solo registrar la venta (sin afectar saldo)
+        // Cliente genérico - Solo registrar la venta
         const { data: transaction, error: transError } = await supabase
           .from('transactions')
           .insert({
-            student_id: selectedStudent?.id || null,
+            student_id: null,
             type: 'purchase',
             amount: -total,
-            description: `Compra ${clientMode === 'generic' ? 'Cliente Genérico' : 'Estudiante (Efectivo)'} - ${cart.length} items`,
-            balance_after: selectedStudent?.balance || 0,
+            description: `Compra Cliente Genérico - ${cart.length} items`,
+            balance_after: 0,
             created_by: user?.id,
             ticket_code: ticketCode,
           })
@@ -751,17 +755,40 @@ const POS = () => {
             {/* Info del Cliente */}
             <div className="bg-gradient-to-r from-emerald-500 to-emerald-600 text-white p-4">
               {clientMode === 'generic' ? (
-                  <div>
+                <div>
                   <div className="flex items-center justify-between mb-2">
-                    <h3 className="font-bold text-lg">CLIENTE GENÉRICO</h3>
+                    <h3 className="font-bold text-lg text-white">CLIENTE GENÉRICO</h3>
                     <button
                       onClick={resetClient}
-                      className="hover:bg-emerald-700 px-3 py-1.5 rounded-lg transition-colors font-semibold text-sm"
+                      className="hover:bg-emerald-700 px-3 py-1.5 rounded-lg transition-colors font-semibold text-sm text-white border border-emerald-400"
                     >
                       CAMBIAR
                     </button>
                   </div>
-                  <p className="text-sm text-emerald-100">Venta al contado</p>
+                  
+                  <div className="mt-4 space-y-2">
+                    <label className="text-xs font-bold text-emerald-100 uppercase">Documento de Venta</label>
+                    <div className="grid grid-cols-3 gap-2">
+                      {['ticket', 'boleta', 'factura'].map((type) => (
+                        <button
+                          key={type}
+                          onClick={() => setDocumentType(type as any)}
+                          className={`py-2 rounded-lg text-xs font-bold transition-all ${
+                            documentType === type 
+                              ? 'bg-yellow-400 text-emerald-900 shadow-inner' 
+                              : 'bg-emerald-700/50 text-emerald-100 hover:bg-emerald-700'
+                          }`}
+                        >
+                          {type.toUpperCase()}
+                        </button>
+                      ))}
+                    </div>
+                    {!documentType && (
+                      <p className="text-[10px] text-yellow-200 animate-pulse font-bold">
+                        ⚠️ Seleccione tipo de documento para cobrar
+                      </p>
+                    )}
+                  </div>
                 </div>
               ) : selectedStudent && (
                 <div>
@@ -786,6 +813,13 @@ const POS = () => {
                     <div className="flex-1">
                       <h3 className="font-bold text-base">{selectedStudent.full_name}</h3>
                       <p className="text-xs text-emerald-100">{selectedStudent.grade} - {selectedStudent.section}</p>
+                      {selectedStudent.free_account !== false && (
+                        <div className="mt-1">
+                          <span className="text-[10px] bg-green-400 text-green-900 px-2 py-0.5 rounded-full font-bold">
+                            ✓ CUENTA LIBRE
+                          </span>
+                        </div>
+                      )}
                     </div>
                     <button
                       onClick={resetClient}
@@ -795,21 +829,48 @@ const POS = () => {
                     </button>
                   </div>
                   <div className="flex justify-between items-center bg-emerald-700/50 rounded-lg px-3 py-2 mb-2">
-                    <span className="text-sm">SALDO</span>
+                    <span className="text-sm">{selectedStudent.free_account !== false ? 'CONSUMO' : 'SALDO'}</span>
                     <span className="text-2xl font-black">S/ {selectedStudent.balance.toFixed(2)}</span>
                   </div>
                   
                   {/* Switch: ¿Estudiante pagará? */}
-                  <div className="flex items-center justify-between bg-emerald-700/30 rounded-lg px-3 py-2">
-                    <Label htmlFor="student-pay" className="text-sm cursor-pointer">
-                      Estudiante pagará en efectivo
-                    </Label>
-                    <Switch
-                      id="student-pay"
-                      checked={studentWillPay}
-                      onCheckedChange={setStudentWillPay}
-                      className="data-[state=checked]:bg-yellow-400"
-                    />
+                  <div className="space-y-2 bg-emerald-700/30 rounded-lg px-3 py-2">
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor="student-pay" className="text-sm cursor-pointer uppercase font-bold">
+                        abonar al total
+                      </Label>
+                      <Switch
+                        id="student-pay"
+                        checked={studentWillPay}
+                        onCheckedChange={(checked) => {
+                          setStudentWillPay(checked);
+                          if (!checked) setCashAmount(0);
+                        }}
+                        className="data-[state=checked]:bg-yellow-400"
+                      />
+                    </div>
+                    
+                    {studentWillPay && (
+                      <div className="pt-2 border-t border-emerald-600/30 space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs text-emerald-100 uppercase font-bold">Abono Efectivo</span>
+                          <div className="relative">
+                            <span className="absolute left-2 top-1/2 -translate-y-1/2 text-emerald-900 font-bold">S/</span>
+                            <input
+                              type="number"
+                              value={cashAmount || ''}
+                              onChange={(e) => setCashAmount(Number(e.target.value))}
+                              className="w-24 bg-white text-emerald-900 rounded px-2 py-1 pl-7 text-right font-bold text-sm focus:ring-2 focus:ring-yellow-400 outline-none"
+                              placeholder="0.00"
+                            />
+                          </div>
+                        </div>
+                        <div className="flex items-center justify-between text-xs text-emerald-100">
+                          <span className="uppercase font-bold">Saldo por pagar</span>
+                          <span className="font-bold">S/ {Math.max(0, getTotal() - cashAmount).toFixed(2)}</span>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
@@ -869,17 +930,47 @@ const POS = () => {
               {cart.length > 0 ? (
                 <>
                   <div className="bg-slate-900 text-white rounded-xl p-4">
-                    <p className="text-sm mb-1">TOTAL A PAGAR</p>
-                    <p className="text-5xl font-black">S/ {total.toFixed(2)}</p>
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <p className="text-sm mb-1 uppercase font-bold text-gray-400">Total Compra</p>
+                        <p className="text-4xl font-black">S/ {total.toFixed(2)}</p>
+                      </div>
+                      {studentWillPay && cashAmount > 0 && (
+                        <div className="text-right">
+                          <p className="text-sm mb-1 uppercase font-bold text-emerald-400">Abono Efectivo</p>
+                          <p className="text-2xl font-black text-emerald-400">- S/ {cashAmount.toFixed(2)}</p>
+                        </div>
+                      )}
+                    </div>
+                    {studentWillPay && cashAmount > 0 && (
+                      <div className="mt-2 pt-2 border-t border-slate-700 flex justify-between items-center">
+                        <p className="text-xs uppercase font-bold text-yellow-400 text-gray-400">Por Cobrar del Saldo</p>
+                        <p className="text-xl font-black text-yellow-400">S/ {Math.max(0, total - cashAmount).toFixed(2)}</p>
+                      </div>
+                    )}
                     <p className="text-xs text-gray-400 mt-2">{cart.length} productos</p>
                   </div>
 
-                  {selectedStudent && !studentWillPay && insufficientBalance && (
+                  {selectedStudent && insufficientBalance && !selectedStudent.free_account && (
                     <div className="bg-red-50 border-2 border-red-300 rounded-xl p-3 flex items-center gap-2">
                       <AlertCircle className="h-5 w-5 text-red-600 flex-shrink-0" />
                       <div>
                         <p className="font-bold text-red-800 text-sm">Saldo Insuficiente</p>
-                        <p className="text-xs text-red-600">Falta: S/ {(total - selectedStudent.balance).toFixed(2)}</p>
+                        <p className="text-xs text-red-600">
+                          Falta: S/ {( (studentWillPay ? Math.max(0, total - cashAmount) : total) - selectedStudent.balance).toFixed(2)}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                  
+                  {selectedStudent && selectedStudent.free_account && (
+                    <div className="bg-green-50 border-2 border-green-300 rounded-xl p-3 flex items-center gap-2">
+                      <Check className="h-5 w-5 text-green-600 flex-shrink-0" />
+                      <div>
+                        <p className="font-bold text-green-800 text-sm">✓ Cuenta Libre</p>
+                        <p className="text-xs text-green-700">
+                          La compra se registrará como deuda para pagar después
+                        </p>
                       </div>
                     </div>
                   )}
@@ -962,24 +1053,29 @@ const POS = () => {
               <div className="bg-emerald-50 border-2 border-emerald-200 rounded-xl p-3">
                 <div className="flex justify-between items-center">
                   <div>
-                    <p className="text-sm text-emerald-700">Saldo Actual</p>
+                    <p className="text-sm text-emerald-700 font-bold">Saldo Digital</p>
                     <p className="text-xl font-bold text-emerald-900">
                       S/ {selectedStudent.balance.toFixed(2)}
                     </p>
                   </div>
-                  {!studentWillPay && (
-                    <div className="text-right">
-                      <p className="text-sm text-emerald-700">Saldo Después</p>
-                      <p className="text-xl font-bold text-emerald-900">
-                        S/ {(selectedStudent.balance - getTotal()).toFixed(2)}
-                      </p>
-                    </div>
-                  )}
+                  <div className="text-right">
+                    <p className="text-sm text-emerald-700 font-bold">Nuevo Saldo</p>
+                    <p className="text-xl font-bold text-emerald-900">
+                      S/ {(selectedStudent.balance - (studentWillPay ? Math.max(0, getTotal() - cashAmount) : getTotal())).toFixed(2)}
+                    </p>
+                  </div>
                 </div>
                 {studentWillPay && (
-                  <p className="text-xs text-amber-700 mt-2 font-semibold">
-                    ⚠️ Estudiante pagará en efectivo (no se descuenta saldo)
-                  </p>
+                  <div className="mt-2 pt-2 border-t border-emerald-200 space-y-1">
+                    <div className="flex justify-between text-xs font-bold text-amber-700">
+                      <span>PAGO EN EFECTIVO (ABONO):</span>
+                      <span>S/ {cashAmount.toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between text-xs font-bold text-emerald-700">
+                      <span>COBRO DE SALDO DIGITAL:</span>
+                      <span>S/ {Math.max(0, getTotal() - cashAmount).toFixed(2)}</span>
+                    </div>
+                  </div>
                 )}
               </div>
             )}

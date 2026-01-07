@@ -27,6 +27,9 @@ import { StudentCard } from '@/components/parent/StudentCard';
 import { RechargeModal } from '@/components/parent/RechargeModal';
 import { WeeklyMenuModal } from '@/components/parent/WeeklyMenuModal';
 import { VersionBadge } from '@/components/VersionBadge';
+import { FreeAccountWarningModal } from '@/components/parent/FreeAccountWarningModal';
+import { PaymentsTab } from '@/components/parent/PaymentsTab';
+import { StudentLinksManager } from '@/components/parent/StudentLinksManager';
 import { useOnboardingCheck } from '@/hooks/useOnboardingCheck';
 
 interface Student {
@@ -39,6 +42,7 @@ interface Student {
   section: string;
   is_active: boolean;
   school_id?: string;
+  free_account?: boolean;
 }
 
 interface Transaction {
@@ -49,6 +53,7 @@ interface Transaction {
   created_at: string;
   balance_after: number;
   payment_method?: string;
+  payment_status?: 'paid' | 'pending' | 'partial';
 }
 
 const Index = () => {
@@ -67,6 +72,8 @@ const Index = () => {
   const [showHistoryModal, setShowHistoryModal] = useState(false);
   const [showUploadPhoto, setShowUploadPhoto] = useState(false);
   const [showLimitModal, setShowLimitModal] = useState(false);
+  const [showFreeAccountWarning, setShowFreeAccountWarning] = useState(false);
+  const [showLinksManager, setShowLinksManager] = useState(false);
   
   // Estudiante seleccionado
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
@@ -245,6 +252,33 @@ const Index = () => {
     setShowLimitModal(true);
   };
 
+  const handleToggleFreeAccount = async (student: Student, newValue: boolean) => {
+    try {
+      const { error } = await supabase
+        .from('students')
+        .update({ free_account: newValue })
+        .eq('id', student.id);
+
+      if (error) throw error;
+
+      toast({
+        title: newValue ? '✅ Cuenta Libre Activada' : '🔒 Cuenta Libre Desactivada',
+        description: newValue 
+          ? `${student.full_name} ahora puede consumir y pagar después` 
+          : `${student.full_name} necesitará saldo para consumir`,
+      });
+
+      await fetchStudents();
+    } catch (error: any) {
+      console.error('Error toggling free account:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'No se pudo cambiar el modo de cuenta',
+      });
+    }
+  };
+
   const handleLogout = async () => {
     await signOut();
   };
@@ -356,55 +390,20 @@ const Index = () => {
 
           {/* TAB 2: PAGOS */}
           <TabsContent value="pagos" className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Receipt className="h-5 w-5" />
-                  Historial de Pagos y Recargas
-                </CardTitle>
-                <CardDescription>
-                  Revisa todas las transacciones realizadas
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                {students.length === 0 ? (
-                  <div className="text-center py-12">
-                    <Receipt className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                    <p className="text-gray-500">No hay estudiantes registrados</p>
-                  </div>
-                ) : (
-                  <div className="space-y-4">
-                    {students.map((student) => (
-                      <Card key={student.id} className="border">
-                        <CardContent className="p-4">
-                          <div className="flex items-center justify-between">
-                            <div>
-                              <p className="font-semibold">{student.full_name}</p>
-                              <p className="text-sm text-gray-500">{student.grade} - {student.section}</p>
-                            </div>
-                            <Button variant="outline" size="sm" onClick={() => openHistoryModal(student)}>
-                              Ver Historial
-                            </Button>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ))}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+            <PaymentsTab userId={user?.id || ''} />
           </TabsContent>
 
           {/* TAB 3: CONFIGURACIÓN */}
           <TabsContent value="configuracion" className="space-y-6">
+            {/* Cuenta Libre y Topes */}
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Settings className="h-5 w-5" />
-                  Configuración de Límites
+                  Modo de Cuenta y Límites
                 </CardTitle>
                 <CardDescription>
-                  Configura los topes de gasto diario para cada estudiante
+                  Configura cómo funcionan las compras de cada estudiante
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -416,18 +415,84 @@ const Index = () => {
                 ) : (
                   <div className="space-y-4">
                     {students.map((student) => (
-                      <Card key={student.id} className="border">
+                      <Card key={student.id} className="border-2">
                         <CardContent className="p-4">
-                          <div className="flex items-center justify-between">
-                            <div>
-                              <p className="font-semibold">{student.full_name}</p>
-                              <p className="text-sm text-gray-500">
-                                Límite actual: S/ {student.daily_limit.toFixed(2)} / día
-                              </p>
+                          <div className="space-y-4">
+                            <div className="flex items-center justify-between">
+                              <div className="flex-1">
+                                <p className="font-bold text-lg">{student.full_name}</p>
+                                <p className="text-sm text-gray-500">{student.grade} - {student.section}</p>
+                              </div>
+                              {student.free_account !== false && (
+                                <span className="text-xs bg-green-100 text-green-800 px-3 py-1 rounded-full font-bold">
+                                  ✓ Cuenta Libre
+                                </span>
+                              )}
                             </div>
-                            <Button variant="outline" size="sm" onClick={() => openSettingsModal(student)}>
-                              Modificar
-                            </Button>
+
+                            <div className="grid grid-cols-2 gap-4">
+                              {/* Cuenta Libre */}
+                              <div className="bg-gray-50 rounded-lg p-3 border">
+                                <Label className="text-xs font-bold text-gray-700 uppercase mb-2 block">
+                                  Cuenta Libre (Pagar después)
+                                </Label>
+                                <div className="flex items-center justify-between">
+                                  <span className="text-sm text-gray-600">
+                                    {student.free_account !== false ? 'Activada' : 'Desactivada'}
+                                  </span>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => {
+                                      if (student.free_account !== false) {
+                                        setSelectedStudent(student);
+                                        setShowFreeAccountWarning(true);
+                                      } else {
+                                        handleToggleFreeAccount(student, true);
+                                      }
+                                    }}
+                                  >
+                                    {student.free_account !== false ? 'Desactivar' : 'Activar'}
+                                  </Button>
+                                </div>
+                              </div>
+
+                              {/* Límite Diario */}
+                              <div className="bg-gray-50 rounded-lg p-3 border">
+                                <Label className="text-xs font-bold text-gray-700 uppercase mb-2 block">
+                                  Límite Diario
+                                </Label>
+                                <div className="flex items-center justify-between">
+                                  <span className="text-sm text-gray-600">
+                                    S/ {student.daily_limit.toFixed(2)}
+                                  </span>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => openSettingsModal(student)}
+                                  >
+                                    Modificar
+                                  </Button>
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Vínculos Familiares */}
+                            <div className="pt-3 border-t">
+                              <Button
+                                variant="ghost"
+                                className="w-full justify-start text-left hover:bg-purple-50"
+                                onClick={() => {
+                                  setSelectedStudent(student);
+                                  setShowLinksManager(true);
+                                }}
+                              >
+                                <UsersIcon className="h-4 w-4 mr-2 text-purple-600" />
+                                <span className="text-sm font-semibold text-purple-700">
+                                  Gestionar Vínculos Familiares
+                                </span>
+                              </Button>
+                            </div>
                           </div>
                         </CardContent>
                       </Card>
@@ -570,6 +635,26 @@ const Index = () => {
               )}
             </DialogContent>
           </Dialog>
+        </>
+      )}
+
+      {/* Modal de Advertencia de Cuenta Libre */}
+      {selectedStudent && (
+        <>
+          <FreeAccountWarningModal
+            open={showFreeAccountWarning}
+            onOpenChange={setShowFreeAccountWarning}
+            studentName={selectedStudent.full_name}
+            onConfirmDisable={() => handleToggleFreeAccount(selectedStudent, false)}
+          />
+
+          <StudentLinksManager
+            open={showLinksManager}
+            onOpenChange={setShowLinksManager}
+            student={selectedStudent}
+            allStudents={students}
+            onLinksUpdated={fetchStudents}
+          />
         </>
       )}
     </div>
