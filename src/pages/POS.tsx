@@ -1223,12 +1223,33 @@ const POS = () => {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="ticket">Ticket</SelectItem>
-                  <SelectItem value="boleta">Boleta</SelectItem>
-                  <SelectItem value="factura">Factura</SelectItem>
+                  <SelectItem value="boleta" disabled>
+                    <div className="flex items-center gap-2">
+                      <span>Boleta</span>
+                      <Badge variant="outline" className="text-[10px] bg-amber-50 text-amber-700 border-amber-300">
+                        Requiere SUNAT
+                      </Badge>
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="factura" disabled>
+                    <div className="flex items-center gap-2">
+                      <span>Factura</span>
+                      <Badge variant="outline" className="text-[10px] bg-amber-50 text-amber-700 border-amber-300">
+                        Requiere SUNAT
+                      </Badge>
+                    </div>
+                  </SelectItem>
                 </SelectContent>
               </Select>
               {!documentType && (
                 <p className="text-xs text-red-500 mt-1">⚠️ Debe seleccionar un tipo de documento</p>
+              )}
+              {documentType && documentType !== 'ticket' && (
+                <div className="mt-2 p-2 bg-amber-50 border border-amber-300 rounded-lg">
+                  <p className="text-xs text-amber-800">
+                    ⚠️ <strong>Boletas y Facturas</strong> requieren integración con SUNAT. Por ahora solo está disponible <strong>Ticket</strong>.
+                  </p>
+                </div>
               )}
             </div>
 

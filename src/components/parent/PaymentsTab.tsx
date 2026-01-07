@@ -193,7 +193,7 @@ export const PaymentsTab = ({ userId }: PaymentsTabProps) => {
 
       toast({
         title: '✅ Pago Realizado',
-        description: `Se pagaron ${transactionIds.length} compra(s) por S/ ${paymentAmount.toFixed(2)}`,
+        description: `Se pagaron ${transactionIds.length} compra(s) por S/ ${(paymentAmount || 0).toFixed(2)}`,
       });
 
       // Limpiar selección y recargar
@@ -254,7 +254,7 @@ export const PaymentsTab = ({ userId }: PaymentsTabProps) => {
               </div>
               <div>
                 <p className="text-sm text-amber-700 font-semibold uppercase">Deuda Total Pendiente</p>
-                <p className="text-4xl font-black text-amber-900">S/ {totalDebt.toFixed(2)}</p>
+                <p className="text-4xl font-black text-amber-900">S/ {(totalDebt || 0).toFixed(2)}</p>
                 <p className="text-xs text-amber-600 mt-1">
                   {debts.reduce((sum, d) => sum + d.pending_transactions.length, 0)} compra(s) pendientes
                 </p>
@@ -267,7 +267,7 @@ export const PaymentsTab = ({ userId }: PaymentsTabProps) => {
                 className="bg-emerald-600 hover:bg-emerald-700 text-white h-14 px-8 text-lg font-bold"
               >
                 <CreditCard className="mr-2 h-5 w-5" />
-                Pagar Seleccionadas (S/ {selectedAmount.toFixed(2)})
+                Pagar Seleccionadas (S/ {(selectedAmount || 0).toFixed(2)})
               </Button>
             )}
           </div>
@@ -290,7 +290,7 @@ export const PaymentsTab = ({ userId }: PaymentsTabProps) => {
                 <div>
                   <CardTitle className="text-xl">{debt.student_name}</CardTitle>
                   <CardDescription className="text-base">
-                    Deuda: <span className="font-bold text-red-600">S/ {debt.total_debt.toFixed(2)}</span>
+                    Deuda: <span className="font-bold text-red-600">S/ {(debt.total_debt || 0).toFixed(2)}</span>
                     {' • '}
                     {debt.pending_transactions.length} compra(s)
                   </CardDescription>
@@ -336,7 +336,7 @@ export const PaymentsTab = ({ userId }: PaymentsTabProps) => {
                     </p>
                   </div>
                   <div className="text-right">
-                    <p className="text-lg font-bold text-red-600">S/ {transaction.amount.toFixed(2)}</p>
+                    <p className="text-lg font-bold text-red-600">S/ {(transaction.amount || 0).toFixed(2)}</p>
                     <Badge variant="outline" className="text-xs border-amber-300 text-amber-700">
                       <Clock className="h-3 w-3 mr-1" />
                       Pendiente
@@ -352,24 +352,15 @@ export const PaymentsTab = ({ userId }: PaymentsTabProps) => {
       {/* Modal de Pago */}
       {showPaymentModal && (
         <RechargeModal
-          open={showPaymentModal}
-          onOpenChange={setShowPaymentModal}
-          student={{ 
-            id: '', 
-            full_name: 'Pago de Deudas', 
-            balance: 0, 
-            grade: '', 
-            section: '',
-            photo_url: null,
-            daily_limit: 0,
-            is_active: true,
-            free_account: true
-          }}
+          isOpen={showPaymentModal}
+          onClose={() => setShowPaymentModal(false)}
+          studentName="Pago de Deudas"
+          studentId=""
+          currentBalance={0}
+          accountType="free"
           onRecharge={async (amount, method) => {
             await processPayment(method);
           }}
-          fixedAmount={paymentAmount}
-          isPayment={true}
         />
       )}
     </div>
