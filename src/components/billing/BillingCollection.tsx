@@ -118,10 +118,10 @@ export const BillingCollection = () => {
   }, []);
 
   useEffect(() => {
-    if (selectedPeriod) {
-      fetchDebtors();
-    }
-  }, [selectedSchool, selectedPeriod]);
+    // Cargar deudores cuando cambie la sede seleccionada
+    // No depende de períodos porque los admins ven TODAS las deudas
+    fetchDebtors();
+  }, [selectedSchool]);
 
   const fetchSchools = async () => {
     if (isDemoMode) {
@@ -260,15 +260,14 @@ export const BillingCollection = () => {
     try {
       setLoading(true);
 
-      const period = periods.find(p => p.id === selectedPeriod);
-      if (!period) return;
-
       // Determinar el school_id a filtrar
       const schoolIdFilter = !canViewAllSchools || selectedSchool !== 'all' 
         ? (selectedSchool !== 'all' ? selectedSchool : userSchoolId)
         : null;
 
       // ESTRATEGIA: Hacer dos consultas y combinar resultados
+      // Mostrar TODAS las deudas sin importar fechas (los períodos solo afectan el portal de padres)
+      
       // 1. Transacciones NO facturadas
       let query1 = supabase
         .from('transactions')
@@ -288,9 +287,7 @@ export const BillingCollection = () => {
           schools(id, name)
         `)
         .eq('type', 'purchase')
-        .eq('is_billed', false)
-        .gte('created_at', period.start_date)
-        .lte('created_at', period.end_date);
+        .eq('is_billed', false);
 
       if (schoolIdFilter) {
         query1 = query1.eq('school_id', schoolIdFilter);
@@ -315,9 +312,7 @@ export const BillingCollection = () => {
           schools(id, name)
         `)
         .eq('type', 'purchase')
-        .eq('payment_status', 'pending')
-        .gte('created_at', period.start_date)
-        .lte('created_at', period.end_date);
+        .eq('payment_status', 'pending');
 
       if (schoolIdFilter) {
         query2 = query2.eq('school_id', schoolIdFilter);
