@@ -263,7 +263,7 @@ export const BillingCollection = () => {
       const period = periods.find(p => p.id === selectedPeriod);
       if (!period) return;
 
-      // Obtener transacciones del período que NO están facturadas
+      // Obtener transacciones del período que están pendientes de pago o no facturadas
       let query = supabase
         .from('transactions')
         .select(`
@@ -282,7 +282,7 @@ export const BillingCollection = () => {
           schools(id, name)
         `)
         .eq('type', 'purchase')
-        .eq('is_billed', false)
+        .or('is_billed.eq.false,payment_status.eq.pending')
         .gte('created_at', period.start_date)
         .lte('created_at', period.end_date)
         .order('created_at', { ascending: false });
