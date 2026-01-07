@@ -2,8 +2,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from '@/components/ui/dialog';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { 
@@ -68,7 +67,7 @@ const Index = () => {
   const [students, setStudents] = useState<Student[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAddStudent, setShowAddStudent] = useState(false);
-  const [activeTab, setActiveTab] = useState('inicio');
+  const [activeTab, setActiveTab] = useState('alumnos');
   
   // Modales
   const [showRechargeModal, setShowRechargeModal] = useState(false);
@@ -299,76 +298,58 @@ const Index = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50">
-      {/* Header */}
-      <header className="bg-white shadow-sm border-b sticky top-0 z-40">
-        <div className="max-w-7xl mx-auto px-4 py-4">
+    <div className="min-h-screen bg-[#FDF6E3] pb-20">
+      {/* Header Fijo con Logo Lima Café 28 */}
+      <header className="bg-gradient-to-r from-[#8B4513] to-[#D2691E] text-white shadow-lg sticky top-0 z-40">
+        <div className="max-w-7xl mx-auto px-4 py-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-purple-600 rounded-lg flex items-center justify-center">
-                <GraduationCap className="h-6 w-6 text-white" />
+              <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center shadow-md">
+                <GraduationCap className="h-7 w-7 text-[#8B4513]" />
               </div>
               <div>
-                <h1 className="text-xl font-bold text-gray-900">Portal de Padres</h1>
-                <p className="text-sm text-gray-500">Lima Café 28</p>
+                <h1 className="text-lg font-bold">Lima Café 28</h1>
+                <p className="text-xs text-white/80">Portal de Padres</p>
               </div>
             </div>
             
-            <div className="flex items-center gap-3">
-              <VersionBadge />
-              <Button variant="ghost" size="sm" onClick={handleLogout}>
-                <LogOut className="h-4 w-4 mr-2" />
-                Cerrar Sesión
-              </Button>
-            </div>
+            <VersionBadge />
           </div>
         </div>
       </header>
 
-      {/* Main Content con Tabs */}
-      <main className="max-w-7xl mx-auto px-4 py-8">
-        <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid w-full grid-cols-3 mb-8">
-            <TabsTrigger value="alumnos">
-              <UsersIcon className="h-4 w-4 mr-2" />
-              Mis Alumnos
-            </TabsTrigger>
-            <TabsTrigger value="pagos">
-              <Receipt className="h-4 w-4 mr-2" />
-              Pagos
-            </TabsTrigger>
-            <TabsTrigger value="configuracion">
-              <Settings className="h-4 w-4 mr-2" />
-              Configuración
-            </TabsTrigger>
-          </TabsList>
-
-          {/* TAB 1: MIS ALUMNOS */}
-          <TabsContent value="alumnos" className="space-y-6">
-            <div className="mb-6">
-              <h2 className="text-3xl font-bold text-gray-900 mb-2">Mis Alumnos</h2>
-              <p className="text-gray-600">Gestiona las cuentas del kiosco de tus hijos</p>
+      {/* Main Content */}
+      <main className="max-w-7xl mx-auto px-4 py-6">{activeTab === 'alumnos' && (
+        {activeTab === 'alumnos' && (
+          <div className="space-y-6">
+            <div className="mb-4">
+              <h2 className="text-2xl font-bold text-[#8B4513] mb-1">Mis Hijos</h2>
+              <p className="text-gray-600 text-sm">Gestiona las cuentas del kiosco escolar</p>
             </div>
 
             {students.length === 0 ? (
-              <Card className="border-2 border-dashed">
+              <Card className="border-2 border-dashed border-[#D2691E]/30">
                 <CardContent className="flex flex-col items-center justify-center py-16">
-                  <GraduationCap className="h-16 w-16 text-gray-400 mb-4" />
+                  <GraduationCap className="h-16 w-16 text-[#D2691E]/40 mb-4" />
                   <h3 className="text-xl font-bold text-gray-900 mb-2">
                     No hay estudiantes registrados
                   </h3>
-                  <p className="text-gray-600 mb-6 text-center max-w-md">
+                  <p className="text-gray-600 mb-6 text-center max-w-md text-sm">
                     Agrega a tu primer hijo para empezar a usar el kiosco escolar
                   </p>
-                  <Button size="lg" onClick={() => setShowAddStudent(true)}>
+                  <Button 
+                    size="lg" 
+                    onClick={() => setShowAddStudent(true)}
+                    className="bg-[#8B4513] hover:bg-[#A0522D]"
+                  >
                     <Plus className="h-5 w-5 mr-2" />
-                    Registrar mi Primer Estudiante
+                    Agregar Mi Primer Hijo
                   </Button>
                 </CardContent>
               </Card>
             ) : (
               <>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                   {students.map((student) => (
                     <StudentCard
                       key={student.id}
@@ -382,35 +363,23 @@ const Index = () => {
                   ))}
                 </div>
 
-                <Card className="border-2 border-dashed hover:border-blue-400 transition-colors cursor-pointer" onClick={() => setShowAddStudent(true)}>
+                <Card 
+                  className="border-2 border-dashed border-[#D2691E]/30 hover:border-[#D2691E] hover:bg-[#FFF8E7] transition-all cursor-pointer"
+                  onClick={() => setShowAddStudent(true)}
+                >
                   <CardContent className="flex items-center justify-center py-8">
-                    <Plus className="h-6 w-6 text-gray-400 mr-2" />
-                    <span className="text-gray-600 font-medium">Agregar otro estudiante</span>
+                    <Plus className="h-6 w-6 text-[#8B4513] mr-2" />
+                    <span className="text-[#8B4513] font-semibold">Agregar otro estudiante</span>
                   </CardContent>
                 </Card>
               </>
             )}
-          </TabsContent>
+          </div>
+        )}
 
-          {/* TAB 2: PAGOS */}
-          <TabsContent value="pagos" className="space-y-6">
-            <PaymentsTab userId={user?.id || ''} />
-          </TabsContent>
+        {activeTab === 'pagos' && <PaymentsTab userId={user?.id || ''} />}
 
-          {/* TAB 3: CONFIGURACIÓN */}
-          <TabsContent value="configuracion" className="space-y-6">
-            {/* Cuenta Libre y Topes */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Settings className="h-5 w-5" />
-                  Modo de Cuenta y Límites
-                </CardTitle>
-                <CardDescription>
-                  Configura cómo funcionan las compras de cada estudiante
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
+        {activeTab === 'configuracion' && (
                 {students.length === 0 ? (
                   <div className="text-center py-12">
                     <Settings className="h-12 w-12 text-gray-400 mx-auto mb-4" />
@@ -503,10 +472,10 @@ const Index = () => {
                     ))}
                   </div>
                 )}
-              </CardContent>
-            </Card>
-          </TabsContent>
-        </Tabs>
+            </div>
+          )}
+        )}
+
       </main>
 
       {/* MODALES */}
@@ -661,6 +630,63 @@ const Index = () => {
           />
         </>
       )}
+
+      {activeTab === 'mas' && <MoreMenu userEmail={user?.email || ''} onLogout={handleLogout} />}
+
+      {/* Navegación Inferior Fija - Colores Lima Café 28 */}
+      <nav className="fixed bottom-0 left-0 right-0 bg-white border-t-2 border-[#8B4513]/20 shadow-lg z-50">
+        <div className="max-w-7xl mx-auto px-2">
+          <div className="grid grid-cols-4 gap-1">
+            <button
+              onClick={() => setActiveTab('alumnos')}
+              className={`flex flex-col items-center justify-center py-3 transition-all ${
+                activeTab === 'alumnos'
+                  ? 'text-[#8B4513] bg-[#FFF8E7]'
+                  : 'text-gray-500 hover:text-[#8B4513] hover:bg-gray-50'
+              }`}
+            >
+              <Home className="h-6 w-6 mb-1" />
+              <span className="text-xs font-semibold">Mis Hijos</span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('pagos')}
+              className={`flex flex-col items-center justify-center py-3 transition-all ${
+                activeTab === 'pagos'
+                  ? 'text-[#8B4513] bg-[#FFF8E7]'
+                  : 'text-gray-500 hover:text-[#8B4513] hover:bg-gray-50'
+              }`}
+            >
+              <Wallet className="h-6 w-6 mb-1" />
+              <span className="text-xs font-semibold">Pagos</span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('configuracion')}
+              className={`flex flex-col items-center justify-center py-3 transition-all ${
+                activeTab === 'configuracion'
+                  ? 'text-[#8B4513] bg-[#FFF8E7]'
+                  : 'text-gray-500 hover:text-[#8B4513] hover:bg-gray-50'
+              }`}
+            >
+              <Settings className="h-6 w-6 mb-1" />
+              <span className="text-xs font-semibold">Config</span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('mas')}
+              className={`flex flex-col items-center justify-center py-3 transition-all ${
+                activeTab === 'mas'
+                  ? 'text-[#8B4513] bg-[#FFF8E7]'
+                  : 'text-gray-500 hover:text-[#8B4513] hover:bg-gray-50'
+              }`}
+            >
+              <MenuIcon className="h-6 w-6 mb-1" />
+              <span className="text-xs font-semibold">Más</span>
+            </button>
+          </div>
+        </div>
+      </nav>
     </div>
   );
 };
