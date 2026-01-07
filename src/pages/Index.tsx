@@ -15,7 +15,10 @@ import {
   Settings,
   Receipt,
   Users as UsersIcon,
-  AlertCircle
+  AlertCircle,
+  Menu as MenuIcon,
+  Home,
+  Wallet
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useToast } from '@/hooks/use-toast';
@@ -30,6 +33,7 @@ import { VersionBadge } from '@/components/VersionBadge';
 import { FreeAccountWarningModal } from '@/components/parent/FreeAccountWarningModal';
 import { PaymentsTab } from '@/components/parent/PaymentsTab';
 import { StudentLinksManager } from '@/components/parent/StudentLinksManager';
+import { MoreMenu } from '@/components/parent/MoreMenu';
 import { useOnboardingCheck } from '@/hooks/useOnboardingCheck';
 
 interface Student {
@@ -64,7 +68,7 @@ const Index = () => {
   const [students, setStudents] = useState<Student[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAddStudent, setShowAddStudent] = useState(false);
-  const [activeTab, setActiveTab] = useState('alumnos');
+  const [activeTab, setActiveTab] = useState('inicio');
   
   // Modales
   const [showRechargeModal, setShowRechargeModal] = useState(false);
