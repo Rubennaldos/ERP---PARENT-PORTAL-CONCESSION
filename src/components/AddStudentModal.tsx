@@ -6,17 +6,18 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/lib/supabase';
+import { useAuth } from '@/contexts/AuthContext';
 import { Loader2 } from 'lucide-react';
 
 interface AddStudentModalProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  onStudentAdded: () => void;
-  parentId: string;
+  isOpen: boolean;
+  onClose: () => void;
+  onSuccess: () => void;
 }
 
-export function AddStudentModal({ open, onOpenChange, onStudentAdded, parentId }: AddStudentModalProps) {
+export function AddStudentModal({ isOpen, onClose, onSuccess }: AddStudentModalProps) {
   const { toast } = useToast();
+  const { user } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
   
   const [formData, setFormData] = useState({
@@ -29,6 +30,15 @@ export function AddStudentModal({ open, onOpenChange, onStudentAdded, parentId }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!user) {
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'No se encontró el usuario',
+      });
+      return;
+    }
     
     if (!formData.full_name.trim()) {
       toast({
@@ -59,15 +69,16 @@ export function AddStudentModal({ open, onOpenChange, onStudentAdded, parentId }
           section: formData.section || 'A',
           balance: parseFloat(formData.balance) || 0,
           daily_limit: parseFloat(formData.daily_limit) || 15,
-          parent_id: parentId,
+          parent_id: user.id,
           is_active: true,
+          free_account: true, // Por defecto cuenta libre activada
         });
 
       if (error) throw error;
 
       toast({
         title: '✅ Estudiante Registrado',
-        description: `${formData.full_name} ha sido agregado correctamente`,
+        description: `${formData.full_name} ha sido agregado con Cuenta Libre activada`,
       });
 
       // Limpiar formulario
@@ -79,8 +90,8 @@ export function AddStudentModal({ open, onOpenChange, onStudentAdded, parentId }
         daily_limit: '15',
       });
 
-      onStudentAdded();
-      onOpenChange(false);
+      onSuccess();
+      onClose();
 
     } catch (error: any) {
       console.error('Error adding student:', error);
@@ -95,7 +106,7 @@ export function AddStudentModal({ open, onOpenChange, onStudentAdded, parentId }
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Registrar Estudiante</DialogTitle>
@@ -193,7 +204,7 @@ export function AddStudentModal({ open, onOpenChange, onStudentAdded, parentId }
               type="button"
               variant="outline"
               className="flex-1"
-              onClick={() => onOpenChange(false)}
+              onClick={onClose}
               disabled={isSubmitting}
             >
               Cancelar

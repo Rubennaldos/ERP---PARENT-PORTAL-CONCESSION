@@ -33,6 +33,7 @@ import { FreeAccountWarningModal } from '@/components/parent/FreeAccountWarningM
 import { PaymentsTab } from '@/components/parent/PaymentsTab';
 import { StudentLinksManager } from '@/components/parent/StudentLinksManager';
 import { MoreMenu } from '@/components/parent/MoreMenu';
+import { PhotoConsentModal } from '@/components/parent/PhotoConsentModal';
 import { useOnboardingCheck } from '@/hooks/useOnboardingCheck';
 
 interface Student {
@@ -77,6 +78,8 @@ const Index = () => {
   const [showLimitModal, setShowLimitModal] = useState(false);
   const [showFreeAccountWarning, setShowFreeAccountWarning] = useState(false);
   const [showLinksManager, setShowLinksManager] = useState(false);
+  const [showPhotoConsent, setShowPhotoConsent] = useState(false);
+  const [photoConsentAccepted, setPhotoConsentAccepted] = useState(false);
   
   // Estudiante seleccionado
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
@@ -246,6 +249,18 @@ const Index = () => {
 
   const openPhotoModal = (student: Student) => {
     setSelectedStudent(student);
+    
+    // Verificar si ya aceptó el consentimiento
+    if (!photoConsentAccepted) {
+      setShowPhotoConsent(true);
+    } else {
+      setShowUploadPhoto(true);
+    }
+  };
+
+  const handlePhotoConsentAccept = () => {
+    setPhotoConsentAccepted(true);
+    setShowPhotoConsent(false);
     setShowUploadPhoto(true);
   };
 
@@ -621,6 +636,14 @@ const Index = () => {
       {/* Modal de Advertencia de Cuenta Libre */}
       {selectedStudent && (
         <>
+          <PhotoConsentModal
+            open={showPhotoConsent}
+            onOpenChange={setShowPhotoConsent}
+            onAccept={handlePhotoConsentAccept}
+            studentName={selectedStudent.full_name}
+            parentId={user?.id || ''}
+          />
+
           <FreeAccountWarningModal
             open={showFreeAccountWarning}
             onOpenChange={setShowFreeAccountWarning}

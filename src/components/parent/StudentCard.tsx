@@ -9,7 +9,8 @@ import {
   History,
   Settings2,
   UtensilsCrossed,
-  ChevronRight
+  ChevronRight,
+  Camera
 } from 'lucide-react';
 
 interface Student {
@@ -48,23 +49,33 @@ export function StudentCard({
       {/* Header con gradiente */}
       <div className="h-24 bg-gradient-to-br from-blue-500 via-purple-500 to-pink-500 relative">
         <div className="absolute -bottom-12 left-6">
-          <div 
-            className="w-24 h-24 rounded-full border-4 border-white bg-gray-200 overflow-hidden cursor-pointer hover:border-blue-400 transition-all shadow-lg"
-            onClick={onPhotoClick}
-          >
-            {student.photo_url ? (
-              <img 
-                src={student.photo_url} 
-                alt={student.full_name}
-                className="w-full h-full object-cover"
-              />
-            ) : (
-              <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-blue-100 to-purple-100">
-                <span className="text-3xl font-bold text-blue-600">
-                  {student.full_name.charAt(0).toUpperCase()}
-                </span>
-              </div>
-            )}
+          <div className="relative">
+            <div 
+              className="w-24 h-24 rounded-full border-4 border-white bg-gray-200 overflow-hidden cursor-pointer hover:border-blue-400 transition-all shadow-lg"
+              onClick={onPhotoClick}
+            >
+              {student.photo_url ? (
+                <img 
+                  src={student.photo_url} 
+                  alt={student.full_name}
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-blue-100 to-purple-100">
+                  <span className="text-3xl font-bold text-blue-600">
+                    {student.full_name.charAt(0).toUpperCase()}
+                  </span>
+                </div>
+              )}
+            </div>
+            {/* Icono de cámara */}
+            <button
+              onClick={onPhotoClick}
+              className="absolute bottom-0 right-0 w-8 h-8 bg-white rounded-full border-2 border-blue-500 flex items-center justify-center hover:bg-blue-50 transition-all shadow-md"
+              title="Subir foto"
+            >
+              <Camera className="h-4 w-4 text-blue-600" />
+            </button>
           </div>
         </div>
         
