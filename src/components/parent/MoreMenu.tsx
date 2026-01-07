@@ -19,9 +19,12 @@ import {
   FileText,
   Settings,
   LogOut,
-  Camera
+  Camera,
+  CheckCircle2
 } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { supabase } from '@/lib/supabase';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface MoreMenuProps {
   userEmail: string;
@@ -29,9 +32,37 @@ interface MoreMenuProps {
 }
 
 export const MoreMenu = ({ userEmail, onLogout }: MoreMenuProps) => {
+  const { user } = useAuth();
   const [showChangePassword, setShowChangePassword] = useState(false);
   const [showParentData, setShowParentData] = useState(false);
   const [showPhotoConsent, setShowPhotoConsent] = useState(false);
+  const [photoConsentAccepted, setPhotoConsentAccepted] = useState(false);
+  const [loading, setLoading] = useState(true);
+
+  // Verificar si ya aceptó el consentimiento
+  useEffect(() => {
+    const checkPhotoConsent = async () => {
+      if (!user?.id) return;
+
+      try {
+        const { data, error } = await supabase
+          .from('parent_profiles')
+          .select('photo_consent')
+          .eq('user_id', user.id)
+          .single();
+
+        if (!error && data) {
+          setPhotoConsentAccepted(data.photo_consent || false);
+        }
+      } catch (error) {
+        console.error('Error checking photo consent:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    checkPhotoConsent();
+  }, [user?.id]);
 
   const menuSections = [
     {
@@ -39,7 +70,13 @@ export const MoreMenu = ({ userEmail, onLogout }: MoreMenuProps) => {
       items: [
         { icon: User, label: 'Perfil del Padre', badge: userEmail, action: () => setShowParentData(true) },
         { icon: Lock, label: 'Cambiar Contraseña', action: () => setShowChangePassword(true) },
-        { icon: Camera, label: 'Gestionar Fotos', badge: 'Consentimiento', action: () => setShowPhotoConsent(true) },
+        { 
+          icon: Camera, 
+          label: 'Gestionar Fotos', 
+          badge: photoConsentAccepted ? '✓ Activado' : 'No activado', 
+          badgeVariant: photoConsentAccepted ? 'default' : 'outline',
+          action: () => setShowPhotoConsent(true) 
+        },
       ]
     },
     {
@@ -105,7 +142,14 @@ export const MoreMenu = ({ userEmail, onLogout }: MoreMenuProps) => {
                     </div>
                     <div className="flex items-center gap-2">
                       {item.badge && (
-                        <Badge variant="outline" className="text-xs">
+                        <Badge 
+                          variant={item.badgeVariant || 'outline'} 
+                          className={`text-xs ${
+                            item.badgeVariant === 'default' 
+                              ? 'bg-green-500 hover:bg-green-600 text-white' 
+                              : ''
+                          }`}
+                        >
                           {item.badge}
                         </Badge>
                       )}
@@ -181,47 +225,74 @@ export const MoreMenu = ({ userEmail, onLogout }: MoreMenuProps) => {
       <Dialog open={showPhotoConsent} onOpenChange={setShowPhotoConsent}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
-            <DialogTitle className="text-xl">Consentimiento de Uso de Fotografías</DialogTitle>
+            <DialogTitle className="text-xl flex items-center gap-2">
+              <Camera className="h-6 w-6 text-[#8B4513]" />
+              Estado del Consentimiento de Fotografías
+            </DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-              <h4 className="font-bold text-blue-900 mb-2">¿Para qué se usan las fotos?</h4>
-              <p className="text-sm text-blue-800">
-                Las fotografías de los menores se utilizan <strong>exclusivamente</strong> para:
-              </p>
-              <ul className="text-sm text-blue-800 mt-2 space-y-1 list-disc list-inside">
-                <li>Identificación visual en el punto de venta (POS)</li>
-                <li>Facilitar el reconocimiento del estudiante por el personal del kiosco</li>
-                <li>Mejorar la seguridad y rapidez del servicio</li>
-              </ul>
-            </div>
+            {photoConsentAccepted ? (
+              <>
+                <div className="bg-green-50 border-2 border-green-500 rounded-lg p-6 text-center">
+                  <CheckCircle2 className="h-16 w-16 text-green-600 mx-auto mb-4" />
+                  <h3 className="text-xl font-bold text-green-900 mb-2">
+                    ✓ Consentimiento Activado
+                  </h3>
+                  <p className="text-green-800">
+                    Ya has autorizado el uso de fotografías para tus hijos.
+                    <br />
+                    Puedes gestionar las fotos desde la tarjeta de cada estudiante.
+                  </p>
+                </div>
 
-            <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-              <h4 className="font-bold text-green-900 mb-2 flex items-center gap-2">
-                <Settings className="h-5 w-5" />
-                Protección de Datos
-              </h4>
-              <p className="text-sm text-green-800">
-                ✓ Las fotos <strong>NO</strong> se comparten con terceros
-                <br />
-                ✓ Solo el personal autorizado puede verlas
-                <br />
-                ✓ Puedes eliminar o cambiar la foto en cualquier momento
-                <br />
-                ✓ Los datos se almacenan de forma segura y encriptada
-              </p>
-            </div>
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                  <h4 className="font-bold text-blue-900 mb-2">Recordatorio de uso:</h4>
+                  <ul className="text-sm text-blue-800 space-y-1 list-disc list-inside">
+                    <li>Identificación visual en el punto de venta (POS)</li>
+                    <li>Facilitar el reconocimiento del estudiante</li>
+                    <li>Mejorar la seguridad y rapidez del servicio</li>
+                  </ul>
+                </div>
 
-            <div className="flex items-start gap-3 p-4 bg-gray-50 rounded-lg">
-              <Switch id="consent" />
-              <Label htmlFor="consent" className="text-sm leading-relaxed cursor-pointer">
-                <strong>Autorizo</strong> el uso de la fotografía de mi hijo/a para fines de <strong>identificación</strong> en el servicio de kiosco escolar de Lima Café 28, 
-                bajo los términos descritos. Entiendo que puedo revocar este consentimiento en cualquier momento.
-              </Label>
-            </div>
+                <div className="bg-amber-50 border border-amber-300 rounded-lg p-4">
+                  <div className="flex items-start gap-2">
+                    <AlertTriangle className="h-5 w-5 text-amber-600 flex-shrink-0 mt-0.5" />
+                    <div className="text-sm text-amber-800">
+                      <strong>Importante:</strong> Si deseas revocar el consentimiento o eliminar las fotos, 
+                      contacta con el administrador del sistema.
+                    </div>
+                  </div>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="bg-gray-50 border-2 border-gray-300 rounded-lg p-6 text-center">
+                  <Camera className="h-16 w-16 text-gray-400 mx-auto mb-4" />
+                  <h3 className="text-xl font-bold text-gray-900 mb-2">
+                    Consentimiento No Activado
+                  </h3>
+                  <p className="text-gray-600">
+                    Para activar el uso de fotografías, haz clic en la foto de tu hijo/a 
+                    desde la sección "Mis Hijos".
+                  </p>
+                </div>
 
-            <Button className="w-full bg-[#8B4513] hover:bg-[#A0522D]">
-              Guardar Preferencias
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                  <h4 className="font-bold text-blue-900 mb-2">¿Para qué se usan las fotos?</h4>
+                  <ul className="text-sm text-blue-800 space-y-1 list-disc list-inside">
+                    <li>Identificación visual en el punto de venta (POS)</li>
+                    <li>Facilitar el reconocimiento del estudiante por el personal</li>
+                    <li>Mejorar la seguridad y rapidez del servicio</li>
+                  </ul>
+                </div>
+              </>
+            )}
+
+            <Button 
+              onClick={() => setShowPhotoConsent(false)}
+              className="w-full bg-[#8B4513] hover:bg-[#A0522D]"
+            >
+              Cerrar
             </Button>
           </div>
         </DialogContent>

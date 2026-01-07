@@ -80,6 +80,7 @@ const Index = () => {
   const [showLinksManager, setShowLinksManager] = useState(false);
   const [showPhotoConsent, setShowPhotoConsent] = useState(false);
   const [photoConsentAccepted, setPhotoConsentAccepted] = useState(false);
+  const [photoConsentRefresh, setPhotoConsentRefresh] = useState(0); // Para forzar refresh en MoreMenu
   
   // Estudiante seleccionado
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
@@ -262,6 +263,7 @@ const Index = () => {
     setPhotoConsentAccepted(true);
     setShowPhotoConsent(false);
     setShowUploadPhoto(true);
+    setPhotoConsentRefresh(prev => prev + 1); // Forzar refresh del estado en MoreMenu
   };
 
   const openSettingsModal = (student: Student) => {
@@ -661,7 +663,13 @@ const Index = () => {
         </>
       )}
 
-      {activeTab === 'mas' && <MoreMenu userEmail={user?.email || ''} onLogout={handleLogout} />}
+      {activeTab === 'mas' && (
+        <MoreMenu 
+          key={photoConsentRefresh} 
+          userEmail={user?.email || ''} 
+          onLogout={handleLogout} 
+        />
+      )}
 
       {/* Navegación Inferior Fija - Colores Lima Café 28 */}
       <nav className="fixed bottom-0 left-0 right-0 bg-white border-t-2 border-[#8B4513]/20 shadow-lg z-50">
