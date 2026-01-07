@@ -319,7 +319,7 @@ const Index = () => {
       </header>
 
       {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 py-6">{activeTab === 'alumnos' && (
+      <main className="max-w-7xl mx-auto px-4 py-6">
         {activeTab === 'alumnos' && (
           <div className="space-y-6">
             <div className="mb-4">
@@ -380,13 +380,21 @@ const Index = () => {
         {activeTab === 'pagos' && <PaymentsTab userId={user?.id || ''} />}
 
         {activeTab === 'configuracion' && (
-                {students.length === 0 ? (
-                  <div className="text-center py-12">
-                    <Settings className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                    <p className="text-gray-500">No hay estudiantes registrados</p>
-                  </div>
-                ) : (
-                  <div className="space-y-4">
+          <div className="space-y-6">
+            <div className="mb-4">
+              <h2 className="text-2xl font-bold text-[#8B4513] mb-1">Configuración</h2>
+              <p className="text-gray-600 text-sm">Gestiona las opciones de cada estudiante</p>
+            </div>
+
+            {students.length === 0 ? (
+              <Card>
+                <CardContent className="text-center py-12">
+                  <Settings className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                  <p className="text-gray-500">No hay estudiantes registrados</p>
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="space-y-4">
                     {students.map((student) => (
                       <Card key={student.id} className="border-2">
                         <CardContent className="p-4">
@@ -472,9 +480,10 @@ const Index = () => {
                     ))}
                   </div>
                 )}
-            </div>
-          )}
+          </div>
         )}
+
+        {activeTab === 'mas' && <MoreMenu userEmail={user?.email || ''} onLogout={handleLogout} />}
 
       </main>
 
