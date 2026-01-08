@@ -216,6 +216,7 @@ export const CreateProfileModal = ({ open, onOpenChange, onSuccess }: CreateProf
         options: {
           data: {
             full_name: values.full_name,
+            role: selectedRole, // 🔥 Enviar el rol para que el trigger lo respete
           },
         },
       });
@@ -223,9 +224,11 @@ export const CreateProfileModal = ({ open, onOpenChange, onSuccess }: CreateProf
       if (authError) throw authError;
       if (!authData.user) throw new Error('No se pudo crear el usuario');
 
-      // 2. Crear perfil en la tabla profiles
+      // 2. Actualizar perfil en la tabla profiles (el trigger ya lo creó)
+      // Esperar un poco para que el trigger termine de ejecutarse
+      await new Promise(resolve => setTimeout(resolve, 500));
+
       const profileData: any = {
-        id: authData.user.id,
         role: selectedRole,
         school_id: selectedRole !== 'supervisor_red' ? selectedSchool : null,
       };
@@ -238,9 +241,13 @@ export const CreateProfileModal = ({ open, onOpenChange, onSuccess }: CreateProf
 
       const { error: profileError } = await supabase
         .from('profiles')
-        .insert(profileData);
+        .update(profileData)
+        .eq('id', authData.user.id);
 
-      if (profileError) throw profileError;
+      if (profileError) {
+        console.error('Error actualizando perfil:', profileError);
+        throw profileError;
+      }
 
       // 3. Si es padre, crear también el parent_profile
       if (selectedRole === 'parent') {

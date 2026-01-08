@@ -119,11 +119,14 @@ export const BillingDashboard = () => {
     try {
       setLoading(true);
 
-      // 1. Total pendiente por cobrar (suma de todos los pending_amount)
+      console.log('🔍 Iniciando fetchDashboardStats...');
+
+      // 1. Total pendiente por cobrar (DESDE TRANSACTIONS)
       let pendingQuery = supabase
-        .from('billing_payments')
-        .select('pending_amount, school_id')
-        .in('status', ['pending', 'partial']);
+        .from('transactions')
+        .select('amount, school_id, student_id, students(full_name, parent_id), schools(name)')
+        .in('payment_status', ['pending', 'partial'])
+        .eq('type', 'purchase');
 
       if (!canViewAllSchools || selectedSchool !== 'all') {
         const schoolId = selectedSchool !== 'all' ? selectedSchool : await getUserSchoolId();
@@ -132,17 +135,35 @@ export const BillingDashboard = () => {
         }
       }
 
-      const { data: pendingData } = await pendingQuery;
-      const totalPending = pendingData?.reduce((sum, p) => sum + (p.pending_amount || 0), 0) || 0;
+      const { data: pendingData, error: pendingError } = await pendingQuery;
+      console.log('📊 Deudas pendientes (transactions):', pendingData);
+      if (pendingError) console.error('❌ Error en pendingQuery:', pendingError);
+      
+      const totalPending = pendingData?.reduce((sum, t) => sum + Math.abs(t.amount || 0), 0) || 0;
 
-      // 2. Total cobrado hoy
+      // Obtener IDs únicos de padres para buscar sus nombres
+      const parentIds = [...new Set(pendingData?.map((t: any) => t.students?.parent_id).filter(Boolean))];
+      
+      // Buscar información de los padres
+      const { data: parentsData } = await supabase
+        .from('parent_profiles')
+        .select('user_id, full_name')
+        .in('user_id', parentIds);
+      
+      const parentsMap = new Map();
+      parentsData?.forEach((p: any) => {
+        parentsMap.set(p.user_id, p.full_name);
+      });
+
+      // 2. Total cobrado hoy (transacciones pagadas hoy)
       const today = new Date().toISOString().split('T')[0];
       let collectedQuery = supabase
-        .from('billing_payments')
-        .select('paid_amount, school_id')
-        .eq('status', 'completed')
-        .gte('paid_at', `${today}T00:00:00`)
-        .lte('paid_at', `${today}T23:59:59`);
+        .from('transactions')
+        .select('amount, school_id')
+        .eq('type', 'purchase')
+        .eq('payment_status', 'paid')
+        .gte('created_at', `${today}T00:00:00`)
+        .lte('created_at', `${today}T23:59:59`);
 
       if (!canViewAllSchools || selectedSchool !== 'all') {
         const schoolId = selectedSchool !== 'all' ? selectedSchool : await getUserSchoolId();
@@ -151,10 +172,13 @@ export const BillingDashboard = () => {
         }
       }
 
-      const { data: collectedData } = await collectedQuery;
-      const totalCollected = collectedData?.reduce((sum, p) => sum + (p.paid_amount || 0), 0) || 0;
+      const { data: collectedData, error: collectedError } = await collectedQuery;
+      console.log('💰 Cobrado hoy:', collectedData);
+      if (collectedError) console.error('❌ Error en collectedQuery:', collectedError);
+      
+      const totalCollected = collectedData?.reduce((sum, t) => sum + Math.abs(t.amount || 0), 0) || 0;
 
-      // 3. Períodos activos (open)
+      // 3. Períodos activos (open) - Mantener de billing_periods
       let periodsQuery = supabase
         .from('billing_periods')
         .select('id, school_id')
@@ -170,73 +194,54 @@ export const BillingDashboard = () => {
       const { data: periodsData } = await periodsQuery;
       const activePeriods = periodsData?.length || 0;
 
-      // 4. Padres con deuda (status pending o partial)
-      let parentsQuery = supabase
-        .from('billing_payments')
-        .select('parent_id, school_id')
-        .in('status', ['pending', 'partial']);
+      // 4. Padres con deuda (contar padres únicos)
+      const parentsWithDebt = parentIds.length;
 
-      if (!canViewAllSchools || selectedSchool !== 'all') {
-        const schoolId = selectedSchool !== 'all' ? selectedSchool : await getUserSchoolId();
-        if (schoolId) {
-          parentsQuery = parentsQuery.eq('school_id', schoolId);
+      // 5. Top 10 deudores (DESDE TRANSACTIONS agrupados por estudiante)
+      const debtByStudent: { [key: string]: { student_name: string; parent_name: string; amount: number; school_name: string } } = {};
+      
+      pendingData?.forEach((t: any) => {
+        const studentId = t.student_id;
+        if (!debtByStudent[studentId]) {
+          const parentName = parentsMap.get(t.students?.parent_id) || 'Sin padre';
+          debtByStudent[studentId] = {
+            student_name: t.students?.full_name || 'Sin nombre',
+            parent_name: parentName,
+            amount: 0,
+            school_name: t.schools?.name || 'Sin sede',
+          };
         }
-      }
+        debtByStudent[studentId].amount += Math.abs(t.amount || 0);
+      });
 
-      const { data: parentsData } = await parentsQuery;
-      const uniqueParents = new Set(parentsData?.map(p => p.parent_id));
-      const parentsWithDebt = uniqueParents.size;
+      const topDebtors = Object.values(debtByStudent)
+        .sort((a, b) => b.amount - a.amount)
+        .slice(0, 10);
 
-      // 5. Top 10 deudores
-      let topDebtorsQuery = supabase
-        .from('billing_payments')
-        .select(`
-          pending_amount,
-          parent_profiles!billing_payments_parent_id_fkey(full_name),
-          students(full_name),
-          schools(name),
-          school_id
-        `)
-        .in('status', ['pending', 'partial'])
-        .order('pending_amount', { ascending: false })
-        .limit(10);
-
-      if (!canViewAllSchools || selectedSchool !== 'all') {
-        const schoolId = selectedSchool !== 'all' ? selectedSchool : await getUserSchoolId();
-        if (schoolId) {
-          topDebtorsQuery = topDebtorsQuery.eq('school_id', schoolId);
-        }
-      }
-
-      const { data: topDebtorsData } = await topDebtorsQuery;
-      const topDebtors = (topDebtorsData || []).map((item: any) => ({
-        student_name: item.students?.full_name || 'Sin nombre',
-        parent_name: item.parent_profiles?.full_name || 'Sin nombre',
-        amount: item.pending_amount || 0,
-        school_name: item.schools?.name || 'Sin sede',
-      }));
+      console.log('👥 Top deudores:', topDebtors);
 
       // 6. Cobranza por sede (solo si es admin_general y ve todas)
       let collectionBySchool: any[] = [];
       if (canViewAllSchools && selectedSchool === 'all') {
-        const { data: schoolsCollectionData } = await supabase
-          .from('billing_payments')
-          .select('school_id, pending_amount, paid_amount, status, schools(name)');
+        const { data: allTransactions } = await supabase
+          .from('transactions')
+          .select('school_id, amount, payment_status, type, schools(name)')
+          .eq('type', 'purchase');
 
         const schoolsMap: { [key: string]: { name: string; pending: number; collected: number } } = {};
 
-        schoolsCollectionData?.forEach((item: any) => {
-          const schoolName = item.schools?.name || 'Sin sede';
+        allTransactions?.forEach((t: any) => {
+          const schoolName = t.schools?.name || 'Sin sede';
           if (!schoolsMap[schoolName]) {
             schoolsMap[schoolName] = { name: schoolName, pending: 0, collected: 0 };
           }
           
-          if (item.status === 'pending' || item.status === 'partial') {
-            schoolsMap[schoolName].pending += item.pending_amount || 0;
+          if (t.payment_status === 'pending' || t.payment_status === 'partial') {
+            schoolsMap[schoolName].pending += Math.abs(t.amount || 0);
           }
           
-          if (item.status === 'completed') {
-            schoolsMap[schoolName].collected += item.paid_amount || 0;
+          if (t.payment_status === 'paid') {
+            schoolsMap[schoolName].collected += Math.abs(t.amount || 0);
           }
         });
 
@@ -246,6 +251,15 @@ export const BillingDashboard = () => {
           collected: s.collected,
         }));
       }
+
+      console.log('📈 Stats finales:', {
+        totalPending,
+        totalCollected,
+        activePeriods,
+        parentsWithDebt,
+        topDebtors,
+        collectionBySchool,
+      });
 
       setStats({
         totalPending,
@@ -257,7 +271,7 @@ export const BillingDashboard = () => {
       });
 
     } catch (error) {
-      console.error('Error fetching dashboard stats:', error);
+      console.error('❌ Error fetching dashboard stats:', error);
     } finally {
       setLoading(false);
     }

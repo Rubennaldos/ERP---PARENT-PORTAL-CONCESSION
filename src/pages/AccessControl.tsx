@@ -1,4 +1,4 @@
-import { AccessControlModule } from '@/components/admin/AccessControlModule';
+import { AccessControlModuleV2 } from '@/components/admin/AccessControlModuleV2';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
@@ -25,7 +25,7 @@ const AccessControl = () => {
 
       {/* Main Content */}
       <main className="container mx-auto px-6 py-6">
-        <AccessControlModule />
+        <AccessControlModuleV2 />
       </main>
     </div>
   );

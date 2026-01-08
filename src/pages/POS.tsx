@@ -421,15 +421,24 @@ const POS = () => {
 
       // Generar correlativo
       try {
-        const { data: ticketNumber, error: ticketError } = await supabase
-          .rpc('get_next_ticket_number', { p_user_id: user?.id });
-
-        if (ticketError) {
-          console.error('❌ Error generando correlativo:', ticketError);
-          ticketCode = `TMP-${Date.now()}`;
+        // Si es Admin General o Gestor de Unidad, usar una serie especial para pruebas
+        if (role === 'admin_general' || role === 'gestor_unidad') {
+          const timestamp = Date.now().toString().slice(-6); // Últimos 6 dígitos del timestamp
+          const prefix = role === 'admin_general' ? 'ADMIN-TEST' : 'GESTOR-TEST';
+          ticketCode = `${prefix}-${timestamp}`;
+          console.log('🧪 Correlativo de PRUEBA generado para', role, ':', ticketCode);
         } else {
-          console.log('✅ Correlativo generado:', ticketNumber);
-          ticketCode = ticketNumber;
+          // Flujo normal para Operadores de Caja
+          const { data: ticketNumber, error: ticketError } = await supabase
+            .rpc('get_next_ticket_number', { p_user_id: user?.id });
+
+          if (ticketError) {
+            console.error('❌ Error generando correlativo:', ticketError);
+            ticketCode = `TMP-${Date.now()}`;
+          } else {
+            console.log('✅ Correlativo generado:', ticketNumber);
+            ticketCode = ticketNumber;
+          }
         }
       } catch (err) {
         console.error('❌ Error en correlativo:', err);

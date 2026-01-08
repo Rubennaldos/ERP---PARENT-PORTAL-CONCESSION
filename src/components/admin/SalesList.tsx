@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRole } from '@/hooks/useRole';
-import { usePermissions } from '@/hooks/usePermissions';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -107,8 +106,17 @@ interface TransactionItem {
 export const SalesList = () => {
   const { user } = useAuth();
   const { role } = useRole();
-  const { can } = usePermissions();
   const { toast } = useToast();
+  
+  // Permisos del módulo de ventas
+  const [permissions, setPermissions] = useState({
+    canView: false,
+    canEdit: false,
+    canDelete: false,
+    canPrint: false,
+    canExport: false,
+    loading: true,
+  });
   
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
@@ -146,15 +154,67 @@ export const SalesList = () => {
   const [showPrintOptions, setShowPrintOptions] = useState(false);
   const [printType, setPrintType] = useState<'individual' | 'consolidated'>('individual');
 
+  // Verificar permisos al cargar
+  useEffect(() => {
+    checkPermissions();
+  }, [user, role]);
+
   // Cargar escuelas y school_id del usuario
   useEffect(() => {
-    fetchSchools();
-    fetchUserSchool();
-  }, []);
+    if (!permissions.loading && permissions.canView) {
+      fetchSchools();
+      fetchUserSchool();
+    }
+  }, [permissions.loading, permissions.canView]);
 
   useEffect(() => {
-    fetchTransactions();
-  }, [activeTab, selectedDate, selectedSchool]);
+    if (!permissions.loading && permissions.canView) {
+      fetchTransactions();
+    }
+  }, [activeTab, selectedDate, selectedSchool, permissions.loading, permissions.canView]);
+
+  const checkPermissions = async () => {
+    if (!user || !role) {
+      setPermissions(prev => ({ ...prev, loading: false }));
+      return;
+    }
+
+    try {
+      // Por ahora, dar acceso completo a roles de staff
+      if (role === 'admin_general' || role === 'supervisor_red' || role === 'gestor_unidad' || role === 'operador_caja') {
+        setPermissions({
+          canView: true,
+          canEdit: role === 'admin_general' || role === 'supervisor_red' || role === 'gestor_unidad',
+          canDelete: role === 'admin_general' || role === 'supervisor_red',
+          canPrint: true,
+          canExport: true,
+          loading: false,
+        });
+        console.log('✅ Permisos asignados para rol:', role);
+        return;
+      }
+
+      // Si no es un rol conocido, denegar acceso
+      setPermissions({
+        canView: false,
+        canEdit: false,
+        canDelete: false,
+        canPrint: false,
+        canExport: false,
+        loading: false,
+      });
+    } catch (error) {
+      console.error('Error checking permissions:', error);
+      setPermissions({
+        canView: true,
+        canEdit: true,
+        canDelete: true,
+        canPrint: true,
+        canExport: true,
+        loading: false,
+      });
+    }
+  };
 
   const fetchSchools = async () => {
     try {
@@ -483,6 +543,35 @@ export const SalesList = () => {
     return filteredTransactions.reduce((sum, t) => sum + Math.abs(t.amount), 0);
   };
 
+  // Mostrar loading mientras verifica permisos
+  if (permissions.loading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-gray-600">Verificando permisos...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Si no tiene permiso para ver
+  if (!permissions.canView) {
+    return (
+      <Card className="border-red-200">
+        <CardContent className="p-12 text-center">
+          <AlertTriangle className="h-16 w-16 text-red-500 mx-auto mb-4" />
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">Sin Permiso de Acceso</h2>
+          <p className="text-gray-600">
+            No tienes permisos para ver el módulo de Lista de Ventas.
+            <br />
+            Contacta al administrador del sistema.
+          </p>
+        </CardContent>
+      </Card>
+    );
+  }
+
   return (
     <div className="space-y-4">
       <Card className="border shadow-sm">
@@ -760,7 +849,8 @@ export const SalesList = () => {
                                 size="sm"
                                 className="h-8 gap-1 border-blue-200 hover:bg-blue-50 text-blue-700"
                                 onClick={() => handleReprint(t)}
-                                title="Ver y Reimprimir Ticket"
+                                disabled={!permissions.canPrint}
+                                title={permissions.canPrint ? "Ver y Reimprimir Ticket" : "Sin permiso para imprimir"}
                               >
                                 <Printer className="h-3.5 w-3.5" />
                                 <span className="text-[10px] font-bold">TICKET</span>
@@ -768,24 +858,28 @@ export const SalesList = () => {
 
                               {!t.is_deleted && (
                                 <>
-                                  <Button 
-                                    variant="ghost" 
-                                    size="sm"
-                                    className="h-8 w-8 p-0"
-                                    onClick={() => handleOpenEditClient(t)}
-                                    title="Editar datos del cliente"
-                                  >
-                                    <Edit className="h-4 w-4" />
-                                  </Button>
-                                  <Button 
-                                    variant="ghost" 
-                                    size="sm"
-                                    className="h-8 w-8 p-0"
-                                    onClick={() => handleOpenAnnul(t)}
-                                    title="Anular venta"
-                                  >
-                                    <Trash2 className="h-4 w-4 text-red-600" />
-                                  </Button>
+                                  {permissions.canEdit && (
+                                    <Button 
+                                      variant="ghost" 
+                                      size="sm"
+                                      className="h-8 w-8 p-0"
+                                      onClick={() => handleOpenEditClient(t)}
+                                      title="Editar datos del cliente"
+                                    >
+                                      <Edit className="h-4 w-4" />
+                                    </Button>
+                                  )}
+                                  {permissions.canDelete && (
+                                    <Button 
+                                      variant="ghost" 
+                                      size="sm"
+                                      className="h-8 w-8 p-0"
+                                      onClick={() => handleOpenAnnul(t)}
+                                      title="Anular venta"
+                                    >
+                                      <Trash2 className="h-4 w-4 text-red-600" />
+                                    </Button>
+                                  )}
                                 </>
                               )}
                             </div>

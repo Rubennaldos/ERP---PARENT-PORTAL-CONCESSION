@@ -88,7 +88,7 @@ export const BillingCollection = () => {
   
   // Filtros
   const [selectedSchool, setSelectedSchool] = useState<string>('all');
-  const [selectedPeriod, setSelectedPeriod] = useState<string>('');
+  const [selectedPeriod, setSelectedPeriod] = useState<string>('all');
   const [searchTerm, setSearchTerm] = useState('');
   
   // Selección múltiple
@@ -113,17 +113,36 @@ export const BillingCollection = () => {
   const canViewAllSchools = role === 'admin_general';
 
   useEffect(() => {
+    console.log('🎬 [BillingCollection] Componente montado');
     fetchSchools();
     fetchUserSchool();
   }, []);
 
   useEffect(() => {
-    // Cargar deudores cuando cambie la sede seleccionada
-    // No depende de períodos porque los admins ven TODAS las deudas
-    if (userSchoolId !== null || canViewAllSchools) {
-      fetchDebtors();
+    console.log('🔄 [BillingCollection] selectedSchool cambió:', selectedSchool, 'userSchoolId:', userSchoolId, 'canViewAllSchools:', canViewAllSchools);
+    
+    // Cargar períodos
+    if (selectedSchool) {
+      fetchPeriods();
     }
-  }, [selectedSchool, userSchoolId]);
+    
+    // Cargar deudores:
+    // - Si es admin_general (canViewAllSchools), puede cargar inmediatamente
+    // - Si NO es admin_general, espera a que userSchoolId esté disponible
+    if (canViewAllSchools || (userSchoolId !== null && !canViewAllSchools)) {
+      const timer = setTimeout(() => {
+        console.log('⏰ [BillingCollection] Ejecutando fetchDebtors después de debounce');
+        fetchDebtors();
+      }, 300);
+      
+      return () => {
+        console.log('🧹 [BillingCollection] Limpiando timer');
+        clearTimeout(timer);
+      };
+    } else {
+      console.log('⏸️ [BillingCollection] Esperando userSchoolId...');
+    }
+  }, [selectedSchool, userSchoolId, canViewAllSchools]);
 
   const fetchSchools = async () => {
     if (isDemoMode) {
@@ -179,6 +198,7 @@ export const BillingCollection = () => {
   };
 
   const fetchPeriods = async (schoolId?: string) => {
+    console.log('📅 [BillingCollection] fetchPeriods llamado');
     if (isDemoMode) {
       const mockPeriods = MOCK_BILLING_PERIODS.map(p => ({
         id: p.id,
@@ -188,9 +208,6 @@ export const BillingCollection = () => {
         school_id: schoolId || 'mock-school-1'
       }));
       setPeriods(mockPeriods);
-      if (mockPeriods.length > 0 && !selectedPeriod) {
-        setSelectedPeriod(mockPeriods[0].id);
-      }
       return;
     }
 
@@ -213,20 +230,10 @@ export const BillingCollection = () => {
 
       if (error) throw error;
       setPeriods(data || []);
-      
-      if (data && data.length > 0 && !selectedPeriod) {
-        setSelectedPeriod(data[0].id);
-      }
     } catch (error) {
       console.error('Error fetching periods:', error);
     }
   };
-
-  useEffect(() => {
-    if (selectedSchool) {
-      fetchPeriods();
-    }
-  }, [selectedSchool]);
 
   const fetchDebtors = async () => {
     if (isDemoMode) {
@@ -261,35 +268,17 @@ export const BillingCollection = () => {
 
     try {
       setLoading(true);
+      console.log('🔍 [BillingCollection] Iniciando fetchDebtors...');
 
       // Determinar el school_id a filtrar
       const schoolIdFilter = !canViewAllSchools || selectedSchool !== 'all' 
         ? (selectedSchool !== 'all' ? selectedSchool : userSchoolId)
         : null;
 
-      console.log('🔍 Buscando deudores...', { schoolIdFilter, canViewAllSchools, selectedSchool, userSchoolId });
+      console.log('🔍 [BillingCollection] schoolIdFilter:', schoolIdFilter);
 
-      // ESTRATEGIA: Hacer dos consultas y combinar resultados
-      // Mostrar TODAS las deudas sin importar fechas (los períodos solo afectan el portal de padres)
-      
-      // 1. Transacciones NO facturadas
-      let query1 = supabase
-        .from('transactions')
-        .select(`
-          *,
-          students(id, full_name, parent_id),
-          schools(id, name)
-        `)
-        .eq('type', 'purchase')
-        .eq('is_billed', false)
-        .not('student_id', 'is', null);
-
-      if (schoolIdFilter) {
-        query1 = query1.eq('school_id', schoolIdFilter);
-      }
-
-      // 2. Transacciones con pago pendiente (Cuenta Libre)
-      let query2 = supabase
+      // SIMPLIFICADO: Solo consultar transacciones pendientes
+      let query = supabase
         .from('transactions')
         .select(`
           *,
@@ -301,53 +290,52 @@ export const BillingCollection = () => {
         .not('student_id', 'is', null);
 
       if (schoolIdFilter) {
-        query2 = query2.eq('school_id', schoolIdFilter);
+        query = query.eq('school_id', schoolIdFilter);
       }
 
-      // Ejecutar ambas consultas
-      const [result1, result2] = await Promise.all([query1, query2]);
+      const { data: transactions, error } = await query;
 
-      console.log('📊 Resultados queries:', { 
-        query1_count: result1.data?.length || 0, 
-        query2_count: result2.data?.length || 0,
-        query1_error: result1.error,
-        query2_error: result2.error
+      console.log('📊 [BillingCollection] Transacciones:', { 
+        count: transactions?.length || 0,
+        error,
+        sample: transactions?.[0]
       });
 
-      if (result1.error) throw result1.error;
-      if (result2.error) throw result2.error;
-
-      // Combinar resultados eliminando duplicados por ID
-      const transactionsMap = new Map();
-      [...(result1.data || []), ...(result2.data || [])].forEach((t: any) => {
-        transactionsMap.set(t.id, t);
-      });
-
-      const transactions = Array.from(transactionsMap.values());
+      if (error) {
+        console.error('❌ [BillingCollection] Error:', error);
+        throw error;
+      }
 
       // Obtener IDs únicos de padres
       const parentIds = [...new Set(transactions
         .map((t: any) => t.students?.parent_id)
         .filter(Boolean))];
 
-      // Obtener datos de los padres
-      const { data: parentProfiles, error: parentError } = await supabase
-        .from('parent_profiles')
-        .select(`
-          user_id,
-          full_name,
-          phone_1,
-          profiles(email)
-        `)
-        .in('user_id', parentIds);
+      console.log('👤 [BillingCollection] Parent IDs:', parentIds);
 
-      if (parentError) console.error('Error fetching parent profiles:', parentError);
+      // Obtener datos de los padres (solo si hay parentIds)
+      let parentProfiles: any[] = [];
+      if (parentIds.length > 0) {
+        const { data, error: parentError } = await supabase
+          .from('parent_profiles')
+          .select('user_id, full_name, phone_1')
+          .in('user_id', parentIds);
+
+        if (parentError) {
+          console.error('❌ [BillingCollection] Error fetching parent profiles:', parentError);
+        } else {
+          parentProfiles = data || [];
+          console.log('👤 [BillingCollection] Parent profiles encontrados:', parentProfiles.length);
+        }
+      }
 
       // Crear mapa de padres para acceso rápido
       const parentMap = new Map();
       parentProfiles?.forEach((p: any) => {
         parentMap.set(p.user_id, p);
       });
+
+      console.log('🗺️ [BillingCollection] Parent map size:', parentMap.size);
 
       // Agrupar por estudiante
       const debtorsMap: { [key: string]: DebtorStudent } = {};
@@ -366,7 +354,7 @@ export const BillingCollection = () => {
             parent_id: student.parent_id || '',
             parent_name: parentProfile?.full_name || 'Sin padre asignado',
             parent_phone: parentProfile?.phone_1 || '',
-            parent_email: parentProfile?.profiles?.email || '',
+            parent_email: '', // Email no disponible por ahora
             school_id: transaction.school_id,
             school_name: transaction.schools?.name || '',
             total_amount: 0,
@@ -381,7 +369,8 @@ export const BillingCollection = () => {
       });
 
       const debtorsArray = Object.values(debtorsMap);
-      console.log('👥 Deudores encontrados:', debtorsArray.length, debtorsArray);
+      console.log('👥 [BillingCollection] Deudores encontrados:', debtorsArray.length);
+      console.log('👥 [BillingCollection] Muestra:', debtorsArray[0]);
       
       setDebtors(debtorsArray);
     } catch (error) {
@@ -472,7 +461,7 @@ export const BillingCollection = () => {
           parent_id: currentDebtor.parent_id,
           student_id: currentDebtor.student_id,
           school_id: currentDebtor.school_id,
-          billing_period_id: selectedPeriod,
+          billing_period_id: selectedPeriod !== 'all' ? selectedPeriod : null,
           total_amount: currentDebtor.total_amount,
           paid_amount: paymentData.paid_amount,
           payment_method: paymentData.payment_method,
@@ -519,12 +508,14 @@ export const BillingCollection = () => {
   };
 
   const copyMessage = (debtor: DebtorStudent) => {
-    const period = periods.find(p => p.id === selectedPeriod);
+    const period = selectedPeriod !== 'all' ? periods.find(p => p.id === selectedPeriod) : null;
+    const periodText = period ? `del período: ${period.period_name}` : 'pendiente';
+    
     const message = `🔔 *COBRANZA LIMA CAFÉ 28*
 
 Estimado(a) ${debtor.parent_name}
 
-El alumno *${debtor.student_name}* tiene un consumo pendiente del período: ${period?.period_name}
+El alumno *${debtor.student_name}* tiene un consumo ${periodText}
 
 💰 Monto Total: S/ ${debtor.total_amount.toFixed(2)}
 
@@ -541,8 +532,12 @@ Gracias.`;
   };
 
   const generatePDF = async (debtor: DebtorStudent) => {
-    const period = periods.find(p => p.id === selectedPeriod);
-    if (!period) return;
+    const period = selectedPeriod !== 'all' ? periods.find(p => p.id === selectedPeriod) : null;
+    
+    // Si no hay período seleccionado, usar fechas genéricas
+    const periodName = period?.period_name || 'Cuenta Pendiente';
+    const startDate = period?.start_date || new Date().toISOString().split('T')[0];
+    const endDate = period?.end_date || new Date().toISOString().split('T')[0];
 
     // Intentar obtener el logo en base64
     let logoBase64 = '';
@@ -563,9 +558,9 @@ Gracias.`;
       parent_name: debtor.parent_name,
       parent_phone: debtor.parent_phone,
       school_name: debtor.school_name,
-      period_name: period.period_name,
-      start_date: period.start_date,
-      end_date: period.end_date,
+      period_name: periodName,
+      start_date: startDate,
+      end_date: endDate,
       transactions: debtor.transactions.map(t => ({
         id: t.id,
         created_at: t.created_at,
@@ -585,7 +580,7 @@ Gracias.`;
   };
 
   const generateWhatsAppExport = () => {
-    const period = periods.find(p => p.id === selectedPeriod);
+    const period = selectedPeriod !== 'all' ? periods.find(p => p.id === selectedPeriod) : null;
     const selectedDebtorsList = filteredDebtors.filter(d => selectedDebtors.has(d.student_id));
 
     if (selectedDebtorsList.length === 0) {
@@ -607,8 +602,8 @@ Gracias.`;
         parent_name: debtor.parent_name,
         student_name: debtor.student_name,
         amount: debtor.total_amount.toFixed(2),
-        period: period?.period_name || '',
-        message: `🔔 *COBRANZA LIMA CAFÉ 28*\n\nEstimado(a) ${debtor.parent_name}\n\nEl alumno *${debtor.student_name}* tiene un consumo pendiente del período: ${period?.period_name}\n\n💰 Monto Total: S/ ${debtor.total_amount.toFixed(2)}\n\n📎 Adjuntamos el detalle completo.\n\nPara pagar, contacte con administración.\nGracias.`,
+        period: period?.period_name || 'Cuenta Pendiente',
+        message: `🔔 *COBRANZA LIMA CAFÉ 28*\n\nEstimado(a) ${debtor.parent_name}\n\nEl alumno *${debtor.student_name}* tiene un consumo pendiente${period ? ` del período: ${period.period_name}` : ''}\n\n💰 Monto Total: S/ ${debtor.total_amount.toFixed(2)}\n\n📎 Adjuntamos el detalle completo.\n\nPara pagar, contacte con administración.\nGracias.`,
         delay_seconds: delay,
         pdf_url: '', // Se generará después
       };
@@ -620,7 +615,7 @@ Gracias.`;
     const url = URL.createObjectURL(dataBlob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `cobranzas_${period?.period_name}_${format(new Date(), 'yyyyMMdd_HHmmss')}.json`;
+    link.download = `cobranzas_${period?.period_name || 'todas'}_${format(new Date(), 'yyyyMMdd_HHmmss')}.json`;
     link.click();
 
     toast({
@@ -629,7 +624,7 @@ Gracias.`;
     });
   };
 
-  const currentPeriod = periods.find(p => p.id === selectedPeriod);
+  const currentPeriod = selectedPeriod !== 'all' ? periods.find(p => p.id === selectedPeriod) : null;
 
   return (
     <div className="space-y-6">
@@ -657,14 +652,15 @@ Gracias.`;
               </div>
             )}
 
-            {/* Período */}
+            {/* Período (OPCIONAL) */}
             <div className="space-y-2">
-              <Label>Período de Cobranza *</Label>
-              <Select value={selectedPeriod} onValueChange={setSelectedPeriod}>
+              <Label>Período de Cobranza (Opcional)</Label>
+              <Select value={selectedPeriod || 'all'} onValueChange={(value) => setSelectedPeriod(value === 'all' ? '' : value)}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Selecciona un período" />
+                  <SelectValue placeholder="Todas las deudas" />
                 </SelectTrigger>
                 <SelectContent>
+                  <SelectItem value="all">Todas las deudas</SelectItem>
                   {periods.map((period) => (
                     <SelectItem key={period.id} value={period.id}>
                       {period.period_name}
@@ -691,14 +687,7 @@ Gracias.`;
         </CardContent>
       </Card>
 
-      {!selectedPeriod ? (
-        <Card>
-          <CardContent className="py-12 text-center">
-            <Calendar className="h-16 w-16 mx-auto mb-4 text-gray-400" />
-            <p className="text-gray-500">Selecciona un período de cobranza para comenzar</p>
-          </CardContent>
-        </Card>
-      ) : loading ? (
+      {loading ? (
         <div className="flex items-center justify-center py-12">
           <Loader2 className="h-8 w-8 animate-spin text-red-600" />
           <p className="ml-3 text-gray-600">Cargando deudores...</p>

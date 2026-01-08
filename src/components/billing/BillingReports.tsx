@@ -137,16 +137,24 @@ export const BillingReports = () => {
 
     try {
       setLoading(true);
+      console.log('📊 [BillingReports] Iniciando fetchPayments...');
 
+      // CONSULTAR TRANSACTIONS (todas las deudas y pagos)
       let query = supabase
-        .from('billing_payments')
+        .from('transactions')
         .select(`
-          *,
-          students(full_name),
-          parent_profiles!billing_payments_parent_id_fkey(full_name),
-          schools(name),
-          billing_periods(period_name)
+          id,
+          created_at,
+          amount,
+          type,
+          payment_status,
+          payment_method,
+          student_id,
+          school_id,
+          students(full_name, parent_id),
+          schools(name)
         `)
+        .eq('type', 'purchase')
         .order('created_at', { ascending: false });
 
       // Filtros
@@ -158,7 +166,12 @@ export const BillingReports = () => {
       }
 
       if (selectedStatus !== 'all') {
-        query = query.eq('status', selectedStatus);
+        // Mapear los status: completed -> paid, pending -> pending, partial -> partial
+        if (selectedStatus === 'completed') {
+          query = query.eq('payment_status', 'paid');
+        } else {
+          query = query.eq('payment_status', selectedStatus);
+        }
       }
 
       if (dateFrom) {
@@ -169,26 +182,49 @@ export const BillingReports = () => {
         query = query.lte('created_at', `${dateTo}T23:59:59`);
       }
 
-      const { data, error } = await query;
+      const { data: transactions, error } = await query;
 
       if (error) throw error;
 
-      const mappedPayments: PaymentHistory[] = (data || []).map((payment: any) => ({
-        id: payment.id,
-        created_at: payment.created_at,
-        paid_at: payment.paid_at,
-        student_name: payment.students?.full_name || 'Sin nombre',
-        parent_name: payment.parent_profiles?.full_name || 'Sin nombre',
-        school_name: payment.schools?.name || 'Sin sede',
-        period_name: payment.billing_periods?.period_name || 'Sin período',
-        total_amount: payment.total_amount,
-        paid_amount: payment.paid_amount,
-        pending_amount: payment.pending_amount,
-        payment_method: payment.payment_method,
-        status: payment.status,
-        document_type: payment.document_type,
-      }));
+      console.log('📊 [BillingReports] Transacciones encontradas:', transactions?.length);
 
+      // Obtener IDs de padres para buscar sus nombres
+      const parentIds = [...new Set(transactions?.map((t: any) => t.students?.parent_id).filter(Boolean))];
+      
+      const { data: parentsData } = await supabase
+        .from('parent_profiles')
+        .select('user_id, full_name')
+        .in('user_id', parentIds);
+      
+      const parentsMap = new Map();
+      parentsData?.forEach((p: any) => {
+        parentsMap.set(p.user_id, p.full_name);
+      });
+
+      // Mapear transacciones a formato de PaymentHistory
+      const mappedPayments: PaymentHistory[] = (transactions || []).map((transaction: any) => {
+        const amount = Math.abs(transaction.amount);
+        const isPaid = transaction.payment_status === 'paid';
+        const isPartial = transaction.payment_status === 'partial';
+        
+        return {
+          id: transaction.id,
+          created_at: transaction.created_at,
+          paid_at: isPaid ? transaction.created_at : '',
+          student_name: transaction.students?.full_name || 'Sin nombre',
+          parent_name: parentsMap.get(transaction.students?.parent_id) || 'Sin padre',
+          school_name: transaction.schools?.name || 'Sin sede',
+          period_name: 'Cuenta Libre', // Por ahora sin períodos
+          total_amount: amount,
+          paid_amount: isPaid ? amount : (isPartial ? amount * 0.5 : 0), // Simulación
+          pending_amount: isPaid ? 0 : (isPartial ? amount * 0.5 : amount),
+          payment_method: transaction.payment_method || 'cuenta_libre',
+          status: transaction.payment_status === 'paid' ? 'completed' : transaction.payment_status,
+          document_type: 'ticket',
+        };
+      });
+
+      console.log('📊 [BillingReports] Pagos mapeados:', mappedPayments.length);
       setPayments(mappedPayments);
     } catch (error) {
       console.error('Error fetching payments:', error);

@@ -12,6 +12,7 @@ export function useOnboardingCheck() {
   const navigate = useNavigate();
   const [isChecking, setIsChecking] = useState(true);
   const [needsOnboarding, setNeedsOnboarding] = useState(false);
+  const [retryCount, setRetryCount] = useState(0);
 
   useEffect(() => {
     async function checkOnboarding() {
@@ -21,6 +22,8 @@ export function useOnboardingCheck() {
       }
 
       try {
+        console.log('🔍 [OnboardingCheck] Intento:', retryCount + 1);
+        
         // Verificar si el usuario es padre
         const { data: profile } = await supabase
           .from('profiles')
@@ -28,17 +31,27 @@ export function useOnboardingCheck() {
           .eq('id', user.id)
           .maybeSingle();
 
-        // ⚠️ IMPORTANTE: Solo verificar onboarding para PADRES confirmados
-        // Si no hay perfil o el rol NO es 'parent', NO hacer nada
+        // ⚠️ Si no hay perfil, reintentar hasta 3 veces (puede tardar con triggers)
         if (!profile) {
-          console.log('⏭️ Perfil no encontrado, esperando a que se cree...');
-          setIsChecking(false);
-          return;
+          console.log('⏸️ [OnboardingCheck] Perfil no encontrado...');
+          if (retryCount < 3) {
+            console.log(`⏳ [OnboardingCheck] Reintentando en 1.5 segundos... (intento ${retryCount + 1}/3)`);
+            setTimeout(() => {
+              setRetryCount(prev => prev + 1);
+            }, 1500);
+            return;
+          } else {
+            console.log('❌ [OnboardingCheck] Perfil no encontrado después de 3 intentos');
+            setIsChecking(false);
+            return;
+          }
         }
 
-        // Si NO es padre (es staff/admin/cajero), salir sin verificar
+        console.log('✅ [OnboardingCheck] Rol detectado:', profile.role);
+
+        // Si NO es padre (es staff/admin/cajero/gestor), salir sin verificar
         if (profile.role !== 'parent') {
-          console.log('⏭️ Usuario no es padre, omitir onboarding');
+          console.log('✅ [OnboardingCheck] Usuario NO es padre, no requiere onboarding');
           setNeedsOnboarding(false);
           setIsChecking(false);
           return;
@@ -91,7 +104,7 @@ export function useOnboardingCheck() {
     }
 
     checkOnboarding();
-  }, [user, navigate]);
+  }, [user, navigate, retryCount]);
 
   return { isChecking, needsOnboarding };
 }

@@ -63,13 +63,14 @@ const Dashboard = () => {
 
   useEffect(() => {
     fetchUserModules();
-  }, [user, role]); // Agregar role como dependencia
+  }, [user, role]);
 
   const fetchUserModules = async () => {
     if (!user) return;
 
     try {
       setLoading(true);
+      console.log('🔍 Cargando módulos para usuario:', user.id, 'Rol:', role);
 
       // Definir todos los módulos disponibles
       const allModules = [
@@ -171,42 +172,98 @@ const Dashboard = () => {
         },
       ];
 
-      // Admin General (dueño del negocio) tiene todos los módulos habilitados
+      // Admin General tiene acceso a TODO
       if (role === 'admin_general') {
         const enabledModules = allModules.map(m => ({ ...m, is_enabled: true }));
-        console.log('👔 Admin General: Habilitando todos los módulos:', enabledModules.length);
+        console.log('👔 Admin General: Acceso total a todos los módulos');
         setModules(enabledModules);
-      } else if (role === 'supervisor_red') {
-        // Supervisor de Red: puede ver todo, permisos definidos por Admin General
-        const supervisorModules = allModules.map(m => ({ ...m, is_enabled: true }));
-        console.log('🌐 Supervisor de Red: Habilitando todos los módulos');
-        setModules(supervisorModules);
-      } else if (role === 'gestor_unidad') {
-        // Gestor de Unidad: módulos definidos por Admin General
-        const gestorModules = allModules.map(m => ({ ...m, is_enabled: true }));
-        console.log('🏢 Gestor de Unidad: Habilitando módulos');
-        setModules(gestorModules);
-      } else if (role === 'operador_caja') {
-        // Operador de Caja solo ve POS y Ventas
-        const cajaModules = allModules.map(m => ({
-          ...m,
-          is_enabled: m.code === 'pos' || m.code === 'ventas'
-        }));
-        console.log('💰 Operador de Caja: Habilitando POS y Ventas');
-        setModules(cajaModules);
-      } else if (role === 'operador_cocina') {
-        // Personal Cocina no ve ningún módulo del dashboard
-        console.log('👨‍🍳 Operador de Cocina: Sin módulos de dashboard');
-        setModules([]);
-      } else {
-        // Otros roles: mostrar todos pero deshabilitados
-        console.log('❓ Rol desconocido:', role, '- Mostrando módulos deshabilitados');
-        setModules(allModules);
+        setLoading(false);
+        return;
       }
+
+      // Para otros roles, verificar permisos en la base de datos
+      console.log('🔐 Verificando permisos desde base de datos...');
       
-      console.log('📊 Módulos finales cargados:', role, allModules.length);
+      // Obtener permisos del usuario desde la BD
+      const { data: userPermissions, error: permError } = await supabase.rpc(
+        'check_user_permission',
+        {
+          p_user_id: user.id,
+          p_module: 'dummy', // Solo para inicializar
+          p_action: 'dummy'
+        }
+      ).then(() => {
+        // Si la función existe, obtener todos los permisos del rol
+        return supabase
+          .from('role_permissions')
+          .select(`
+            permission_id,
+            granted,
+            permissions (
+              module,
+              action,
+              name
+            )
+          `)
+          .eq('role', role)
+          .eq('granted', true);
+      });
+
+      if (permError) {
+        console.error('❌ Error obteniendo permisos:', permError);
+        // Si hay error, dejar todos deshabilitados excepto para roles conocidos
+        if (role === 'operador_caja') {
+          const cajaModules = allModules.map(m => ({
+            ...m,
+            is_enabled: m.code === 'pos' || m.code === 'ventas'
+          }));
+          setModules(cajaModules);
+        } else {
+          setModules(allModules);
+        }
+        setLoading(false);
+        return;
+      }
+
+      console.log('✅ Permisos obtenidos:', userPermissions?.length || 0);
+
+      // Extraer los códigos de módulos a los que tiene acceso (permiso 'ver_modulo')
+      const enabledModuleCodes = new Set<string>();
+      userPermissions?.forEach((perm: any) => {
+        const permission = perm.permissions;
+        if (permission?.action === 'ver_modulo') {
+          enabledModuleCodes.add(permission.module);
+        }
+      });
+
+      console.log('📦 Módulos habilitados:', Array.from(enabledModuleCodes));
+
+      // Control de Acceso SOLO para admin_general
+      if (role !== 'admin_general') {
+        enabledModuleCodes.delete('control_acceso');
+      }
+
+      // Filtrar módulos según permisos
+      const filteredModules = allModules
+        .filter(m => {
+          // Mostrar solo módulos funcionales a los que tiene acceso
+          if (m.status === 'functional') {
+            return enabledModuleCodes.has(m.code);
+          }
+          // Los módulos "coming soon" no se muestran para roles no-admin
+          return false;
+        })
+        .map(m => ({
+          ...m,
+          is_enabled: enabledModuleCodes.has(m.code)
+        }));
+
+      console.log('📊 Módulos finales para', role, ':', filteredModules.length);
+      setModules(filteredModules);
+      
     } catch (error) {
-      console.error('Error fetching modules:', error);
+      console.error('❌ Error fetching modules:', error);
+      setModules([]);
     } finally {
       setLoading(false);
     }

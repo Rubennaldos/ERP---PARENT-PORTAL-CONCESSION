@@ -24,8 +24,6 @@ export function AddStudentModal({ isOpen, onClose, onSuccess }: AddStudentModalP
     full_name: '',
     grade: '',
     section: '',
-    balance: '0',
-    daily_limit: '15',
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -67,8 +65,8 @@ export function AddStudentModal({ isOpen, onClose, onSuccess }: AddStudentModalP
           full_name: formData.full_name.trim(),
           grade: formData.grade,
           section: formData.section || 'A',
-          balance: parseFloat(formData.balance) || 0,
-          daily_limit: parseFloat(formData.daily_limit) || 15,
+          balance: 0, // Siempre inicia en 0 con cuenta libre
+          daily_limit: 0, // Sin límite para cuenta libre
           parent_id: user.id,
           is_active: true,
           free_account: true, // Por defecto cuenta libre activada
@@ -86,8 +84,6 @@ export function AddStudentModal({ isOpen, onClose, onSuccess }: AddStudentModalP
         full_name: '',
         grade: '',
         section: '',
-        balance: '0',
-        daily_limit: '15',
       });
 
       onSuccess();
@@ -164,38 +160,6 @@ export function AddStudentModal({ isOpen, onClose, onSuccess }: AddStudentModalP
               value={formData.section}
               onChange={(e) => setFormData({ ...formData, section: e.target.value.toUpperCase() })}
             />
-          </div>
-
-          {/* Saldo Inicial */}
-          <div>
-            <Label htmlFor="balance">Saldo Inicial (S/)</Label>
-            <Input
-              id="balance"
-              type="number"
-              step="0.01"
-              min="0"
-              value={formData.balance}
-              onChange={(e) => setFormData({ ...formData, balance: e.target.value })}
-            />
-            <p className="text-xs text-muted-foreground mt-1">
-              Puedes dejarlo en 0 y recargar después
-            </p>
-          </div>
-
-          {/* Límite Diario */}
-          <div>
-            <Label htmlFor="daily_limit">Límite de Gasto Diario (S/)</Label>
-            <Input
-              id="daily_limit"
-              type="number"
-              step="0.01"
-              min="0"
-              value={formData.daily_limit}
-              onChange={(e) => setFormData({ ...formData, daily_limit: e.target.value })}
-            />
-            <p className="text-xs text-muted-foreground mt-1">
-              Monto máximo que puede gastar por día
-            </p>
           </div>
 
           {/* Botones */}
