@@ -387,22 +387,6 @@ const Dashboard = () => {
           })}
         </div>
 
-        {/* Info Card */}
-        <Card className="mt-8 bg-blue-50 border-blue-200">
-          <CardHeader>
-            <CardTitle className="text-blue-800">ℹ️ Información del Sistema</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ul className="space-y-2 text-sm text-blue-700">
-              <li>✅ <strong>Módulo POS:</strong> Completamente funcional</li>
-              <li>🚧 <strong>Otros módulos:</strong> En desarrollo</li>
-              <li>🔐 <strong>Acceso:</strong> Los módulos habilitados son configurados por el SuperAdmin</li>
-              {role === 'admin_general' && (
-                <li>👑 <strong>Dueño/Gerente:</strong> Tienes acceso total a todos los módulos del negocio</li>
-              )}
-            </ul>
-          </CardContent>
-        </Card>
       </main>
     </div>
   );
