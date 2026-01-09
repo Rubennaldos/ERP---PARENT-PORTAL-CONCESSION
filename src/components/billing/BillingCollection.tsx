@@ -137,8 +137,7 @@ export const BillingCollection = () => {
           granted,
           permissions (
             module,
-            action,
-            scope
+            action
           )
         `)
         .eq('role', role)
