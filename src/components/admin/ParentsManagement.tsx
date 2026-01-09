@@ -115,18 +115,32 @@ export default function ParentsManagement() {
       }
       
       // Obtener todos los hijos en una sola consulta
-      const userIds = parentsData.map(p => p.user_id);
-      const { data: studentsData } = await supabase
-        .from('students')
-        .select('id, full_name, code, grade, section, parent_id')
-        .in('parent_id', userIds);
+      const userIds = parentsData.map(p => p.user_id).filter(Boolean); // Filtrar nulls
+      
+      console.log('🔍 User IDs de padres:', userIds);
+      
+      let studentsData = [];
+      if (userIds.length > 0) {
+        const { data, error: studentsError } = await supabase
+          .from('students')
+          .select('id, full_name, code, grade, section, parent_id')
+          .in('parent_id', userIds);
+        
+        if (studentsError) {
+          console.error('❌ Error al cargar estudiantes:', studentsError);
+        } else {
+          studentsData = data || [];
+          console.log('✅ Estudiantes cargados:', studentsData.length);
+        }
+      }
       
       // Mapear hijos a sus padres
       const parentsWithChildren = parentsData.map(parent => ({
         ...parent,
-        children: studentsData?.filter(s => s.parent_id === parent.user_id) || []
+        children: studentsData.filter(s => s.parent_id === parent.user_id)
       }));
       
+      console.log('✅ Padres con hijos:', parentsWithChildren);
       setParents(parentsWithChildren);
     } catch (error) {
       console.error('Error al cargar datos:', error);
