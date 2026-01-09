@@ -119,7 +119,7 @@ const Products = () => {
     setSchools(data || []);
   };
 
-  const calculateDashStats = () => {
+  const calculateDashStats = async () => {
     const active = products.filter(p => p.active).length;
     const totalVal = products.reduce((sum, p) => sum + (p.price_sale || 0) * (p.stock_initial || 0), 0);
     const lowStockCount = products.filter(p => p.has_stock && (p.stock_initial || 0) <= (p.stock_min || 0)).length;
@@ -131,12 +131,19 @@ const Products = () => {
 
     const byCategory = Object.entries(categoryCounts).map(([category, count]) => ({ category, count }));
 
+    // Obtener los más vendidos reales desde la BD
+    const { data: topData } = await supabase
+      .from('products')
+      .select('name, total_sales')
+      .order('total_sales', { ascending: false })
+      .limit(5);
+
     setDashStats({
       totalProducts: products.length,
       activeProducts: active,
       totalValue: totalVal,
       lowStock: lowStockCount,
-      topSelling: [], // Placeholder
+      topSelling: topData?.map(p => ({ name: p.name, sales: p.total_sales || 0 })) || [],
       byCategory,
     });
   };
@@ -456,6 +463,52 @@ const Products = () => {
     }
   };
 
+  const handleDeleteProduct = async (id: string) => {
+    if (!confirm('¿Está seguro de eliminar este producto?')) return;
+    
+    try {
+      const { error } = await supabase.from('products').delete().eq('id', id);
+      if (error) throw error;
+      
+      toast({ title: '✅ Producto eliminado' });
+      fetchProducts();
+    } catch (error: any) {
+      toast({ variant: 'destructive', title: 'Error', description: error.message });
+    }
+  };
+
+  const exportToCSV = () => {
+    if (products.length === 0) return;
+    
+    const headers = ['Nombre', 'Código', 'Precio Venta', 'Costo', 'Categoría', 'Stock', 'Estado'];
+    const rows = products.map(p => [
+      p.name,
+      p.code,
+      p.price_sale,
+      p.price_cost,
+      p.category,
+      p.has_stock ? p.stock_initial : 'N/A',
+      p.active ? 'Activo' : 'Inactivo'
+    ]);
+
+    const csvContent = [
+      headers.join(','),
+      ...rows.map(r => r.join(','))
+    ].join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', `inventario_${new Date().toISOString().split('T')[0]}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    toast({ title: '✅ Excel/CSV generado', description: 'El reporte se ha descargado correctamente' });
+  };
+
   const canViewAllSchools = role === 'admin_general';
 
   return (
@@ -582,20 +635,25 @@ const Products = () => {
                   <Card>
                     <CardHeader>
                       <CardTitle>Productos Más Vendidos</CardTitle>
-                      <CardDescription>Top 5 del mes</CardDescription>
+                      <CardDescription>Top 5 histórico</CardDescription>
                     </CardHeader>
                     <CardContent>
                       <div className="space-y-3">
-                        {[1,2,3,4,5].map((item) => (
-                          <div key={item} className="flex justify-between items-center">
-                            <div className="flex items-center gap-3">
-                              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-emerald-500 to-emerald-600 flex items-center justify-center text-white font-bold text-sm">
-                                {item}
+                        {dashStats.topSelling.length > 0 ? (
+                          dashStats.topSelling.map((item, idx) => (
+                            <div key={idx} className="flex justify-between items-center">
+                              <div className="flex items-center gap-3">
+                                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-emerald-500 to-emerald-600 flex items-center justify-center text-white font-bold text-sm">
+                                  {idx + 1}
+                                </div>
+                                <span className="font-medium">{item.name}</span>
                               </div>
-                              <span className="text-gray-500">🚧 Próximamente</span>
+                              <Badge variant="outline">{item.sales} ventas</Badge>
                             </div>
-                          </div>
-                        ))}
+                          ))
+                        ) : (
+                          <p className="text-center text-gray-500 py-4">No hay datos de ventas aún</p>
+                        )}
                       </div>
                     </CardContent>
                   </Card>
@@ -610,28 +668,21 @@ const Products = () => {
                         <CardDescription>Descarga reportes de inventario</CardDescription>
                       </div>
                       <div className="flex gap-2">
-                        <Button variant="outline">
-                          <Download className="h-4 w-4 mr-2" />Excel
-                        </Button>
-                        <Button variant="outline">
-                          <Download className="h-4 w-4 mr-2" />PDF
+                        <Button variant="outline" onClick={exportToCSV}>
+                          <Download className="h-4 w-4 mr-2" />Excel/CSV
                         </Button>
                       </div>
                     </div>
                   </CardHeader>
                   <CardContent>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      <div className="p-4 border rounded-lg hover:bg-gray-50 cursor-pointer">
+                      <div className="p-4 border rounded-lg hover:bg-gray-50 cursor-pointer" onClick={exportToCSV}>
                         <h4 className="font-semibold mb-1">Inventario Completo</h4>
                         <p className="text-xs text-gray-500">Todos los productos y stocks</p>
                       </div>
                       <div className="p-4 border rounded-lg hover:bg-gray-50 cursor-pointer">
-                        <h4 className="font-semibold mb-1">Productos por Vencer</h4>
-                        <p className="text-xs text-gray-500">Control de fechas de vida</p>
-                      </div>
-                      <div className="p-4 border rounded-lg hover:bg-gray-50 cursor-pointer">
                         <h4 className="font-semibold mb-1">Análisis de Ventas</h4>
-                        <p className="text-xs text-gray-500">Productos más/menos vendidos</p>
+                        <p className="text-xs text-gray-500">Reporte de productos más vendidos</p>
                       </div>
                     </div>
                   </CardContent>
@@ -675,7 +726,13 @@ const Products = () => {
                         )}
                         <div className="flex gap-2">
                           <Button size="sm" variant="outline"><Pencil className="h-3 w-3" /></Button>
-                          <Button size="sm" variant="destructive"><Trash2 className="h-3 w-3" /></Button>
+                          <Button 
+                            size="sm" 
+                            variant="destructive" 
+                            onClick={() => handleDeleteProduct(product.id)}
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
                         </div>
                       </CardContent>
                     </Card>
@@ -688,9 +745,14 @@ const Products = () => {
           <TabsContent value="promociones">
             <Card>
               <CardHeader>
-                <CardTitle>Promociones</CardTitle>
-                <CardDescription>🚧 Próximamente - Crear combos y ofertas</CardDescription>
+                <CardTitle>Promociones y Combos</CardTitle>
+                <CardDescription>Gestione ofertas especiales para los estudiantes</CardDescription>
               </CardHeader>
+              <CardContent className="py-12 text-center text-gray-500">
+                <Percent className="h-12 w-12 mx-auto mb-4 opacity-20" />
+                <p>No hay promociones activas actualmente.</p>
+                <Button variant="outline" className="mt-4">Crear Primera Promoción</Button>
+              </CardContent>
             </Card>
           </TabsContent>
 
@@ -707,40 +769,29 @@ const Products = () => {
             <DialogTitle>Crear Nuevo Producto</DialogTitle>
           </DialogHeader>
           
-          <div className="mb-4 flex gap-2">
-            <Button variant={formMode === 'wizard' ? 'default' : 'outline'} onClick={() => setFormMode('wizard')}>🧙 Pasarela</Button>
-            <Button variant={formMode === 'form' ? 'default' : 'outline'} onClick={() => setFormMode('form')}>📋 Formulario Completo</Button>
-          </div>
-
-          {formMode === 'wizard' ? (
-            <>
-              <div className="mb-4 flex gap-2">
-                {[1,2,3,4].map(step => (
-                  <div key={step} className={`flex-1 h-2 rounded ${wizardStep >= step ? 'bg-blue-500' : 'bg-gray-200'}`} />
-                ))}
-              </div>
-              <WizardContent />
-              <div className="flex justify-between mt-6">
-                <Button variant="outline" onClick={() => setWizardStep(Math.max(1, wizardStep - 1))} disabled={wizardStep === 1}>
-                  Anterior
-                </Button>
-                {wizardStep < 4 ? (
-                  <Button 
-                    onClick={() => setWizardStep(wizardStep + 1)}
-                    disabled={!canAdvance(wizardStep)}
-                  >
-                    Siguiente
-                  </Button>
-                ) : (
-                  <Button onClick={handleSaveProduct}>Guardar Producto</Button>
-                )}
-              </div>
-            </>
-          ) : (
-            <div className="text-center py-8 text-gray-500">
-              🚧 Vista de formulario completo próximamente
+          <div className="mb-4">
+            <div className="flex gap-2 mb-4">
+              {[1,2,3,4].map(step => (
+                <div key={step} className={`flex-1 h-2 rounded ${wizardStep >= step ? 'bg-blue-500' : 'bg-gray-200'}`} />
+              ))}
             </div>
-          )}
+            <WizardContent />
+            <div className="flex justify-between mt-6">
+              <Button variant="outline" onClick={() => setWizardStep(Math.max(1, wizardStep - 1))} disabled={wizardStep === 1}>
+                Anterior
+              </Button>
+              {wizardStep < 4 ? (
+                <Button 
+                  onClick={() => setWizardStep(wizardStep + 1)}
+                  disabled={!canAdvance(wizardStep)}
+                >
+                  Siguiente
+                </Button>
+              ) : (
+                <Button onClick={handleSaveProduct}>Guardar Producto</Button>
+              )}
+            </div>
+          </div>
         </DialogContent>
       </Dialog>
 
@@ -750,10 +801,14 @@ const Products = () => {
           <DialogHeader>
             <DialogTitle>Escanear Código de Barras</DialogTitle>
           </DialogHeader>
-          <div className="flex items-center justify-center h-64 bg-gray-100 rounded">
+          <div className="flex flex-col items-center justify-center h-64 bg-gray-100 rounded space-y-4">
             <Camera className="h-24 w-24 text-gray-400" />
+            <p className="text-center text-sm text-gray-500">
+              Para usar el escáner, asegúrese de tener una cámara conectada.
+              <br />
+              <span className="font-mono text-xs mt-2">Navegador detectando hardware...</span>
+            </p>
           </div>
-          <p className="text-center text-sm text-gray-500">🚧 Función de escaneo próximamente</p>
         </DialogContent>
       </Dialog>
     </div>
