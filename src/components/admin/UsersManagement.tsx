@@ -120,26 +120,49 @@ export function UsersManagement() {
 
       if (profilesError) throw profilesError;
 
-      // Obtener schools por separado
+      // Obtener schools
       const { data: schools } = await supabase
         .from('schools')
         .select('id, name, code');
 
       const schoolsMap = new Map(schools?.map(s => [s.id, s]) || []);
 
+      // Para padres, obtener school_id desde parent_profiles
+      const parentIds = profiles?.filter(p => p.role === 'parent').map(p => p.id) || [];
+      let parentSchoolsMap = new Map();
+
+      if (parentIds.length > 0) {
+        const { data: parentProfiles } = await supabase
+          .from('parent_profiles')
+          .select('user_id, school_id')
+          .in('user_id', parentIds);
+
+        parentSchoolsMap = new Map(parentProfiles?.map(pp => [pp.user_id, pp.school_id]) || []);
+      }
+
       // Crear usuarios con datos reales
       const usersWithData = (profiles || []).map((profile) => {
+        // Para padres, usar school_id de parent_profiles
+        const schoolId = profile.role === 'parent' 
+          ? parentSchoolsMap.get(profile.id) 
+          : profile.school_id;
+
         return {
           id: profile.id,
-          email: profile.email || 'Sin email', // Usar email real de profiles
+          email: profile.email || 'Sin email',
           created_at: new Date().toISOString(),
           last_sign_in_at: null,
           app_metadata: {},
           user_metadata: {},
-          profile,
-          school: profile.school_id ? schoolsMap.get(profile.school_id) : undefined,
+          profile: {
+            ...profile,
+            school_id: schoolId, // Actualizar con school_id correcto
+          },
+          school: schoolId ? schoolsMap.get(schoolId) : undefined,
         };
       });
+
+      console.log('👥 Usuarios cargados con sedes:', usersWithData.filter(u => u.profile?.role === 'parent'));
 
       setUsers(usersWithData as UserWithProfile[]);
 
@@ -444,6 +467,10 @@ export function UsersManagement() {
                             </Badge>
                           )}
                         </span>
+                      ) : user.profile?.role === 'parent' ? (
+                        <Badge variant="destructive" className="text-xs">
+                          ⚠️ SIN SEDE
+                        </Badge>
                       ) : (
                         <span className="text-muted-foreground">-</span>
                       )}
