@@ -20,13 +20,15 @@ import {
   Users,
   Building2,
   GraduationCap,
-  Lock
+  Lock,
+  CreditCard
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/lib/supabase';
 import { UsersManagement } from '@/components/admin/UsersManagement';
 import { ProfilesControl } from '@/components/admin/ProfilesControl';
 import { AccessControlModule } from '@/components/admin/AccessControlModule';
+import { PaymentGatewaysConfig } from '@/components/admin/PaymentGatewaysConfig';
 import StudentsManagement from '@/components/admin/StudentsManagement';
 import ErrorDashboard from '@/components/admin/ErrorDashboard';
 import { VersionBadge } from '@/components/VersionBadge';
@@ -104,6 +106,10 @@ const SuperAdmin = () => {
             <TabsTrigger value="students" className="data-[state=active]:bg-background">
               <GraduationCap className="h-4 w-4 mr-2" />
               Estudiantes
+            </TabsTrigger>
+            <TabsTrigger value="payment-gateways" className="data-[state=active]:bg-background">
+              <CreditCard className="h-4 w-4 mr-2" />
+              Pasarelas de Pago
             </TabsTrigger>
             <TabsTrigger value="errors" className="data-[state=active]:bg-background">
               <AlertTriangle className="h-4 w-4 mr-2" />
@@ -192,6 +198,21 @@ const SuperAdmin = () => {
           {/* Students Tab */}
           <TabsContent value="students" className="space-y-4">
             <StudentsManagement />
+          </TabsContent>
+
+          {/* Payment Gateways Tab */}
+          <TabsContent value="payment-gateways" className="space-y-4">
+            <Card className="border">
+              <CardHeader>
+                <CardTitle className="text-base">Configuración de Pasarelas de Pago</CardTitle>
+                <CardDescription>
+                  Configura las pasarelas de pago (Niubiz, Izipay, etc.) para que los padres puedan recargar saldo online
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <PaymentGatewaysConfig />
+              </CardContent>
+            </Card>
           </TabsContent>
 
           {/* Logs Tab */}

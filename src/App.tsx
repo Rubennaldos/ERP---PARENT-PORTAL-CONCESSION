@@ -17,6 +17,7 @@ import Comedor from "./pages/Comedor";
 import SalesList from "./pages/SalesList";
 import Cobranzas from "./pages/Cobranzas";
 import Products from "./pages/Products";
+import PaymentStats from "./pages/PaymentStats";
 import ParentsManagement from "./components/admin/ParentsManagement";
 import AccessControl from "./pages/AccessControl";
 import NotFound from "./pages/NotFound";
@@ -157,6 +158,16 @@ const App = () => (
               element={
                 <ProtectedRoute allowedRoles={['admin_general', 'supervisor_red', 'gestor_unidad']}>
                   <Products />
+                </ProtectedRoute>
+              }
+            />
+            
+            {/* Estadísticas de Pagos - Admin General */}
+            <Route
+              path="/payment-stats"
+              element={
+                <ProtectedRoute allowedRoles={['admin_general']}>
+                  <PaymentStats />
                 </ProtectedRoute>
               }
             />

@@ -5,6 +5,10 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { useAuth } from '@/contexts/AuthContext';
+import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/lib/supabase';
+import { initiatePayment } from '@/services/paymentService';
 import { 
   CreditCard, 
   Smartphone, 
@@ -14,7 +18,8 @@ import {
   AlertCircle,
   Loader2,
   ChevronRight,
-  Wallet
+  Wallet,
+  ExternalLink
 } from 'lucide-react';
 
 interface RechargeModalProps {
@@ -36,6 +41,8 @@ export function RechargeModal({
   accountType,
   onRecharge
 }: RechargeModalProps) {
+  const { user } = useAuth();
+  const { toast } = useToast();
   const [amount, setAmount] = useState('');
   const [selectedMethod, setSelectedMethod] = useState<'card' | 'yape' | 'plin' | 'bank'>('card');
   const [loading, setLoading] = useState(false);
@@ -44,18 +51,109 @@ export function RechargeModal({
   const quickAmounts = [10, 20, 50, 100];
 
   const handleRecharge = async () => {
+    if (!user) {
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'Debes iniciar sesión para hacer una recarga',
+      });
+      return;
+    }
+
     const numAmount = parseFloat(amount);
     if (!numAmount || numAmount <= 0) {
+      toast({
+        variant: 'destructive',
+        title: 'Monto inválido',
+        description: 'Ingresa un monto mayor a S/ 0.00',
+      });
       return;
     }
 
     setLoading(true);
     try {
-      await onRecharge(numAmount, selectedMethod);
-      setAmount('');
-      onClose();
-    } catch (error) {
+      // Llamar al servicio de pagos
+      const { transaction, checkoutUrl } = await initiatePayment(
+        {
+          amount: numAmount,
+          studentId: studentId,
+          paymentMethod: selectedMethod,
+        },
+        user.id
+      );
+
+      console.log('✅ Transacción iniciada:', transaction.id);
+
+      if (checkoutUrl) {
+        // Abrir pasarela en nueva ventana
+        const paymentWindow = window.open(
+          checkoutUrl,
+          'payment',
+          'width=600,height=700,scrollbars=yes'
+        );
+
+        if (!paymentWindow) {
+          toast({
+            variant: 'destructive',
+            title: 'Ventana bloqueada',
+            description: 'Permite las ventanas emergentes para continuar con el pago',
+          });
+          return;
+        }
+
+        toast({
+          title: '🔄 Redirigiendo al pago',
+          description: 'Se abrió una ventana nueva para completar el pago',
+        });
+
+        // Monitorear el estado de la transacción
+        // En producción, esto debería usar webhooks, pero como backup:
+        const checkInterval = setInterval(async () => {
+          const { data } = await supabase
+            .from('payment_transactions')
+            .select('status')
+            .eq('id', transaction.id)
+            .single();
+
+          if (data?.status === 'approved') {
+            clearInterval(checkInterval);
+            paymentWindow?.close();
+            toast({
+              title: '✅ Pago aprobado',
+              description: `Se recargaron S/ ${numAmount.toFixed(2)} exitosamente`,
+            });
+            onRecharge(numAmount, selectedMethod);
+            setAmount('');
+            onClose();
+          } else if (data?.status === 'rejected' || data?.status === 'cancelled') {
+            clearInterval(checkInterval);
+            paymentWindow?.close();
+            toast({
+              variant: 'destructive',
+              title: '❌ Pago rechazado',
+              description: 'El pago no pudo procesarse. Intenta de nuevo.',
+            });
+          }
+        }, 3000); // Verificar cada 3 segundos
+
+        // Limpiar el interval después de 10 minutos
+        setTimeout(() => clearInterval(checkInterval), 10 * 60 * 1000);
+      } else {
+        // Pago manual
+        toast({
+          title: '📋 Pago manual registrado',
+          description: 'Tu solicitud será verificada por un administrador',
+        });
+        setAmount('');
+        onClose();
+      }
+    } catch (error: any) {
       console.error('Error en recarga:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Error al procesar pago',
+        description: error.message || 'Ocurrió un error inesperado',
+      });
     } finally {
       setLoading(false);
     }

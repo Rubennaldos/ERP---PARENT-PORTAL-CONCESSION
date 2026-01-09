@@ -18,7 +18,8 @@ import {
   LogOut,
   Lock,
   CheckCircle2,
-  ShieldCheck
+  ShieldCheck,
+  CreditCard
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 
@@ -43,6 +44,7 @@ const ICON_MAP: { [key: string]: any } = {
   TrendingUp,
   Package,
   ShieldCheck,
+  CreditCard,
 };
 
 const COLOR_MAP: { [key: string]: string } = {
@@ -142,6 +144,18 @@ const Dashboard = () => {
           icon: 'Package',
           color: 'purple',
           route: '/products',
+          is_active: true,
+          is_enabled: false,
+          status: 'functional' as const,
+        },
+        {
+          id: '9',
+          code: 'pagos',
+          name: 'Estadísticas de Pagos',
+          description: 'Reportes y análisis de transacciones',
+          icon: 'CreditCard',
+          color: 'green',
+          route: '/payment-stats',
           is_active: true,
           is_enabled: false,
           status: 'functional' as const,
