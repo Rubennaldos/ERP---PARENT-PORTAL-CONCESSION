@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { HashRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
+import { PermissionProtectedRoute } from "@/components/PermissionProtectedRoute";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
@@ -94,57 +95,57 @@ const App = () => (
               }
             />
             
-            {/* Punto de Venta - SuperAdmin, Admin General y Operadores de Caja */}
+            {/* Punto de Venta - Basado en permisos dinámicos */}
             <Route
               path="/pos"
               element={
-                <ProtectedRoute allowedRoles={['superadmin', 'admin_general', 'operador_caja']}>
+                <PermissionProtectedRoute moduleCode="pos">
                   <POS />
-                </ProtectedRoute>
+                </PermissionProtectedRoute>
               }
             />
             
-            {/* Lista de Ventas - Admin General y Operadores de Caja */}
+            {/* Lista de Ventas - Basado en permisos dinámicos */}
             <Route
               path="/sales"
               element={
-                <ProtectedRoute allowedRoles={['admin_general', 'operador_caja']}>
+                <PermissionProtectedRoute moduleCode="ventas">
                   <SalesList />
-                </ProtectedRoute>
+                </PermissionProtectedRoute>
               }
             />
 
-            {/* Cobranzas - Admin General y Gestor de Unidad */}
+            {/* Cobranzas - Basado en permisos dinámicos */}
             <Route
               path="/cobranzas"
               element={
-                <ProtectedRoute allowedRoles={['admin_general', 'gestor_unidad']}>
+                <PermissionProtectedRoute moduleCode="cobranzas">
                   <Cobranzas />
-                </ProtectedRoute>
+                </PermissionProtectedRoute>
               }
             />
             
-            {/* Pantalla de Comedor - SuperAdmin, Admin General y Operadores de Cocina */}
+            {/* Pantalla de Comedor - Basado en permisos dinámicos */}
             <Route
               path="/comedor"
               element={
-                <ProtectedRoute allowedRoles={['superadmin', 'admin_general', 'operador_cocina']}>
+                <PermissionProtectedRoute moduleCode="comedor">
                   <Comedor />
-                </ProtectedRoute>
+                </PermissionProtectedRoute>
               }
             />
             
-            {/* Configuración de Padres - Admin General */}
+            {/* Configuración de Padres - Basado en permisos dinámicos */}
             <Route
               path="/parents"
               element={
-                <ProtectedRoute allowedRoles={['superadmin', 'admin_general']}>
+                <PermissionProtectedRoute moduleCode="config_padres">
                   <ParentsManagement />
-                </ProtectedRoute>
+                </PermissionProtectedRoute>
               }
             />
             
-            {/* Control de Acceso - Admin General */}
+            {/* Control de Acceso - Solo Admin General (siempre) */}
             <Route
               path="/access-control"
               element={
@@ -154,17 +155,17 @@ const App = () => (
               }
             />
             
-            {/* Productos - Admin General y roles con permiso */}
+            {/* Productos - Basado en permisos dinámicos */}
             <Route
               path="/products"
               element={
-                <ProtectedRoute allowedRoles={['admin_general', 'supervisor_red', 'gestor_unidad']}>
+                <PermissionProtectedRoute moduleCode="productos">
                   <Products />
-                </ProtectedRoute>
+                </PermissionProtectedRoute>
               }
             />
             
-            {/* Estadísticas de Pagos - Admin General */}
+            {/* Estadísticas de Pagos - Solo Admin General */}
             <Route
               path="/payment-stats"
               element={

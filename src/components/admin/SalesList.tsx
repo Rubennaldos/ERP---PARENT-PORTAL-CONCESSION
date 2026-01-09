@@ -235,6 +235,9 @@ export const SalesList = () => {
         if (permission?.module === 'ventas') {
           switch (permission.action) {
             case 'ver_modulo':
+              // ver_modulo es suficiente para acceder al módulo
+              perms.canView = true;
+              break;
             case 'ver_su_sede':
               perms.canView = true;
               break;
@@ -620,22 +623,8 @@ export const SalesList = () => {
     );
   }
 
-  // Si no tiene permiso para ver
-  if (!permissions.canView) {
-    return (
-      <Card className="border-red-200">
-        <CardContent className="p-12 text-center">
-          <AlertTriangle className="h-16 w-16 text-red-500 mx-auto mb-4" />
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">Sin Permiso de Acceso</h2>
-          <p className="text-gray-600">
-            No tienes permisos para ver el módulo de Lista de Ventas.
-            <br />
-            Contacta al administrador del sistema.
-          </p>
-        </CardContent>
-      </Card>
-    );
-  }
+  // Ya no bloqueamos el acceso aquí, eso lo hace PermissionProtectedRoute en App.tsx
+  // Solo usamos los permisos para mostrar/ocultar funcionalidades específicas
 
   return (
     <div className="space-y-4">
