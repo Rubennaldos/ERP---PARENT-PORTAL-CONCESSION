@@ -98,7 +98,7 @@ export default function ParentsManagement() {
       if (schoolsError) throw schoolsError;
       setSchools(schoolsData || []);
 
-      // Obtener perfiles de padres con sus hijos
+      // Obtener perfiles de padres
       const { data: parentsData, error: parentsError } = await supabase
         .from('parent_profiles')
         .select(`
@@ -109,25 +109,25 @@ export default function ParentsManagement() {
       
       if (parentsError) throw parentsError;
       
-      // Para cada padre, obtener sus hijos
-      if (parentsData) {
-        const parentsWithChildren = await Promise.all(
-          parentsData.map(async (parent) => {
-            const { data: childrenData } = await supabase
-              .from('students')
-              .select('id, full_name, code, grade, section')
-              .eq('parent_id', parent.user_id);
-            
-            return {
-              ...parent,
-              children: childrenData || []
-            };
-          })
-        );
-        setParents(parentsWithChildren);
-      } else {
+      if (!parentsData || parentsData.length === 0) {
         setParents([]);
+        return;
       }
+      
+      // Obtener todos los hijos en una sola consulta
+      const userIds = parentsData.map(p => p.user_id);
+      const { data: studentsData } = await supabase
+        .from('students')
+        .select('id, full_name, code, grade, section, parent_id')
+        .in('parent_id', userIds);
+      
+      // Mapear hijos a sus padres
+      const parentsWithChildren = parentsData.map(parent => ({
+        ...parent,
+        children: studentsData?.filter(s => s.parent_id === parent.user_id) || []
+      }));
+      
+      setParents(parentsWithChildren);
     } catch (error) {
       console.error('Error al cargar datos:', error);
       toast({
