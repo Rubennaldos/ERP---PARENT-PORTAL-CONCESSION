@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { HashRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import Register from "./pages/Register";
@@ -27,11 +28,12 @@ const queryClient = new QueryClient();
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <HashRouter>
-        <AuthProvider>
-          <Routes>
+      <ErrorBoundary>
+        <Toaster />
+        <Sonner />
+        <HashRouter>
+          <AuthProvider>
+            <Routes>
             {/* Rutas públicas */}
             <Route path="/auth" element={<Auth />} />
             <Route path="/register" element={<Register />} />
@@ -177,8 +179,9 @@ const App = () => (
           </Routes>
         </AuthProvider>
       </HashRouter>
-    </TooltipProvider>
-  </QueryClientProvider>
+    </ErrorBoundary>
+  </TooltipProvider>
+</QueryClientProvider>
 );
 
 export default App;
