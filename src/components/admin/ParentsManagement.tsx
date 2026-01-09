@@ -21,7 +21,6 @@ interface School {
 interface Student {
   id: string;
   full_name: string;
-  code: string;
   grade: string;
   section: string;
 }
@@ -123,7 +122,7 @@ export default function ParentsManagement() {
       if (userIds.length > 0) {
         const { data, error: studentsError } = await supabase
           .from('students')
-          .select('id, full_name, code, grade, section, parent_id')
+          .select('id, full_name, grade, section, parent_id')
           .in('parent_id', userIds);
         
         if (studentsError) {
@@ -795,10 +794,6 @@ export default function ParentsManagement() {
                       <div>
                         <Label className="text-muted-foreground">Nombre Completo</Label>
                         <p className="font-medium">{child.full_name}</p>
-                      </div>
-                      <div>
-                        <Label className="text-muted-foreground">Código</Label>
-                        <p className="font-medium">{child.code}</p>
                       </div>
                       <div>
                         <Label className="text-muted-foreground">Grado</Label>
