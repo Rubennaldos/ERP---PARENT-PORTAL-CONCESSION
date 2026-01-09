@@ -1,8 +1,8 @@
 export const APP_CONFIG = {
-  version: '1.1.1',
+  version: '1.1.2',
   status: 'BETA',
   appName: 'Lima Café 28',
   designedBy: 'ARQUISIA Soluciones',
-  fullVersion: 'v1.1.1-beta',
+  fullVersion: 'v1.1.2-beta',
 };
 
