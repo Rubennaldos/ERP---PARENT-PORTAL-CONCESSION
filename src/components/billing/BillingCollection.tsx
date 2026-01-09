@@ -109,8 +109,75 @@ export const BillingCollection = () => {
   // Modal de envío masivo
   const [showMassiveModal, setShowMassiveModal] = useState(false);
   const [generatingExport, setGeneratingExport] = useState(false);
+  const [canViewAllSchools, setCanViewAllSchools] = useState(false);
+  const [canCollect, setCanCollect] = useState(false);
 
-  const canViewAllSchools = role === 'admin_general';
+  // Verificar permisos al cargar
+  useEffect(() => {
+    checkPermissions();
+  }, [user, role]);
+
+  const checkPermissions = async () => {
+    if (!user || !role) return;
+
+    try {
+      console.log('🔍 Verificando permisos de Cobranzas/Cobrar para rol:', role);
+
+      // Admin General tiene todos los permisos
+      if (role === 'admin_general') {
+        setCanViewAllSchools(true);
+        setCanCollect(true);
+        return;
+      }
+
+      // Para otros roles, consultar la BD
+      const { data, error } = await supabase
+        .from('role_permissions')
+        .select(`
+          granted,
+          permissions (
+            module,
+            action,
+            scope
+          )
+        `)
+        .eq('role', role)
+        .eq('granted', true);
+
+      if (error) {
+        console.error('❌ Error consultando permisos:', error);
+        return;
+      }
+
+      console.log('📦 Permisos obtenidos para Cobrar:', data);
+
+      let canViewAll = false;
+      let canCollectPerm = false;
+
+      data?.forEach((perm: any) => {
+        const permission = perm.permissions;
+        if (permission?.module === 'cobranzas') {
+          if (permission.action === 'cobrar_todas_sedes') {
+            canCollectPerm = true;
+            canViewAll = true;
+          } else if (permission.action === 'cobrar_su_sede') {
+            canCollectPerm = true;
+            canViewAll = false;
+          } else if (permission.action === 'cobrar_personalizado') {
+            canCollectPerm = true;
+            // TODO: Implementar sedes personalizadas
+          }
+        }
+      });
+
+      console.log('✅ Permisos de Cobrar:', { canCollectPerm, canViewAll });
+      setCanViewAllSchools(canViewAll);
+      setCanCollect(canCollectPerm);
+
+    } catch (error) {
+      console.error('Error checking permissions:', error);
+    }
+  };
 
   useEffect(() => {
     console.log('🎬 [BillingCollection] Componente montado');

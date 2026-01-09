@@ -51,8 +51,9 @@ const Cobranzas = () => {
 
     try {
       setLoading(true);
+      console.log('🔍 Verificando permisos de Cobranzas para rol:', role);
 
-      // Por ahora, dar acceso según el rol
+      // Admin General tiene todos los permisos siempre
       if (role === 'admin_general') {
         setPermissions({
           dashboard: true,
@@ -61,30 +62,75 @@ const Cobranzas = () => {
           reports: true,
           config: true,
         });
+        setActiveTab('dashboard');
         setLoading(false);
         return;
       }
 
-      if (role === 'supervisor_red' || role === 'gestor_unidad') {
-        setPermissions({
-          dashboard: true,
-          periods: true,
-          collect: true,
-          reports: true,
-          config: false,
-        });
-        setLoading(false);
-        return;
+      // Para otros roles, consultar la BD
+      const { data, error } = await supabase
+        .from('role_permissions')
+        .select(`
+          granted,
+          permissions (
+            module,
+            action
+          )
+        `)
+        .eq('role', role)
+        .eq('granted', true);
+
+      if (error) {
+        console.error('❌ Error consultando permisos:', error);
+        throw error;
       }
 
-      // Otros roles no tienen acceso
-      setPermissions({
+      console.log('📦 Permisos obtenidos de BD:', data);
+
+      // Inicializar todos los permisos en false
+      const perms: TabPermissions = {
         dashboard: false,
         periods: false,
         collect: false,
         reports: false,
         config: false,
+      };
+
+      // Mapear los permisos de la BD a las pestañas
+      data?.forEach((perm: any) => {
+        const permission = perm.permissions;
+        if (permission?.module === 'cobranzas') {
+          switch (permission.action) {
+            case 'ver_dashboard':
+              perms.dashboard = true;
+              break;
+            case 'editar_periodos':
+              perms.periods = true;
+              break;
+            case 'cobrar_su_sede':
+            case 'cobrar_todas_sedes':
+            case 'cobrar_personalizado':
+              perms.collect = true;
+              break;
+            case 'sacar_reportes':
+              perms.reports = true;
+              break;
+            case 'configuracion':
+              perms.config = true;
+              break;
+          }
+        }
       });
+
+      console.log('✅ Permisos finales de Cobranzas:', perms);
+      setPermissions(perms);
+
+      // Establecer la primera pestaña disponible
+      if (perms.dashboard) setActiveTab('dashboard');
+      else if (perms.periods) setActiveTab('periods');
+      else if (perms.collect) setActiveTab('collect');
+      else if (perms.reports) setActiveTab('reports');
+      else if (perms.config) setActiveTab('config');
 
     } catch (error) {
       console.error('Error checking permissions:', error);

@@ -128,7 +128,7 @@ export const SalesList = () => {
   const [schools, setSchools] = useState<School[]>([]);
   const [selectedSchool, setSelectedSchool] = useState<string>('all');
   const [userSchoolId, setUserSchoolId] = useState<string | null>(null);
-  const canViewAllSchools = role === 'admin_general' || can('ventas.ver_todas_sedes');
+  const [canViewAllSchools, setCanViewAllSchools] = useState(false);
   
   // Selección múltiple
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -180,37 +180,102 @@ export const SalesList = () => {
     }
 
     try {
-      // Por ahora, dar acceso completo a roles de staff
-      if (role === 'admin_general' || role === 'supervisor_red' || role === 'gestor_unidad' || role === 'operador_caja') {
+      console.log('🔍 Verificando permisos de Ventas para rol:', role);
+
+      // Admin General tiene todos los permisos siempre
+      if (role === 'admin_general') {
         setPermissions({
           canView: true,
-          canEdit: role === 'admin_general' || role === 'supervisor_red' || role === 'gestor_unidad',
-          canDelete: role === 'admin_general' || role === 'supervisor_red',
+          canEdit: true,
+          canDelete: true,
           canPrint: true,
           canExport: true,
           loading: false,
         });
-        console.log('✅ Permisos asignados para rol:', role);
+        setCanViewAllSchools(true);
+        console.log('✅ Admin General - Todos los permisos');
         return;
       }
 
-      // Si no es un rol conocido, denegar acceso
-      setPermissions({
+      // Para otros roles, consultar la BD
+      const { data, error } = await supabase
+        .from('role_permissions')
+        .select(`
+          granted,
+          permissions (
+            module,
+            action,
+            scope
+          )
+        `)
+        .eq('role', role)
+        .eq('granted', true);
+
+      if (error) {
+        console.error('❌ Error consultando permisos:', error);
+        throw error;
+      }
+
+      console.log('📦 Permisos obtenidos de BD:', data);
+
+      // Inicializar permisos
+      let perms = {
         canView: false,
         canEdit: false,
         canDelete: false,
         canPrint: false,
         canExport: false,
         loading: false,
+      };
+      let canViewAll = false;
+
+      // Mapear los permisos de la BD
+      data?.forEach((perm: any) => {
+        const permission = perm.permissions;
+        if (permission?.module === 'ventas') {
+          switch (permission.action) {
+            case 'ver_modulo':
+            case 'ver_su_sede':
+              perms.canView = true;
+              break;
+            case 'ver_todas_sedes':
+              perms.canView = true;
+              canViewAll = true;
+              break;
+            case 'ver_personalizado':
+              perms.canView = true;
+              // TODO: Implementar selección de sedes personalizadas
+              break;
+            case 'editar':
+              perms.canEdit = true;
+              break;
+            case 'eliminar':
+            case 'anular':
+              perms.canDelete = true;
+              break;
+            case 'imprimir_ticket':
+              perms.canPrint = true;
+              break;
+            case 'sacar_reportes':
+              perms.canExport = true;
+              break;
+          }
+        }
       });
+
+      console.log('✅ Permisos finales de Ventas:', perms);
+      setPermissions(perms);
+      setCanViewAllSchools(canViewAll);
+
     } catch (error) {
       console.error('Error checking permissions:', error);
+      // En caso de error, dar acceso básico
       setPermissions({
-        canView: true,
-        canEdit: true,
-        canDelete: true,
-        canPrint: true,
-        canExport: true,
+        canView: false,
+        canEdit: false,
+        canDelete: false,
+        canPrint: false,
+        canExport: false,
         loading: false,
       });
     }
