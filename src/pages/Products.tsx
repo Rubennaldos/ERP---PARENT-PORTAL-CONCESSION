@@ -65,6 +65,9 @@ const Products = () => {
   const [wizardStep, setWizardStep] = useState(1);
   const [showCamera, setShowCamera] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [isCheckingCode, setIsCheckingCode] = useState(false);
+  const [codeStatus, setCodeStatus] = useState<'none' | 'available' | 'exists'>('none');
+  const [currentCode, setCurrentCode] = useState('');
   const [dashStats, setDashStats] = useState<DashboardStats>({
     totalProducts: 0,
     activeProducts: 0,
@@ -107,10 +110,51 @@ const Products = () => {
     calculateDashStats();
   }, [products]);
 
+  // Validar código de barras
+  useEffect(() => {
+    const f = formRef.current;
+    if (!f.hasCode || !currentCode.trim()) {
+      setCodeStatus('none');
+      return;
+    }
+
+    const checkCode = async () => {
+      setIsCheckingCode(true);
+      try {
+        const { data, error } = await supabase
+          .from('products')
+          .select('id')
+          .eq('code', currentCode)
+          .maybeSingle();
+        
+        if (error) throw error;
+        setCodeStatus(data ? 'exists' : 'available');
+      } catch (err) {
+        console.error('Error validando código:', err);
+        setCodeStatus('none');
+      } finally {
+        setIsCheckingCode(false);
+      }
+    };
+
+    const timer = setTimeout(checkCode, 500);
+    return () => clearTimeout(timer);
+  }, [currentCode]);
+
   const fetchProducts = async () => {
     setLoading(true);
     const { data } = await supabase.from('products').select('*').order('name');
-    setProducts(data || []);
+    const productsData = data || [];
+    setProducts(productsData);
+    
+    // Extraer categorías únicas de los productos existentes
+    const dbCategories = Array.from(new Set(productsData.map(p => p.category).filter(Boolean)));
+    const defaultCategories = ['bebidas', 'snacks', 'menu', 'otros'];
+    
+    // Combinar categorías por defecto con las de la base de datos
+    const allCategories = Array.from(new Set([...defaultCategories, ...dbCategories]));
+    setCategories(allCategories);
+    
     setLoading(false);
   };
 
@@ -171,6 +215,8 @@ const Products = () => {
       school_ids: [],
       applyToAllSchools: true,
     };
+    setCurrentCode('');
+    setCodeStatus('none');
     setWizardStep(1);
     forceUpdate({});
   };
@@ -183,7 +229,11 @@ const Products = () => {
       case 2:
         return !!(f.price_cost && f.price_sale);
       case 3:
-        if (f.hasCode && !f.code.trim()) return false;
+        if (f.hasCode) {
+          if (!f.code.trim()) return false;
+          if (codeStatus === 'exists') return false;
+          if (isCheckingCode) return false;
+        }
         if (f.has_stock && !f.stock_initial) return false;
         if (f.has_stock && !f.stock_min) return false;
         if (f.has_expiry && !f.expiry_days) return false;
@@ -256,28 +306,58 @@ const Products = () => {
               <Label>Nombre del Producto *</Label>
               <Input 
                 defaultValue={f.name}
-                onChange={e => { f.name = e.target.value; }}
+                onChange={e => { f.name = e.target.value; forceUpdate({}); }}
                 placeholder="Ej: Coca Cola 500ml" 
                 autoFocus
               />
             </div>
             <div>
               <Label>Categoría</Label>
-              <Select 
-                value={f.category} 
-                onValueChange={v => { f.category = v; forceUpdate({}); }}
-              >
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {categories.map(cat => <SelectItem key={cat} value={cat}>{cat}</SelectItem>)}
-                </SelectContent>
-              </Select>
-              <Input 
-                className="mt-2" 
-                placeholder="O crea una nueva categoría" 
-                defaultValue={f.newCategory}
-                onChange={e => { f.newCategory = e.target.value; }}
-              />
+              <div className="flex gap-2 mb-2">
+                <Select 
+                  value={f.category} 
+                  onValueChange={v => { f.category = v; forceUpdate({}); }}
+                >
+                  <SelectTrigger className="flex-1"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {categories.map(cat => <SelectItem key={cat} value={cat}>{cat}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Input 
+                  placeholder="O crea una nueva categoría" 
+                  defaultValue={f.newCategory}
+                  onChange={e => { 
+                    f.newCategory = e.target.value; 
+                    forceUpdate({}); // Forzar update para mostrar/ocultar el botón
+                  }}
+                />
+                {f.newCategory.trim() !== '' && (
+                  <Button 
+                    type="button"
+                    variant="secondary" 
+                    size="sm" 
+                    className="w-full bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100"
+                    onClick={() => {
+                      const newCat = f.newCategory.trim();
+                      if (newCat && !categories.includes(newCat)) {
+                        setCategories(prev => [...prev, newCat]);
+                        f.category = newCat;
+                        f.newCategory = '';
+                        forceUpdate({});
+                        toast({
+                          title: "✅ Categoría agregada",
+                          description: `Se ha seleccionado "${newCat}"`
+                        });
+                      }
+                    }}
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    Grabar categoría "{f.newCategory}"
+                  </Button>
+                )}
+              </div>
             </div>
           </div>
         );
@@ -292,7 +372,7 @@ const Products = () => {
                   type="number" 
                   step="0.01" 
                   defaultValue={f.price_cost}
-                  onChange={e => { f.price_cost = e.target.value; }}
+                  onChange={e => { f.price_cost = e.target.value; forceUpdate({}); }}
                   placeholder="0.00" 
                   autoFocus
                 />
@@ -303,7 +383,7 @@ const Products = () => {
                   type="number" 
                   step="0.01" 
                   defaultValue={f.price_sale}
-                  onChange={e => { f.price_sale = e.target.value; }}
+                  onChange={e => { f.price_sale = e.target.value; forceUpdate({}); }}
                   placeholder="0.00" 
                 />
               </div>
@@ -324,7 +404,7 @@ const Products = () => {
                     <Input 
                       type="number" 
                       defaultValue={f.wholesale_qty}
-                      onChange={e => { f.wholesale_qty = e.target.value; }}
+                      onChange={e => { f.wholesale_qty = e.target.value; forceUpdate({}); }}
                       placeholder="10" 
                     />
                   </div>
@@ -334,7 +414,7 @@ const Products = () => {
                       type="number" 
                       step="0.01" 
                       defaultValue={f.wholesale_price}
-                      onChange={e => { f.wholesale_price = e.target.value; }}
+                      onChange={e => { f.wholesale_price = e.target.value; forceUpdate({}); }}
                       placeholder="0.00" 
                     />
                   </div>
@@ -361,19 +441,46 @@ const Products = () => {
               </Select>
             </div>
             {f.hasCode && (
-              <div>
+              <div className="space-y-2">
                 <Label>Código de Barras *</Label>
                 <div className="flex gap-2">
                   <Input 
-                    defaultValue={f.code}
-                    onChange={e => { f.code = e.target.value; }}
+                    value={currentCode}
+                    onChange={e => { 
+                      const newCode = e.target.value;
+                      setCurrentCode(newCode);
+                      f.code = newCode;
+                    }}
                     placeholder="Escanea o escribe el código"
                     autoFocus
+                    className={
+                      codeStatus === 'exists' ? 'border-red-500 focus-visible:ring-red-500' : 
+                      codeStatus === 'available' ? 'border-green-500 focus-visible:ring-green-500' : ''
+                    }
                   />
                   <Button type="button" variant="outline" size="icon" onClick={() => setShowCamera(true)}>
                     <Camera className="h-4 w-4" />
                   </Button>
                 </div>
+                
+                {isCheckingCode && (
+                  <p className="text-xs text-gray-500 flex items-center gap-1">
+                    <Loader2 className="h-3 w-3 animate-spin" /> Verificando código...
+                  </p>
+                )}
+                
+                {!isCheckingCode && codeStatus === 'exists' && (
+                  <p className="text-xs text-red-500 flex items-center gap-1">
+                    <AlertTriangle className="h-3 w-3" /> Este código ya está registrado en otro producto.
+                  </p>
+                )}
+                
+                {!isCheckingCode && codeStatus === 'available' && (
+                  <p className="text-xs text-green-600 flex items-center gap-1">
+                    <span className="inline-flex items-center justify-center w-4 h-4 text-xs font-bold border border-green-600 rounded-full">✓</span>
+                    Código aceptado y disponible.
+                  </p>
+                )}
               </div>
             )}
             <div className="border rounded p-3">
@@ -389,7 +496,7 @@ const Products = () => {
                       <Input 
                         type="number" 
                         defaultValue={f.stock_initial}
-                        onChange={e => { f.stock_initial = e.target.value; }}
+                        onChange={e => { f.stock_initial = e.target.value; forceUpdate({}); }}
                         placeholder="100" 
                       />
                     </div>
@@ -398,7 +505,7 @@ const Products = () => {
                       <Input 
                         type="number" 
                         defaultValue={f.stock_min}
-                        onChange={e => { f.stock_min = e.target.value; }}
+                        onChange={e => { f.stock_min = e.target.value; forceUpdate({}); }}
                         placeholder="10" 
                       />
                     </div>
@@ -414,7 +521,7 @@ const Products = () => {
                         <Input 
                           type="number" 
                           defaultValue={f.expiry_days}
-                          onChange={e => { f.expiry_days = e.target.value; }}
+                          onChange={e => { f.expiry_days = e.target.value; forceUpdate({}); }}
                           placeholder="30" 
                         />
                       </div>
