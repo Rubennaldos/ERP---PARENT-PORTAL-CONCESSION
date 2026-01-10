@@ -43,7 +43,6 @@ export const BillingConfig = () => {
   const { user } = useAuth();
   const { role } = useRole();
   const { toast } = useToast();
-  const { isDemoMode } = useViewAsStore();
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -70,16 +69,6 @@ export const BillingConfig = () => {
   }, [selectedSchool]);
 
   const fetchSchools = async () => {
-    if (isDemoMode) {
-      const mockSchools = [
-        { id: 'mock-school-1', name: 'Nordic School' },
-        { id: 'mock-school-2', name: 'Jean LeBouch' }
-      ];
-      setSchools(mockSchools);
-      setSelectedSchool(mockSchools[0].id);
-      return;
-    }
-
     try {
       const { data, error } = await supabase
         .from('schools')
@@ -113,28 +102,6 @@ export const BillingConfig = () => {
   };
 
   const fetchConfig = async () => {
-    if (isDemoMode) {
-      setLoading(true);
-      await new Promise(resolve => setTimeout(resolve, 500));
-      setMessageTemplate(`🔔 *COBRANZA LIMA CAFÉ 28* (MODO PRUEBA)
-
-Estimado(a) {nombre_padre}
-
-El alumno *{nombre_estudiante}* tiene un consumo pendiente del período: {periodo}
-
-💰 Monto Total: S/ {monto}
-
-📎 Adjuntamos el detalle completo.
-
-Para pagar, contacte con administración.
-Gracias.`);
-      setBankInfo('BCP Ahorros: 191-xxxxxx-x-xx');
-      setYapeNumber('999888777');
-      setPlinNumber('999111222');
-      setLoading(false);
-      return;
-    }
-
     try {
       setLoading(true);
 
@@ -155,15 +122,7 @@ Gracias.`);
       } else {
         // No hay config, usar valores por defecto
         setMessageTemplate(`🔔 *COBRANZA LIMA CAFÉ 28*
-
-Estimado(a) {nombre_padre}
-
-El alumno *{nombre_estudiante}* tiene un consumo pendiente del período: {periodo}
-
-💰 Monto Total: S/ {monto}
-
-📎 Adjuntamos el detalle completo.
-
+...
 Para pagar, contacte con administración.
 Gracias.`);
         setBankInfo('');
@@ -178,19 +137,9 @@ Gracias.`);
   };
 
   const handleSave = async () => {
-    if (!selectedSchool || (!user && !isDemoMode)) return;
+    if (!selectedSchool || !user) return;
 
     setSaving(true);
-
-    if (isDemoMode) {
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      toast({
-        title: '✅ Configuración simulada (Modo Demo)',
-        description: 'Se simuló el guardado de la configuración.',
-      });
-      setSaving(false);
-      return;
-    }
 
     try {
       const configData = {

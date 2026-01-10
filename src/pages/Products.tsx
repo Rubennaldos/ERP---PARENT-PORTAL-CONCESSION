@@ -882,7 +882,7 @@ const Products = () => {
                 <div key={step} className={`flex-1 h-2 rounded ${wizardStep >= step ? 'bg-blue-500' : 'bg-gray-200'}`} />
               ))}
             </div>
-            <WizardContent />
+            {WizardContent()}
             <div className="flex justify-between mt-6">
               <Button variant="outline" onClick={() => setWizardStep(Math.max(1, wizardStep - 1))} disabled={wizardStep === 1}>
                 Anterior

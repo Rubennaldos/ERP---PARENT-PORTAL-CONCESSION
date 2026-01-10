@@ -51,7 +51,6 @@ interface PaymentHistory {
 export const BillingReports = () => {
   const { user } = useAuth();
   const { role } = useRole();
-  const { isDemoMode } = useViewAsStore();
   const [loading, setLoading] = useState(true);
   const [payments, setPayments] = useState<PaymentHistory[]>([]);
   const [schools, setSchools] = useState<School[]>([]);
@@ -71,14 +70,6 @@ export const BillingReports = () => {
   }, [selectedSchool, selectedStatus, dateFrom, dateTo]);
 
   const fetchSchools = async () => {
-    if (isDemoMode) {
-      setSchools([
-        { id: 'mock-school-1', name: 'Nordic School' },
-        { id: 'mock-school-2', name: 'Jean LeBouch' }
-      ]);
-      return;
-    }
-
     try {
       const { data, error } = await supabase
         .from('schools')
@@ -93,48 +84,6 @@ export const BillingReports = () => {
   };
 
   const fetchPayments = async () => {
-    if (isDemoMode) {
-      setLoading(true);
-      await new Promise(resolve => setTimeout(resolve, 800));
-      
-      const mockPayments: PaymentHistory[] = [
-        {
-          id: 'pay-1',
-          created_at: new Date().toISOString(),
-          paid_at: new Date().toISOString(),
-          student_name: 'Juanito Pérez',
-          parent_name: 'Alberto Mock',
-          school_name: 'Nordic School',
-          period_name: 'Enero 2026',
-          total_amount: 150.50,
-          paid_amount: 150.50,
-          pending_amount: 0,
-          payment_method: 'yape',
-          status: 'completed',
-          document_type: 'ticket'
-        },
-        {
-          id: 'pay-2',
-          created_at: new Date().toISOString(),
-          paid_at: new Date().toISOString(),
-          student_name: 'María García',
-          parent_name: 'Alberto Mock',
-          school_name: 'Nordic School',
-          period_name: 'Enero 2026',
-          total_amount: 75.00,
-          paid_amount: 30.00,
-          pending_amount: 45.00,
-          payment_method: 'efectivo',
-          status: 'partial',
-          document_type: 'boleta'
-        }
-      ];
-
-      setPayments(mockPayments);
-      setLoading(false);
-      return;
-    }
-
     try {
       setLoading(true);
       console.log('📊 [BillingReports] Iniciando fetchPayments...');
@@ -234,7 +183,6 @@ export const BillingReports = () => {
   };
 
   const getUserSchoolId = async () => {
-    if (isDemoMode) return 'mock-school-1';
     if (!user) return null;
     const { data } = await supabase
       .from('profiles')
