@@ -6,6 +6,19 @@
 -- soporte para múltiples sedes, días especiales, y estructura de 4 platos
 
 -- =====================================================
+-- 0. FUNCIÓN AUXILIAR PARA UPDATED_AT
+-- =====================================================
+
+-- Crear función para actualizar updated_at automáticamente (si no existe)
+CREATE OR REPLACE FUNCTION update_updated_at_column()
+RETURNS TRIGGER AS $$
+BEGIN
+  NEW.updated_at = NOW();
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- =====================================================
 -- 1. TABLA DE ALMUERZOS
 -- =====================================================
 
