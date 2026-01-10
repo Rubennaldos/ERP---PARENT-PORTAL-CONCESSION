@@ -187,66 +187,95 @@ CREATE TRIGGER update_lunch_menus_updated_at
 -- =====================================================
 
 -- Insertar permisos del módulo de almuerzos
-INSERT INTO permissions (code, name, description, module) VALUES
-  ('almuerzos.ver_modulo', 'Ver módulo de almuerzos', 'Permite acceder al módulo de gestión de almuerzos', 'almuerzos'),
-  ('almuerzos.ver_calendario', 'Ver calendario', 'Permite visualizar el calendario de almuerzos', 'almuerzos'),
-  ('almuerzos.crear_menu', 'Crear menú', 'Permite crear menús de almuerzo', 'almuerzos'),
-  ('almuerzos.editar_menu', 'Editar menú', 'Permite editar menús de almuerzo', 'almuerzos'),
-  ('almuerzos.eliminar_menu', 'Eliminar menú', 'Permite eliminar menús de almuerzo', 'almuerzos'),
-  ('almuerzos.carga_masiva', 'Carga masiva', 'Permite cargar múltiples menús a la vez', 'almuerzos'),
-  ('almuerzos.gestionar_dias_especiales', 'Gestionar días especiales', 'Permite marcar feriados y días no laborables', 'almuerzos'),
-  ('almuerzos.ver_su_sede', 'Ver su sede', 'Solo puede ver almuerzos de su propia sede', 'almuerzos'),
-  ('almuerzos.ver_todas_sedes', 'Ver todas las sedes', 'Puede ver almuerzos de todas las sedes', 'almuerzos'),
-  ('almuerzos.ver_personalizado', 'Ver personalizado', 'Puede seleccionar qué sedes ver', 'almuerzos'),
-  ('almuerzos.exportar', 'Exportar', 'Permite exportar menús a Excel/PDF', 'almuerzos')
-ON CONFLICT (code) DO NOTHING;
+INSERT INTO permissions (module, action, name, description) VALUES
+  ('almuerzos', 'ver_modulo', 'Ver módulo de almuerzos', 'Permite acceder al módulo de gestión de almuerzos'),
+  ('almuerzos', 'ver_calendario', 'Ver calendario', 'Permite visualizar el calendario de almuerzos'),
+  ('almuerzos', 'crear_menu', 'Crear menú', 'Permite crear menús de almuerzo'),
+  ('almuerzos', 'editar_menu', 'Editar menú', 'Permite editar menús de almuerzo'),
+  ('almuerzos', 'eliminar_menu', 'Eliminar menú', 'Permite eliminar menús de almuerzo'),
+  ('almuerzos', 'carga_masiva', 'Carga masiva', 'Permite cargar múltiples menús a la vez'),
+  ('almuerzos', 'gestionar_dias_especiales', 'Gestionar días especiales', 'Permite marcar feriados y días no laborables'),
+  ('almuerzos', 'ver_su_sede', 'Ver su sede', 'Solo puede ver almuerzos de su propia sede'),
+  ('almuerzos', 'ver_todas_sedes', 'Ver todas las sedes', 'Puede ver almuerzos de todas las sedes'),
+  ('almuerzos', 'ver_personalizado', 'Ver personalizado', 'Puede seleccionar qué sedes ver'),
+  ('almuerzos', 'exportar', 'Exportar', 'Permite exportar menús a Excel/PDF')
+ON CONFLICT (module, action) DO NOTHING;
 
 -- =====================================================
 -- 6. ASIGNAR PERMISOS A ROLES
 -- =====================================================
 
--- Admin General: Acceso completo
-INSERT INTO role_permissions (role, permission_code, granted) VALUES
-  ('admin_general', 'almuerzos.ver_modulo', true),
-  ('admin_general', 'almuerzos.ver_calendario', true),
-  ('admin_general', 'almuerzos.crear_menu', true),
-  ('admin_general', 'almuerzos.editar_menu', true),
-  ('admin_general', 'almuerzos.eliminar_menu', true),
-  ('admin_general', 'almuerzos.carga_masiva', true),
-  ('admin_general', 'almuerzos.gestionar_dias_especiales', true),
-  ('admin_general', 'almuerzos.ver_todas_sedes', true),
-  ('admin_general', 'almuerzos.exportar', true)
-ON CONFLICT (role, permission_code) DO UPDATE SET granted = EXCLUDED.granted;
+-- Primero obtenemos los IDs de los permisos que acabamos de crear
+DO $$
+DECLARE
+  perm_ver_modulo UUID;
+  perm_ver_calendario UUID;
+  perm_crear_menu UUID;
+  perm_editar_menu UUID;
+  perm_eliminar_menu UUID;
+  perm_carga_masiva UUID;
+  perm_gestionar_dias UUID;
+  perm_ver_su_sede UUID;
+  perm_ver_todas_sedes UUID;
+  perm_ver_personalizado UUID;
+  perm_exportar UUID;
+BEGIN
+  -- Obtener IDs de permisos
+  SELECT id INTO perm_ver_modulo FROM permissions WHERE module = 'almuerzos' AND action = 'ver_modulo';
+  SELECT id INTO perm_ver_calendario FROM permissions WHERE module = 'almuerzos' AND action = 'ver_calendario';
+  SELECT id INTO perm_crear_menu FROM permissions WHERE module = 'almuerzos' AND action = 'crear_menu';
+  SELECT id INTO perm_editar_menu FROM permissions WHERE module = 'almuerzos' AND action = 'editar_menu';
+  SELECT id INTO perm_eliminar_menu FROM permissions WHERE module = 'almuerzos' AND action = 'eliminar_menu';
+  SELECT id INTO perm_carga_masiva FROM permissions WHERE module = 'almuerzos' AND action = 'carga_masiva';
+  SELECT id INTO perm_gestionar_dias FROM permissions WHERE module = 'almuerzos' AND action = 'gestionar_dias_especiales';
+  SELECT id INTO perm_ver_su_sede FROM permissions WHERE module = 'almuerzos' AND action = 'ver_su_sede';
+  SELECT id INTO perm_ver_todas_sedes FROM permissions WHERE module = 'almuerzos' AND action = 'ver_todas_sedes';
+  SELECT id INTO perm_ver_personalizado FROM permissions WHERE module = 'almuerzos' AND action = 'ver_personalizado';
+  SELECT id INTO perm_exportar FROM permissions WHERE module = 'almuerzos' AND action = 'exportar';
 
--- Supervisor de Red: Acceso completo menos eliminar
-INSERT INTO role_permissions (role, permission_code, granted) VALUES
-  ('supervisor_red', 'almuerzos.ver_modulo', true),
-  ('supervisor_red', 'almuerzos.ver_calendario', true),
-  ('supervisor_red', 'almuerzos.crear_menu', true),
-  ('supervisor_red', 'almuerzos.editar_menu', true),
-  ('supervisor_red', 'almuerzos.carga_masiva', true),
-  ('supervisor_red', 'almuerzos.gestionar_dias_especiales', true),
-  ('supervisor_red', 'almuerzos.ver_todas_sedes', true),
-  ('supervisor_red', 'almuerzos.exportar', true)
-ON CONFLICT (role, permission_code) DO UPDATE SET granted = EXCLUDED.granted;
+  -- Admin General: Acceso completo
+  INSERT INTO role_permissions (role, permission_id, granted) VALUES
+    ('admin_general', perm_ver_modulo, true),
+    ('admin_general', perm_ver_calendario, true),
+    ('admin_general', perm_crear_menu, true),
+    ('admin_general', perm_editar_menu, true),
+    ('admin_general', perm_eliminar_menu, true),
+    ('admin_general', perm_carga_masiva, true),
+    ('admin_general', perm_gestionar_dias, true),
+    ('admin_general', perm_ver_todas_sedes, true),
+    ('admin_general', perm_exportar, true)
+  ON CONFLICT (role, permission_id) DO UPDATE SET granted = EXCLUDED.granted;
 
--- Gestor de Unidad: Solo su sede
-INSERT INTO role_permissions (role, permission_code, granted) VALUES
-  ('gestor_unidad', 'almuerzos.ver_modulo', true),
-  ('gestor_unidad', 'almuerzos.ver_calendario', true),
-  ('gestor_unidad', 'almuerzos.crear_menu', true),
-  ('gestor_unidad', 'almuerzos.editar_menu', true),
-  ('gestor_unidad', 'almuerzos.gestionar_dias_especiales', true),
-  ('gestor_unidad', 'almuerzos.ver_su_sede', true),
-  ('gestor_unidad', 'almuerzos.exportar', true)
-ON CONFLICT (role, permission_code) DO UPDATE SET granted = EXCLUDED.granted;
+  -- Supervisor de Red: Acceso completo menos eliminar
+  INSERT INTO role_permissions (role, permission_id, granted) VALUES
+    ('supervisor_red', perm_ver_modulo, true),
+    ('supervisor_red', perm_ver_calendario, true),
+    ('supervisor_red', perm_crear_menu, true),
+    ('supervisor_red', perm_editar_menu, true),
+    ('supervisor_red', perm_carga_masiva, true),
+    ('supervisor_red', perm_gestionar_dias, true),
+    ('supervisor_red', perm_ver_todas_sedes, true),
+    ('supervisor_red', perm_exportar, true)
+  ON CONFLICT (role, permission_id) DO UPDATE SET granted = EXCLUDED.granted;
 
--- Operador de Cocina: Solo lectura de su sede
-INSERT INTO role_permissions (role, permission_code, granted) VALUES
-  ('operador_cocina', 'almuerzos.ver_modulo', true),
-  ('operador_cocina', 'almuerzos.ver_calendario', true),
-  ('operador_cocina', 'almuerzos.ver_su_sede', true)
-ON CONFLICT (role, permission_code) DO UPDATE SET granted = EXCLUDED.granted;
+  -- Gestor de Unidad: Solo su sede
+  INSERT INTO role_permissions (role, permission_id, granted) VALUES
+    ('gestor_unidad', perm_ver_modulo, true),
+    ('gestor_unidad', perm_ver_calendario, true),
+    ('gestor_unidad', perm_crear_menu, true),
+    ('gestor_unidad', perm_editar_menu, true),
+    ('gestor_unidad', perm_gestionar_dias, true),
+    ('gestor_unidad', perm_ver_su_sede, true),
+    ('gestor_unidad', perm_exportar, true)
+  ON CONFLICT (role, permission_id) DO UPDATE SET granted = EXCLUDED.granted;
+
+  -- Operador de Cocina: Solo lectura de su sede
+  INSERT INTO role_permissions (role, permission_id, granted) VALUES
+    ('operador_cocina', perm_ver_modulo, true),
+    ('operador_cocina', perm_ver_calendario, true),
+    ('operador_cocina', perm_ver_su_sede, true)
+  ON CONFLICT (role, permission_id) DO UPDATE SET granted = EXCLUDED.granted;
+END $$;
 
 -- =====================================================
 -- 7. FUNCIÓN AUXILIAR: OBTENER MENÚS DEL MES

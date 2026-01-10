@@ -112,23 +112,36 @@ const LunchCalendar = () => {
         setUserSchoolId(profile.school_id);
 
         // Consultar permisos
-        const { data: permissions } = await supabase
+        const { data: userPermissions } = await supabase
           .from('role_permissions')
-          .select('permission_code, granted')
+          .select(`
+            permission_id,
+            granted,
+            permissions:permission_id (
+              id,
+              module,
+              action,
+              name
+            )
+          `)
           .eq('role', profile.role)
-          .like('permission_code', 'almuerzos.%');
+          .eq('granted', true);
 
-        const permMap = new Map(
-          permissions?.map((p) => [p.permission_code, p.granted]) || []
-        );
+        const permMap = new Map<string, boolean>();
+        userPermissions?.forEach((perm: any) => {
+          const permission = perm.permissions;
+          if (permission?.module === 'almuerzos') {
+            permMap.set(permission.action, true);
+          }
+        });
 
-        setCanCreate(permMap.get('almuerzos.crear_menu') || false);
-        setCanEdit(permMap.get('almuerzos.editar_menu') || false);
-        setCanDelete(permMap.get('almuerzos.eliminar_menu') || false);
-        setCanMassUpload(permMap.get('almuerzos.carga_masiva') || false);
-        setCanManageSpecialDays(permMap.get('almuerzos.gestionar_dias_especiales') || false);
-        setCanExport(permMap.get('almuerzos.exportar') || false);
-        setCanViewAllSchools(permMap.get('almuerzos.ver_todas_sedes') || false);
+        setCanCreate(permMap.get('crear_menu') || false);
+        setCanEdit(permMap.get('editar_menu') || false);
+        setCanDelete(permMap.get('eliminar_menu') || false);
+        setCanMassUpload(permMap.get('carga_masiva') || false);
+        setCanManageSpecialDays(permMap.get('gestionar_dias_especiales') || false);
+        setCanExport(permMap.get('exportar') || false);
+        setCanViewAllSchools(permMap.get('ver_todas_sedes') || false);
 
       } catch (error) {
         console.error('Error loading permissions:', error);
