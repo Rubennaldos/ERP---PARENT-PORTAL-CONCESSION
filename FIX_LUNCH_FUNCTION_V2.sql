@@ -1,0 +1,65 @@
+-- =====================================================
+-- CORRECCIÓN DEFINITIVA DE LA FUNCIÓN
+-- =====================================================
+-- El error persiste porque la columna 4 (school_name) no coincide
+-- Vamos a hacer un CAST explícito para forzar la conversión
+
+DROP FUNCTION IF EXISTS get_monthly_lunch_menus(INTEGER, INTEGER, UUID[]);
+
+CREATE OR REPLACE FUNCTION get_monthly_lunch_menus(
+  target_month INTEGER,
+  target_year INTEGER,
+  target_school_ids UUID[] DEFAULT NULL
+)
+RETURNS TABLE (
+  id UUID,
+  school_id UUID,
+  school_name TEXT,
+  school_color TEXT,
+  date DATE,
+  starter TEXT,
+  main_course TEXT,
+  beverage TEXT,
+  dessert TEXT,
+  notes TEXT,
+  is_special_day BOOLEAN,
+  special_day_type TEXT,
+  special_day_title TEXT
+) AS $$
+BEGIN
+  RETURN QUERY
+  SELECT 
+    lm.id,
+    lm.school_id,
+    s.name::TEXT AS school_name,  -- CAST explícito a TEXT
+    COALESCE(s.color, '#10B981')::TEXT AS school_color,  -- CAST explícito a TEXT con valor por defecto
+    lm.date,
+    lm.starter,
+    lm.main_course,
+    lm.beverage,
+    lm.dessert,
+    lm.notes,
+    CASE WHEN sd.id IS NOT NULL THEN true ELSE false END AS is_special_day,
+    sd.type AS special_day_type,
+    sd.title AS special_day_title
+  FROM lunch_menus lm
+  INNER JOIN schools s ON lm.school_id = s.id
+  LEFT JOIN special_days sd ON lm.date = sd.date 
+    AND (sd.school_id IS NULL OR sd.school_id = lm.school_id)
+  WHERE 
+    EXTRACT(MONTH FROM lm.date) = target_month
+    AND EXTRACT(YEAR FROM lm.date) = target_year
+    AND (target_school_ids IS NULL OR lm.school_id = ANY(target_school_ids))
+  ORDER BY lm.date, s.name;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Dar permisos de ejecución
+GRANT EXECUTE ON FUNCTION get_monthly_lunch_menus TO authenticated;
+
+-- =====================================================
+-- VERIFICAR QUE LA COLUMNA COLOR EXISTE
+-- =====================================================
+-- Si da error, descomentar esta línea:
+-- ALTER TABLE schools ADD COLUMN IF NOT EXISTS color TEXT DEFAULT '#10B981';
+
