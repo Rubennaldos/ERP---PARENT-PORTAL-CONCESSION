@@ -683,35 +683,43 @@ const LunchCalendar = () => {
                               </DropdownMenu>
                             </div>
                             
-                            {dayData.isSpecialDay && dayData.specialDayInfo && (
-                              <div className="mt-1">
-                                <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground block truncate">
+                            {dayData.isSpecialDay && dayData.specialDayInfo ? (
+                              <div className="flex-1 flex items-center justify-center px-2">
+                                <span className="text-xs font-bold text-center leading-tight">
                                   {dayData.specialDayInfo.title}
                                 </span>
                               </div>
+                            ) : (
+                              <div className="flex-1 flex flex-col gap-1 mt-2 overflow-hidden">
+                                {hasMenus ? (
+                                  <>
+                                    {dayData.menus.slice(0, 4).map((menu) => (
+                                      <div
+                                        key={menu.id}
+                                        className="w-full flex items-center gap-1"
+                                      >
+                                        <div 
+                                          className="w-1.5 h-1.5 rounded-full shrink-0"
+                                          style={{ backgroundColor: menu.school_color || '#10b981' }}
+                                        />
+                                        <span className="text-[9px] truncate text-muted-foreground">
+                                          {menu.school_name}
+                                        </span>
+                                      </div>
+                                    ))}
+                                    {dayData.menus.length > 4 && (
+                                      <div className="text-[9px] text-center font-medium text-muted-foreground bg-gray-100 rounded">
+                                        +{dayData.menus.length - 4} sedes
+                                      </div>
+                                    )}
+                                  </>
+                                ) : (
+                                  <div className="text-[9px] text-center text-muted-foreground py-1">
+                                    Sin menú
+                                  </div>
+                                )}
+                              </div>
                             )}
-
-                            <div className="flex-1 flex flex-col gap-1 mt-2 overflow-hidden">
-                              {dayData.menus.slice(0, 4).map((menu) => (
-                                <div
-                                  key={menu.id}
-                                  className="w-full flex items-center gap-1"
-                                >
-                                  <div 
-                                    className="w-1.5 h-1.5 rounded-full shrink-0"
-                                    style={{ backgroundColor: menu.school_color || '#10b981' }}
-                                  />
-                                  <span className="text-[9px] truncate text-muted-foreground">
-                                    {menu.school_name}
-                                  </span>
-                                </div>
-                              ))}
-                              {dayData.menus.length > 4 && (
-                                <div className="text-[9px] text-center font-medium text-muted-foreground bg-gray-100 rounded">
-                                  +{dayData.menus.length - 4} sedes
-                                </div>
-                              )}
-                            </div>
                           </div>
                         </div>
                       );
