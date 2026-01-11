@@ -550,23 +550,21 @@ const LunchCalendar = () => {
                       const hasMenus = dayData.menus.length > 0;
                       const dayOfWeek = dayData.date.getDay();
                       const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+                      const isSpecialDay = dayData.isSpecialDay && dayData.specialDayInfo;
 
                       let bgClass = 'bg-white hover:bg-gray-50';
                       
-                      if (isWeekend) {
-                        bgClass = 'bg-gray-200/50 hover:bg-gray-200';
-                      }
-
-                      if (hasMenus) {
-                        bgClass = 'bg-green-100 hover:bg-green-200 border-green-300';
-                      }
-
-                      if (dayData.isSpecialDay && dayData.specialDayInfo) {
-                        if (dayData.specialDayInfo.type === 'feriado') {
+                      // Prioridad: días especiales > menús > weekend > default
+                      if (isSpecialDay) {
+                        if (dayData.specialDayInfo!.type === 'feriado') {
                           bgClass = 'bg-red-100 hover:bg-red-200 border-red-300';
-                        } else if (dayData.specialDayInfo.type === 'no_laborable') {
-                          bgClass = 'bg-gray-200 hover:bg-gray-300 border-gray-400';
+                        } else if (dayData.specialDayInfo!.type === 'no_laborable') {
+                          bgClass = 'bg-gray-300 hover:bg-gray-400 border-gray-500';
                         }
+                      } else if (hasMenus) {
+                        bgClass = 'bg-green-100 hover:bg-green-200 border-green-300';
+                      } else if (isWeekend) {
+                        bgClass = 'bg-gray-200/50 hover:bg-gray-200';
                       }
 
                       return (
@@ -640,10 +638,35 @@ const LunchCalendar = () => {
                                               }}>
                                                 Todas las sedes
                                               </DropdownMenuItem>
-                                              {!canViewAllSchools && (
+                                              {canViewAllSchools && (
+                                                <>
+                                                  <DropdownMenuSeparator />
+                                                  <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">
+                                                    Sedes individuales:
+                                                  </div>
+                                                  {schools.map(school => (
+                                                    <DropdownMenuItem 
+                                                      key={school.id}
+                                                      onClick={(e) => { 
+                                                        e.stopPropagation(); 
+                                                        handleSetDayState(dayData.date, 'feriado', [school.id]); 
+                                                      }}
+                                                    >
+                                                      <div className="flex items-center gap-2">
+                                                        <div 
+                                                          className="w-2 h-2 rounded-full"
+                                                          style={{ backgroundColor: school.color || '#999' }}
+                                                        />
+                                                        {school.name}
+                                                      </div>
+                                                    </DropdownMenuItem>
+                                                  ))}
+                                                </>
+                                              )}
+                                              {!canViewAllSchools && userSchoolId && (
                                                 <DropdownMenuItem onClick={(e) => { 
                                                   e.stopPropagation(); 
-                                                  handleSetDayState(dayData.date, 'feriado', [userSchoolId!]); 
+                                                  handleSetDayState(dayData.date, 'feriado', [userSchoolId]); 
                                                 }}>
                                                   Solo mi sede
                                                 </DropdownMenuItem>
@@ -664,10 +687,35 @@ const LunchCalendar = () => {
                                               }}>
                                                 Todas las sedes
                                               </DropdownMenuItem>
-                                              {!canViewAllSchools && (
+                                              {canViewAllSchools && (
+                                                <>
+                                                  <DropdownMenuSeparator />
+                                                  <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">
+                                                    Sedes individuales:
+                                                  </div>
+                                                  {schools.map(school => (
+                                                    <DropdownMenuItem 
+                                                      key={school.id}
+                                                      onClick={(e) => { 
+                                                        e.stopPropagation(); 
+                                                        handleSetDayState(dayData.date, 'no_laborable', [school.id]); 
+                                                      }}
+                                                    >
+                                                      <div className="flex items-center gap-2">
+                                                        <div 
+                                                          className="w-2 h-2 rounded-full"
+                                                          style={{ backgroundColor: school.color || '#999' }}
+                                                        />
+                                                        {school.name}
+                                                      </div>
+                                                    </DropdownMenuItem>
+                                                  ))}
+                                                </>
+                                              )}
+                                              {!canViewAllSchools && userSchoolId && (
                                                 <DropdownMenuItem onClick={(e) => { 
                                                   e.stopPropagation(); 
-                                                  handleSetDayState(dayData.date, 'no_laborable', [userSchoolId!]); 
+                                                  handleSetDayState(dayData.date, 'no_laborable', [userSchoolId]); 
                                                 }}>
                                                   Solo mi sede
                                                 </DropdownMenuItem>
@@ -683,41 +731,37 @@ const LunchCalendar = () => {
                               </DropdownMenu>
                             </div>
                             
-                            {dayData.isSpecialDay && dayData.specialDayInfo ? (
-                              <div className="flex-1 flex items-center justify-center px-2">
-                                <span className="text-xs font-bold text-center leading-tight">
-                                  {dayData.specialDayInfo.title}
+                            {isSpecialDay ? (
+                              <div className="flex-1 flex items-center justify-center px-1">
+                                <span className="text-xs font-bold text-center leading-tight uppercase">
+                                  {dayData.specialDayInfo!.title}
                                 </span>
                               </div>
-                            ) : (
+                            ) : hasMenus ? (
                               <div className="flex-1 flex flex-col gap-1 mt-2 overflow-hidden">
-                                {hasMenus ? (
-                                  <>
-                                    {dayData.menus.slice(0, 4).map((menu) => (
-                                      <div
-                                        key={menu.id}
-                                        className="w-full flex items-center gap-1"
-                                      >
-                                        <div 
-                                          className="w-1.5 h-1.5 rounded-full shrink-0"
-                                          style={{ backgroundColor: menu.school_color || '#10b981' }}
-                                        />
-                                        <span className="text-[9px] truncate text-muted-foreground">
-                                          {menu.school_name}
-                                        </span>
-                                      </div>
-                                    ))}
-                                    {dayData.menus.length > 4 && (
-                                      <div className="text-[9px] text-center font-medium text-muted-foreground bg-gray-100 rounded">
-                                        +{dayData.menus.length - 4} sedes
-                                      </div>
-                                    )}
-                                  </>
-                                ) : (
-                                  <div className="text-[9px] text-center text-muted-foreground py-1">
-                                    Sin menú
+                                {dayData.menus.slice(0, 4).map((menu) => (
+                                  <div
+                                    key={menu.id}
+                                    className="w-full flex items-center gap-1"
+                                  >
+                                    <div 
+                                      className="w-1.5 h-1.5 rounded-full shrink-0"
+                                      style={{ backgroundColor: menu.school_color || '#10b981' }}
+                                    />
+                                    <span className="text-[9px] truncate text-muted-foreground">
+                                      {menu.school_name}
+                                    </span>
+                                  </div>
+                                ))}
+                                {dayData.menus.length > 4 && (
+                                  <div className="text-[9px] text-center font-medium text-muted-foreground bg-gray-100 rounded">
+                                    +{dayData.menus.length - 4} sedes
                                   </div>
                                 )}
+                              </div>
+                            ) : (
+                              <div className="flex-1 flex items-center justify-center">
+                                <span className="text-[10px] text-muted-foreground">Sin menú</span>
                               </div>
                             )}
                           </div>
