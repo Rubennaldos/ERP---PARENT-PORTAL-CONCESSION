@@ -141,11 +141,15 @@ export function StudentCard({
                 </p>
                 <Popover>
                   <PopoverTrigger asChild>
-                    <button className="hover:bg-white/50 rounded-full p-0.5 transition-all">
-                      <Info className="h-4 w-4 text-gray-500 hover:text-gray-700" />
+                    <button className={`
+                      flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold transition-all shadow-sm
+                      ${hasDebt ? 'bg-red-100 text-red-700 hover:bg-red-200' : 'bg-green-100 text-green-700 hover:bg-green-200'}
+                    `}>
+                      <Info className="h-3 w-3" />
+                      ¿Qué es esto?
                     </button>
                   </PopoverTrigger>
-                  <PopoverContent className="w-80" side="top">
+                  <PopoverContent className="w-80 shadow-2xl border-2" side="top" align="start">
                     <div className="space-y-2">
                       <h4 className="font-bold text-sm">
                         {hasDebt ? '💳 Deuda Pendiente' : (isFreeAccount ? '✅ Saldo a Favor' : '💰 Saldo Prepago')}
