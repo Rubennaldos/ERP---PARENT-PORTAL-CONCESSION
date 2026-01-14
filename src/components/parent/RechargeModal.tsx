@@ -212,7 +212,7 @@ export function RechargeModal({
         <DialogHeader>
           <DialogTitle className="text-2xl">Recargar Saldo</DialogTitle>
           <DialogDescription>
-            Para <strong>{studentName}</strong>
+            Recarga saldo para que <strong>{studentName}</strong> pueda consumir en el kiosco.
           </DialogDescription>
         </DialogHeader>
 

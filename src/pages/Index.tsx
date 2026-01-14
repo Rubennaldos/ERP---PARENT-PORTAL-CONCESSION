@@ -231,16 +231,23 @@ const Index = () => {
   const openRechargeModal = (student: Student) => {
     setSelectedStudent(student);
     
-    console.log('🔍 Abriendo modal para:', student.full_name);
-    console.log('🔍 Tiene deudas pendientes?', student.has_pending_debts);
+    // LOGICA RADICAL: Si el componente detecta deudas, abrimos Pasarela.
+    // Usamos tanto la propiedad del objeto como una verificación simple.
+    const hasDebts = student.has_pending_debts === true || (student.balance < 0);
     
-    // SIMPLE: Si hay deudas → PayDebtModal, Si NO hay deudas → RechargeModal
-    if (student.has_pending_debts) {
-      console.log('✅ Abriendo PayDebtModal');
+    console.log('--- DIAGNOSTICO DE PAGO ---');
+    console.log('Estudiante:', student.full_name);
+    console.log('Deudas detectadas:', hasDebts);
+    console.log('Saldo:', student.balance);
+    
+    if (hasDebts) {
+      console.log('MODO: PASARELA DE PAGOS');
       setShowPayDebtModal(true);
+      setShowRechargeModal(false);
     } else {
-      console.log('✅ Abriendo RechargeModal');
+      console.log('MODO: RECARGA DE SALDO');
       setShowRechargeModal(true);
+      setShowPayDebtModal(false);
     }
   };
 
