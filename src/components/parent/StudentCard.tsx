@@ -29,31 +29,36 @@ interface StudentCardProps {
   student: Student;
   onRecharge: () => void;
   onViewHistory: () => void;
+  onLunchFast: () => void;
   onViewMenu: () => void;
   onOpenSettings: () => void;
   onPhotoClick: () => void;
-  hasPendingDebts?: boolean; // Nueva prop para saber si hay deudas
 }
 
 export function StudentCard({
   student,
   onRecharge,
   onViewHistory,
+  onLunchFast,
   onViewMenu,
   onOpenSettings,
-  onPhotoClick,
-  hasPendingDebts = false
+  onPhotoClick
 }: StudentCardProps) {
-  const isFreeAccount = student.free_account !== false; // Por defecto true
+  const isFreeAccount = student.free_account !== false;
   
-  // Determinar qué botón mostrar
-  const showPaymentButton = !isFreeAccount || hasPendingDebts;
-  const buttonText = hasPendingDebts ? 'Pagar Deudas' : 'Recargar Saldo';
+  // LÓGICA SIMPLIFICADA: Si debe (balance < 0) → Pagar Deudas, si es prepago → Recargar
+  const hasDebt = student.balance < 0;
+  const showPaymentButton = hasDebt || !isFreeAccount;
+  const buttonText = hasDebt ? 'Pagar Deudas' : 'Recargar Saldo';
 
   return (
-    <Card className="overflow-hidden hover:shadow-lg transition-all">
+    <Card className="overflow-hidden hover:shadow-lg transition-all border-2">
       {/* Header con gradiente */}
-      <div className="h-24 bg-gradient-to-br from-blue-500 via-purple-500 to-pink-500 relative">
+      <div className={`h-24 relative ${
+        hasDebt 
+          ? 'bg-gradient-to-br from-red-500 via-orange-500 to-yellow-500' 
+          : 'bg-gradient-to-br from-blue-500 via-purple-500 to-pink-500'
+      }`}>
         <div className="absolute -bottom-12 left-6">
           <div className="relative">
             <div 
@@ -86,13 +91,18 @@ export function StudentCard({
         </div>
         
         {/* Badge de cuenta */}
-        <div className="absolute top-2 right-2">
+        <div className="absolute top-2 right-2 flex gap-2">
+          {hasDebt && (
+            <Badge variant="destructive" className="animate-pulse shadow-md">
+              Deuda Pendiente
+            </Badge>
+          )}
           {isFreeAccount ? (
-            <Badge className="bg-green-500 text-white border-0">
+            <Badge className="bg-green-500 text-white border-0 shadow-sm">
               Cuenta Libre
             </Badge>
           ) : (
-            <Badge variant="outline" className="bg-white/90">
+            <Badge variant="outline" className="bg-white/90 shadow-sm">
               Saldo Prepago
             </Badge>
           )}
@@ -114,50 +124,49 @@ export function StudentCard({
         {/* Saldo/Deuda */}
         <div className={`rounded-xl p-4 mb-4 ${
           isFreeAccount 
-            ? 'bg-green-50 border-2 border-green-200' 
+            ? student.balance < 0 ? 'bg-red-50 border-2 border-red-200' : 'bg-green-50 border-2 border-green-200' 
             : 'bg-blue-50 border-2 border-blue-200'
         }`}>
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-xs font-medium text-gray-600 uppercase tracking-wide">
-                {isFreeAccount ? 'Consumo del Mes' : 'Saldo Disponible'}
+              <p className="text-xs font-bold text-gray-600 uppercase tracking-wide">
+                {isFreeAccount ? 'Total Acumulado' : 'Saldo Disponible'}
               </p>
-              <p className={`text-3xl font-bold ${
+              <p className={`text-3xl font-black ${
                 isFreeAccount 
                   ? student.balance < 0 ? 'text-red-600' : 'text-green-600'
                   : student.balance > 0 ? 'text-blue-600' : 'text-gray-400'
               }`}>
                 S/ {Math.abs(student.balance).toFixed(2)}
               </p>
-              {isFreeAccount && student.balance < 0 && (
-                <p className="text-xs text-red-600 mt-1">
-                  Pendiente de pago
-                </p>
-              )}
             </div>
             <Wallet className={`h-10 w-10 ${
-              isFreeAccount ? 'text-green-500' : 'text-blue-500'
+              isFreeAccount 
+                ? student.balance < 0 ? 'text-red-500' : 'text-green-500' 
+                : 'text-blue-500'
             }`} />
           </div>
-
-          {!isFreeAccount && student.daily_limit > 0 && (
-            <div className="mt-3 pt-3 border-t border-gray-200">
-              <p className="text-xs text-gray-600">
-                Límite diario: <span className="font-semibold">S/ {student.daily_limit.toFixed(2)}</span>
-              </p>
-            </div>
-          )}
         </div>
 
         {/* Botones principales */}
-        <div className="space-y-2">
-          {/* Botón PAGAR DEUDAS o RECARGAR - Mostrar si no es cuenta libre O si hay deudas */}
+        <div className="space-y-3">
+          {/* Botón Lunch Fast - MÁS GRANDE Y ARRIBA */}
+          <Button
+            onClick={onLunchFast}
+            className="w-full h-16 text-xl font-black bg-gradient-to-r from-orange-500 via-red-500 to-pink-500 hover:from-orange-600 hover:to-red-600 shadow-lg transform active:scale-95 transition-all"
+            size="lg"
+          >
+            <UtensilsCrossed className="h-6 w-6 mr-2 animate-bounce" />
+            LUNCH FAST!
+          </Button>
+
+          {/* Botón PAGAR DEUDAS o RECARGAR */}
           {showPaymentButton && (
             <Button
               onClick={onRecharge}
-              className={`w-full h-14 text-lg font-semibold ${
-                hasPendingDebts 
-                  ? 'bg-gradient-to-r from-red-600 to-orange-600 hover:from-red-700 hover:to-orange-700'
+              className={`w-full h-14 text-lg font-bold shadow-md ${
+                hasDebt 
+                  ? 'bg-gradient-to-r from-red-600 to-orange-600 hover:from-red-700 hover:to-orange-700 animate-pulse'
                   : 'bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700'
               }`}
               size="lg"
@@ -167,32 +176,28 @@ export function StudentCard({
             </Button>
           )}
 
-          {/* Botón MENÚ - Grande y llamativo */}
-          <Button
-            onClick={onViewMenu}
-            className="w-full h-14 text-lg font-semibold bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600"
-            size="lg"
-          >
-            <UtensilsCrossed className="h-5 w-5 mr-2" />
-            Ver Menú Semanal
-          </Button>
+          <div className="grid grid-cols-2 gap-2">
+            <Button
+              onClick={onViewMenu}
+              variant="outline"
+              className="h-12 border-2 text-gray-600 font-semibold"
+            >
+              Ver Calendario
+            </Button>
+            <Button
+              onClick={onViewHistory}
+              variant="outline"
+              className="h-12 border-2 text-gray-600 font-semibold"
+            >
+              <History className="h-4 w-4 mr-1" />
+              Historial
+            </Button>
+          </div>
 
-          {/* Botón Historial - Secundario pero visible */}
-          <Button
-            onClick={onViewHistory}
-            variant="outline"
-            className="w-full h-12 border-2"
-            size="lg"
-          >
-            <History className="h-4 w-4 mr-2" />
-            Ver Historial
-          </Button>
-
-          {/* Botón Configuración - Discreto */}
           <Button
             onClick={onOpenSettings}
             variant="ghost"
-            className="w-full h-10 text-gray-500 hover:text-gray-700 hover:bg-gray-50"
+            className="w-full h-10 text-gray-400 hover:text-gray-600"
             size="sm"
           >
             <Settings2 className="h-3 w-3 mr-2" />

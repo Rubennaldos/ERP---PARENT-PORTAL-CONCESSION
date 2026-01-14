@@ -49,7 +49,6 @@ interface Student {
   is_active: boolean;
   school_id?: string;
   free_account?: boolean;
-  has_pending_debts?: boolean; // Nueva propiedad para tracking de deudas
 }
 
 interface Transaction {
@@ -85,6 +84,9 @@ const Index = () => {
   const [showPhotoConsent, setShowPhotoConsent] = useState(false);
   const [photoConsentAccepted, setPhotoConsentAccepted] = useState(false);
   const [photoConsentRefresh, setPhotoConsentRefresh] = useState(0); // Para forzar refresh en MoreMenu
+  const [showLunchFastConfirm, setShowLunchFastConfirm] = useState(false);
+  const [todayMenu, setTodayMenu] = useState<any>(null);
+  const [isOrdering, setIsOrdering] = useState(false);
   
   // Estudiante seleccionado
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
@@ -111,24 +113,7 @@ const Index = () => {
 
       if (error) throw error;
       
-      // Para cada estudiante, verificar si tiene deudas pendientes
-      const studentsWithDebts = await Promise.all(
-        (data || []).map(async (student) => {
-          const { count } = await supabase
-            .from('transactions')
-            .select('id', { count: 'exact', head: true })
-            .eq('student_id', student.id)
-            .eq('payment_status', 'pending')
-            .eq('type', 'purchase');
-          
-          return {
-            ...student,
-            has_pending_debts: (count || 0) > 0
-          };
-        })
-      );
-      
-      setStudents(studentsWithDebts);
+      setStudents(data || []);
     } catch (error: any) {
       console.error('Error fetching students:', error);
       toast({
@@ -231,9 +216,8 @@ const Index = () => {
   const openRechargeModal = (student: Student) => {
     setSelectedStudent(student);
     
-    // LOGICA RADICAL: Si el componente detecta deudas, abrimos Pasarela.
-    // Usamos tanto la propiedad del objeto como una verificación simple.
-    const hasDebts = student.has_pending_debts === true || (student.balance < 0);
+    // LOGICA SIMPLIFICADA: Si el balance es negativo (debe) → Pasarela, si no → Recarga
+    const hasDebts = student.balance < 0;
     
     console.log('--- DIAGNOSTICO DE PAGO ---');
     console.log('Estudiante:', student.full_name);
@@ -285,7 +269,94 @@ const Index = () => {
     setShowLimitModal(true);
   };
 
+  const handleLunchFast = async (student: Student) => {
+    setSelectedStudent(student);
+    try {
+      const { data, error } = await supabase.rpc('get_today_lunch_menu', {
+        p_school_id: student.school_id
+      });
+
+      if (error) throw error;
+
+      const menu = data?.[0];
+      if (!menu || menu.is_special_day || !menu.main_course) {
+        toast({
+          title: "Lunch Fast no disponible",
+          description: menu?.special_day_title || "No hay menú programado para el día de hoy.",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      setTodayMenu(menu);
+      setShowLunchFastConfirm(true);
+    } catch (error) {
+      console.error('Error in handleLunchFast:', error);
+      toast({
+        title: "Error",
+        description: "No se pudo consultar el menú de hoy",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleConfirmLunchOrder = async () => {
+    if (!selectedStudent || !todayMenu) return;
+    
+    setIsOrdering(true);
+    try {
+      // Registrar la orden de almuerzo como una compra inmediata
+      const amount = todayMenu.price || 15.00;
+      const { error } = await supabase.from('transactions').insert({
+        student_id: selectedStudent.id,
+        type: 'purchase',
+        amount: amount,
+        description: `LUNCH FAST: ${todayMenu.main_course}`,
+        payment_status: selectedStudent.free_account !== false ? 'pending' : 'paid',
+        created_by: user?.id,
+        metadata: { lunch_menu_id: todayMenu.id, source: 'lunch_fast' }
+      });
+
+      if (error) throw error;
+
+      // Actualizar balance del estudiante
+      const { error: balanceError } = await supabase
+        .from('students')
+        .update({ balance: selectedStudent.balance - amount })
+        .eq('id', selectedStudent.id);
+
+      if (balanceError) throw balanceError;
+
+      toast({
+        title: "¡Pedido Confirmado! 🚀",
+        description: `Se ha separado el almuerzo para ${selectedStudent.full_name}`,
+      });
+
+      await fetchStudents();
+      setShowLunchFastConfirm(false);
+    } catch (error) {
+      console.error('Error confirming lunch order:', error);
+      toast({
+        title: "Error",
+        description: "No se pudo procesar el pedido",
+        variant: "destructive"
+      });
+    } finally {
+      setIsOrdering(false);
+    }
+  };
+
   const handleToggleFreeAccount = async (student: Student, newValue: boolean) => {
+    // VALIDACIÓN: Si intenta pasar a Prepago (newValue = false) y TIENE DEUDA (balance < 0)
+    if (newValue === false && student.balance < 0) {
+      toast({
+        variant: "destructive",
+        title: "🚫 Acción Bloqueada",
+        description: `Para pasar al modo Prepago, primero debes cancelar la deuda actual de S/ ${Math.abs(student.balance).toFixed(2)}.`,
+      });
+      return;
+    }
+
     try {
       const { error } = await supabase
         .from('students')
@@ -294,11 +365,14 @@ const Index = () => {
 
       if (error) throw error;
 
+      // Si pasa de Prepago a Cuenta Libre y tiene saldo a favor
+      const saldoAFavor = !newValue && student.balance > 0;
+
       toast({
         title: newValue ? '✅ Cuenta Libre Activada' : '🔒 Cuenta Libre Desactivada',
         description: newValue 
-          ? `${student.full_name} ahora puede consumir y pagar después` 
-          : `${student.full_name} necesitará saldo para consumir`,
+          ? `${student.full_name} ahora puede consumir y pagar después. ${student.balance > 0 ? 'Tu saldo a favor se descontará automáticamente.' : ''}` 
+          : `${student.full_name} ahora está en modo Prepago (Recargas).`,
       });
 
       await fetchStudents();
@@ -386,10 +460,10 @@ const Index = () => {
                       student={student}
                       onRecharge={() => openRechargeModal(student)}
                       onViewHistory={() => openHistoryModal(student)}
+                      onLunchFast={() => handleLunchFast(student)}
                       onViewMenu={() => openMenuModal(student)}
                       onOpenSettings={() => openSettingsModal(student)}
                       onPhotoClick={() => openPhotoModal(student)}
-                      hasPendingDebts={student.has_pending_debts}
                     />
                   ))}
                 </div>
@@ -442,7 +516,7 @@ const Index = () => {
           <WeeklyMenuModal
             isOpen={showMenuModal}
             onClose={() => setShowMenuModal(false)}
-            schoolId={selectedStudent.school_id || ''}
+            studentId={selectedStudent.id}
           />
 
           <UploadPhotoModal
@@ -505,6 +579,63 @@ const Index = () => {
               studentName={selectedStudent.full_name}
             />
           )}
+
+          {/* Modal de Confirmación LUNCH FAST */}
+          <Dialog open={showLunchFastConfirm} onOpenChange={setShowLunchFastConfirm}>
+            <DialogContent className="max-w-md border-4 border-orange-500">
+              <DialogHeader>
+                <DialogTitle className="text-2xl font-black text-center text-orange-600">
+                  ¿CONFIRMAR ALMUERZO HOY?
+                </DialogTitle>
+                <DialogDescription className="text-center pt-2">
+                  Se realizará el pedido para <span className="font-bold text-gray-900">{selectedStudent.full_name}</span>
+                </DialogDescription>
+              </DialogHeader>
+
+              {todayMenu && (
+                <div className="bg-orange-50 rounded-2xl p-6 border-2 border-orange-200 shadow-inner">
+                  <div className="space-y-4">
+                    <div className="flex justify-between items-start border-b border-orange-200 pb-2">
+                      <span className="text-xs font-bold text-orange-700 uppercase">Entrada</span>
+                      <span className="text-sm font-semibold text-gray-800">{todayMenu.starter || 'Sopa del día'}</span>
+                    </div>
+                    <div className="flex justify-between items-start border-b border-orange-200 pb-2">
+                      <span className="text-xs font-bold text-orange-700 uppercase">Segundo</span>
+                      <span className="text-sm font-bold text-gray-900">{todayMenu.main_course}</span>
+                    </div>
+                    <div className="flex justify-between items-start border-b border-orange-200 pb-2">
+                      <span className="text-xs font-bold text-orange-700 uppercase">Bebida</span>
+                      <span className="text-sm font-semibold text-gray-800">{todayMenu.beverage || 'Refresco natural'}</span>
+                    </div>
+                    <div className="flex justify-center pt-4">
+                      <div className="text-center">
+                        <span className="text-xs font-bold text-gray-500 uppercase block">Total a pagar</span>
+                        <span className="text-4xl font-black text-orange-600">S/ {(todayMenu.price || 15).toFixed(2)}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <div className="grid grid-cols-2 gap-3 pt-4">
+                <Button 
+                  variant="outline" 
+                  onClick={() => setShowLunchFastConfirm(false)}
+                  className="h-14 font-bold border-2"
+                  disabled={isOrdering}
+                >
+                  Cancelar
+                </Button>
+                <Button 
+                  onClick={handleConfirmLunchOrder}
+                  className="h-14 font-black bg-orange-600 hover:bg-orange-700 text-lg shadow-lg"
+                  disabled={isOrdering}
+                >
+                  {isOrdering ? 'Procesando...' : '¡SÍ, PEDIR!'}
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
         </>
       )}
 
