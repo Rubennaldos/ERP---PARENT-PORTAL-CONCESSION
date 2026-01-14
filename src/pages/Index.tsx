@@ -27,6 +27,7 @@ import { AddStudentModal } from '@/components/AddStudentModal';
 import { UploadPhotoModal } from '@/components/UploadPhotoModal';
 import { StudentCard } from '@/components/parent/StudentCard';
 import { RechargeModal } from '@/components/parent/RechargeModal';
+import { PayDebtModal } from '@/components/parent/PayDebtModal';
 import { WeeklyMenuModal } from '@/components/parent/WeeklyMenuModal';
 import { VersionBadge } from '@/components/VersionBadge';
 import { FreeAccountWarningModal } from '@/components/parent/FreeAccountWarningModal';
@@ -73,6 +74,7 @@ const Index = () => {
   
   // Modales
   const [showRechargeModal, setShowRechargeModal] = useState(false);
+  const [showPayDebtModal, setShowPayDebtModal] = useState(false);
   const [showMenuModal, setShowMenuModal] = useState(false);
   const [showHistoryModal, setShowHistoryModal] = useState(false);
   const [showUploadPhoto, setShowUploadPhoto] = useState(false);
@@ -209,7 +211,13 @@ const Index = () => {
 
   const openRechargeModal = (student: Student) => {
     setSelectedStudent(student);
-    setShowRechargeModal(true);
+    // Si es cuenta libre, abrir modal de recarga
+    // Si NO es cuenta libre, abrir modal de pago de deudas
+    if (student.free_account) {
+      setShowRechargeModal(true);
+    } else {
+      setShowPayDebtModal(true);
+    }
   };
 
   const openMenuModal = (student: Student) => {
@@ -493,6 +501,14 @@ const Index = () => {
             currentBalance={selectedStudent.balance}
             accountType="free"
             onRecharge={handleRecharge}
+          />
+
+          <PayDebtModal
+            isOpen={showPayDebtModal}
+            onClose={() => setShowPayDebtModal(false)}
+            studentName={selectedStudent.full_name}
+            studentId={selectedStudent.id}
+            onPaymentComplete={fetchStudents}
           />
 
           <WeeklyMenuModal
