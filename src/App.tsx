@@ -142,18 +142,8 @@ const App = () => (
               path="/parents"
               element={
                 <PermissionProtectedRoute moduleCode="config_padres">
-                  <ParentsManagement />
-                </PermissionProtectedRoute>
-              }
-            />
-
-            {/* Analytics de Padres (Lima Analytics Design System) */}
-            <Route
-              path="/parent-analytics"
-              element={
-                <ProtectedRoute allowedRoles={['admin_general', 'superadmin']}>
                   <ParentConfiguration />
-                </ProtectedRoute>
+                </PermissionProtectedRoute>
               }
             />
             

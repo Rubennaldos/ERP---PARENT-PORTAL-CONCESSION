@@ -20,7 +20,8 @@ import {
   CheckCircle2,
   ShieldCheck,
   CreditCard,
-  UtensilsCrossed
+  UtensilsCrossed,
+  BarChart3
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 
@@ -47,6 +48,7 @@ const ICON_MAP: { [key: string]: any } = {
   ShieldCheck,
   CreditCard,
   UtensilsCrossed,
+  BarChart3,
 };
 
 const COLOR_MAP: { [key: string]: string } = {
@@ -56,6 +58,7 @@ const COLOR_MAP: { [key: string]: string } = {
   purple: 'bg-purple-500/10 text-purple-600 border-purple-500/30',
   yellow: 'bg-yellow-500/10 text-yellow-600 border-yellow-500/30',
   orange: 'bg-orange-500/10 text-orange-600 border-orange-500/30',
+  indigo: 'bg-indigo-500/10 text-indigo-600 border-indigo-500/30',
 };
 
 const Dashboard = () => {
@@ -158,18 +161,6 @@ const Dashboard = () => {
           icon: 'UtensilsCrossed',
           color: 'orange',
           route: '/lunch-calendar',
-          is_active: true,
-          is_enabled: false,
-          status: 'functional' as const,
-        },
-        {
-          id: '11',
-          code: 'parent_analytics',
-          name: 'Analytics de Padres',
-          description: 'Dashboard de métricas y comportamiento (Lima Analytics Design System)',
-          icon: 'BarChart3',
-          color: 'indigo',
-          route: '/parent-analytics',
           is_active: true,
           is_enabled: false,
           status: 'functional' as const,

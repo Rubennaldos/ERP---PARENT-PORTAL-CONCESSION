@@ -66,7 +66,11 @@ interface ActivityEvent {
 
 const COLORS = ['#8B4513', '#D2691E', '#CD853F', '#DEB887', '#F4A460'];
 
-export function ParentAnalyticsDashboard() {
+interface ParentAnalyticsDashboardProps {
+  selectedSchool?: string;
+}
+
+export function ParentAnalyticsDashboard({ selectedSchool = 'all' }: ParentAnalyticsDashboardProps) {
   const { toast } = useToast();
   const [loading, setLoading] = useState(true);
   const [metrics, setMetrics] = useState<ParentMetrics | null>(null);
@@ -76,47 +80,92 @@ export function ParentAnalyticsDashboard() {
 
   useEffect(() => {
     loadDashboardData();
-  }, [timeRange]);
+  }, [timeRange, selectedSchool]);
 
   const loadDashboardData = async () => {
     try {
       setLoading(true);
       
-      // Obtener métricas del usuario actual
+      // Obtener usuario actual
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      const { data: metricsData, error: metricsError } = await supabase.rpc('get_parent_metrics', {
-        p_parent_id: user.id,
-        p_days: timeRange
-      });
-
-      if (metricsError) throw metricsError;
-      if (metricsData && metricsData[0]) {
-        setMetrics(metricsData[0]);
-      }
-
-      // Obtener timeline de actividad
-      const { data: timelineData, error: timelineError } = await supabase.rpc('get_parent_activity_timeline', {
-        p_parent_id: user.id,
-        p_limit: 50
-      });
-
-      if (timelineError) throw timelineError;
-      setActivityTimeline(timelineData || []);
-
-      // Si es admin, obtener reporte de todos los padres
+      // Verificar si es admin para cargar reportes globales
       const { data: profileData } = await supabase
         .from('profiles')
         .select('role')
         .eq('id', user.id)
         .single();
 
-      if (profileData?.role && ['superadmin', 'admin_general', 'admin_sede'].includes(profileData.role)) {
-        const { data: reportData, error: reportError } = await supabase.rpc('get_all_parents_report');
-        if (!reportError) {
-          setAllParentsReport(reportData || []);
+      const isAdmin = profileData?.role && ['superadmin', 'admin_general', 'admin_sede'].includes(profileData.role);
+
+      if (isAdmin) {
+        // Cargar reporte de todos los padres
+        let query = supabase.rpc('get_all_parents_report');
+        
+        const { data: reportData, error: reportError } = await query;
+        
+        if (!reportError && reportData) {
+          // Filtrar por sede si está seleccionada
+          let filteredData = reportData;
+          
+          if (selectedSchool && selectedSchool !== 'all') {
+            // Obtener padres de la sede seleccionada
+            const { data: studentsInSchool } = await supabase
+              .from('students')
+              .select('parent_id')
+              .eq('school_id', selectedSchool)
+              .eq('is_active', true);
+            
+            const parentIdsInSchool = new Set(studentsInSchool?.map(s => s.parent_id) || []);
+            filteredData = reportData.filter(r => parentIdsInSchool.has(r.parent_id));
+          }
+          
+          setAllParentsReport(filteredData);
+          
+          // Calcular métricas agregadas globales o por sede
+          const totalLogins = filteredData.reduce((sum, p) => sum + (p.total_logins || 0), 0);
+          const totalPayments = filteredData.reduce((sum, p) => sum + (p.total_payments || 0), 0);
+          const avgSession = filteredData.length > 0 
+            ? filteredData.reduce((sum, p) => sum + (p.avg_session_minutes || 0), 0) / filteredData.length 
+            : 0;
+          const totalEngagement = filteredData.reduce((sum, p) => sum + (p.engagement_score || 0), 0);
+          
+          setMetrics({
+            total_logins: totalLogins,
+            total_payments: totalPayments,
+            total_recharges: 0,
+            avg_session_duration_minutes: avgSession,
+            total_pages_viewed: 0,
+            last_login: new Date().toISOString(),
+            engagement_score: totalEngagement
+          });
         }
+        
+        // Cargar timeline (todas las actividades o filtradas por sede)
+        let timelineQuery = supabase
+          .from('parent_activity_log')
+          .select('*')
+          .order('created_at', { ascending: false })
+          .limit(50);
+        
+        if (selectedSchool && selectedSchool !== 'all') {
+          // Filtrar timeline por padres de la sede
+          const { data: studentsInSchool } = await supabase
+            .from('students')
+            .select('parent_id')
+            .eq('school_id', selectedSchool)
+            .eq('is_active', true);
+          
+          const parentIdsInSchool = studentsInSchool?.map(s => s.parent_id) || [];
+          
+          if (parentIdsInSchool.length > 0) {
+            timelineQuery = timelineQuery.in('parent_id', parentIdsInSchool);
+          }
+        }
+        
+        const { data: timelineData } = await timelineQuery;
+        setActivityTimeline(timelineData || []);
       }
 
     } catch (error: any) {
@@ -207,8 +256,15 @@ export function ParentAnalyticsDashboard() {
       {/* Header con título y filtros */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-3xl font-black text-slate-800">Analytics Dashboard</h2>
-          <p className="text-slate-400 font-medium mt-1">Lima Analytics Design System</p>
+          <h2 className="text-3xl font-black text-slate-800">
+            Lima Analytics
+            {selectedSchool === 'all' ? ' - Global' : ' - Por Sede'}
+          </h2>
+          <p className="text-slate-400 font-medium mt-1">
+            {selectedSchool === 'all' 
+              ? '📊 Vista consolidada de todos los padres del sistema' 
+              : '🏫 Vista filtrada por sede seleccionada'}
+          </p>
         </div>
         <div className="flex gap-3">
           <Button

@@ -1,13 +1,16 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Search, Users, BarChart3, FileText } from 'lucide-react';
 import { ParentAnalyticsDashboard } from '@/components/admin/ParentAnalyticsDashboard';
 import { supabase } from '@/lib/supabase';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/contexts/AuthContext';
+import { useRole } from '@/hooks/useRole';
 
 interface Parent {
   id: string;
@@ -18,11 +21,39 @@ interface Parent {
   students_count: number;
 }
 
+interface School {
+  id: string;
+  name: string;
+}
+
 const ParentConfiguration = () => {
   const { toast } = useToast();
+  const { user } = useAuth();
+  const { role, canViewAllSchools } = useRole();
   const [searchTerm, setSearchTerm] = useState('');
   const [parents, setParents] = useState<Parent[]>([]);
   const [loading, setLoading] = useState(false);
+  const [schools, setSchools] = useState<School[]>([]);
+  const [selectedSchool, setSelectedSchool] = useState<string>('all');
+
+  useEffect(() => {
+    loadSchools();
+  }, []);
+
+  const loadSchools = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('schools')
+        .select('id, name')
+        .eq('is_active', true)
+        .order('name');
+
+      if (error) throw error;
+      setSchools(data || []);
+    } catch (error) {
+      console.error('Error loading schools:', error);
+    }
+  };
 
   const searchParents = async () => {
     if (!searchTerm.trim()) {
@@ -100,7 +131,7 @@ const ParentConfiguration = () => {
           <TabsList className="grid w-full grid-cols-3 bg-white border rounded-xl p-1">
             <TabsTrigger value="analytics" className="data-[state=active]:bg-[#8B4513] data-[state=active]:text-white">
               <BarChart3 className="h-4 w-4 mr-2" />
-              Analytics
+              Lima Analytics
             </TabsTrigger>
             <TabsTrigger value="parents" className="data-[state=active]:bg-[#8B4513] data-[state=active]:text-white">
               <Users className="h-4 w-4 mr-2" />
@@ -108,13 +139,37 @@ const ParentConfiguration = () => {
             </TabsTrigger>
             <TabsTrigger value="reports" className="data-[state=active]:bg-[#8B4513] data-[state=active]:text-white">
               <FileText className="h-4 w-4 mr-2" />
-              Reportes
+              Reportes Excel
             </TabsTrigger>
           </TabsList>
 
           {/* Pestaña de Analytics */}
           <TabsContent value="analytics" className="mt-6">
-            <ParentAnalyticsDashboard />
+            {/* Filtro por Sede */}
+            {canViewAllSchools && schools.length > 0 && (
+              <Card className="mb-4">
+                <CardContent className="pt-6">
+                  <div className="flex items-center gap-4">
+                    <label className="font-bold text-slate-700">Filtrar por Sede:</label>
+                    <Select value={selectedSchool} onValueChange={setSelectedSchool}>
+                      <SelectTrigger className="w-[300px]">
+                        <SelectValue placeholder="Seleccionar sede" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">📊 Todas las Sedes (Global)</SelectItem>
+                        {schools.map((school) => (
+                          <SelectItem key={school.id} value={school.id}>
+                            {school.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+            
+            <ParentAnalyticsDashboard selectedSchool={selectedSchool} />
           </TabsContent>
 
           {/* Pestaña de Gestión de Padres */}
