@@ -8,7 +8,7 @@ import { supabase } from '@/lib/supabase';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { RechargeModal } from './RechargeModal';
+import { PayDebtModal } from './PayDebtModal';
 
 interface PendingTransaction {
   id: string;
@@ -40,6 +40,7 @@ export const PaymentsTab = ({ userId }: PaymentsTabProps) => {
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [paymentAmount, setPaymentAmount] = useState(0);
   const [processingPayment, setProcessingPayment] = useState(false);
+  const [selectedStudentForPayment, setSelectedStudentForPayment] = useState<{ id: string, name: string } | null>(null);
 
   useEffect(() => {
     fetchDebts();
@@ -162,6 +163,13 @@ export const PaymentsTab = ({ userId }: PaymentsTabProps) => {
       });
       return;
     }
+    // Encontrar el primer estudiante con transacciones seleccionadas
+    const firstDebt = debts.find(d => 
+      d.pending_transactions.some(t => selectedTransactions.has(t.id))
+    );
+    if (firstDebt) {
+      setSelectedStudentForPayment({ id: firstDebt.student_id, name: firstDebt.student_name });
+    }
     setPaymentAmount(amount);
     setShowPaymentModal(true);
   };
@@ -174,6 +182,7 @@ export const PaymentsTab = ({ userId }: PaymentsTabProps) => {
       return newSet;
     });
     setPaymentAmount(studentDebt.total_debt);
+    setSelectedStudentForPayment({ id: studentDebt.student_id, name: studentDebt.student_name });
     setShowPaymentModal(true);
   };
 
@@ -349,17 +358,21 @@ export const PaymentsTab = ({ userId }: PaymentsTabProps) => {
         </Card>
       ))}
 
-      {/* Modal de Pago */}
-      {showPaymentModal && (
-        <RechargeModal
+      {/* Modal de Pago con Pasarela */}
+      {showPaymentModal && selectedStudentForPayment && (
+        <PayDebtModal
           isOpen={showPaymentModal}
-          onClose={() => setShowPaymentModal(false)}
-          studentName="Pago de Deudas"
-          studentId=""
-          currentBalance={0}
-          accountType="free"
-          onRecharge={async (amount, method) => {
-            await processPayment(method);
+          onClose={() => {
+            setShowPaymentModal(false);
+            setSelectedStudentForPayment(null);
+          }}
+          studentName={selectedStudentForPayment.name}
+          studentId={selectedStudentForPayment.id}
+          onPaymentComplete={async () => {
+            await fetchDebts();
+            setSelectedTransactions(new Set());
+            setShowPaymentModal(false);
+            setSelectedStudentForPayment(null);
           }}
         />
       )}
