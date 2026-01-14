@@ -21,6 +21,16 @@ import { APP_CONFIG } from '@/config/app.config';
 const authSchema = z.object({
   email: z.string().trim().email({ message: 'Email inválido' }).max(255, { message: 'Email muy largo' }),
   password: z.string().min(6, { message: 'La contraseña debe tener al menos 6 caracteres' }).max(72, { message: 'Contraseña muy larga' }),
+  confirmPassword: z.string().optional(),
+}).refine((data) => {
+  // Si confirmPassword tiene valor, debe coincidir con password
+  if (data.confirmPassword) {
+    return data.password === data.confirmPassword;
+  }
+  return true;
+}, {
+  message: 'Las contraseñas no coinciden',
+  path: ['confirmPassword'],
 });
 
 type AuthFormValues = z.infer<typeof authSchema>;
@@ -29,6 +39,7 @@ export default function Auth() {
   const location = useLocation();
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [justLoggedIn, setJustLoggedIn] = useState(false);
   const [showSplash, setShowSplash] = useState(true);
   const [isResetMode, setIsResetMode] = useState(false);
@@ -149,7 +160,10 @@ export default function Auth() {
   };
 
   const handleUpdatePassword = async () => {
-    if (form.getValues('password').length < 6) {
+    const password = form.getValues('password');
+    const confirmPassword = form.getValues('confirmPassword');
+    
+    if (password.length < 6) {
       toast({
         variant: 'destructive',
         title: 'Error',
@@ -157,17 +171,26 @@ export default function Auth() {
       });
       return;
     }
+    
+    if (password !== confirmPassword) {
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'Las contraseñas no coinciden.',
+      });
+      return;
+    }
 
     setIsLoading(true);
     try {
       const { error } = await supabase.auth.updateUser({
-        password: form.getValues('password'),
+        password: password,
       });
 
       if (error) throw error;
 
       toast({
-        title: 'Contraseña actualizada',
+        title: '✅ Contraseña actualizada',
         description: 'Ya puedes iniciar sesión con tu nueva contraseña.',
       });
       
@@ -382,6 +405,41 @@ export default function Auth() {
                     </FormItem>
                   )}
                 />
+                
+                {isResetMode && (
+                  <FormField
+                    control={form.control}
+                    name="confirmPassword"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-foreground">Confirmar Contraseña</FormLabel>
+                        <FormControl>
+                          <div className="relative">
+                            <Input
+                              type={showConfirmPassword ? "text" : "password"}
+                              placeholder="Confirma tu contraseña"
+                              autoComplete="new-password"
+                              className="bg-background/50 border-border focus:border-primary pr-10"
+                              {...field}
+                            />
+                            <button
+                              type="button"
+                              onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                            >
+                              {showConfirmPassword ? (
+                                <EyeOff className="h-4 w-4" />
+                              ) : (
+                                <Eye className="h-4 w-4" />
+                              )}
+                            </button>
+                          </div>
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                )}
                 
                 <Button 
                   type={isResetMode ? "button" : "submit"}
