@@ -228,40 +228,24 @@ const Index = () => {
     }
   };
 
-  const openRechargeModal = async (student: Student) => {
+  const openRechargeModal = (student: Student) => {
     setSelectedStudent(student);
     
-    // Si NO es cuenta libre, siempre abrir modal de pago de deudas
+    // Si tiene deudas pendientes, SIEMPRE abrir modal de pago de deudas
+    // (Ya sea cuenta libre o no)
+    if (student.has_pending_debts) {
+      setShowPayDebtModal(true);
+      return;
+    }
+    
+    // Si NO es cuenta libre y NO tiene deudas, abrir modal de pago de deudas
     if (!student.free_account) {
       setShowPayDebtModal(true);
       return;
     }
     
-    // Si es cuenta libre, verificar si hay deudas pendientes
-    try {
-      const { data, error } = await supabase
-        .from('transactions')
-        .select('id', { count: 'exact', head: true })
-        .eq('student_id', student.id)
-        .eq('payment_status', 'pending')
-        .eq('type', 'purchase');
-
-      if (error) throw error;
-
-      const hasPendingDebts = (data as any) > 0;
-      
-      // Si hay deudas, abrir modal de pago de deudas
-      // Si no hay deudas, abrir modal de recarga
-      if (hasPendingDebts) {
-        setShowPayDebtModal(true);
-      } else {
-        setShowRechargeModal(true);
-      }
-    } catch (error) {
-      console.error('Error checking debts:', error);
-      // Por defecto abrir modal de recarga si hay error
-      setShowRechargeModal(true);
-    }
+    // Si es cuenta libre SIN deudas, abrir modal de recarga
+    setShowRechargeModal(true);
   };
 
   const openMenuModal = (student: Student) => {
