@@ -10,6 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import {
   Select,
   SelectContent,
@@ -38,7 +39,8 @@ import {
   Building2,
   Loader2,
   FileText,
-  MessageSquare
+  MessageSquare,
+  AlertTriangle
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -88,6 +90,7 @@ export const BillingCollection = () => {
   const [selectedSchool, setSelectedSchool] = useState<string>('all');
   const [selectedPeriod, setSelectedPeriod] = useState<string>('all');
   const [searchTerm, setSearchTerm] = useState('');
+  const [untilDate, setUntilDate] = useState<string>(''); // Nueva fecha límite
   
   // Selección múltiple
   const [selectedDebtors, setSelectedDebtors] = useState<Set<string>>(new Set());
@@ -183,7 +186,7 @@ export const BillingCollection = () => {
   }, []);
 
   useEffect(() => {
-    console.log('🔄 [BillingCollection] selectedSchool cambió:', selectedSchool, 'userSchoolId:', userSchoolId, 'canViewAllSchools:', canViewAllSchools);
+    console.log('🔄 [BillingCollection] selectedSchool o untilDate cambió:', selectedSchool, 'userSchoolId:', userSchoolId, 'canViewAllSchools:', canViewAllSchools, 'untilDate:', untilDate);
     
     // Cargar períodos
     if (selectedSchool) {
@@ -206,7 +209,7 @@ export const BillingCollection = () => {
     } else {
       console.log('⏸️ [BillingCollection] Esperando userSchoolId...');
     }
-  }, [selectedSchool, userSchoolId, canViewAllSchools]);
+  }, [selectedSchool, userSchoolId, canViewAllSchools, untilDate]);
 
   const fetchSchools = async () => {
     try {
@@ -293,6 +296,12 @@ export const BillingCollection = () => {
         .eq('type', 'purchase')
         .eq('payment_status', 'pending')
         .not('student_id', 'is', null);
+
+      // Filtrar por fecha límite si está definida
+      if (untilDate) {
+        query = query.lte('created_at', `${untilDate}T23:59:59.999Z`);
+        console.log('📅 [BillingCollection] Filtrando hasta:', untilDate);
+      }
 
       if (schoolIdFilter) {
         query = query.eq('school_id', schoolIdFilter);
@@ -619,10 +628,21 @@ Gracias.`;
 
   return (
     <div className="space-y-6">
+      {/* Alerta de API SUNAT no conectado */}
+      <Alert className="bg-amber-50 border-amber-200">
+        <AlertTriangle className="h-5 w-5 text-amber-600" />
+        <AlertDescription className="text-amber-900">
+          <strong>⚠️ API de Facturación SUNAT aún no conectado</strong>
+          <br />
+          Por el momento, los documentos se generarán como comprobantes internos. 
+          Próximamente se habilitará la facturación electrónica oficial.
+        </AlertDescription>
+      </Alert>
+
       {/* Filtros */}
       <Card>
         <CardContent className="p-4">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             {/* Sede */}
             {canViewAllSchools && (
               <div className="space-y-2">
@@ -659,6 +679,26 @@ Gracias.`;
                   ))}
                 </SelectContent>
               </Select>
+            </div>
+
+            {/* NUEVO: Filtro de fecha límite */}
+            <div className="space-y-2">
+              <Label className="flex items-center gap-2">
+                <Calendar className="h-4 w-4" />
+                Cobrar hasta:
+              </Label>
+              <Input
+                type="date"
+                value={untilDate}
+                onChange={(e) => setUntilDate(e.target.value)}
+                className="w-full"
+                placeholder="Seleccionar fecha límite"
+              />
+              {untilDate && (
+                <p className="text-xs text-gray-500">
+                  Filtrando hasta el {format(new Date(untilDate), 'dd/MM/yyyy', { locale: es })}
+                </p>
+              )}
             </div>
 
             {/* Buscador */}
@@ -815,20 +855,29 @@ Gracias.`;
         </>
       )}
 
-      {/* Modal de Registro de Pago */}
+      {/* Modal de Registro de Pago - REDISEÑADO */}
       <Dialog open={showPaymentModal} onOpenChange={setShowPaymentModal}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Registrar Pago</DialogTitle>
-            <DialogDescription>
-              Estudiante: {currentDebtor?.student_name} | Total: S/ {currentDebtor?.total_amount.toFixed(2)}
+            <DialogTitle className="text-2xl font-bold flex items-center gap-3">
+              <DollarSign className="h-7 w-7 text-green-600" />
+              Registrar Pago
+            </DialogTitle>
+            <DialogDescription className="text-lg">
+              <div className="mt-3 p-4 bg-blue-50 rounded-lg space-y-1">
+                <p className="font-semibold text-gray-900">👨‍🎓 Estudiante: {currentDebtor?.student_name}</p>
+                <p className="font-semibold text-gray-900">👤 Padre: {currentDebtor?.parent_name}</p>
+                <p className="text-2xl font-bold text-red-600 mt-2">Total a Cobrar: S/ {currentDebtor?.total_amount.toFixed(2)}</p>
+                <p className="text-sm text-gray-600">{currentDebtor?.transaction_count} consumo(s) pendiente(s)</p>
+              </div>
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Monto a Pagar *</Label>
+          <div className="space-y-6 mt-4">
+            {/* Monto a Pagar - GRANDE Y VISIBLE */}
+            <Card className="bg-green-50 border-green-200">
+              <CardContent className="p-6">
+                <Label className="text-lg font-semibold mb-3 block">💰 Monto a Pagar *</Label>
                 <Input
                   type="number"
                   step="0.01"
@@ -836,84 +885,160 @@ Gracias.`;
                   max={currentDebtor?.total_amount}
                   value={paymentData.paid_amount}
                   onChange={(e) => setPaymentData(prev => ({ ...prev, paid_amount: parseFloat(e.target.value) || 0 }))}
+                  className="text-3xl font-bold h-16 text-center border-2 border-green-400"
+                  placeholder="0.00"
                 />
-                {currentDebtor && paymentData.paid_amount < currentDebtor.total_amount && (
-                  <p className="text-xs text-orange-600">
-                    Pago parcial - Restante: S/ {(currentDebtor.total_amount - paymentData.paid_amount).toFixed(2)}
-                  </p>
+                {currentDebtor && paymentData.paid_amount < currentDebtor.total_amount && paymentData.paid_amount > 0 && (
+                  <Alert className="mt-3 bg-orange-50 border-orange-200">
+                    <AlertTriangle className="h-4 w-4 text-orange-600" />
+                    <AlertDescription className="text-orange-900">
+                      <strong>Pago Parcial</strong> - Restante: S/ {(currentDebtor.total_amount - paymentData.paid_amount).toFixed(2)}
+                    </AlertDescription>
+                  </Alert>
                 )}
-              </div>
+              </CardContent>
+            </Card>
 
-              <div className="space-y-2">
-                <Label>Método de Pago *</Label>
-                <Select
-                  value={paymentData.payment_method}
-                  onValueChange={(value) => setPaymentData(prev => ({ ...prev, payment_method: value }))}
+            {/* Método de Pago - BOTONES GRANDES */}
+            <div className="space-y-3">
+              <Label className="text-lg font-semibold">💳 Método de Pago *</Label>
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                <Button
+                  type="button"
+                  variant={paymentData.payment_method === 'efectivo' ? 'default' : 'outline'}
+                  className={`h-20 text-lg ${paymentData.payment_method === 'efectivo' ? 'bg-green-600 hover:bg-green-700' : ''}`}
+                  onClick={() => setPaymentData(prev => ({ ...prev, payment_method: 'efectivo' }))}
                 >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="efectivo">💵 Efectivo</SelectItem>
-                    <SelectItem value="transferencia">🏦 Transferencia</SelectItem>
-                    <SelectItem value="yape">📱 Yape</SelectItem>
-                    <SelectItem value="plin">📲 Plin</SelectItem>
-                    <SelectItem value="tarjeta">💳 Tarjeta</SelectItem>
-                  </SelectContent>
-                </Select>
+                  <div className="flex flex-col items-center gap-1">
+                    <span className="text-2xl">💵</span>
+                    <span>Efectivo</span>
+                  </div>
+                </Button>
+                <Button
+                  type="button"
+                  variant={paymentData.payment_method === 'yape' ? 'default' : 'outline'}
+                  className={`h-20 text-lg ${paymentData.payment_method === 'yape' ? 'bg-purple-600 hover:bg-purple-700' : ''}`}
+                  onClick={() => setPaymentData(prev => ({ ...prev, payment_method: 'yape' }))}
+                >
+                  <div className="flex flex-col items-center gap-1">
+                    <span className="text-2xl">📱</span>
+                    <span>Yape</span>
+                  </div>
+                </Button>
+                <Button
+                  type="button"
+                  variant={paymentData.payment_method === 'plin' ? 'default' : 'outline'}
+                  className={`h-20 text-lg ${paymentData.payment_method === 'plin' ? 'bg-blue-600 hover:bg-blue-700' : ''}`}
+                  onClick={() => setPaymentData(prev => ({ ...prev, payment_method: 'plin' }))}
+                >
+                  <div className="flex flex-col items-center gap-1">
+                    <span className="text-2xl">📲</span>
+                    <span>Plin</span>
+                  </div>
+                </Button>
+                <Button
+                  type="button"
+                  variant={paymentData.payment_method === 'transferencia' ? 'default' : 'outline'}
+                  className={`h-20 text-lg ${paymentData.payment_method === 'transferencia' ? 'bg-indigo-600 hover:bg-indigo-700' : ''}`}
+                  onClick={() => setPaymentData(prev => ({ ...prev, payment_method: 'transferencia' }))}
+                >
+                  <div className="flex flex-col items-center gap-1">
+                    <span className="text-2xl">🏦</span>
+                    <span>Transferencia</span>
+                  </div>
+                </Button>
+                <Button
+                  type="button"
+                  variant={paymentData.payment_method === 'tarjeta' ? 'default' : 'outline'}
+                  className={`h-20 text-lg ${paymentData.payment_method === 'tarjeta' ? 'bg-gray-700 hover:bg-gray-800' : ''}`}
+                  onClick={() => setPaymentData(prev => ({ ...prev, payment_method: 'tarjeta' }))}
+                >
+                  <div className="flex flex-col items-center gap-1">
+                    <span className="text-2xl">💳</span>
+                    <span>Tarjeta</span>
+                  </div>
+                </Button>
               </div>
             </div>
 
-            <div className="space-y-2">
-              <Label>Número de Operación (Opcional)</Label>
-              <Input
-                placeholder="Ej: 123456789"
-                value={paymentData.operation_number}
-                onChange={(e) => setPaymentData(prev => ({ ...prev, operation_number: e.target.value }))}
-              />
+            {/* Número de Operación */}
+            {['yape', 'plin', 'transferencia'].includes(paymentData.payment_method) && (
+              <div className="space-y-2">
+                <Label className="text-base font-semibold">🔢 Número de Operación (Opcional)</Label>
+                <Input
+                  placeholder="Ej: 123456789"
+                  value={paymentData.operation_number}
+                  onChange={(e) => setPaymentData(prev => ({ ...prev, operation_number: e.target.value }))}
+                  className="h-12 text-lg"
+                />
+              </div>
+            )}
+
+            {/* Tipo de Documento - BOTONES */}
+            <div className="space-y-3">
+              <Label className="text-lg font-semibold">📄 Tipo de Documento</Label>
+              <div className="grid grid-cols-3 gap-3">
+                <Button
+                  type="button"
+                  variant={paymentData.document_type === 'ticket' ? 'default' : 'outline'}
+                  className={`h-16 text-base ${paymentData.document_type === 'ticket' ? 'bg-blue-600 hover:bg-blue-700' : ''}`}
+                  onClick={() => setPaymentData(prev => ({ ...prev, document_type: 'ticket' }))}
+                >
+                  🎫 Ticket
+                </Button>
+                <Button
+                  type="button"
+                  variant={paymentData.document_type === 'boleta' ? 'default' : 'outline'}
+                  className={`h-16 text-base ${paymentData.document_type === 'boleta' ? 'bg-green-600 hover:bg-green-700' : ''}`}
+                  onClick={() => setPaymentData(prev => ({ ...prev, document_type: 'boleta' }))}
+                >
+                  📄 Boleta
+                </Button>
+                <Button
+                  type="button"
+                  variant={paymentData.document_type === 'factura' ? 'default' : 'outline'}
+                  className={`h-16 text-base ${paymentData.document_type === 'factura' ? 'bg-purple-600 hover:bg-purple-700' : ''}`}
+                  onClick={() => setPaymentData(prev => ({ ...prev, document_type: 'factura' }))}
+                >
+                  📋 Factura
+                </Button>
+              </div>
             </div>
 
+            {/* Notas */}
             <div className="space-y-2">
-              <Label>Tipo de Documento</Label>
-              <Select
-                value={paymentData.document_type}
-                onValueChange={(value: any) => setPaymentData(prev => ({ ...prev, document_type: value }))}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="ticket">🎫 Ticket</SelectItem>
-                  <SelectItem value="boleta">📄 Boleta</SelectItem>
-                  <SelectItem value="factura">📋 Factura</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label>Notas (Opcional)</Label>
+              <Label className="text-base font-semibold">📝 Notas (Opcional)</Label>
               <Input
                 placeholder="Observaciones adicionales..."
                 value={paymentData.notes}
                 onChange={(e) => setPaymentData(prev => ({ ...prev, notes: e.target.value }))}
+                className="h-12"
               />
             </div>
           </div>
 
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowPaymentModal(false)}>
+          <DialogFooter className="mt-6 gap-3">
+            <Button 
+              variant="outline" 
+              onClick={() => setShowPaymentModal(false)}
+              className="h-12 text-base px-8"
+            >
               Cancelar
             </Button>
-            <Button onClick={handleRegisterPayment} disabled={saving} className="bg-green-600 hover:bg-green-700">
+            <Button 
+              onClick={handleRegisterPayment} 
+              disabled={saving || paymentData.paid_amount <= 0} 
+              className="bg-green-600 hover:bg-green-700 h-12 text-base px-8"
+            >
               {saving ? (
                 <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Registrando...
+                  <Loader2 className="h-5 w-5 mr-2 animate-spin" />
+                  Procesando...
                 </>
               ) : (
                 <>
-                  <CheckCircle2 className="h-4 w-4 mr-2" />
-                  Registrar Pago
+                  <CheckCircle2 className="h-5 w-5 mr-2" />
+                  Registrar Pago (S/ {paymentData.paid_amount.toFixed(2)})
                 </>
               )}
             </Button>

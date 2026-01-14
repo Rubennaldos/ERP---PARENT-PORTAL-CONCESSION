@@ -20,7 +20,6 @@ import {
 
 // Importar los componentes de cada tab
 import { BillingDashboard } from '@/components/billing/BillingDashboard';
-import { BillingPeriods } from '@/components/billing/BillingPeriods';
 import { BillingCollection } from '@/components/billing/BillingCollection';
 import { BillingReports } from '@/components/billing/BillingReports';
 import { BillingConfig } from '@/components/billing/BillingConfig';
@@ -28,7 +27,6 @@ import { PaymentStatistics } from '@/components/admin/PaymentStatistics';
 
 interface TabPermissions {
   dashboard: boolean;
-  periods: boolean;
   collect: boolean;
   reports: boolean;
   statistics: boolean;
@@ -42,7 +40,6 @@ const Cobranzas = () => {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [permissions, setPermissions] = useState<TabPermissions>({
     dashboard: false,
-    periods: false,
     collect: false,
     reports: false,
     statistics: false,
@@ -65,7 +62,6 @@ const Cobranzas = () => {
       if (role === 'admin_general') {
         setPermissions({
           dashboard: true,
-          periods: true,
           collect: true,
           reports: true,
           statistics: true,
@@ -99,7 +95,6 @@ const Cobranzas = () => {
       // Inicializar todos los permisos en false
       const perms: TabPermissions = {
         dashboard: false,
-        periods: false,
         collect: false,
         reports: false,
         statistics: false,
@@ -113,9 +108,6 @@ const Cobranzas = () => {
           switch (permission.action) {
             case 'ver_dashboard':
               perms.dashboard = true;
-              break;
-            case 'editar_periodos':
-              perms.periods = true;
               break;
             case 'cobrar_su_sede':
             case 'cobrar_todas_sedes':
@@ -140,7 +132,6 @@ const Cobranzas = () => {
 
       // Establecer la primera pestaña disponible
       if (perms.dashboard) setActiveTab('dashboard');
-      else if (perms.periods) setActiveTab('periods');
       else if (perms.collect) setActiveTab('collect');
       else if (perms.reports) setActiveTab('reports');
       else if (perms.statistics) setActiveTab('statistics');
@@ -220,12 +211,6 @@ const Cobranzas = () => {
                     <span className="hidden sm:inline">Dashboard</span>
                   </TabsTrigger>
                 )}
-                {permissions.periods && (
-                  <TabsTrigger value="periods" className="flex items-center gap-2 py-3">
-                    <Calendar className="h-4 w-4" />
-                    <span className="hidden sm:inline">Períodos</span>
-                  </TabsTrigger>
-                )}
                 {permissions.collect && (
                   <TabsTrigger value="collect" className="flex items-center gap-2 py-3">
                     <Users className="h-4 w-4" />
@@ -256,13 +241,6 @@ const Cobranzas = () => {
               {permissions.dashboard && (
                 <TabsContent value="dashboard" className="mt-6">
                   <BillingDashboard />
-                </TabsContent>
-              )}
-
-              {/* Períodos Tab */}
-              {permissions.periods && (
-                <TabsContent value="periods" className="mt-6">
-                  <BillingPeriods />
                 </TabsContent>
               )}
 
