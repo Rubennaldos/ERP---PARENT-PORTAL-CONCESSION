@@ -49,6 +49,7 @@ interface Student {
   is_active: boolean;
   school_id?: string;
   free_account?: boolean;
+  has_pending_debts?: boolean; // Nueva propiedad para tracking de deudas
 }
 
 interface Transaction {
@@ -109,7 +110,25 @@ const Index = () => {
         .order('full_name', { ascending: true });
 
       if (error) throw error;
-      setStudents(data || []);
+      
+      // Para cada estudiante, verificar si tiene deudas pendientes
+      const studentsWithDebts = await Promise.all(
+        (data || []).map(async (student) => {
+          const { count } = await supabase
+            .from('transactions')
+            .select('id', { count: 'exact', head: true })
+            .eq('student_id', student.id)
+            .eq('payment_status', 'pending')
+            .eq('type', 'purchase');
+          
+          return {
+            ...student,
+            has_pending_debts: (count || 0) > 0
+          };
+        })
+      );
+      
+      setStudents(studentsWithDebts);
     } catch (error: any) {
       console.error('Error fetching students:', error);
       toast({
@@ -209,14 +228,39 @@ const Index = () => {
     }
   };
 
-  const openRechargeModal = (student: Student) => {
+  const openRechargeModal = async (student: Student) => {
     setSelectedStudent(student);
-    // Si es cuenta libre, abrir modal de recarga
-    // Si NO es cuenta libre, abrir modal de pago de deudas
-    if (student.free_account) {
-      setShowRechargeModal(true);
-    } else {
+    
+    // Si NO es cuenta libre, siempre abrir modal de pago de deudas
+    if (!student.free_account) {
       setShowPayDebtModal(true);
+      return;
+    }
+    
+    // Si es cuenta libre, verificar si hay deudas pendientes
+    try {
+      const { data, error } = await supabase
+        .from('transactions')
+        .select('id', { count: 'exact', head: true })
+        .eq('student_id', student.id)
+        .eq('payment_status', 'pending')
+        .eq('type', 'purchase');
+
+      if (error) throw error;
+
+      const hasPendingDebts = (data as any) > 0;
+      
+      // Si hay deudas, abrir modal de pago de deudas
+      // Si no hay deudas, abrir modal de recarga
+      if (hasPendingDebts) {
+        setShowPayDebtModal(true);
+      } else {
+        setShowRechargeModal(true);
+      }
+    } catch (error) {
+      console.error('Error checking debts:', error);
+      // Por defecto abrir modal de recarga si hay error
+      setShowRechargeModal(true);
     }
   };
 
@@ -358,6 +402,7 @@ const Index = () => {
                       onViewMenu={() => openMenuModal(student)}
                       onOpenSettings={() => openSettingsModal(student)}
                       onPhotoClick={() => openPhotoModal(student)}
+                      hasPendingDebts={student.has_pending_debts}
                     />
                   ))}
                 </div>

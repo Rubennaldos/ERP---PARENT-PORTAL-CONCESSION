@@ -32,6 +32,7 @@ interface StudentCardProps {
   onViewMenu: () => void;
   onOpenSettings: () => void;
   onPhotoClick: () => void;
+  hasPendingDebts?: boolean; // Nueva prop para saber si hay deudas
 }
 
 export function StudentCard({
@@ -40,9 +41,14 @@ export function StudentCard({
   onViewHistory,
   onViewMenu,
   onOpenSettings,
-  onPhotoClick
+  onPhotoClick,
+  hasPendingDebts = false
 }: StudentCardProps) {
   const isFreeAccount = student.free_account !== false; // Por defecto true
+  
+  // Determinar qué botón mostrar
+  const showPaymentButton = !isFreeAccount || hasPendingDebts;
+  const buttonText = hasPendingDebts ? 'Pagar Deudas' : 'Recargar Saldo';
 
   return (
     <Card className="overflow-hidden hover:shadow-lg transition-all">
@@ -145,15 +151,19 @@ export function StudentCard({
 
         {/* Botones principales */}
         <div className="space-y-2">
-          {/* Botón PAGAR DEUDAS o RECARGAR - Solo si NO es cuenta libre */}
-          {!isFreeAccount && (
+          {/* Botón PAGAR DEUDAS o RECARGAR - Mostrar si no es cuenta libre O si hay deudas */}
+          {showPaymentButton && (
             <Button
               onClick={onRecharge}
-              className="w-full h-14 text-lg font-semibold bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
+              className={`w-full h-14 text-lg font-semibold ${
+                hasPendingDebts 
+                  ? 'bg-gradient-to-r from-red-600 to-orange-600 hover:from-red-700 hover:to-orange-700'
+                  : 'bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700'
+              }`}
               size="lg"
             >
               <CreditCard className="h-5 w-5 mr-2" />
-              Pagar Deudas
+              {buttonText}
             </Button>
           )}
 
