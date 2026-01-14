@@ -37,12 +37,18 @@ type AuthFormValues = z.infer<typeof authSchema>;
 
 export default function Auth() {
   const location = useLocation();
+  
+  // Detectar modo recovery INMEDIATAMENTE antes de cualquier render
+  const hash = window.location.hash;
+  const params = new URLSearchParams(window.location.search);
+  const isRecoveryDetected = hash.includes('type=recovery') || params.get('type') === 'recovery';
+  
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [justLoggedIn, setJustLoggedIn] = useState(false);
   const [showSplash, setShowSplash] = useState(true);
-  const [isResetMode, setIsResetMode] = useState(false);
+  const [isResetMode, setIsResetMode] = useState(isRecoveryDetected);
   const { signIn, user, loading } = useAuth();
   const { role, loading: roleLoading, getDefaultRoute } = useRole();
   const navigate = useNavigate();
