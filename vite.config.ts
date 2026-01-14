@@ -5,8 +5,8 @@ import { componentTagger } from "lovable-tagger";
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => ({
-  // Configuración base - sin GitHub Pages
-  base: "/",
+  // Configuración base para GitHub Pages
+  base: "/parent-portal-connect/",
   
   build: {
     outDir: "dist",
