@@ -460,35 +460,14 @@ export const BillingCollection = () => {
     setSaving(true);
     
     try {
-      // 1. Crear el registro de pago
-      const { data: payment, error: paymentError } = await supabase
-        .from('billing_payments')
-        .insert({
-          parent_id: currentDebtor.parent_id,
-          student_id: currentDebtor.student_id,
-          school_id: currentDebtor.school_id,
-          billing_period_id: selectedPeriod !== 'all' ? selectedPeriod : null,
-          total_amount: currentDebtor.total_amount,
-          paid_amount: paymentData.paid_amount,
-          payment_method: paymentData.payment_method,
-          operation_number: paymentData.operation_number || null,
-          paid_at: new Date().toISOString(),
-          document_type: paymentData.document_type,
-          notes: paymentData.notes || null,
-          transaction_ids: currentDebtor.transactions.map(t => t.id),
-          created_by: user!.id,
-        })
-        .select()
-        .single();
-
-      if (paymentError) throw paymentError;
-
-      // 2. Marcar transacciones como facturadas
+      // Marcar transacciones como pagadas (payment_status = 'paid')
       const { error: updateError } = await supabase
         .from('transactions')
         .update({
-          is_billed: true,
-          billing_payment_id: payment.id,
+          payment_status: 'paid',
+          payment_method: paymentData.payment_method,
+          payment_notes: paymentData.notes || null,
+          paid_at: new Date().toISOString(),
         })
         .in('id', currentDebtor.transactions.map(t => t.id));
 
@@ -496,17 +475,25 @@ export const BillingCollection = () => {
 
       toast({
         title: '✅ Pago registrado',
-        description: `Se registró el pago de S/ ${paymentData.paid_amount.toFixed(2)}`,
+        description: `Se registró el pago de S/ ${paymentData.paid_amount.toFixed(2)} con ${paymentData.payment_method}`,
       });
 
       setShowPaymentModal(false);
+      setCurrentDebtor(null);
+      setPaymentData({
+        paid_amount: 0,
+        payment_method: 'efectivo',
+        operation_number: '',
+        document_type: 'ticket',
+        notes: '',
+      });
       fetchDebtors();
     } catch (error: any) {
       console.error('Error registering payment:', error);
       toast({
         variant: 'destructive',
         title: 'Error',
-        description: 'No se pudo registrar el pago',
+        description: 'No se pudo registrar el pago: ' + (error.message || 'Error desconocido'),
       });
     } finally {
       setSaving(false);
