@@ -299,8 +299,12 @@ export const BillingCollection = () => {
 
       // Filtrar por fecha límite si está definida
       if (untilDate) {
-        query = query.lte('created_at', `${untilDate}T23:59:59.999Z`);
-        console.log('📅 [BillingCollection] Filtrando hasta:', untilDate);
+        // Convertir a fecha local sin restar días
+        const localDate = new Date(untilDate);
+        localDate.setHours(23, 59, 59, 999);
+        const isoDate = localDate.toISOString();
+        query = query.lte('created_at', isoDate);
+        console.log('📅 [BillingCollection] Filtrando hasta:', untilDate, '→', isoDate);
       }
 
       if (schoolIdFilter) {
@@ -687,16 +691,29 @@ Gracias.`;
                 <Calendar className="h-4 w-4" />
                 Cobrar hasta:
               </Label>
-              <Input
-                type="date"
-                value={untilDate}
-                onChange={(e) => setUntilDate(e.target.value)}
-                className="w-full"
-                placeholder="Seleccionar fecha límite"
-              />
+              <div className="flex gap-2">
+                <Input
+                  type="date"
+                  value={untilDate}
+                  onChange={(e) => setUntilDate(e.target.value)}
+                  className="flex-1"
+                  placeholder="Seleccionar fecha límite"
+                />
+                <Button
+                  variant="default"
+                  className="bg-blue-600 hover:bg-blue-700 whitespace-nowrap"
+                  onClick={() => {
+                    const today = new Date();
+                    const localDate = today.toISOString().split('T')[0];
+                    setUntilDate(localDate);
+                  }}
+                >
+                  📅 Hasta Hoy
+                </Button>
+              </div>
               {untilDate && (
                 <p className="text-xs text-gray-500">
-                  Filtrando hasta el {format(new Date(untilDate), 'dd/MM/yyyy', { locale: es })}
+                  Filtrando hasta el {format(new Date(untilDate + 'T00:00:00'), 'dd/MM/yyyy', { locale: es })}
                 </p>
               )}
             </div>
@@ -785,71 +802,125 @@ Gracias.`;
             </Card>
           ) : (
             <div className="grid grid-cols-1 gap-4">
-              {filteredDebtors.map((debtor) => (
-                <Card key={debtor.student_id} className="hover:shadow-lg transition-shadow">
-                  <CardContent className="p-4">
-                    <div className="flex items-center gap-4">
-                      <Checkbox
-                        checked={selectedDebtors.has(debtor.student_id)}
-                        onCheckedChange={() => toggleSelection(debtor.student_id)}
-                      />
+              {filteredDebtors.map((debtor) => {
+                // Calcular fechas mín y máx de las transacciones
+                const dates = debtor.transactions.map(t => new Date(t.created_at));
+                const minDate = dates.length > 0 ? new Date(Math.min(...dates.map(d => d.getTime()))) : null;
+                const maxDate = dates.length > 0 ? new Date(Math.max(...dates.map(d => d.getTime()))) : null;
 
-                      <div className="flex-1">
-                        <div className="flex items-center justify-between mb-2">
-                          <div>
-                            <h3 className="font-semibold text-lg">{debtor.student_name}</h3>
-                            <p className="text-sm text-gray-600">Padre: {debtor.parent_name}</p>
-                            {canViewAllSchools && (
-                              <div className="flex items-center gap-2 text-xs text-gray-500 mt-1">
-                                <Building2 className="h-3 w-3" />
-                                {debtor.school_name}
+                return (
+                  <Card key={debtor.student_id} className="hover:shadow-lg transition-shadow border-l-4 border-l-red-500">
+                    <CardContent className="p-5">
+                      <div className="flex items-start gap-4">
+                        <Checkbox
+                          checked={selectedDebtors.has(debtor.student_id)}
+                          onCheckedChange={() => toggleSelection(debtor.student_id)}
+                          className="mt-1"
+                        />
+
+                        <div className="flex-1">
+                          {/* Header con nombre y monto */}
+                          <div className="flex items-start justify-between mb-3">
+                            <div className="flex-1">
+                              <h3 className="font-bold text-xl text-gray-900">{debtor.student_name}</h3>
+                              <p className="text-sm text-gray-600 mt-1">
+                                👤 Padre: <span className="font-semibold">{debtor.parent_name}</span>
+                              </p>
+                              {debtor.parent_phone && (
+                                <p className="text-sm text-gray-600">
+                                  📱 {debtor.parent_phone}
+                                </p>
+                              )}
+                              {canViewAllSchools && (
+                                <div className="flex items-center gap-2 text-sm text-gray-500 mt-1">
+                                  <Building2 className="h-4 w-4" />
+                                  {debtor.school_name}
+                                </div>
+                              )}
+                            </div>
+                            <div className="text-right">
+                              <p className="text-3xl font-bold text-red-600">
+                                S/ {debtor.total_amount.toFixed(2)}
+                              </p>
+                              <Badge variant="destructive" className="mt-1">
+                                {debtor.transaction_count} consumo(s)
+                              </Badge>
+                            </div>
+                          </div>
+
+                          {/* Información de fechas y comprobantes */}
+                          <div className="bg-gray-50 rounded-lg p-3 mb-3 space-y-2">
+                            <div className="grid grid-cols-2 gap-3 text-sm">
+                              <div>
+                                <p className="text-gray-500">📅 Primer consumo:</p>
+                                <p className="font-semibold text-gray-900">
+                                  {minDate ? format(minDate, "dd/MM/yyyy 'a las' HH:mm", { locale: es }) : 'N/A'}
+                                </p>
                               </div>
-                            )}
+                              <div>
+                                <p className="text-gray-500">📅 Último consumo:</p>
+                                <p className="font-semibold text-gray-900">
+                                  {maxDate ? format(maxDate, "dd/MM/yyyy 'a las' HH:mm", { locale: es }) : 'N/A'}
+                                </p>
+                              </div>
+                            </div>
+                            
+                            {/* Desglose de transacciones */}
+                            <details className="cursor-pointer">
+                              <summary className="text-sm font-semibold text-blue-600 hover:text-blue-700">
+                                Ver detalles de {debtor.transaction_count} transacción(es) ▼
+                              </summary>
+                              <div className="mt-2 space-y-1 max-h-40 overflow-y-auto">
+                                {debtor.transactions.map((t: any, idx: number) => (
+                                  <div key={t.id} className="text-xs bg-white p-2 rounded border">
+                                    <span className="font-semibold">#{idx + 1}</span>
+                                    {' - '}
+                                    {format(new Date(t.created_at), 'dd/MM/yyyy HH:mm', { locale: es })}
+                                    {' - '}
+                                    <span className="text-red-600 font-bold">S/ {Math.abs(t.amount).toFixed(2)}</span>
+                                    {t.ticket_number && ` - Ticket: ${t.ticket_number}`}
+                                  </div>
+                                ))}
+                              </div>
+                            </details>
                           </div>
-                          <div className="text-right">
-                            <p className="text-2xl font-bold text-red-600">
-                              S/ {debtor.total_amount.toFixed(2)}
-                            </p>
-                            <p className="text-xs text-gray-500">
-                              {debtor.transaction_count} consumo(s)
-                            </p>
+
+                          {/* Botones de acción */}
+                          <div className="flex flex-wrap gap-2">
+                            <Button
+                              size="sm"
+                              variant="default"
+                              className="bg-green-600 hover:bg-green-700"
+                              onClick={() => handleOpenPayment(debtor)}
+                            >
+                              <DollarSign className="h-4 w-4 mr-1" />
+                              Cobrar
+                            </Button>
+
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => copyMessage(debtor)}
+                            >
+                              <Copy className="h-4 w-4 mr-1" />
+                              Copiar Mensaje
+                            </Button>
+
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => generatePDF(debtor)}
+                            >
+                              <FileText className="h-4 w-4 mr-1" />
+                              PDF
+                            </Button>
                           </div>
-                        </div>
-
-                        <div className="flex flex-wrap gap-2 mt-3">
-                          <Button
-                            size="sm"
-                            variant="default"
-                            className="bg-green-600 hover:bg-green-700"
-                            onClick={() => handleOpenPayment(debtor)}
-                          >
-                            <DollarSign className="h-4 w-4 mr-1" />
-                            Cobrar
-                          </Button>
-
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => copyMessage(debtor)}
-                          >
-                            <Copy className="h-4 w-4 mr-1" />
-                            Copiar Mensaje
-                          </Button>
-
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => generatePDF(debtor)}
-                          >
-                            <FileText className="h-4 w-4 mr-1" />
-                            PDF
-                          </Button>
                         </div>
                       </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
+                    </CardContent>
+                  </Card>
+                );
+              })}
             </div>
           )}
         </>
