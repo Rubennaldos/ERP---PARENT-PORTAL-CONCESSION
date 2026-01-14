@@ -460,18 +460,19 @@ export const BillingCollection = () => {
     setSaving(true);
     
     try {
-      // Marcar transacciones como pagadas (payment_status = 'paid')
+      // Simplemente marcar transacciones como pagadas
       const { error: updateError } = await supabase
         .from('transactions')
         .update({
           payment_status: 'paid',
           payment_method: paymentData.payment_method,
-          payment_notes: paymentData.notes || null,
-          paid_at: new Date().toISOString(),
         })
         .in('id', currentDebtor.transactions.map(t => t.id));
 
-      if (updateError) throw updateError;
+      if (updateError) {
+        console.error('Error actualizando transacciones:', updateError);
+        throw updateError;
+      }
 
       toast({
         title: '✅ Pago registrado',
@@ -492,8 +493,8 @@ export const BillingCollection = () => {
       console.error('Error registering payment:', error);
       toast({
         variant: 'destructive',
-        title: 'Error',
-        description: 'No se pudo registrar el pago: ' + (error.message || 'Error desconocido'),
+        title: 'Error al registrar pago',
+        description: error.message || 'Error desconocido',
       });
     } finally {
       setSaving(false);
