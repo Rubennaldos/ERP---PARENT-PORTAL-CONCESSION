@@ -5,8 +5,8 @@ import { componentTagger } from "lovable-tagger";
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => ({
-  // Configuración base para GitHub Pages
-  base: "/parent-portal-connect/",
+  // Configuración para Vercel (Ruta raíz)
+  base: "/",
   
   build: {
     outDir: "dist",
