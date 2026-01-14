@@ -136,36 +136,8 @@ export default function Auth() {
     }
   };
 
-  const handleUpdatePassword = async (values: AuthFormValues) => {
-    setIsLoading(true);
-    try {
-      const { error } = await supabase.auth.updateUser({
-        password: values.password
-      });
-
-      if (error) throw error;
-
-      toast({
-        title: 'Contraseña actualizada',
-        description: 'Tu contraseña ha sido cambiada. Ahora puedes iniciar sesión.',
-      });
-      
-      // Limpiar URL y volver al modo login
-      setIsResetMode(false);
-      navigate('/auth', { replace: true });
-    } catch (err: any) {
-      toast({
-        variant: 'destructive',
-        title: 'Error',
-        description: err.message || 'No se pudo actualizar la contraseña.',
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
   const handleUpdatePassword = async () => {
-    if (newPassword.length < 6) {
+    if (form.getValues('password').length < 6) {
       toast({
         variant: 'destructive',
         title: 'Error',
@@ -177,7 +149,7 @@ export default function Auth() {
     setIsLoading(true);
     try {
       const { error } = await supabase.auth.updateUser({
-        password: newPassword,
+        password: form.getValues('password'),
       });
 
       if (error) throw error;
@@ -202,10 +174,6 @@ export default function Auth() {
   };
 
   const onSubmit = async (values: AuthFormValues) => {
-    if (isResetMode) {
-      await handleUpdatePassword(values);
-      return;
-    }
     setIsLoading(true);
     try {
       const { error } = await signIn(values.email, values.password);
