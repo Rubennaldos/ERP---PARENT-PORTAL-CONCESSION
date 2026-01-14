@@ -231,20 +231,27 @@ const Index = () => {
   const openRechargeModal = (student: Student) => {
     setSelectedStudent(student);
     
+    console.log('🔍 Abriendo modal para:', student.full_name);
+    console.log('🔍 Tiene deudas pendientes?', student.has_pending_debts);
+    console.log('🔍 Es cuenta libre?', student.free_account);
+    
     // Si tiene deudas pendientes, SIEMPRE abrir modal de pago de deudas
     // (Ya sea cuenta libre o no)
     if (student.has_pending_debts) {
+      console.log('✅ Abriendo PayDebtModal - Tiene deudas');
       setShowPayDebtModal(true);
       return;
     }
     
     // Si NO es cuenta libre y NO tiene deudas, abrir modal de pago de deudas
     if (!student.free_account) {
+      console.log('✅ Abriendo PayDebtModal - No es cuenta libre');
       setShowPayDebtModal(true);
       return;
     }
     
     // Si es cuenta libre SIN deudas, abrir modal de recarga
+    console.log('✅ Abriendo RechargeModal - Cuenta libre sin deudas');
     setShowRechargeModal(true);
   };
 
