@@ -18,6 +18,7 @@ import POS from "./pages/POS";
 import Comedor from "./pages/Comedor";
 import SalesList from "./pages/SalesList";
 import Cobranzas from "./pages/Cobranzas";
+import ParentConfiguration from "./pages/ParentConfiguration";
 import Products from "./pages/Products";
 import PaymentStats from "./pages/PaymentStats";
 import LunchCalendar from "./pages/LunchCalendar";
@@ -143,6 +144,16 @@ const App = () => (
                 <PermissionProtectedRoute moduleCode="config_padres">
                   <ParentsManagement />
                 </PermissionProtectedRoute>
+              }
+            />
+
+            {/* Analytics de Padres (Lima Analytics Design System) */}
+            <Route
+              path="/parent-analytics"
+              element={
+                <ProtectedRoute allowedRoles={['admin_general', 'superadmin']}>
+                  <ParentConfiguration />
+                </ProtectedRoute>
               }
             />
             

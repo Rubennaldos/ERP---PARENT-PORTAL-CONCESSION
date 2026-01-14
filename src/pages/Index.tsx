@@ -71,6 +71,7 @@ const Index = () => {
   
   const [students, setStudents] = useState<Student[]>([]);
   const [loading, setLoading] = useState(true);
+  const [parentName, setParentName] = useState<string>('');
   const [showAddStudent, setShowAddStudent] = useState(false);
   const [activeTab, setActiveTab] = useState('alumnos');
   
@@ -99,7 +100,25 @@ const Index = () => {
 
   useEffect(() => {
     fetchStudents();
+    fetchParentProfile();
   }, [user]);
+
+  const fetchParentProfile = async () => {
+    if (!user) return;
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('full_name')
+        .eq('id', user.id)
+        .single();
+      
+      if (data && data.full_name) {
+        setParentName(data.full_name);
+      }
+    } catch (e) {
+      console.error("Error fetching parent profile:", e);
+    }
+  };
 
   const fetchStudents = async () => {
     if (!user) return;
@@ -404,33 +423,39 @@ const Index = () => {
   }
 
   return (
-    <div className="min-h-screen bg-[#FDF6E3] pb-20">
-      {/* Header Fijo con Logo Lima Café 28 */}
-      <header className="bg-gradient-to-r from-[#8B4513] to-[#D2691E] text-white shadow-lg sticky top-0 z-40">
-        <div className="max-w-7xl mx-auto px-4 py-3">
+    <div className="min-h-screen bg-[#FDFCFB] pb-24">
+      {/* Header Minimalista y Elegante */}
+      <header className="bg-white border-b border-slate-100 sticky top-0 z-40 shadow-sm">
+        <div className="max-w-7xl mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center shadow-md">
-                <GraduationCap className="h-7 w-7 text-[#8B4513]" />
+            <div className="flex items-center gap-4">
+              <div className="w-10 h-10 bg-[#8B4513] rounded-xl flex items-center justify-center shadow-sm">
+                <GraduationCap className="h-6 w-6 text-white" />
               </div>
               <div>
-                <h1 className="text-lg font-bold">Lima Café 28</h1>
-                <p className="text-xs text-white/80">Portal de Padres</p>
+                <h1 className="text-xl font-black text-[#8B4513]">Lima Café 28</h1>
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em]">Portal de Padres</p>
               </div>
             </div>
             
-            <VersionBadge />
+            <div className="flex items-center gap-4">
+              <div className="hidden md:block text-right">
+                <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Bienvenido</p>
+                <p className="text-sm font-black text-slate-800">{parentName || 'Padre de Familia'}</p>
+              </div>
+              <VersionBadge />
+            </div>
           </div>
         </div>
       </header>
 
       {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 py-6">
+      <main className="max-w-7xl mx-auto px-6 py-8">
         {activeTab === 'alumnos' && (
-          <div className="space-y-6">
-            <div className="mb-4">
-              <h2 className="text-2xl font-bold text-[#8B4513] mb-1">Mis Hijos</h2>
-              <p className="text-gray-600 text-sm">Gestiona las cuentas del kiosco escolar</p>
+          <div className="space-y-8">
+            <div className="mb-2">
+              <h2 className="text-3xl font-black text-slate-800 tracking-tight">Mis Hijos</h2>
+              <p className="text-slate-400 font-medium mt-1">Gestión centralizada de cuentas escolares</p>
             </div>
 
             {students.length === 0 ? (

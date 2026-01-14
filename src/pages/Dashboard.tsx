@@ -163,6 +163,18 @@ const Dashboard = () => {
           status: 'functional' as const,
         },
         {
+          id: '11',
+          code: 'parent_analytics',
+          name: 'Analytics de Padres',
+          description: 'Dashboard de métricas y comportamiento (Lima Analytics Design System)',
+          icon: 'BarChart3',
+          color: 'indigo',
+          route: '/parent-analytics',
+          is_active: true,
+          is_enabled: false,
+          status: 'functional' as const,
+        },
+        {
           id: '6',
           code: 'finanzas',
           name: 'Finanzas',
