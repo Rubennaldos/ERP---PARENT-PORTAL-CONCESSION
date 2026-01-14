@@ -17,7 +17,8 @@ import {
   AlertCircle,
   Menu as MenuIcon,
   Home,
-  Wallet
+  Wallet,
+  UtensilsCrossed
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useToast } from '@/hooks/use-toast';
@@ -36,6 +37,7 @@ import { StudentLinksManager } from '@/components/parent/StudentLinksManager';
 import { MoreMenu } from '@/components/parent/MoreMenu';
 import { PhotoConsentModal } from '@/components/parent/PhotoConsentModal';
 import { PurchaseHistoryModal } from '@/components/parent/PurchaseHistoryModal';
+import { LunchCalendarView } from '@/components/parent/LunchCalendarView';
 import { useOnboardingCheck } from '@/hooks/useOnboardingCheck';
 
 interface Student {
@@ -484,6 +486,16 @@ const Index = () => {
 
         {activeTab === 'pagos' && <PaymentsTab userId={user?.id || ''} />}
 
+        {activeTab === 'almuerzos' && (
+          <div className="space-y-4">
+            <div className="mb-4">
+              <h2 className="text-2xl font-bold text-[#8B4513] mb-1">Calendario de Almuerzos</h2>
+              <p className="text-gray-600 text-sm">Consulta los menús programados para tus hijos</p>
+            </div>
+            <LunchCalendarView studentSchoolIds={Array.from(new Set(students.map(s => s.school_id).filter(Boolean) as string[]))} />
+          </div>
+        )}
+
       </main>
 
       {/* MODALES */}
@@ -678,7 +690,7 @@ const Index = () => {
       {/* Navegación Inferior Fija - Colores Lima Café 28 */}
       <nav className="fixed bottom-0 left-0 right-0 bg-white border-t-2 border-[#8B4513]/20 shadow-lg z-50">
         <div className="max-w-7xl mx-auto px-2">
-          <div className="grid grid-cols-3 gap-1">
+          <div className="grid grid-cols-4 gap-1">
             <button
               onClick={() => setActiveTab('alumnos')}
               className={`flex flex-col items-center justify-center py-3 transition-all ${
@@ -689,6 +701,18 @@ const Index = () => {
             >
               <Home className="h-6 w-6 mb-1" />
               <span className="text-xs font-semibold">Mis Hijos</span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('almuerzos')}
+              className={`flex flex-col items-center justify-center py-3 transition-all ${
+                activeTab === 'almuerzos'
+                  ? 'text-[#8B4513] bg-[#FFF8E7]'
+                  : 'text-gray-500 hover:text-[#8B4513] hover:bg-gray-50'
+              }`}
+            >
+              <UtensilsCrossed className="h-6 w-6 mb-1" />
+              <span className="text-xs font-semibold">Almuerzos</span>
             </button>
 
             <button
