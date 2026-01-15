@@ -123,7 +123,7 @@ export function SalesDashboard({ selectedSchool = 'all', canViewAllSchools }: Sa
         .select(`
           *,
           student:students(full_name, school_id, school:schools(name)),
-          items:transaction_items(quantity, price, product:products(name))
+          items:transaction_items(quantity, unit_price, product:products(name))
         `)
         .eq('type', 'sale')
         .gte('created_at', start.toISOString())
@@ -154,7 +154,7 @@ export function SalesDashboard({ selectedSchool = 'all', canViewAllSchools }: Sa
             productSales[productName] = { quantity: 0, amount: 0 };
           }
           productSales[productName].quantity += item.quantity || 0;
-          productSales[productName].amount += (item.quantity || 0) * (item.price || 0);
+          productSales[productName].amount += (item.quantity || 0) * (item.unit_price || 0);
           totalProductsSold += item.quantity || 0;
         });
       });
