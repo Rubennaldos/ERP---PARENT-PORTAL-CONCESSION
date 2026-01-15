@@ -173,7 +173,7 @@ export function LunchAnalyticsDashboard({ selectedSchool = 'all', canViewAllScho
 
         const dayOfWeek = date.getDay();
         if (!dayCount[dayOfWeek]) {
-          dayCount[dayOfWeek] = { menus: 0, schools: Set<string>() };
+          dayCount[dayOfWeek] = { menus: 0, schools: new Set<string>() };
         }
         dayCount[dayOfWeek].menus += 1;
         dayCount[dayOfWeek].schools.add(menu.school_id);
@@ -201,7 +201,7 @@ export function LunchAnalyticsDashboard({ selectedSchool = 'all', canViewAllScho
         if (!schoolName) return; // Ignorar si no hay nombre de escuela
 
         if (!schoolMenuCount[schoolName]) {
-          schoolMenuCount[schoolName] = { name: schoolName, menus: 0, dishes: Set<string>() };
+          schoolMenuCount[schoolName] = { name: schoolName, menus: 0, dishes: new Set<string>() };
         }
         schoolMenuCount[schoolName].menus += 1;
         if (menu.starter) schoolMenuCount[schoolName].dishes.add(menu.starter.toLowerCase().trim());
