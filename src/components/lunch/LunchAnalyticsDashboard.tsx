@@ -152,6 +152,7 @@ export function LunchAnalyticsDashboard({ selectedSchool = 'all', canViewAllScho
       });
 
       const dishPopularityData = Object.entries(dishCount)
+        .filter(([name]) => name && name.trim() !== '') // Filtrar nombres vacíos
         .map(([name, data]) => ({
           dish_name: name.charAt(0).toUpperCase() + name.slice(1),
           category: data.category,
@@ -167,9 +168,12 @@ export function LunchAnalyticsDashboard({ selectedSchool = 'all', canViewAllScho
       const dayCount: { [key: number]: { menus: number; schools: Set<string> } } = {};
       
       menus?.forEach(menu => {
-        const dayOfWeek = new Date(menu.date).getDay();
+        const date = new Date(menu.date);
+        if (isNaN(date.getTime())) return; // Ignorar fechas inválidas
+
+        const dayOfWeek = date.getDay();
         if (!dayCount[dayOfWeek]) {
-          dayCount[dayOfWeek] = { menus: 0, schools: new Set() };
+          dayCount[dayOfWeek] = { menus: 0, schools: Set<string>() };
         }
         dayCount[dayOfWeek].menus += 1;
         dayCount[dayOfWeek].schools.add(menu.school_id);
@@ -181,6 +185,7 @@ export function LunchAnalyticsDashboard({ selectedSchool = 'all', canViewAllScho
           total_menus: data.menus,
           schools_served: data.schools.size
         }))
+        .filter(d => d.day_of_week) // Asegurar que el día existe
         .sort((a, b) => {
           const dayOrder = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
           return dayOrder.indexOf(a.day_of_week) - dayOrder.indexOf(b.day_of_week);
@@ -192,15 +197,17 @@ export function LunchAnalyticsDashboard({ selectedSchool = 'all', canViewAllScho
       const schoolMenuCount: { [key: string]: { name: string; menus: number; dishes: Set<string> } } = {};
       
       menus?.forEach(menu => {
-        const schoolName = menu.school?.name || 'Sin nombre';
+        const schoolName = menu.school?.name;
+        if (!schoolName) return; // Ignorar si no hay nombre de escuela
+
         if (!schoolMenuCount[schoolName]) {
-          schoolMenuCount[schoolName] = { name: schoolName, menus: 0, dishes: new Set() };
+          schoolMenuCount[schoolName] = { name: schoolName, menus: 0, dishes: Set<string>() };
         }
         schoolMenuCount[schoolName].menus += 1;
-        if (menu.starter) schoolMenuCount[schoolName].dishes.add(menu.starter.toLowerCase());
-        if (menu.main_course) schoolMenuCount[schoolName].dishes.add(menu.main_course.toLowerCase());
-        if (menu.beverage) schoolMenuCount[schoolName].dishes.add(menu.beverage.toLowerCase());
-        if (menu.dessert) schoolMenuCount[schoolName].dishes.add(menu.dessert.toLowerCase());
+        if (menu.starter) schoolMenuCount[schoolName].dishes.add(menu.starter.toLowerCase().trim());
+        if (menu.main_course) schoolMenuCount[schoolName].dishes.add(menu.main_course.toLowerCase().trim());
+        if (menu.beverage) schoolMenuCount[schoolName].dishes.add(menu.beverage.toLowerCase().trim());
+        if (menu.dessert) schoolMenuCount[schoolName].dishes.add(menu.dessert.toLowerCase().trim());
       });
 
       const schoolStatsData = Object.values(schoolMenuCount)
@@ -209,6 +216,7 @@ export function LunchAnalyticsDashboard({ selectedSchool = 'all', canViewAllScho
           total_menus: s.menus,
           unique_dishes: s.dishes.size
         }))
+        .filter(s => s.school_name)
         .sort((a, b) => b.total_menus - a.total_menus);
 
       setSchoolStats(schoolStatsData);
