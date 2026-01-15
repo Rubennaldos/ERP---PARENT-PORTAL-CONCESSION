@@ -22,6 +22,8 @@ import ParentConfiguration from "./pages/ParentConfiguration";
 import Products from "./pages/Products";
 import PaymentStats from "./pages/PaymentStats";
 import LunchCalendar from "./pages/LunchCalendar";
+import Logistics from "./pages/Logistics";
+import SchoolAdmin from "./pages/SchoolAdmin";
 import ParentsManagement from "./components/admin/ParentsManagement";
 import AccessControl from "./pages/AccessControl";
 import NotFound from "./pages/NotFound";
@@ -183,6 +185,26 @@ const App = () => (
               element={
                 <PermissionProtectedRoute moduleCode="almuerzos">
                   <LunchCalendar />
+                </PermissionProtectedRoute>
+              }
+            />
+            
+            {/* Logística y Almacén - Basado en permisos dinámicos */}
+            <Route
+              path="/logistics"
+              element={
+                <PermissionProtectedRoute moduleCode="logistica">
+                  <Logistics />
+                </PermissionProtectedRoute>
+              }
+            />
+            
+            {/* Administración de Sede - Basado en permisos dinámicos */}
+            <Route
+              path="/school-admin"
+              element={
+                <PermissionProtectedRoute moduleCode="admin_sede">
+                  <SchoolAdmin />
                 </PermissionProtectedRoute>
               }
             />
