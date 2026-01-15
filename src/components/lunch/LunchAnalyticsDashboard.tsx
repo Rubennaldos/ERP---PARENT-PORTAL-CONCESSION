@@ -152,13 +152,14 @@ export function LunchAnalyticsDashboard({ selectedSchool = 'all', canViewAllScho
       });
 
       const dishPopularityData = Object.entries(dishCount)
-        .filter(([name]) => name && name.trim() !== '') // Filtrar nombres vacíos
+        .filter(([name]) => name && name.trim() !== '' && name.trim().length > 0) // Filtrar nombres vacíos
         .map(([name, data]) => ({
           dish_name: name.charAt(0).toUpperCase() + name.slice(1),
           category: data.category,
           frequency: data.frequency,
           schools_count: data.schools.size
         }))
+        .filter(item => item.dish_name && item.dish_name !== '' && item.frequency > 0) // Filtro adicional
         .sort((a, b) => b.frequency - a.frequency)
         .slice(0, 15);
 
@@ -479,8 +480,8 @@ export function LunchAnalyticsDashboard({ selectedSchool = 'all', canViewAllScho
                       fill="#8884d8"
                       dataKey="frequency"
                     >
-                      {dishPopularity.slice(0, 8).map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                      {dishPopularity.slice(0, 8).filter(d => d.dish_name).map((entry, index) => (
+                        <Cell key={`cell-pie-${entry.dish_name}-${entry.category}-${index}`} fill={COLORS[index % COLORS.length]} />
                       ))}
                     </Pie>
                     <Tooltip />
