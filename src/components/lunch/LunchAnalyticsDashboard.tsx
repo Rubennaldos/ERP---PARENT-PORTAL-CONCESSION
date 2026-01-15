@@ -443,6 +443,15 @@ export function LunchAnalyticsDashboard({ selectedSchool = 'all', canViewAllScho
 
         {/* Pestaña: Platos Populares */}
         <TabsContent value="dishes" className="space-y-4">
+          {dishPopularity.length === 0 ? (
+            <Card>
+              <CardContent className="py-12 text-center">
+                <AlertTriangle className="h-12 w-12 text-yellow-500 mx-auto mb-4" />
+                <p className="text-lg font-bold text-slate-700">No hay datos de platos disponibles</p>
+                <p className="text-sm text-slate-500">Agrega menús al calendario para ver estadísticas</p>
+              </CardContent>
+            </Card>
+          ) : (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             <Card>
               <CardHeader>
@@ -471,16 +480,16 @@ export function LunchAnalyticsDashboard({ selectedSchool = 'all', canViewAllScho
                 <ResponsiveContainer width="100%" height={400}>
                   <PieChart>
                     <Pie
-                      data={dishPopularity.slice(0, 8)}
+                      data={dishPopularity.slice(0, 8).filter(d => d.dish_name && d.frequency > 0)}
                       cx="50%"
                       cy="50%"
                       labelLine={false}
-                      label={({ dish_name, percent }) => `${dish_name}: ${(percent * 100).toFixed(0)}%`}
+                      label={({ dish_name, percent }) => dish_name ? `${dish_name}: ${(percent * 100).toFixed(0)}%` : ''}
                       outerRadius={80}
                       fill="#8884d8"
                       dataKey="frequency"
                     >
-                      {dishPopularity.slice(0, 8).filter(d => d.dish_name).map((entry, index) => (
+                      {dishPopularity.slice(0, 8).filter(d => d.dish_name && d.frequency > 0).map((entry, index) => (
                         <Cell key={`cell-pie-${entry.dish_name}-${entry.category}-${index}`} fill={COLORS[index % COLORS.length]} />
                       ))}
                     </Pie>
@@ -490,8 +499,10 @@ export function LunchAnalyticsDashboard({ selectedSchool = 'all', canViewAllScho
               </CardContent>
             </Card>
           </div>
+          )}
 
           {/* Tabla detallada */}
+          {dishPopularity.length > 0 && (
           <Card>
             <CardHeader>
               <CardTitle>Detalle de Platos</CardTitle>
@@ -508,7 +519,7 @@ export function LunchAnalyticsDashboard({ selectedSchool = 'all', canViewAllScho
                     </tr>
                   </thead>
                   <tbody>
-                    {dishPopularity.map((dish, idx) => (
+                    {dishPopularity.filter(d => d.dish_name && d.frequency > 0).map((dish, idx) => (
                       <tr key={`dish-${dish.dish_name}-${dish.category}-${idx}`} className="border-b hover:bg-slate-50">
                         <td className="p-3 font-bold">{dish.dish_name}</td>
                         <td className="p-3 text-center">
@@ -523,6 +534,7 @@ export function LunchAnalyticsDashboard({ selectedSchool = 'all', canViewAllScho
               </div>
             </CardContent>
           </Card>
+          )}
         </TabsContent>
 
         {/* Pestaña: Por Día */}
@@ -556,8 +568,15 @@ export function LunchAnalyticsDashboard({ selectedSchool = 'all', canViewAllScho
               <CardDescription>Variedad y frecuencia de menús</CardDescription>
             </CardHeader>
             <CardContent>
+              {schoolStats.length === 0 ? (
+                <div className="py-12 text-center">
+                  <AlertTriangle className="h-12 w-12 text-yellow-500 mx-auto mb-4" />
+                  <p className="text-lg font-bold text-slate-700">No hay datos de sedes disponibles</p>
+                  <p className="text-sm text-slate-500">Agrega menús al calendario para ver estadísticas</p>
+                </div>
+              ) : (
               <div className="space-y-3">
-                {schoolStats.map((school, idx) => (
+                {schoolStats.filter(s => s.school_name && s.total_menus > 0).map((school, idx) => (
                   <Card key={`school-${school.school_name}-${idx}`} className="border-l-4 border-l-blue-500">
                     <CardContent className="pt-4">
                       <div className="flex items-center justify-between">
@@ -574,6 +593,7 @@ export function LunchAnalyticsDashboard({ selectedSchool = 'all', canViewAllScho
                   </Card>
                 ))}
               </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
