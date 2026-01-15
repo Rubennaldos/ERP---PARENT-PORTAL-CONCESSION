@@ -20,6 +20,7 @@ import {
 import { supabase } from '@/lib/supabase';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
+import { ProcessRequestModal } from '@/components/logistics/ProcessRequestModal';
 
 interface InventoryItem {
   id: string;
@@ -59,6 +60,14 @@ const Logistics = () => {
   const [supplyRequests, setSupplyRequests] = useState<SupplyRequest[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
+  
+  // Modal de procesamiento
+  const [showProcessModal, setShowProcessModal] = useState(false);
+  const [selectedRequest, setSelectedRequest] = useState<{
+    id: string;
+    number: string;
+    school: string;
+  } | null>(null);
 
   useEffect(() => {
     loadData();
@@ -144,6 +153,24 @@ const Logistics = () => {
 
   const getLowStockItems = () => {
     return inventoryItems.filter(item => item.central_stock <= item.min_stock);
+  };
+
+  const handleOpenProcessModal = (request: SupplyRequest) => {
+    setSelectedRequest({
+      id: request.id,
+      number: request.request_number,
+      school: request.requesting_school.name
+    });
+    setShowProcessModal(true);
+  };
+
+  const handleCloseProcessModal = () => {
+    setShowProcessModal(false);
+    setSelectedRequest(null);
+  };
+
+  const handleProcessSuccess = () => {
+    loadData(); // Recargar datos después de procesar
   };
 
   const filteredItems = inventoryItems.filter(item => {
@@ -390,7 +417,11 @@ const Logistics = () => {
                             </div>
                             <div className="text-right space-y-2">
                               {getStatusBadge(request.status)}
-                              <Button size="sm" className="bg-[#8B4513] hover:bg-[#6F370F] w-full">
+                              <Button 
+                                size="sm" 
+                                className="bg-[#8B4513] hover:bg-[#6F370F] w-full"
+                                onClick={() => handleOpenProcessModal(request)}
+                              >
                                 Procesar Pedido
                               </Button>
                             </div>
@@ -445,6 +476,18 @@ const Logistics = () => {
             </Card>
           </TabsContent>
         </Tabs>
+
+        {/* Modal de Procesamiento */}
+        {selectedRequest && (
+          <ProcessRequestModal
+            requestId={selectedRequest.id}
+            requestNumber={selectedRequest.number}
+            schoolName={selectedRequest.school}
+            open={showProcessModal}
+            onClose={handleCloseProcessModal}
+            onSuccess={handleProcessSuccess}
+          />
+        )}
       </div>
     </div>
   );
