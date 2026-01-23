@@ -146,8 +146,8 @@ export default function Auth() {
 
     setIsLoading(true);
     try {
-      // Usar URL con hash para GitHub Pages
-      const redirectTo = `${window.location.origin}${window.location.pathname}#/auth?type=recovery`;
+      // URL limpia sin hash (BrowserRouter)
+      const redirectTo = `${window.location.origin}/auth?type=recovery`;
       
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
         redirectTo: redirectTo,
@@ -215,9 +215,9 @@ export default function Auth() {
         description: 'Ya puedes iniciar sesión con tu nueva contraseña.',
       });
       
-      // Limpiar URL y volver al login
+      // Limpiar URL y volver al login (sin hash)
       setIsResetMode(false);
-      window.location.href = window.location.origin + '/parent-portal-connect/#/auth';
+      window.location.href = window.location.origin + '/auth';
     } catch (err: any) {
       toast({
         variant: 'destructive',

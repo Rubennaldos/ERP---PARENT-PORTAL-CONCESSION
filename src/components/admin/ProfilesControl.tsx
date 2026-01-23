@@ -220,14 +220,14 @@ export function ProfilesControl() {
                     <div className="mt-3 flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 max-w-xl group">
                       <LinkIcon className="h-4 w-4 text-blue-600 flex-shrink-0" />
                       <code className="text-[10px] md:text-xs font-mono text-slate-600 truncate flex-1">
-                        https://parent-portal-connect.vercel.app/#/register?school={schoolData.school.code}
+                        https://parent-portal-connect.vercel.app/register?school={schoolData.school.code}
                       </code>
                       <Button
                         size="sm"
                         variant="ghost"
                         className="h-7 px-2 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
                         onClick={() => {
-                          const url = `https://parent-portal-connect.vercel.app/#/register?school=${schoolData.school.code}`;
+                          const url = `https://parent-portal-connect.vercel.app/register?school=${schoolData.school.code}`;
                           navigator.clipboard.writeText(url);
                           toast({
                             title: "✅ Link copiado",
