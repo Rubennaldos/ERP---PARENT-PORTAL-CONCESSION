@@ -18,6 +18,7 @@ interface UseRoleReturn {
   error: Error | null;
   isParent: boolean;
   isStaff: boolean;
+  canViewAllSchools: boolean;
   hasRole: (allowedRoles: UserRole[]) => boolean;
   getDefaultRoute: () => string;
 }
@@ -80,6 +81,12 @@ export function useRole(): UseRoleReturn {
     [role]
   );
 
+  // ✅ Roles que pueden ver TODAS las sedes
+  const canViewAllSchools = useMemo(
+    () => ['superadmin', 'admin_general', 'supervisor_red'].includes(role || ''),
+    [role]
+  );
+
   const hasRole = useCallback(
     (allowedRoles: UserRole[]): boolean => {
       if (!role) return false;
@@ -115,6 +122,7 @@ export function useRole(): UseRoleReturn {
     error,
     isParent,
     isStaff,
+    canViewAllSchools,
     hasRole,
     getDefaultRoute,
   };

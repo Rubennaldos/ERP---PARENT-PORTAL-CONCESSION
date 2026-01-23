@@ -45,7 +45,25 @@ import {
   Smartphone,
   Building2,
   Banknote,
-  Loader2
+  Loader2,
+  Apple,
+  Sandwich,
+  Cake,
+  IceCream,
+  Pizza,
+  Salad,
+  Beef,
+  Fish,
+  Egg,
+  Milk,
+  Wine,
+  Beer,
+  Grape,
+  Cherry,
+  Package,
+  PackageOpen,
+  Box,
+  FileText
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useToast } from '@/hooks/use-toast';
@@ -76,6 +94,51 @@ interface CartItem {
   product: Product;
   quantity: number;
 }
+
+// Función para asignar iconos a categorías dinámicamente
+const getCategoryIcon = (categoryName: string) => {
+  const name = categoryName.toLowerCase();
+  
+  // Bebidas
+  if (name.includes('bebida') || name.includes('refresco') || name.includes('jugo')) {
+    if (name.includes('caliente') || name.includes('café') || name.includes('té')) return Coffee;
+    if (name.includes('alcoh') || name.includes('cerveza')) return Beer;
+    if (name.includes('vino')) return Wine;
+    return Coffee; // Bebidas genéricas
+  }
+  
+  // Snacks y dulces
+  if (name.includes('snack') || name.includes('golosina') || name.includes('galleta')) return Cookie;
+  if (name.includes('dulce') || name.includes('caramelo') || name.includes('chocolate')) return Gift;
+  if (name.includes('helado') || name.includes('postre frio')) return IceCream;
+  
+  // Comidas
+  if (name.includes('almuerzo') || name.includes('menú') || name.includes('comida')) return UtensilsCrossed;
+  if (name.includes('sandwich') || name.includes('bocadillo')) return Sandwich;
+  if (name.includes('pizza')) return Pizza;
+  if (name.includes('ensalada') || name.includes('saludable')) return Salad;
+  if (name.includes('carne') || name.includes('pollo')) return Beef;
+  if (name.includes('pescado') || name.includes('mariscos')) return Fish;
+  if (name.includes('huevo') || name.includes('tortilla')) return Egg;
+  
+  // Postres
+  if (name.includes('postre') || name.includes('torta') || name.includes('pastel') || name.includes('queque')) return Cake;
+  
+  // Lácteos
+  if (name.includes('leche') || name.includes('yogurt') || name.includes('lácteo')) return Milk;
+  
+  // Frutas
+  if (name.includes('fruta')) return Apple;
+  if (name.includes('uva')) return Grape;
+  if (name.includes('cereza') || name.includes('fresa')) return Cherry;
+  
+  // Productos empacados
+  if (name.includes('empaque') || name.includes('paquete')) return Package;
+  if (name.includes('caja')) return Box;
+  
+  // Default
+  return PackageOpen;
+};
 
 const POS = () => {
   const { signOut, user } = useAuth();
@@ -111,7 +174,7 @@ const POS = () => {
   const [insufficientBalance, setInsufficientBalance] = useState(false);
 
   // Estados de pago mejorados (Cliente Genérico)
-  const [paymentMethod, setPaymentMethod] = useState<string | null>(null); // 'efectivo', 'yape_qr', 'yape_numero', 'plin_qr', 'plin_numero', 'tarjeta', 'transferencia'
+  const [paymentMethod, setPaymentMethod] = useState<string | null>(null); // 'efectivo', 'yape_qr', 'yape_numero', 'plin_qr', 'plin_numero', 'tarjeta', 'transferencia', 'mixto'
   const [yapeNumber, setYapeNumber] = useState('');
   const [plinNumber, setPlinNumber] = useState('');
   const [transactionCode, setTransactionCode] = useState('');
@@ -119,46 +182,74 @@ const POS = () => {
   const [showPaymentDialog, setShowPaymentDialog] = useState(false);
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
 
+  // NUEVO: Campo "Con cuánto paga" para calcular vuelto
+  const [cashGiven, setCashGiven] = useState('');
+
+  // NUEVO: Pago Mixto
+  interface PaymentSplit {
+    method: string;
+    amount: number;
+  }
+  const [paymentSplits, setPaymentSplits] = useState<PaymentSplit[]>([]);
+  const [currentSplitMethod, setCurrentSplitMethod] = useState('');
+  const [currentSplitAmount, setCurrentSplitAmount] = useState('');
+
+  // NUEVO: Modal para seleccionar tipo de comprobante
+  const [showDocumentTypeDialog, setShowDocumentTypeDialog] = useState(false);
+  const [selectedDocumentType, setSelectedDocumentType] = useState('');
+
   // Estado de ticket generado
   const [showTicketPrint, setShowTicketPrint] = useState(false);
   const [ticketData, setTicketData] = useState<any>(null);
 
-  // --- REORDENAR CATEGORÍAS ---
-  const [orderedCategories, setOrderedCategories] = useState([
+  // --- CATEGORÍAS DINÁMICAS ---
+  const [orderedCategories, setOrderedCategories] = useState<Array<{ id: string; label: string; icon: any }>>([
     { id: 'todos', label: 'Todos', icon: ShoppingCart },
-    { id: 'bebidas', label: 'Bebidas', icon: Coffee },
-    { id: 'snacks', label: 'Snacks', icon: Cookie },
-    { id: 'menu', label: 'Menú', icon: UtensilsCrossed },
   ]);
   const [draggedItemIndex, setDraggedItemIndex] = useState<number | null>(null);
 
-  // Cargar orden guardado
+  // Generar categorías dinámicamente desde productos
   useEffect(() => {
+    if (products.length === 0) return;
+
+    // Extraer categorías únicas
+    const uniqueCategories = Array.from(
+      new Set(products.map(p => p.category).filter(Boolean))
+    ).sort();
+
+    // Crear categorías con iconos inteligentes
+    const dynamicCategories = [
+      { id: 'todos', label: 'Todos', icon: ShoppingCart },
+      ...uniqueCategories.map(cat => ({
+        id: cat,
+        label: cat,
+        icon: getCategoryIcon(cat)
+      }))
+    ];
+
+    console.log('📂 Categorías generadas:', dynamicCategories);
+    setOrderedCategories(dynamicCategories);
+
+    // Intentar restaurar orden guardado
     const savedOrder = localStorage.getItem('pos_category_order');
     if (savedOrder) {
       try {
         const orderIds = JSON.parse(savedOrder);
-        const baseCategories = [
-          { id: 'todos', label: 'Todos', icon: ShoppingCart },
-          { id: 'bebidas', label: 'Bebidas', icon: Coffee },
-          { id: 'snacks', label: 'Snacks', icon: Cookie },
-          { id: 'menu', label: 'Menú', icon: UtensilsCrossed },
-        ];
-        
-        const newOrder = orderIds.map((id: string) => 
-          baseCategories.find(c => c.id === id)
-        ).filter(Boolean);
+        const reordered = orderIds
+          .map((id: string) => dynamicCategories.find(c => c.id === id))
+          .filter(Boolean);
 
-        baseCategories.forEach(c => {
-          if (!orderIds.includes(c.id)) newOrder.push(c);
+        // Agregar nuevas categorías que no estaban guardadas
+        dynamicCategories.forEach(c => {
+          if (!orderIds.includes(c.id)) reordered.push(c);
         });
 
-        setOrderedCategories(newOrder);
+        setOrderedCategories(reordered);
       } catch (e) {
         console.error('Error cargando orden de categorías:', e);
       }
     }
-  }, []);
+  }, [products]);
 
   const onDragStart = (e: React.DragEvent, index: number) => {
     setDraggedItemIndex(index);
@@ -549,26 +640,18 @@ const POS = () => {
         userId: user?.id
       });
 
-      // Generar correlativo
+      // ✅ Generar correlativo ÚNICO para TODOS los usuarios
       try {
-        // Si es Admin General o Gestor de Unidad, usar una serie especial para pruebas
-        if (role === 'admin_general' || role === 'gestor_unidad') {
-          const timestamp = Date.now().toString().slice(-6); // Últimos 6 dígitos del timestamp
-          const prefix = role === 'admin_general' ? 'ADMIN-TEST' : 'GESTOR-TEST';
-          ticketCode = `${prefix}-${timestamp}`;
-          console.log('🧪 Correlativo de PRUEBA generado para', role, ':', ticketCode);
-        } else {
-          // Flujo normal para Operadores de Caja
-          const { data: ticketNumber, error: ticketError } = await supabase
-            .rpc('get_next_ticket_number', { p_user_id: user?.id });
+        const { data: ticketNumber, error: ticketError } = await supabase
+          .rpc('get_next_ticket_number', { p_user_id: user?.id });
 
-          if (ticketError) {
-            console.error('❌ Error generando correlativo:', ticketError);
-            ticketCode = `TMP-${Date.now()}`;
-          } else {
-            console.log('✅ Correlativo generado:', ticketNumber);
-            ticketCode = ticketNumber;
-          }
+        if (ticketError) {
+          console.error('❌ Error generando correlativo:', ticketError);
+          // Fallback temporal
+          ticketCode = `TMP-${Date.now()}`;
+        } else {
+          console.log('✅ Correlativo generado:', ticketNumber);
+          ticketCode = ticketNumber;
         }
       } catch (err) {
         console.error('❌ Error en correlativo:', err);
@@ -1172,25 +1255,26 @@ const POS = () => {
                         <p className="font-bold text-sm flex-1">{item.product.name}</p>
                         <button
                           onClick={() => removeFromCart(item.product.id)}
-                          className="text-red-600 hover:bg-red-50 p-1 rounded"
+                          className="text-red-600 hover:bg-red-50 p-2 rounded-full"
+                          title="Eliminar del carrito"
                         >
-                          <Trash2 className="h-4 w-4" />
+                          <Trash2 className="h-6 w-6" />
                         </button>
                       </div>
                       <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-1">
+                        <div className="flex items-center gap-2 bg-gray-100 rounded-xl p-1.5">
                           <button
                             onClick={() => updateQuantity(item.product.id, -1)}
-                            className="w-8 h-8 flex items-center justify-center bg-white rounded-md hover:bg-red-50 hover:text-red-600"
+                            className="w-12 h-12 flex items-center justify-center bg-white rounded-lg shadow-sm hover:bg-red-50 hover:text-red-600 transition-colors"
                           >
-                            <Minus className="h-4 w-4" />
+                            <Minus className="h-6 w-6" />
                           </button>
-                          <span className="w-10 text-center font-black text-lg">{item.quantity}</span>
+                          <span className="w-14 text-center font-black text-2xl">{item.quantity}</span>
                           <button
                             onClick={() => updateQuantity(item.product.id, 1)}
-                            className="w-8 h-8 flex items-center justify-center bg-white rounded-md hover:bg-emerald-50 hover:text-emerald-600"
+                            className="w-12 h-12 flex items-center justify-center bg-white rounded-lg shadow-sm hover:bg-emerald-50 hover:text-emerald-600 transition-colors"
                           >
-                            <Plus className="h-4 w-4" />
+                            <Plus className="h-6 w-6" />
                           </button>
                         </div>
                         <p className="text-lg font-bold text-emerald-600">
@@ -1422,10 +1506,197 @@ const POS = () => {
                     </span>
                   </div>
                 </button>
+
+                {/* PAGO MIXTO */}
+                <button
+                  onClick={() => setPaymentMethod('mixto')}
+                  className={`p-6 border-3 rounded-2xl transition-all hover:scale-105 hover:shadow-lg ${
+                    paymentMethod === 'mixto'
+                      ? 'border-orange-500 bg-orange-50 shadow-orange-200'
+                      : 'border-gray-200 hover:border-gray-300'
+                  }`}
+                >
+                  <div className="flex flex-col items-center gap-3">
+                    <div className="relative">
+                      <CreditCard className={`h-12 w-12 ${paymentMethod === 'mixto' ? 'text-orange-600' : 'text-gray-400'}`} />
+                      <Banknote className={`h-6 w-6 absolute -bottom-1 -right-1 ${paymentMethod === 'mixto' ? 'text-orange-500' : 'text-gray-300'}`} />
+                    </div>
+                    <span className={`text-lg font-bold ${paymentMethod === 'mixto' ? 'text-orange-700' : 'text-gray-700'}`}>
+                      Pago Mixto
+                    </span>
+                    <span className="text-xs text-gray-500">Efectivo + Tarjeta</span>
+                  </div>
+                </button>
               </div>
             </div>
 
             {/* Campos adicionales según método seleccionado */}
+            
+            {/* EFECTIVO: Con cuánto paga */}
+            {paymentMethod === 'efectivo' && (
+              <div className="bg-emerald-50 border-2 border-emerald-300 rounded-xl p-5 space-y-4">
+                <div className="bg-white rounded-lg p-4 border-2 border-emerald-200">
+                  <p className="text-sm font-bold text-emerald-900 uppercase mb-1">Total a Cobrar</p>
+                  <p className="text-4xl font-black text-emerald-600">S/ {getTotal().toFixed(2)}</p>
+                </div>
+                
+                <div>
+                  <Label className="text-base font-bold text-emerald-900 mb-2 block">¿Con cuánto paga el cliente?</Label>
+                  <Input
+                    type="number"
+                    step="0.50"
+                    value={cashGiven}
+                    onChange={(e) => setCashGiven(e.target.value)}
+                    placeholder="Ej: 50.00"
+                    className="h-16 text-2xl font-bold text-center border-emerald-300"
+                    autoFocus
+                  />
+                  <p className="text-xs text-emerald-700 mt-2 text-center">
+                    💡 Ingresa el monto en efectivo que entrega el cliente
+                  </p>
+                </div>
+                
+                {parseFloat(cashGiven) > 0 && (
+                  <>
+                    {parseFloat(cashGiven) >= getTotal() ? (
+                      <div className="bg-gradient-to-r from-emerald-500 to-emerald-600 text-white rounded-2xl p-6 shadow-xl">
+                        <p className="text-sm font-bold uppercase mb-2 opacity-90">💵 Vuelto a Entregar</p>
+                        <p className="text-5xl font-black">
+                          S/ {(parseFloat(cashGiven) - getTotal()).toFixed(2)}
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="bg-red-50 border-2 border-red-300 rounded-xl p-4">
+                        <p className="text-sm font-bold text-red-900">⚠️ Monto Insuficiente</p>
+                        <p className="text-sm text-red-700 mt-1">
+                          Falta: S/ {(getTotal() - parseFloat(cashGiven)).toFixed(2)}
+                        </p>
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+            )}
+            
+            {/* PAGO MIXTO: Dividir entre métodos */}
+            {paymentMethod === 'mixto' && (
+              <div className="bg-orange-50 border-2 border-orange-300 rounded-xl p-5 space-y-4">
+                <div className="bg-white rounded-lg p-4 border-2 border-orange-200">
+                  <div className="flex justify-between items-center">
+                    <div>
+                      <p className="text-sm font-bold text-orange-900 uppercase">Total a Cobrar</p>
+                      <p className="text-3xl font-black text-orange-600">S/ {getTotal().toFixed(2)}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-sm font-bold text-gray-600">Pagado</p>
+                      <p className="text-2xl font-bold text-emerald-600">
+                        S/ {paymentSplits.reduce((sum, p) => sum + p.amount, 0).toFixed(2)}
+                      </p>
+                      <p className="text-xs font-bold text-red-600 mt-1">
+                        Falta: S/ {(getTotal() - paymentSplits.reduce((sum, p) => sum + p.amount, 0)).toFixed(2)}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Lista de pagos agregados */}
+                {paymentSplits.length > 0 && (
+                  <div className="space-y-2">
+                    <p className="text-sm font-bold text-orange-900">Métodos Agregados:</p>
+                    {paymentSplits.map((split, index) => (
+                      <div key={index} className="bg-white border-2 border-orange-200 rounded-lg p-3 flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          {split.method === 'efectivo' && <Banknote className="h-5 w-5 text-emerald-600" />}
+                          {split.method === 'tarjeta' && <CreditCard className="h-5 w-5 text-blue-600" />}
+                          {split.method === 'yape' && <Smartphone className="h-5 w-5 text-purple-600" />}
+                          {split.method === 'plin' && <Smartphone className="h-5 w-5 text-pink-600" />}
+                          <span className="font-bold text-sm capitalize">{split.method}</span>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <span className="font-black text-lg">S/ {split.amount.toFixed(2)}</span>
+                          <button
+                            onClick={() => setPaymentSplits(paymentSplits.filter((_, i) => i !== index))}
+                            className="text-red-600 hover:bg-red-50 p-1 rounded"
+                          >
+                            <X className="h-5 w-5" />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Formulario para agregar método */}
+                {paymentSplits.reduce((sum, p) => sum + p.amount, 0) < getTotal() && (
+                  <div className="bg-white border-2 border-orange-300 rounded-lg p-4 space-y-3">
+                    <p className="text-sm font-bold text-orange-900">Agregar Método de Pago</p>
+                    
+                    <div className="grid grid-cols-4 gap-2">
+                      {['efectivo', 'tarjeta', 'yape', 'plin'].map((method) => (
+                        <button
+                          key={method}
+                          onClick={() => setCurrentSplitMethod(method)}
+                          className={`p-3 border-2 rounded-lg text-xs font-bold capitalize transition-all ${
+                            currentSplitMethod === method
+                              ? 'border-orange-500 bg-orange-100 text-orange-900'
+                              : 'border-gray-200 text-gray-600 hover:border-orange-300'
+                          }`}
+                        >
+                          {method}
+                        </button>
+                      ))}
+                    </div>
+
+                    <div>
+                      <Label className="text-sm font-bold text-gray-700">Monto</Label>
+                      <Input
+                        type="number"
+                        step="0.50"
+                        value={currentSplitAmount}
+                        onChange={(e) => setCurrentSplitAmount(e.target.value)}
+                        placeholder="0.00"
+                        className="h-12 text-xl font-bold text-center"
+                      />
+                    </div>
+
+                    <Button
+                      onClick={() => {
+                        if (currentSplitMethod && parseFloat(currentSplitAmount) > 0) {
+                          const amount = parseFloat(currentSplitAmount);
+                          const totalPaid = paymentSplits.reduce((sum, p) => sum + p.amount, 0);
+                          
+                          if (totalPaid + amount <= getTotal()) {
+                            setPaymentSplits([...paymentSplits, { method: currentSplitMethod, amount }]);
+                            setCurrentSplitMethod('');
+                            setCurrentSplitAmount('');
+                          } else {
+                            toast({
+                              variant: 'destructive',
+                              title: 'Error',
+                              description: 'El monto total no puede exceder el total a pagar',
+                            });
+                          }
+                        }
+                      }}
+                      disabled={!currentSplitMethod || !currentSplitAmount || parseFloat(currentSplitAmount) <= 0}
+                      className="w-full bg-orange-500 hover:bg-orange-600"
+                    >
+                      <Plus className="h-5 w-5 mr-2" />
+                      Agregar
+                    </Button>
+                  </div>
+                )}
+
+                {paymentSplits.reduce((sum, p) => sum + p.amount, 0) === getTotal() && (
+                  <div className="bg-emerald-50 border-2 border-emerald-500 rounded-xl p-4 text-center">
+                    <CheckCircle2 className="h-8 w-8 text-emerald-600 mx-auto mb-2" />
+                    <p className="font-bold text-emerald-900">¡Pago Completo!</p>
+                    <p className="text-sm text-emerald-700">Puedes proceder con la venta</p>
+                  </div>
+                )}
+              </div>
+            )}
+            
             {paymentMethod === 'yape_numero' && (
               <div className="bg-purple-50 border-2 border-purple-200 rounded-xl p-4">
                 <Label className="text-sm font-bold text-purple-900 mb-2 block">Número de Celular (Yape)</Label>
@@ -1470,25 +1741,38 @@ const POS = () => {
               </div>
             )}
 
-            {/* Opción de Factura */}
-            <div className="bg-blue-50 border-2 border-blue-200 rounded-xl p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <Label className="text-base font-bold text-blue-900">¿Requiere Factura?</Label>
-                  <p className="text-xs text-blue-600 mt-1">Marcar solo si el cliente solicita factura</p>
-                </div>
-                <Switch
-                  checked={requiresInvoice}
-                  onCheckedChange={setRequiresInvoice}
-                  className="data-[state=checked]:bg-blue-600"
-                />
-              </div>
-            </div>
-
             {/* Botones de Acción */}
             <div className="space-y-3">
               <Button
-                onClick={() => handleConfirmCheckout(false)}
+                onClick={() => {
+                  // Validar según método de pago
+                  if (paymentMethod === 'efectivo') {
+                    if (!cashGiven || parseFloat(cashGiven) < getTotal()) {
+                      toast({
+                        variant: 'destructive',
+                        title: 'Error',
+                        description: 'Ingresa el monto en efectivo que entrega el cliente',
+                      });
+                      return;
+                    }
+                  }
+                  
+                  if (paymentMethod === 'mixto') {
+                    const totalPaid = paymentSplits.reduce((sum, p) => sum + p.amount, 0);
+                    if (totalPaid < getTotal()) {
+                      toast({
+                        variant: 'destructive',
+                        title: 'Error',
+                        description: `Faltan S/ ${(getTotal() - totalPaid).toFixed(2)} por asignar`,
+                      });
+                      return;
+                    }
+                  }
+                  
+                  // Abrir modal de selección de comprobante
+                  setShowConfirmDialog(false);
+                  setShowDocumentTypeDialog(true);
+                }}
                 disabled={!paymentMethod || isProcessing}
                 className="w-full h-16 text-xl font-black bg-emerald-500 hover:bg-emerald-600 disabled:bg-gray-300"
               >
@@ -1500,7 +1784,7 @@ const POS = () => {
                 ) : (
                   <>
                     <CheckCircle2 className="h-6 w-6 mr-2" />
-                    CONFIRMAR COBRO
+                    CONTINUAR
                   </>
                 )}
               </Button>
@@ -1620,6 +1904,80 @@ const POS = () => {
           </DialogContent>
         </Dialog>
       )}
+
+      {/* MODAL DE SELECCIÓN DE COMPROBANTE */}
+      <Dialog open={showDocumentTypeDialog} onOpenChange={setShowDocumentTypeDialog}>
+        <DialogContent className="sm:max-w-[700px]">
+          <DialogHeader>
+            <DialogTitle className="text-2xl font-bold text-center">
+              Selecciona Tipo de Comprobante
+            </DialogTitle>
+          </DialogHeader>
+          
+          <div className="grid grid-cols-3 gap-6 py-8">
+            {/* TICKET - DISPONIBLE */}
+            <button
+              onClick={() => {
+                setSelectedDocumentType('ticket');
+                setShowDocumentTypeDialog(false);
+                handleConfirmCheckout(true); // Procesar venta e imprimir
+              }}
+              className="flex flex-col items-center gap-4 p-8 border-4 border-emerald-300 bg-emerald-50 rounded-2xl hover:bg-emerald-100 hover:border-emerald-400 transition-all hover:scale-105 shadow-lg hover:shadow-xl"
+            >
+              <Receipt className="h-20 w-20 text-emerald-600" />
+              <div className="text-center">
+                <p className="font-black text-xl text-emerald-900">TICKET</p>
+                <p className="text-xs text-emerald-700 mt-2">Sin datos fiscales</p>
+                <p className="text-xs text-emerald-600 font-semibold mt-1">✓ Disponible</p>
+              </div>
+            </button>
+            
+            {/* BOLETA - PRÓXIMAMENTE */}
+            <button
+              disabled
+              className="flex flex-col items-center gap-4 p-8 border-4 border-gray-200 bg-gray-50 rounded-2xl opacity-50 cursor-not-allowed"
+            >
+              <Printer className="h-20 w-20 text-gray-400" />
+              <div className="text-center">
+                <p className="font-black text-xl text-gray-600">BOLETA</p>
+                <Badge variant="secondary" className="mt-2">Próximamente</Badge>
+                <p className="text-xs text-gray-500 mt-1">Requiere SUNAT</p>
+              </div>
+            </button>
+            
+            {/* FACTURA - PRÓXIMAMENTE */}
+            <button
+              disabled
+              className="flex flex-col items-center gap-4 p-8 border-4 border-gray-200 bg-gray-50 rounded-2xl opacity-50 cursor-not-allowed"
+            >
+              <FileText className="h-20 w-20 text-gray-400" />
+              <div className="text-center">
+                <p className="font-black text-xl text-gray-600">FACTURA</p>
+                <Badge variant="secondary" className="mt-2">Próximamente</Badge>
+                <p className="text-xs text-gray-500 mt-1">Requiere SUNAT</p>
+              </div>
+            </button>
+          </div>
+
+          <div className="bg-blue-50 border-2 border-blue-200 rounded-xl p-4">
+            <p className="text-sm text-blue-900">
+              <strong>ℹ️ Nota:</strong> Por ahora solo está disponible la impresión de tickets. 
+              Boleta y Factura electrónicas estarán disponibles una vez conectado a SUNAT.
+            </p>
+          </div>
+
+          <Button
+            variant="outline"
+            onClick={() => {
+              setShowDocumentTypeDialog(false);
+              setShowConfirmDialog(true); // Volver al modal de pago
+            }}
+            className="w-full"
+          >
+            ← Volver a Métodos de Pago
+          </Button>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

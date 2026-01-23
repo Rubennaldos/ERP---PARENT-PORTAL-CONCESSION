@@ -5,10 +5,11 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { LogOut, ArrowLeft, BarChart3, FileText } from 'lucide-react';
+import { Settings, LogOut, ArrowLeft, BarChart3, FileText } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { SalesList as SalesListGrid } from '@/components/admin/SalesList';
 import { SalesDashboard } from '@/components/sales/SalesDashboard';
+import { PurchaseVisibilityConfig } from '@/components/sales/PurchaseVisibilityConfig';
 import { supabase } from '@/lib/supabase';
 import { useToast } from '@/hooks/use-toast';
 
@@ -116,7 +117,7 @@ const SalesList = () => {
 
       <main className="container mx-auto px-4 py-8">
         <Tabs defaultValue="list" className="w-full">
-          <TabsList className="grid w-full grid-cols-2 bg-white border rounded-xl p-1 mb-6">
+          <TabsList className="grid w-full grid-cols-3 bg-white border rounded-xl p-1 mb-6">
             <TabsTrigger value="list" className="data-[state=active]:bg-[#8B4513] data-[state=active]:text-white">
               <FileText className="h-4 w-4 mr-2" />
               Lista de Ventas
@@ -127,6 +128,10 @@ const SalesList = () => {
                 Dashboard & Analytics
               </TabsTrigger>
             )}
+            <TabsTrigger value="visibility" className="data-[state=active]:bg-[#8B4513] data-[state=active]:text-white">
+              <Settings className="h-4 w-4 mr-2" />
+              Config. Visualización
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="list">
@@ -162,6 +167,10 @@ const SalesList = () => {
               <SalesDashboard selectedSchool={selectedSchool} canViewAllSchools={canViewAllSchools} />
             </TabsContent>
           )}
+
+          <TabsContent value="visibility">
+            <PurchaseVisibilityConfig />
+          </TabsContent>
         </Tabs>
       </main>
     </div>

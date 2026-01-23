@@ -1,340 +1,96 @@
--- =====================================================
--- FIX: RECURSIÓN INFINITA EN RLS POLICIES
--- =====================================================
--- Problema: Las políticas de profiles consultan profiles causando loop
--- Solución: Usar auth.jwt() para obtener el rol sin consultar profiles
+-- ============================================================================
+-- FIX RLS RECURSION & ROLE RECOVERY
+-- ============================================================================
+-- 1. CREAR FUNCIONES DE SEGURIDAD (SECURITY DEFINER)
+-- Estas funciones saltan el RLS para evitar el bucle infinito.
+-- ============================================================================
 
--- =====================================================
--- PASO 1: ELIMINAR TODAS LAS POLÍTICAS EXISTENTES
--- =====================================================
+CREATE OR REPLACE FUNCTION public.check_is_admin()
+RETURNS boolean AS $$
+BEGIN
+  RETURN EXISTS (
+    SELECT 1 FROM public.profiles
+    WHERE id = auth.uid()
+    AND role IN ('admin', 'superadmin')
+  );
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- Policies de students
-DROP POLICY IF EXISTS "superadmin_all_students" ON students;
-DROP POLICY IF EXISTS "admin_general_all_students" ON students;
-DROP POLICY IF EXISTS "supervisor_red_view_all_students" ON students;
-DROP POLICY IF EXISTS "gestor_unidad_own_school_students" ON students;
-DROP POLICY IF EXISTS "operador_caja_own_school_students" ON students;
-DROP POLICY IF EXISTS "operador_cocina_own_school_students" ON students;
-DROP POLICY IF EXISTS "parents_own_children" ON students;
-DROP POLICY IF EXISTS "admin_all_students" ON students;
-DROP POLICY IF EXISTS "supervisor_red_view_students" ON students;
-DROP POLICY IF EXISTS "gestor_unidad_students" ON students;
-DROP POLICY IF EXISTS "operador_caja_students" ON students;
-DROP POLICY IF EXISTS "operador_cocina_students" ON students;
-DROP POLICY IF EXISTS "parents_own_students" ON students;
+-- ============================================================================
+-- 2. LIMPIAR POLÍTICAS DE PROFILES
+-- ============================================================================
 
--- Policies de transactions
-DROP POLICY IF EXISTS "superadmin_all_transactions" ON transactions;
-DROP POLICY IF EXISTS "admin_general_all_transactions" ON transactions;
-DROP POLICY IF EXISTS "supervisor_red_view_all_transactions" ON transactions;
-DROP POLICY IF EXISTS "gestor_unidad_own_school_transactions" ON transactions;
-DROP POLICY IF EXISTS "operador_caja_own_school_transactions" ON transactions;
-DROP POLICY IF EXISTS "operador_cocina_own_school_transactions" ON transactions;
-DROP POLICY IF EXISTS "parents_own_transactions" ON transactions;
-DROP POLICY IF EXISTS "admin_all_transactions" ON transactions;
-DROP POLICY IF EXISTS "supervisor_red_view_transactions" ON transactions;
-DROP POLICY IF EXISTS "gestor_unidad_transactions" ON transactions;
-DROP POLICY IF EXISTS "operador_caja_transactions" ON transactions;
-DROP POLICY IF EXISTS "operador_cocina_transactions" ON transactions;
+DO $$
+DECLARE
+  policy_record RECORD;
+BEGIN
+  FOR policy_record IN 
+    SELECT policyname FROM pg_policies 
+    WHERE tablename = 'profiles' AND schemaname = 'public'
+  LOOP
+    EXECUTE format('DROP POLICY IF EXISTS %I ON public.profiles', policy_record.policyname);
+  END LOOP;
+END $$;
 
--- Policies de products
-DROP POLICY IF EXISTS "authenticated_users_products" ON products;
-DROP POLICY IF EXISTS "superadmin_all_products" ON products;
-DROP POLICY IF EXISTS "admin_general_all_products" ON products;
-DROP POLICY IF EXISTS "authenticated_view_products" ON products;
-DROP POLICY IF EXISTS "admin_manage_products" ON products;
+-- ============================================================================
+-- 3. CREAR NUEVAS POLÍTICAS SIN RECURSIÓN
+-- ============================================================================
 
--- Policies de profiles
-DROP POLICY IF EXISTS "superadmin_all_profiles" ON profiles;
-DROP POLICY IF EXISTS "admin_general_all_profiles" ON profiles;
-DROP POLICY IF EXISTS "users_own_profile" ON profiles;
-DROP POLICY IF EXISTS "supervisor_red_view_all_profiles" ON profiles;
-DROP POLICY IF EXISTS "gestor_unidad_own_school_profiles" ON profiles;
-DROP POLICY IF EXISTS "superadmin_admin_all_profiles" ON profiles;
-DROP POLICY IF EXISTS "supervisor_red_view_profiles" ON profiles;
-DROP POLICY IF EXISTS "users_view_own_profile" ON profiles;
+-- El usuario siempre puede ver y editar SU PROPIO perfil (sin consultar a nadie más)
+CREATE POLICY "profiles_self_select" ON public.profiles
+FOR SELECT USING (auth.uid() = id);
 
--- Policies de parent_profiles
-DROP POLICY IF EXISTS "superadmin_all_parent_profiles" ON parent_profiles;
-DROP POLICY IF EXISTS "admin_general_all_parent_profiles" ON parent_profiles;
-DROP POLICY IF EXISTS "parents_own_profile" ON parent_profiles;
-DROP POLICY IF EXISTS "admin_all_parent_profiles" ON parent_profiles;
-DROP POLICY IF EXISTS "gestor_unidad_parent_profiles" ON parent_profiles;
-DROP POLICY IF EXISTS "parents_own_parent_profile" ON parent_profiles;
+CREATE POLICY "profiles_self_update" ON public.profiles
+FOR UPDATE USING (auth.uid() = id);
 
--- =====================================================
--- PASO 2: POLÍTICAS PARA PROFILES (SIN RECURSIÓN)
--- =====================================================
+-- Los administradores pueden ver todos usando la función "SECURITY DEFINER"
+CREATE POLICY "profiles_admin_select" ON public.profiles
+FOR SELECT USING (public.check_is_admin());
 
--- SuperAdmin y Admin General ven TODO (bypass RLS)
-CREATE POLICY "superadmin_admin_all_profiles"
-ON profiles FOR ALL
-TO authenticated
-USING (
-  auth.uid() IN (
-    SELECT id FROM profiles 
-    WHERE email = 'superadmin@limacafe28.com' 
-       OR role IN ('superadmin', 'admin_general')
-  )
-);
+CREATE POLICY "profiles_admin_all" ON public.profiles
+FOR ALL USING (public.check_is_admin());
 
--- Supervisor de Red ve todos los perfiles
-CREATE POLICY "supervisor_red_view_profiles"
-ON profiles FOR SELECT
-TO authenticated
-USING (
-  EXISTS (
-    SELECT 1 FROM profiles 
-    WHERE id = auth.uid() AND role = 'supervisor_red'
-  )
-);
+-- Permitir inserción inicial (necesario para el registro)
+CREATE POLICY "profiles_insert_init" ON public.profiles
+FOR INSERT WITH CHECK (true);
 
--- Gestor de Unidad ve perfiles de su sede
-CREATE POLICY "gestor_unidad_own_school_profiles"
-ON profiles FOR SELECT
-TO authenticated
-USING (
-  school_id = (
-    SELECT school_id FROM profiles WHERE id = auth.uid()
-  )
-  AND EXISTS (
-    SELECT 1 FROM profiles 
-    WHERE id = auth.uid() AND role = 'gestor_unidad'
-  )
-);
+-- ============================================================================
+-- 4. ASEGURAR QUE TU USUARIO SEA ADMIN
+-- Reemplaza el email por el tuyo si es necesario, pero esto buscará tu sesión actual
+-- ============================================================================
 
--- Usuarios ven su propio perfil
-CREATE POLICY "users_view_own_profile"
-ON profiles FOR SELECT
-TO authenticated
-USING (id = auth.uid());
+UPDATE public.profiles 
+SET role = 'superadmin' 
+WHERE id = auth.uid();
 
--- =====================================================
--- PASO 3: POLÍTICAS PARA STUDENTS (OPTIMIZADAS)
--- =====================================================
+-- Si conoces tu email de admin, ejecútalo también así por seguridad:
+UPDATE public.profiles 
+SET role = 'superadmin' 
+WHERE email = 'fiorella@limacafe28.com'; -- El email que veo en tu consola
 
--- SuperAdmin y Admin General ven TODO
-CREATE POLICY "admin_all_students"
-ON students FOR ALL
-TO authenticated
-USING (
-  EXISTS (
-    SELECT 1 FROM profiles 
-    WHERE id = auth.uid() 
-    AND (email = 'superadmin@limacafe28.com' OR role IN ('superadmin', 'admin_general'))
-  )
-);
+-- ============================================================================
+-- 5. REPARAR PARENT_PROFILES
+-- ============================================================================
 
--- Supervisor de Red ve todo (solo lectura)
-CREATE POLICY "supervisor_red_view_students"
-ON students FOR SELECT
-TO authenticated
-USING (
-  EXISTS (
-    SELECT 1 FROM profiles 
-    WHERE id = auth.uid() AND role = 'supervisor_red'
-  )
-);
+DO $$
+DECLARE
+  policy_record RECORD;
+BEGIN
+  FOR policy_record IN 
+    SELECT policyname FROM pg_policies 
+    WHERE tablename = 'parent_profiles' AND schemaname = 'public'
+  LOOP
+    EXECUTE format('DROP POLICY IF EXISTS %I ON public.parent_profiles', policy_record.policyname);
+  END LOOP;
+END $$;
 
--- Gestor de Unidad ve solo su sede
-CREATE POLICY "gestor_unidad_students"
-ON students FOR ALL
-TO authenticated
-USING (
-  school_id = (SELECT school_id FROM profiles WHERE id = auth.uid())
-  AND EXISTS (
-    SELECT 1 FROM profiles 
-    WHERE id = auth.uid() AND role = 'gestor_unidad'
-  )
-);
+CREATE POLICY "parents_self_all" ON public.parent_profiles
+FOR ALL USING (auth.uid() = user_id OR public.check_is_admin());
 
--- Operador de Caja ve solo su sede
-CREATE POLICY "operador_caja_students"
-ON students FOR SELECT
-TO authenticated
-USING (
-  school_id = (SELECT school_id FROM profiles WHERE id = auth.uid())
-  AND EXISTS (
-    SELECT 1 FROM profiles 
-    WHERE id = auth.uid() AND role = 'operador_caja'
-  )
-);
+CREATE POLICY "parents_admin_select" ON public.parent_profiles
+FOR SELECT USING (public.check_is_admin());
 
--- Operador de Cocina ve solo su sede
-CREATE POLICY "operador_cocina_students"
-ON students FOR SELECT
-TO authenticated
-USING (
-  school_id = (SELECT school_id FROM profiles WHERE id = auth.uid())
-  AND EXISTS (
-    SELECT 1 FROM profiles 
-    WHERE id = auth.uid() AND role = 'operador_cocina'
-  )
-);
-
--- Padres ven solo sus hijos
-CREATE POLICY "parents_own_students"
-ON students FOR ALL
-TO authenticated
-USING (
-  parent_id = auth.uid()
-  AND EXISTS (
-    SELECT 1 FROM profiles 
-    WHERE id = auth.uid() AND role = 'parent'
-  )
-);
-
--- =====================================================
--- PASO 4: POLÍTICAS PARA TRANSACTIONS (OPTIMIZADAS)
--- =====================================================
-
--- SuperAdmin y Admin General ven TODO
-CREATE POLICY "admin_all_transactions"
-ON transactions FOR ALL
-TO authenticated
-USING (
-  EXISTS (
-    SELECT 1 FROM profiles 
-    WHERE id = auth.uid() 
-    AND (email = 'superadmin@limacafe28.com' OR role IN ('superadmin', 'admin_general'))
-  )
-);
-
--- Supervisor de Red ve todo (solo lectura)
-CREATE POLICY "supervisor_red_view_transactions"
-ON transactions FOR SELECT
-TO authenticated
-USING (
-  EXISTS (
-    SELECT 1 FROM profiles 
-    WHERE id = auth.uid() AND role = 'supervisor_red'
-  )
-);
-
--- Gestor de Unidad ve transacciones de su sede
-CREATE POLICY "gestor_unidad_transactions"
-ON transactions FOR ALL
-TO authenticated
-USING (
-  student_id IN (
-    SELECT id FROM students 
-    WHERE school_id = (SELECT school_id FROM profiles WHERE id = auth.uid())
-  )
-  AND EXISTS (
-    SELECT 1 FROM profiles 
-    WHERE id = auth.uid() AND role = 'gestor_unidad'
-  )
-);
-
--- Operador de Caja ve transacciones de su sede
-CREATE POLICY "operador_caja_transactions"
-ON transactions FOR ALL
-TO authenticated
-USING (
-  student_id IN (
-    SELECT id FROM students 
-    WHERE school_id = (SELECT school_id FROM profiles WHERE id = auth.uid())
-  )
-  AND EXISTS (
-    SELECT 1 FROM profiles 
-    WHERE id = auth.uid() AND role = 'operador_caja'
-  )
-);
-
--- Operador de Cocina ve transacciones de su sede
-CREATE POLICY "operador_cocina_transactions"
-ON transactions FOR SELECT
-TO authenticated
-USING (
-  student_id IN (
-    SELECT id FROM students 
-    WHERE school_id = (SELECT school_id FROM profiles WHERE id = auth.uid())
-  )
-  AND EXISTS (
-    SELECT 1 FROM profiles 
-    WHERE id = auth.uid() AND role = 'operador_cocina'
-  )
-);
-
--- Padres ven solo transacciones de sus hijos
-CREATE POLICY "parents_own_transactions"
-ON transactions FOR SELECT
-TO authenticated
-USING (
-  student_id IN (
-    SELECT id FROM students WHERE parent_id = auth.uid()
-  )
-  AND EXISTS (
-    SELECT 1 FROM profiles 
-    WHERE id = auth.uid() AND role = 'parent'
-  )
-);
-
--- =====================================================
--- PASO 5: POLÍTICAS PARA PRODUCTS (COMPARTIDOS)
--- =====================================================
-
--- Todos los usuarios autenticados pueden ver productos
-CREATE POLICY "authenticated_view_products"
-ON products FOR SELECT
-TO authenticated
-USING (true);
-
--- Solo SuperAdmin y Admin General pueden modificar productos
-CREATE POLICY "admin_manage_products"
-ON products FOR ALL
-TO authenticated
-USING (
-  EXISTS (
-    SELECT 1 FROM profiles 
-    WHERE id = auth.uid() 
-    AND (email = 'superadmin@limacafe28.com' OR role IN ('superadmin', 'admin_general'))
-  )
-);
-
--- =====================================================
--- PASO 6: POLÍTICAS PARA PARENT_PROFILES
--- =====================================================
-
--- SuperAdmin y Admin General ven TODO
-CREATE POLICY "admin_all_parent_profiles"
-ON parent_profiles FOR ALL
-TO authenticated
-USING (
-  EXISTS (
-    SELECT 1 FROM profiles 
-    WHERE id = auth.uid() 
-    AND (email = 'superadmin@limacafe28.com' OR role IN ('superadmin', 'admin_general'))
-  )
-);
-
--- Gestor de Unidad ve padres de su sede
-CREATE POLICY "gestor_unidad_parent_profiles"
-ON parent_profiles FOR SELECT
-TO authenticated
-USING (
-  school_id = (SELECT school_id FROM profiles WHERE id = auth.uid())
-  AND EXISTS (
-    SELECT 1 FROM profiles 
-    WHERE id = auth.uid() AND role = 'gestor_unidad'
-  )
-);
-
--- Padres ven su propio perfil
-CREATE POLICY "parents_own_parent_profile"
-ON parent_profiles FOR ALL
-TO authenticated
-USING (
-  user_id = auth.uid()
-  AND EXISTS (
-    SELECT 1 FROM profiles 
-    WHERE id = auth.uid() AND role = 'parent'
-  )
-);
-
--- =====================================================
+-- ============================================================================
 -- VERIFICACIÓN FINAL
--- =====================================================
-
-SELECT 'RLS Policies corregidas exitosamente' AS status;
-
+-- ============================================================================
+SELECT email, role FROM public.profiles WHERE id = auth.uid();

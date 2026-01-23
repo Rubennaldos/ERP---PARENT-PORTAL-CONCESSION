@@ -52,12 +52,43 @@ export const PurchaseHistoryModal = ({
     try {
       setLoading(true);
 
-      // Obtener todas las compras del estudiante
+      // ✅ PASO 1: Obtener school_id del estudiante para aplicar delay
+      const { data: studentData, error: studentError } = await supabase
+        .from('students')
+        .select('school_id')
+        .eq('id', studentId)
+        .single();
+
+      if (studentError) throw studentError;
+
+      // ✅ PASO 2: Obtener delay configurado para la sede
+      const { data: delayData, error: delayError } = await supabase
+        .from('purchase_visibility_delay')
+        .select('delay_days')
+        .eq('school_id', studentData.school_id)
+        .single();
+
+      // Si no hay configuración, usar 2 días por defecto
+      const delayDays = delayData?.delay_days ?? 2;
+      
+      // ✅ PASO 3: Calcular fecha límite (hoy - delay_days)
+      const cutoffDate = new Date();
+      cutoffDate.setDate(cutoffDate.getDate() - delayDays);
+      const cutoffDateISO = cutoffDate.toISOString();
+
+      console.log('📅 Filtro de delay aplicado:', {
+        delayDays,
+        cutoffDate: cutoffDate.toLocaleDateString('es-ES'),
+        message: `Mostrando solo compras hasta hace ${delayDays} días`
+      });
+
+      // ✅ PASO 4: Obtener compras con filtro de fecha
       const { data: transactions, error: transError } = await supabase
         .from('transactions')
         .select('*')
         .eq('student_id', studentId)
         .eq('type', 'purchase')
+        .lte('created_at', cutoffDateISO) // ✅ Solo hasta la fecha límite
         .order('created_at', { ascending: false })
         .limit(50);
 

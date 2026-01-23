@@ -14,8 +14,9 @@ import * as XLSX from 'xlsx';
 interface BulkProduct {
   id: string;
   name: string;
+  description: string; // NUEVO: Descripción del producto
   code: string;
-  has_code: boolean; // NUEVO: Si tiene código manual o lo genera el sistema
+  has_code: boolean; // Si tiene código manual o lo genera el sistema
   price_cost: string;
   price_sale: string;
   category: string;
@@ -40,12 +41,13 @@ export const BulkProductUpload = ({ isOpen, onClose, onSuccess, categories, scho
     {
       id: crypto.randomUUID(),
       name: '',
+      description: '',
       code: '',
-      has_code: false, // Por defecto, el sistema genera el código
+      has_code: false,
       price_cost: '',
       price_sale: '',
-      category: 'bebidas',
-      has_stock: false, // Por defecto, sin control de stock
+      category: '', // VACÍO: el usuario elige su categoría
+      has_stock: false,
       stock_initial: '0',
       stock_min: '0',
       has_igv: true,
@@ -61,11 +63,12 @@ export const BulkProductUpload = ({ isOpen, onClose, onSuccess, categories, scho
       {
         id: crypto.randomUUID(),
         name: '',
+        description: '',
         code: '',
         has_code: false,
         price_cost: '',
         price_sale: '',
-        category: 'bebidas',
+        category: '', // VACÍO: el usuario elige su categoría
         has_stock: false,
         stock_initial: '0',
         stock_min: '0',
@@ -95,38 +98,69 @@ export const BulkProductUpload = ({ isOpen, onClose, onSuccess, categories, scho
     const template = [
       {
         Nombre: 'Coca Cola 500ml',
+        Descripción: 'Bebida gaseosa sabor cola en presentación de 500ml. Refresca tu día con el sabor clásico.',
         'Código Manual': 'SI',
         Código: '7501234567890',
         'Precio Costo': '2.50',
         'Precio Venta': '3.50',
-        Categoría: 'bebidas',
+        Categoría: 'Bebidas',
         'Control Stock': 'SI',
         'Stock Inicial': '100',
         'Stock Mínimo': '10',
         'Incluye IGV': 'SI',
       },
       {
-        Nombre: 'Papas Lays',
+        Nombre: 'Papas Lays Clásicas',
+        Descripción: 'Snack crujiente de papas fritas con sal. Perfecto para compartir o disfrutar solo.',
         'Código Manual': 'NO',
         Código: '',
         'Precio Costo': '1.20',
         'Precio Venta': '2.00',
-        Categoría: 'snacks',
+        Categoría: 'Snacks Salados',
         'Control Stock': 'NO',
         'Stock Inicial': '0',
         'Stock Mínimo': '0',
         'Incluye IGV': 'SI',
       },
+      {
+        Nombre: 'Galletas Oreo',
+        Descripción: 'Galletas de chocolate con relleno de crema. El clásico favorito de todos.',
+        'Código Manual': 'SI',
+        Código: '7622300489120',
+        'Precio Costo': '1.80',
+        'Precio Venta': '3.00',
+        Categoría: 'Snacks Dulces',
+        'Control Stock': 'SI',
+        'Stock Inicial': '50',
+        'Stock Mínimo': '5',
+        'Incluye IGV': 'SI',
+      },
     ];
 
     const ws = XLSX.utils.json_to_sheet(template);
+    
+    // Ajustar anchos de columna para que la descripción se vea completa
+    ws['!cols'] = [
+      { wch: 25 },  // Nombre
+      { wch: 60 },  // Descripción (más ancha)
+      { wch: 15 },  // Código Manual
+      { wch: 18 },  // Código
+      { wch: 12 },  // Precio Costo
+      { wch: 12 },  // Precio Venta
+      { wch: 15 },  // Categoría
+      { wch: 13 },  // Control Stock
+      { wch: 13 },  // Stock Inicial
+      { wch: 13 },  // Stock Mínimo
+      { wch: 12 },  // Incluye IGV
+    ];
+    
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Plantilla');
     XLSX.writeFile(wb, 'plantilla_productos.xlsx');
 
     toast({
       title: '📥 Plantilla descargada',
-      description: 'Edita el archivo Excel y súbelo para cargar productos masivamente',
+      description: 'Las categorías se crearán automáticamente desde tu Excel',
     });
   };
 
@@ -146,14 +180,15 @@ export const BulkProductUpload = ({ isOpen, onClose, onSuccess, categories, scho
         const parsedProducts: BulkProduct[] = data.map((row: any) => ({
           id: crypto.randomUUID(),
           name: row['Nombre'] || '',
+          description: row['Descripción'] || row['Descripcion'] || '', // NUEVO: Acepta con o sin tilde
           has_code: row['Código Manual']?.toUpperCase() === 'SI',
-          code: row['Código'] || '',
+          code: row['Código'] || row['Codigo'] || '',
           price_cost: String(row['Precio Costo'] || '0'),
           price_sale: String(row['Precio Venta'] || '0'),
-          category: row['Categoría'] || 'otros',
+          category: row['Categoría'] || row['Categoria'] || 'otros',
           has_stock: row['Control Stock']?.toUpperCase() === 'SI',
           stock_initial: String(row['Stock Inicial'] || '0'),
-          stock_min: String(row['Stock Mínimo'] || '0'),
+          stock_min: String(row['Stock Mínimo'] || row['Stock Minimo'] || '0'),
           has_igv: row['Incluye IGV']?.toUpperCase() === 'SI',
           active: true,
         }));
@@ -175,24 +210,54 @@ export const BulkProductUpload = ({ isOpen, onClose, onSuccess, categories, scho
   };
 
   const validateProducts = (): boolean => {
-    for (const product of products) {
-      if (!product.name.trim()) {
+    console.log('🔍 Validando productos:', products);
+    
+    for (let i = 0; i < products.length; i++) {
+      const product = products[i];
+      const rowNum = i + 1;
+
+      console.log(`📋 Fila ${rowNum}:`, {
+        name: product.name,
+        price_sale: product.price_sale,
+        price_sale_type: typeof product.price_sale,
+        category: product.category,
+      });
+
+      // Validar nombre
+      if (!product.name || !product.name.trim()) {
         toast({
           variant: 'destructive',
-          title: 'Error',
-          description: 'Todos los productos deben tener nombre',
+          title: `Error en fila ${rowNum}`,
+          description: 'El producto debe tener un nombre',
         });
         return false;
       }
-      if (!product.price_sale || parseFloat(product.price_sale) <= 0) {
+
+      // Validar precio de venta
+      const priceValue = parseFloat(product.price_sale || '0');
+      console.log(`💰 Precio parseado en fila ${rowNum}:`, priceValue);
+      
+      if (isNaN(priceValue) || priceValue <= 0) {
         toast({
           variant: 'destructive',
-          title: 'Error',
-          description: 'Todos los productos deben tener precio de venta válido',
+          title: `Error en fila ${rowNum}: ${product.name}`,
+          description: `Precio de venta inválido: "${product.price_sale}". Debe ser mayor a 0`,
+        });
+        return false;
+      }
+
+      // Validar categoría
+      if (!product.category || !product.category.trim()) {
+        toast({
+          variant: 'destructive',
+          title: `Error en fila ${rowNum}: ${product.name}`,
+          description: 'El producto debe tener una categoría',
         });
         return false;
       }
     }
+    
+    console.log('✅ Validación exitosa');
     return true;
   };
 
@@ -205,6 +270,7 @@ export const BulkProductUpload = ({ isOpen, onClose, onSuccess, categories, scho
 
       const productsToInsert = products.map(p => ({
         name: p.name,
+        description: p.description || null, // NUEVO: Guardar descripción
         code: p.has_code && p.code ? p.code : `PRD${Date.now()}${Math.random().toString(36).substr(2, 5)}`,
         price: parseFloat(p.price_sale),
         price_cost: parseFloat(p.price_cost) || 0,
@@ -234,10 +300,12 @@ export const BulkProductUpload = ({ isOpen, onClose, onSuccess, categories, scho
       setProducts([{
         id: crypto.randomUUID(),
         name: '',
+        description: '',
         code: '',
+        has_code: false,
         price_cost: '',
         price_sale: '',
-        category: 'bebidas',
+        category: '', // VACÍO
         has_stock: true,
         stock_initial: '0',
         stock_min: '0',
@@ -295,7 +363,8 @@ export const BulkProductUpload = ({ isOpen, onClose, onSuccess, categories, scho
             <TableHeader className="sticky top-0 bg-muted z-10">
               <TableRow>
                 <TableHead className="w-[30px]">#</TableHead>
-                <TableHead className="min-w-[200px]">Nombre *</TableHead>
+                <TableHead className="min-w-[180px]">Nombre *</TableHead>
+                <TableHead className="min-w-[250px]">Descripción</TableHead>
                 <TableHead className="min-w-[100px]">Código?</TableHead>
                 <TableHead className="min-w-[120px]">Código</TableHead>
                 <TableHead className="min-w-[100px]">P. Costo</TableHead>
@@ -320,6 +389,15 @@ export const BulkProductUpload = ({ isOpen, onClose, onSuccess, categories, scho
                       onChange={(e) => updateProduct(product.id, 'name', e.target.value)}
                       placeholder="Nombre del producto"
                       className="h-9"
+                    />
+                  </TableCell>
+                  <TableCell>
+                    <textarea
+                      value={product.description}
+                      onChange={(e) => updateProduct(product.id, 'description', e.target.value)}
+                      placeholder="Descripción del producto (beneficios, características, etc.)"
+                      className="w-full h-20 px-3 py-2 text-sm border rounded-md resize-none"
+                      rows={3}
                     />
                   </TableCell>
                   <TableCell className="text-center">
@@ -365,19 +443,18 @@ export const BulkProductUpload = ({ isOpen, onClose, onSuccess, categories, scho
                     />
                   </TableCell>
                   <TableCell>
-                    <Select
+                    <Input
                       value={product.category}
-                      onValueChange={(v) => updateProduct(product.id, 'category', v)}
-                    >
-                      <SelectTrigger className="h-9">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {categories.map(cat => (
-                          <SelectItem key={cat} value={cat}>{cat}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                      onChange={(e) => updateProduct(product.id, 'category', e.target.value)}
+                      placeholder="Ej: Bebidas, Snacks Salados, etc."
+                      className="h-9"
+                      list={`categories-${product.id}`}
+                    />
+                    <datalist id={`categories-${product.id}`}>
+                      {categories.map(cat => (
+                        <option key={cat} value={cat} />
+                      ))}
+                    </datalist>
                   </TableCell>
                   <TableCell className="text-center">
                     <div className="flex items-center justify-center gap-2">

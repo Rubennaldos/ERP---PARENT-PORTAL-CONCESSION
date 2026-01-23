@@ -105,7 +105,7 @@ interface TransactionItem {
 
 export const SalesList = () => {
   const { user } = useAuth();
-  const { role } = useRole();
+  const { role, canViewAllSchools: canViewAllSchoolsFromHook } = useRole();
   const { toast } = useToast();
   
   // Permisos del módulo de ventas
@@ -128,7 +128,7 @@ export const SalesList = () => {
   const [schools, setSchools] = useState<School[]>([]);
   const [selectedSchool, setSelectedSchool] = useState<string>('all');
   const [userSchoolId, setUserSchoolId] = useState<string | null>(null);
-  const [canViewAllSchools, setCanViewAllSchools] = useState(false);
+  const canViewAllSchools = canViewAllSchoolsFromHook; // ✅ Usar desde el hook
   
   // Selección múltiple
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -192,7 +192,7 @@ export const SalesList = () => {
           canExport: true,
           loading: false,
         });
-        setCanViewAllSchools(true);
+        // ✅ canViewAllSchools ya viene del hook
         console.log('✅ Admin General - Todos los permisos');
         return;
       }
@@ -267,7 +267,7 @@ export const SalesList = () => {
 
       console.log('✅ Permisos finales de Ventas:', perms);
       setPermissions(perms);
-      setCanViewAllSchools(canViewAll);
+      // ✅ canViewAllSchools ya viene del hook (se ignora canViewAll local)
 
     } catch (error) {
       console.error('Error checking permissions:', error);
@@ -860,21 +860,27 @@ export const SalesList = () => {
                           />
                           
                           <div className="flex-1">
-                            <div className="flex items-center gap-3 mb-2">
-                              <Badge variant="outline" className="font-mono text-xs font-bold">
-                                {t.ticket_code || '---'}
+                            {/* Primera línea: Ticket, Fecha y Hora - MÁS GRANDE */}
+                            <div className="flex items-center gap-3 mb-3">
+                              <Badge variant="outline" className="font-mono text-base font-black px-4 py-1.5 bg-slate-100 border-2">
+                                📄 {t.ticket_code || '---'}
                               </Badge>
+                              <span className="text-sm text-muted-foreground font-bold flex items-center gap-1.5">
+                                <Clock className="h-4 w-4" />
+                                {format(new Date(t.created_at), "dd/MM/yyyy HH:mm", { locale: es })}
+                              </span>
+                              {t.is_deleted && (
+                                <Badge variant="destructive" className="text-xs font-bold">ANULADA</Badge>
+                              )}
+                            </div>
+
+                            {/* Segunda línea: Sede y Tipo de Documento */}
+                            <div className="flex items-center gap-2 mb-2">
                               {t.school && (
                                 <Badge variant="secondary" className="text-xs flex items-center gap-1">
                                   <Building2 className="h-3 w-3" />
                                   {t.school.name}
                                 </Badge>
-                              )}
-                              <span className="text-xs text-muted-foreground">
-                                {format(new Date(t.created_at), "HH:mm", { locale: es })}
-                              </span>
-                              {t.is_deleted && (
-                                <Badge variant="destructive" className="text-[10px]">ANULADA</Badge>
                               )}
                               {t.document_type && t.document_type !== 'ticket' && (
                                 <Badge variant="secondary" className="text-[10px]">
@@ -883,6 +889,7 @@ export const SalesList = () => {
                               )}
                             </div>
                             
+                            {/* Tercera línea: Cliente */}
                             <div className="flex items-center gap-2 mb-1">
                               <User className="h-4 w-4 text-muted-foreground" />
                               <span className="font-semibold text-sm">

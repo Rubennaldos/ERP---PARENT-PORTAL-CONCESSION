@@ -212,21 +212,15 @@ const Cobranzas = () => {
                   </TabsTrigger>
                 )}
                 {permissions.collect && (
-                  <TabsTrigger value="collect" className="flex items-center gap-2 py-3">
+                  <TabsTrigger value="collect" className="flex items-center gap-2 py-3 font-bold">
                     <Users className="h-4 w-4" />
-                    <span className="hidden sm:inline">Cobrar</span>
+                    <span className="hidden sm:inline">¡Cobrar!</span>
                   </TabsTrigger>
                 )}
                 {permissions.reports && (
                   <TabsTrigger value="reports" className="flex items-center gap-2 py-3">
                     <FileText className="h-4 w-4" />
                     <span className="hidden sm:inline">Reportes</span>
-                  </TabsTrigger>
-                )}
-                {permissions.statistics && (
-                  <TabsTrigger value="statistics" className="flex items-center gap-2 py-3">
-                    <BarChart3 className="h-4 w-4" />
-                    <span className="hidden sm:inline">Estadísticas</span>
                   </TabsTrigger>
                 )}
                 {permissions.config && (
@@ -237,10 +231,19 @@ const Cobranzas = () => {
                 )}
               </TabsList>
 
-              {/* Dashboard Tab */}
+              {/* Dashboard Tab (Incluye Estadísticas) */}
               {permissions.dashboard && (
-                <TabsContent value="dashboard" className="mt-6">
+                <TabsContent value="dashboard" className="mt-6 space-y-6">
                   <BillingDashboard />
+                  
+                  {/* Separador visual */}
+                  <div className="border-t pt-6">
+                    <h2 className="text-2xl font-bold text-gray-900 mb-4 flex items-center gap-2">
+                      <BarChart3 className="h-6 w-6 text-red-600" />
+                      Estadísticas de Pago
+                    </h2>
+                    <PaymentStatistics />
+                  </div>
                 </TabsContent>
               )}
 
@@ -255,13 +258,6 @@ const Cobranzas = () => {
               {permissions.reports && (
                 <TabsContent value="reports" className="mt-6">
                   <BillingReports />
-                </TabsContent>
-              )}
-
-              {/* Estadísticas Tab */}
-              {permissions.statistics && (
-                <TabsContent value="statistics" className="mt-6">
-                  <PaymentStatistics />
                 </TabsContent>
               )}
 

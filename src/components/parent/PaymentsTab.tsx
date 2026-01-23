@@ -69,12 +69,28 @@ export const PaymentsTab = ({ userId }: PaymentsTabProps) => {
       const debtsData: StudentDebt[] = [];
 
       for (const student of students) {
+        // ✅ Obtener delay configurado para la sede del estudiante
+        const { data: delayData } = await supabase
+          .from('purchase_visibility_delay')
+          .select('delay_days')
+          .eq('school_id', student.school_id)
+          .single();
+
+        const delayDays = delayData?.delay_days ?? 2;
+        
+        // ✅ Calcular fecha límite
+        const cutoffDate = new Date();
+        cutoffDate.setDate(cutoffDate.getDate() - delayDays);
+        const cutoffDateISO = cutoffDate.toISOString();
+
+        // ✅ Obtener transacciones con filtro de fecha
         const { data: transactions, error: transError } = await supabase
           .from('transactions')
           .select('*')
           .eq('student_id', student.id)
           .eq('type', 'purchase')
           .eq('payment_status', 'pending')
+          .lte('created_at', cutoffDateISO) // ✅ Solo hasta fecha límite
           .order('created_at', { ascending: false });
 
         if (transError) throw transError;

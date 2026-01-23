@@ -47,6 +47,7 @@ import {
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { CreateAdminSimple } from '@/components/admin/CreateAdminSimple';
 
 interface User {
   id: string;
@@ -390,17 +391,20 @@ export function UsersManagement() {
                   Crear Admin General
                 </Button>
               </DialogTrigger>
-              <DialogContent>
+              <DialogContent className="sm:max-w-[500px]">
                 <DialogHeader>
-                  <DialogTitle>Crear Usuario Admin General</DialogTitle>
+                  <DialogTitle>Crear Admin General</DialogTitle>
                   <DialogDescription>
-                    Este usuario tendrá acceso completo al ERP
+                    Nuevo usuario con acceso completo al ERP
                   </DialogDescription>
                 </DialogHeader>
-                <CreateAdminForm onSuccess={() => {
-                  setShowCreateDialog(false);
-                  fetchUsers();
-                }} />
+                <CreateAdminSimple 
+                  onSuccess={() => {
+                    setShowCreateDialog(false);
+                    fetchUsers();
+                  }}
+                  onCancel={() => setShowCreateDialog(false)}
+                />
               </DialogContent>
             </Dialog>
           </div>
@@ -689,136 +693,6 @@ export function UsersManagement() {
         </DialogContent>
       </Dialog>
     </div>
-  );
-}
-
-function CreateAdminForm({ onSuccess }: { onSuccess: () => void }) {
-  const { toast } = useToast();
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [fullName, setFullName] = useState('');
-  const [creating, setCreating] = useState(false);
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    if (!email || !password || !fullName) {
-      toast({
-        variant: 'destructive',
-        title: 'Error',
-        description: 'Completa todos los campos',
-      });
-      return;
-    }
-
-    setCreating(true);
-
-    try {
-      // 🔐 GUARDAR SESIÓN ACTUAL DEL SUPERADMIN
-      const { data: { session: currentSession } } = await supabase.auth.getSession();
-      if (!currentSession) {
-        throw new Error('No hay sesión activa de SuperAdmin');
-      }
-
-      // Crear usuario en Supabase Auth
-      const { data: authData, error: authError } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          data: {
-            full_name: fullName,
-          },
-          emailRedirectTo: undefined,
-        },
-      });
-
-      if (authError) throw authError;
-
-      if (authData.user) {
-        // Actualizar rol a admin_general
-        const { error: updateError } = await supabase
-          .from('profiles')
-          .update({ role: 'admin_general' })
-          .eq('id', authData.user.id);
-
-        if (updateError) throw updateError;
-
-        // 🔄 RESTAURAR SESIÓN DEL SUPERADMIN
-        await supabase.auth.signOut();
-        await supabase.auth.setSession({
-          access_token: currentSession.access_token,
-          refresh_token: currentSession.refresh_token,
-        });
-
-        toast({
-          title: '✅ Admin Creado',
-          description: `Usuario ${email} creado exitosamente`,
-        });
-
-        onSuccess();
-      }
-    } catch (error: any) {
-      console.error('Error creating admin:', error);
-
-      // 🔄 INTENTAR RESTAURAR SESIÓN INCLUSO SI HAY ERROR
-      try {
-        const { data: { session: fallbackSession } } = await supabase.auth.getSession();
-        if (!fallbackSession) {
-          // Forzar reload para volver al login
-          window.location.reload();
-        }
-      } catch (e) {
-        console.error('Error al recuperar sesión:', e);
-      }
-
-      toast({
-        variant: 'destructive',
-        title: 'Error',
-        description: error.message || 'No se pudo crear el usuario',
-      });
-    } finally {
-      setCreating(false);
-    }
-  };
-
-  return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      <div>
-        <Label htmlFor="fullName">Nombre Completo</Label>
-        <Input
-          id="fullName"
-          value={fullName}
-          onChange={(e) => setFullName(e.target.value)}
-          placeholder="Juan Pérez"
-          required
-        />
-      </div>
-      <div>
-        <Label htmlFor="email">Email</Label>
-        <Input
-          id="email"
-          type="email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          placeholder="admin@limacafe28.com"
-          required
-        />
-      </div>
-      <div>
-        <Label htmlFor="password">Contraseña</Label>
-        <Input
-          id="password"
-          type="password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          placeholder="Mínimo 6 caracteres"
-          required
-        />
-      </div>
-      <Button type="submit" className="w-full" disabled={creating}>
-        {creating ? 'Creando...' : 'Crear Admin General'}
-      </Button>
-    </form>
   );
 }
 

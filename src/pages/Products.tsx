@@ -62,7 +62,7 @@ const Products = () => {
   
   const [products, setProducts] = useState<Product[]>([]);
   const [schools, setSchools] = useState<School[]>([]);
-  const [categories, setCategories] = useState<string[]>(['bebidas', 'snacks', 'menu', 'otros']);
+  const [categories, setCategories] = useState<string[]>([]);
   const [showProductModal, setShowProductModal] = useState(false);
   const [formMode, setFormMode] = useState<'wizard' | 'form'>('wizard');
   const [wizardStep, setWizardStep] = useState(1);
@@ -163,10 +163,9 @@ const Products = () => {
     
     // Extraer categorías únicas de los productos existentes
     const dbCategories = Array.from(new Set(productsData.map(p => p.category).filter(Boolean)));
-    const defaultCategories = ['bebidas', 'snacks', 'menu', 'otros'];
     
-    // Combinar categorías por defecto con las de la base de datos
-    const allCategories = Array.from(new Set([...defaultCategories, ...dbCategories]));
+    // Ordenar alfabéticamente
+    const allCategories = dbCategories.sort();
     setCategories(allCategories);
     
     setLoading(false);
