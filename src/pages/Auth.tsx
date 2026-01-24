@@ -50,33 +50,21 @@ export default function Auth() {
   const handleSocialLogin = async (provider: 'google' | 'azure') => {
     try {
       setIsLoading(true);
-      const { data, error } = await supabase.auth.signInWithOAuth({
+      
+      // Usar el flujo normal de redirección (más confiable)
+      const { error } = await supabase.auth.signInWithOAuth({
         provider: provider,
         options: {
           redirectTo: `${window.location.origin}/`,
-          queryParams: { prompt: 'select_account' },
-          skipBrowserRedirect: true,
+          queryParams: { prompt: 'select_account' }
         },
       });
       
       if (error) throw error;
-
-      // Abrir ventana popup elegante
-      if (data?.url) {
-        const width = 500;
-        const height = 600;
-        const left = window.screenX + (window.outerWidth - width) / 2;
-        const top = window.screenY + (window.outerHeight - height) / 2;
-        
-        window.open(
-          data.url,
-          'oauth-popup',
-          `width=${width},height=${height},left=${left},top=${top},toolbar=no,menubar=no,location=no,status=no`
-        );
-      }
+      
+      // El navegador redirigirá automáticamente
     } catch (err: any) {
       toast({ variant: 'destructive', title: 'Error', description: err.message });
-    } finally {
       setIsLoading(false);
     }
   };
