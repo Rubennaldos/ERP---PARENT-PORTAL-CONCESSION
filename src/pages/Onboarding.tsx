@@ -50,17 +50,24 @@ export default function Onboarding() {
 
   useEffect(() => {
     // Si todavía está cargando la autenticación, no hacemos nada
-    if (authLoading) return;
+    if (authLoading) {
+      console.log('⏳ Cargando autenticación...');
+      return;
+    }
 
     if (!user) {
-      console.log('⚠️ No hay usuario en onboarding, esperando o redirigiendo...');
-      // Damos un pequeño margen para que Supabase procese el hash de la URL
+      console.log('⚠️ No hay usuario en onboarding, esperando 5s antes de redirigir...');
+      // Damos un margen de 5 segundos para que Supabase procese el login social
       const timeout = setTimeout(() => {
-        if (!user) navigate('/auth');
-      }, 2000);
+        if (!user) {
+          console.log('❌ Redirigiendo al login por falta de sesión tras 5s');
+          navigate('/auth');
+        }
+      }, 5000);
       return () => clearTimeout(timeout);
     }
     
+    console.log('✅ Usuario detectado en onboarding:', user.email);
     fetchSchools();
     checkExistingProfile();
   }, [user, authLoading]);

@@ -31,16 +31,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log('🔔 Auth Event:', event);
+      console.log('🔔 Auth Event:', event, session ? '✅ Sesión activa' : '❌ Sin sesión');
       
-      if (event === 'SIGNED_IN') {
-        setSession(session);
-        setUser(session?.user ?? null);
-      } else if (event === 'SIGNED_OUT') {
-        setSession(null);
-        setUser(null);
-      }
-      
+      // Actualizamos siempre que haya un cambio, sin importar el tipo de evento
+      setSession(session);
+      setUser(session?.user ?? null);
       setLoading(false);
     });
 
@@ -48,10 +43,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     supabase.auth.getSession().then(({ data: { session }, error }) => {
       if (error) {
         console.error('❌ Error recuperando sesión:', error);
-        supabase.auth.signOut(); // Limpiar si hay error
       }
-      setSession(session);
-      setUser(session?.user ?? null);
+      if (session) {
+        setSession(session);
+        setUser(session.user);
+      }
       setLoading(false);
     });
 
