@@ -6,690 +6,439 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/lib/supabase';
-import { logError } from '@/utils/errorLogger';
-import { Loader2, Plus, Trash2, CheckCircle2, GraduationCap, School } from 'lucide-react';
+import { Loader2, GraduationCap, CheckCircle2, UserPlus } from 'lucide-react';
 
-interface StudentForm {
+interface School {
+  id: string;
+  name: string;
+  code: string;
+}
+
+interface Student {
   id: string;
   full_name: string;
   grade: string;
   section: string;
-  relationship: string;
-  has_allergies: boolean;
-  allergy_notes: string;
 }
 
-const RELATIONSHIPS = [
-  { value: 'hijo', label: 'Hijo/Hija' },
-  { value: 'hermano', label: 'Hermano/Hermana' },
-  { value: 'primo', label: 'Primo/Prima' },
-  { value: 'sobrino', label: 'Sobrino/Sobrina' },
-  { value: 'nieto', label: 'Nieto/Nieta' },
-  { value: 'a_cargo', label: 'A cargo (Tutor legal)' },
-];
-
-const GRADES = [
-  'Inicial 3 años', 'Inicial 4 años', 'Inicial 5 años',
-  '1ro Primaria', '2do Primaria', '3ro Primaria', '4to Primaria', '5to Primaria', '6to Primaria',
-  '1ro Secundaria', '2do Secundaria', '3ro Secundaria', '4to Secundaria', '5to Secundaria',
-];
-
 export default function Onboarding() {
-  const { user } = useAuth();
-  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
+  const { user } = useAuth();
   const { toast } = useToast();
 
+  const [schools, setSchools] = useState<School[]>([]);
   const [loading, setLoading] = useState(false);
-  const [currentStep, setCurrentStep] = useState(1); // 1: Datos del padre, 2: Datos de hijos
+  const [currentStep, setCurrentStep] = useState<'school' | 'students'>('school');
   
-  // Datos del padre
-  const [parentData, setParentData] = useState({
-    full_name: user?.user_metadata?.full_name || user?.user_metadata?.name || '',
-    dni: '',
-    phone_1: '',
-    phone_2: '',
-    address: '',
-  });
-
-  const [students, setStudents] = useState<StudentForm[]>([
-    {
-      id: crypto.randomUUID(),
-      full_name: '',
-      grade: '',
-      section: '',
-      relationship: 'hijo',
-      has_allergies: false,
-      allergy_notes: '',
-    },
+  // Step 1: Escuela y términos
+  const [selectedSchoolId, setSelectedSchoolId] = useState('');
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
+  
+  // Step 2: Estudiantes
+  const [students, setStudents] = useState<Array<{
+    id: string;
+    full_name: string;
+    grade: string;
+    section: string;
+  }>>([
+    { id: crypto.randomUUID(), full_name: '', grade: '', section: '' }
   ]);
 
-  const [schoolId, setSchoolId] = useState<string>('');
-  const [schoolName, setSchoolName] = useState<string>('');
-  const [schools, setSchools] = useState<{id: string, name: string, code: string}[]>([]);
-
-  // Obtener el school_id del padre o desde el URL
   useEffect(() => {
-    if (user) {
-      fetchSchoolInfo();
+    if (!user) {
+      navigate('/auth');
+      return;
     }
-  }, [user, searchParams]); // Agregar searchParams como dependencia
+    
+    fetchSchools();
+    checkExistingProfile();
+  }, [user]);
 
-  const fetchSchoolInfo = async () => {
+  useEffect(() => {
+    // Intentar recuperar school_id del localStorage (de OAuth)
+    const pendingSchoolId = localStorage.getItem('pending_school_id');
+    if (pendingSchoolId && schools.length > 0) {
+      setSelectedSchoolId(pendingSchoolId);
+      localStorage.removeItem('pending_school_id');
+      console.log('✅ School ID recuperado de localStorage:', pendingSchoolId);
+    }
+    
+    // O desde URL
+    const sedeCode = searchParams.get('school') || searchParams.get('sede');
+    if (sedeCode && schools.length > 0 && !selectedSchoolId) {
+      const school = schools.find(s => s.code === sedeCode);
+      if (school) {
+        setSelectedSchoolId(school.id);
+        console.log('✅ Sede detectada desde URL:', school.name);
+      }
+    }
+  }, [searchParams, schools]);
+
+  const fetchSchools = async () => {
     try {
-      console.log('🔍 Iniciando fetchSchoolInfo...');
-      
-      // 0. CARGAR TODOS LOS COLEGIOS PRIMERO
-      const { data: schoolsData } = await supabase
+      const { data, error } = await supabase
         .from('schools')
         .select('id, name, code')
         .eq('is_active', true)
         .order('name');
 
-      if (schoolsData) {
-        setSchools(schoolsData);
-        console.log('📚 Colegios cargados:', schoolsData.length);
-      }
-
-      // 1. PRIMERO: Intentar desde parent_profiles (prioridad máxima)
-      const { data: pProfile } = await supabase
-        .from('parent_profiles')
-        .select('school_id, schools(name)')
-        .eq('user_id', user?.id)
-        .maybeSingle();
-
-      if (pProfile?.school_id) {
-        setSchoolId(pProfile.school_id);
-        const sName = (pProfile.schools as any)?.name || '';
-        setSchoolName(sName);
-        console.log('✅ Sede desde DB (parent_profiles):', sName, pProfile.school_id);
-        return; // YA TENEMOS LA SEDE, SALIR
-      }
-
-      // 2. SEGUNDO: Intentar desde la URL
-      const sedeCode = searchParams.get('school') || searchParams.get('sede');
-      console.log('🔍 Parámetro URL school/sede:', sedeCode);
-      
-      if (sedeCode && schoolsData) {
-        const schoolFromUrl = schoolsData.find(s => s.code === sedeCode);
-        if (schoolFromUrl) {
-          setSchoolId(schoolFromUrl.id);
-          setSchoolName(schoolFromUrl.name);
-          console.log('✅ Sede detectada desde URL:', schoolFromUrl.name, schoolFromUrl.id);
-          return;
-        }
-      }
-
-      // 3. TERCERO: Intentar desde localStorage (para OAuth)
-      const savedSchoolId = localStorage.getItem('pending_school_id');
-      console.log('💾 localStorage pending_school_id:', savedSchoolId);
-      
-      if (savedSchoolId && schoolsData) {
-        const schoolFromStorage = schoolsData.find(s => s.id === savedSchoolId);
-        if (schoolFromStorage) {
-          setSchoolId(schoolFromStorage.id);
-          setSchoolName(schoolFromStorage.name);
-          localStorage.removeItem('pending_school_id');
-          console.log('✅ Sede desde localStorage:', schoolFromStorage.name, schoolFromStorage.id);
-          return;
-        }
-      }
-
-      console.log('⚠️ No se detectó ninguna sede automáticamente');
+      if (error) throw error;
+      setSchools(data || []);
     } catch (error) {
-      console.error('❌ Error fetching school info:', error);
+      console.error('Error fetching schools:', error);
     }
   };
 
-  const addStudent = () => {
-    setStudents([
-      ...students,
-      {
-        id: crypto.randomUUID(),
-        full_name: '',
-        grade: '',
-        section: '',
-        relationship: 'hijo',
-        has_allergies: false,
-        allergy_notes: '',
-      },
-    ]);
-  };
-
-  const removeStudent = (id: string) => {
-    if (students.length > 1) {
-      setStudents(students.filter((s) => s.id !== id));
-    }
-  };
-
-  const updateStudent = (id: string, field: keyof StudentForm, value: any) => {
-    setStudents(
-      students.map((s) => (s.id === id ? { ...s, [field]: value } : s))
-    );
-  };
-
-  const validateParentData = () => {
-    if (!schoolId) {
-      toast({
-        variant: 'destructive',
-        title: 'Error',
-        description: 'Por favor selecciona tu colegio/sede',
-      });
-      return false;
-    }
-    if (!parentData.full_name.trim()) {
-      toast({
-        variant: 'destructive',
-        title: 'Error',
-        description: 'Ingresa tu nombre completo',
-      });
-      return false;
-    }
-    if (!parentData.dni.trim() || parentData.dni.length < 8) {
-      toast({
-        variant: 'destructive',
-        title: 'Error',
-        description: 'Ingresa un DNI válido (8 dígitos)',
-      });
-      return false;
-    }
-    if (!parentData.phone_1.trim() || parentData.phone_1.length < 9) {
-      toast({
-        variant: 'destructive',
-        title: 'Error',
-        description: 'Ingresa un teléfono válido',
-      });
-      return false;
-    }
-    if (!parentData.address.trim()) {
-      toast({
-        variant: 'destructive',
-        title: 'Error',
-        description: 'Ingresa tu dirección',
-      });
-      return false;
-    }
-    return true;
-  };
-
-  const validateStudentsData = () => {
-    for (const student of students) {
-      if (!student.full_name.trim()) {
-        toast({
-          variant: 'destructive',
-          title: 'Error',
-          description: 'Todos los estudiantes deben tener nombre',
-        });
-        return false;
-      }
-      if (!student.grade) {
-        toast({
-          variant: 'destructive',
-          title: 'Error',
-          description: 'Selecciona el grado de todos los estudiantes',
-        });
-        return false;
-      }
-      if (!student.relationship) {
-        toast({
-          variant: 'destructive',
-          title: 'Error',
-          description: 'Indica la relación con cada estudiante',
-        });
-        return false;
-      }
-    }
-    return true;
-  };
-
-  const handleNextStep = () => {
-    if (currentStep === 1) {
-      if (validateParentData()) {
-        setCurrentStep(2);
-      }
-    }
-  };
-
-  const handleSubmit = async () => {
-    if (!validateStudentsData()) return;
-
-    setLoading(true);
+  const checkExistingProfile = async () => {
+    if (!user) return;
 
     try {
-      // 1. Asegurar que existe el perfil básico en 'profiles'
-      // Esto evita el error de foreign key con 'students'
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .upsert({
-          id: user?.id,
-          email: user?.email,
-          role: 'parent',
-          full_name: parentData.full_name,
-        });
-
-      if (profileError) {
-        console.error('Error al crear perfil base:', profileError);
-        throw new Error('No se pudo crear tu perfil de usuario básico.');
-      }
-
-      // 2. Crear o actualizar datos del padre en parent_profiles (UPSERT)
-      // Validar que tengamos school_id
-      if (!schoolId) {
-        throw new Error('No se pudo determinar el colegio. Por favor, selecciona uno.');
-      }
-
-      const { error: parentError } = await supabase
+      const { data: profile } = await supabase
         .from('parent_profiles')
-        .upsert({
-          user_id: user?.id,
-          school_id: schoolId,
-          full_name: parentData.full_name,
-          dni: parentData.dni,
-          phone_1: parentData.phone_1,
-          phone_2: parentData.phone_2 || null,
-          address: parentData.address,
-          onboarding_completed: false,
-        }, {
-          onConflict: 'user_id'
-        });
+        .select('onboarding_completed, school_id')
+        .eq('user_id', user.id)
+        .maybeSingle();
 
-      if (parentError) {
-        console.error('Error guardando datos del padre:', parentError);
-        throw parentError;
+      if (profile?.onboarding_completed) {
+        // Ya completó onboarding, redirigir al portal
+        navigate('/');
+      } else if (profile?.school_id) {
+        // Tiene escuela, pasar a agregar estudiantes
+        setSelectedSchoolId(profile.school_id);
+        setCurrentStep('students');
       }
+    } catch (error) {
+      console.error('Error checking profile:', error);
+    }
+  };
 
-      console.log('✅ Datos del padre guardados correctamente');
-
-      // 3. Insertar cada estudiante
-      for (const student of students) {
-        // Crear estudiante
-        const { data: studentData, error: studentError } = await supabase
-          .from('students')
-          .insert({
-            parent_id: user?.id,
-            school_id: schoolId,
-            full_name: student.full_name,
-            name: student.full_name,
-            grade: student.grade,
-            section: student.section || 'A',
-            balance: 0,
-            daily_limit: 15,
-            is_active: true,
-          })
-          .select()
-          .single();
-
-        if (studentError) throw studentError;
-
-        // 4. Crear relación familiar
-        const { error: relationError } = await supabase
-          .from('student_relationships')
-          .insert({
-            student_id: studentData.id,
-            parent_id: user?.id,
-            relationship: student.relationship,
-            is_primary: student.relationship === 'hijo',
-          });
-
-        if (relationError) throw relationError;
-
-        // 5. Registrar alergias si tiene
-        if (student.has_allergies && student.allergy_notes.trim()) {
-          const { error: allergyError } = await supabase
-            .from('allergies')
-            .insert({
-              student_id: studentData.id,
-              allergy_type: 'general',
-              notes: student.allergy_notes,
-              created_by: user?.id,
-            });
-
-          if (allergyError) console.error('Error saving allergy:', allergyError);
-        }
-      }
-
-      // Marcar onboarding como completado
-      await supabase
-        .from('parent_profiles')
-        .update({ onboarding_completed: true })
-        .eq('user_id', user?.id);
-
-      toast({
-        title: '✅ ¡Registro Completado!',
-        description: `${students.length} estudiante(s) registrado(s) exitosamente`,
-      });
-
-      navigate('/');
-
-    } catch (error: any) {
-      console.error('Error onboarding:', error);
-      
-      // Registrar error y obtener mensaje traducido
-      const translatedMessage = await logError(error, {
-        component: 'Onboarding',
-        action: 'Completar registro de padre e hijos',
-        metadata: {
-          studentCount: students.length,
-          hasSchoolId: !!schoolId
-        }
-      });
-      
+  const handleSchoolSubmit = async () => {
+    if (!selectedSchoolId) {
       toast({
         variant: 'destructive',
         title: 'Error',
-        description: translatedMessage,
+        description: 'Selecciona tu colegio/sede',
+      });
+      return;
+    }
+
+    if (!acceptedTerms) {
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'Debes aceptar los Términos y Condiciones',
+      });
+      return;
+    }
+
+    setLoading(true);
+    try {
+      // Actualizar parent_profile con school_id
+      const { error: updateError } = await supabase
+        .from('parent_profiles')
+        .update({ school_id: selectedSchoolId })
+        .eq('user_id', user!.id);
+
+      if (updateError) throw updateError;
+
+      // Guardar términos aceptados
+      const { error: termsError } = await supabase
+        .from('terms_and_conditions')
+        .upsert({
+          user_id: user!.id,
+          version: '1.0',
+          content: 'Términos y Condiciones - Lima Café 28',
+          accepted_at: new Date().toISOString(),
+        }, { onConflict: 'user_id' });
+
+      if (termsError) console.error('Error saving terms:', termsError);
+
+      toast({
+        title: '✅ Sede Confirmada',
+        description: 'Ahora agrega a tus hijos',
+      });
+
+      setCurrentStep('students');
+    } catch (error: any) {
+      console.error('Error saving school:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: error.message || 'No se pudo guardar la sede',
       });
     } finally {
       setLoading(false);
     }
   };
 
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 py-8 px-4">
-      <div className="max-w-4xl mx-auto">
-        <Card className="shadow-xl">
-          <CardHeader className="bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-t-lg">
+  const addStudent = () => {
+    setStudents([...students, { id: crypto.randomUUID(), full_name: '', grade: '', section: '' }]);
+  };
+
+  const removeStudent = (id: string) => {
+    if (students.length <= 1) {
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'Debes agregar al menos un estudiante',
+      });
+      return;
+    }
+    setStudents(students.filter(s => s.id !== id));
+  };
+
+  const updateStudent = (id: string, field: keyof Student, value: string) => {
+    setStudents(students.map(s => s.id === id ? { ...s, [field]: value } : s));
+  };
+
+  const handleFinish = async () => {
+    // Validar que todos los estudiantes tengan datos completos
+    const invalidStudent = students.find(s => !s.full_name || !s.grade || !s.section);
+    if (invalidStudent) {
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'Completa los datos de todos los estudiantes',
+      });
+      return;
+    }
+
+    setLoading(true);
+    try {
+      // 1. Insertar estudiantes
+      const studentsToInsert = students.map(s => ({
+        full_name: s.full_name,
+        grade: s.grade,
+        section: s.section,
+        school_id: selectedSchoolId,
+        is_active: true,
+      }));
+
+      const { data: insertedStudents, error: studentsError } = await supabase
+        .from('students')
+        .insert(studentsToInsert)
+        .select();
+
+      if (studentsError) throw studentsError;
+
+      // 2. Crear relaciones parent-student
+      const relationships = insertedStudents.map(student => ({
+        parent_id: user!.id,
+        student_id: student.id,
+        relationship_type: 'padre/madre',
+      }));
+
+      const { error: relationError } = await supabase
+        .from('student_relationships')
+        .insert(relationships);
+
+      if (relationError) throw relationError;
+
+      // 3. Marcar onboarding como completado
+      const { error: completeError } = await supabase
+        .from('parent_profiles')
+        .update({ onboarding_completed: true })
+        .eq('user_id', user!.id);
+
+      if (completeError) throw completeError;
+
+      toast({
+        title: '🎉 ¡Registro Completado!',
+        description: 'Bienvenido al Portal de Padres',
+        duration: 3000,
+      });
+
+      // Redirigir al portal
+      setTimeout(() => navigate('/'), 500);
+    } catch (error: any) {
+      console.error('Error finishing onboarding:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: error.message || 'No se pudo completar el registro',
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (currentStep === 'school') {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-green-50 via-blue-50 to-purple-50 flex items-center justify-center p-4">
+        <Card className="w-full max-w-xl shadow-xl">
+          <CardHeader className="text-center bg-gradient-to-r from-green-600 to-blue-600 text-white rounded-t-lg">
             <div className="flex justify-center mb-4">
               <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center">
-                <GraduationCap className="h-8 w-8 text-blue-600" />
+                <CheckCircle2 className="h-8 w-8 text-green-600" />
               </div>
             </div>
-            <CardTitle className="text-2xl text-center">
-              {currentStep === 1 ? 'Completa tus Datos' : 'Registra a tus Hijos'}
-            </CardTitle>
-            <CardDescription className="text-blue-100 text-center">
-              {currentStep === 1 
-                ? 'Necesitamos algunos datos para completar tu perfil' 
-                : 'Agrega a todos los estudiantes que usarán el kiosco'}
+            <CardTitle className="text-2xl">¡Email Confirmado!</CardTitle>
+            <CardDescription className="text-blue-100">
+              Completa tu registro para acceder al portal
             </CardDescription>
-            {/* Indicador de pasos */}
-            <div className="flex justify-center gap-2 mt-4">
-              <div className={`h-2 w-20 rounded-full ${currentStep === 1 ? 'bg-white' : 'bg-white/30'}`} />
-              <div className={`h-2 w-20 rounded-full ${currentStep === 2 ? 'bg-white' : 'bg-white/30'}`} />
-            </div>
           </CardHeader>
 
           <CardContent className="p-6 space-y-6">
-            
-            {/* PASO 1: Datos del Padre */}
-            {currentStep === 1 && (
-              <div className="space-y-4">
-                {/* Selector de Colegio (solo si no se detectó automáticamente) */}
-                {schoolId ? (
-                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
-                        <School className="h-5 w-5 text-blue-600" />
-                      </div>
-                      <div>
-                        <p className="text-xs text-blue-600 font-semibold uppercase">Sede Asignada</p>
-                        <p className="text-lg font-bold text-blue-900">{schoolName || 'Cargando sede...'}</p>
-                      </div>
-                    </div>
-                    <Button 
-                      variant="ghost" 
-                      size="sm" 
-                      onClick={() => { setSchoolId(''); setSchoolName(''); }}
-                      className="text-xs text-blue-600 hover:bg-blue-100"
+            <div>
+              <Label htmlFor="school_id" className="text-lg font-semibold">
+                Selecciona tu Colegio/Sede *
+              </Label>
+              <p className="text-sm text-muted-foreground mb-3">
+                Elige la sede donde estudian tus hijos
+              </p>
+              <Select value={selectedSchoolId} onValueChange={setSelectedSchoolId}>
+                <SelectTrigger className="h-14 text-base">
+                  <SelectValue placeholder="🏫 Selecciona el colegio..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {schools.map((school) => (
+                    <SelectItem key={school.id} value={school.id} className="text-base">
+                      {school.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="flex items-start gap-3 p-4 bg-yellow-50 border-2 border-yellow-200 rounded-lg">
+              <Checkbox
+                id="terms"
+                checked={acceptedTerms}
+                onCheckedChange={(checked) => setAcceptedTerms(checked as boolean)}
+                className="mt-1"
+              />
+              <label htmlFor="terms" className="text-sm cursor-pointer leading-relaxed">
+                Acepto los{' '}
+                <a href="/terminos" target="_blank" className="text-blue-600 underline font-semibold">
+                  Términos y Condiciones
+                </a>{' '}
+                y autorizo el tratamiento de mis datos personales según la Ley N° 29733.
+              </label>
+            </div>
+
+            <Button 
+              onClick={handleSchoolSubmit} 
+              disabled={loading || !selectedSchoolId || !acceptedTerms} 
+              className="w-full h-14 text-lg font-bold"
+            >
+              {loading ? (
+                <>
+                  <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                  Guardando...
+                </>
+              ) : (
+                <>
+                  Continuar
+                  <CheckCircle2 className="ml-2 h-5 w-5" />
+                </>
+              )}
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  // Step 2: Agregar estudiantes
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-orange-50 flex items-center justify-center p-4">
+      <Card className="w-full max-w-2xl shadow-xl">
+        <CardHeader className="text-center bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-t-lg">
+          <div className="flex justify-center mb-4">
+            <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center">
+              <UserPlus className="h-8 w-8 text-purple-600" />
+            </div>
+          </div>
+          <CardTitle className="text-2xl">Agrega a tus Hijos</CardTitle>
+          <CardDescription className="text-purple-100">
+            Registra a los estudiantes para ver su información
+          </CardDescription>
+        </CardHeader>
+
+        <CardContent className="p-6 space-y-6">
+          <div className="space-y-4">
+            {students.map((student, index) => (
+              <div key={student.id} className="p-4 border-2 border-purple-200 rounded-lg bg-white space-y-3">
+                <div className="flex items-center justify-between mb-2">
+                  <h4 className="font-bold text-purple-900">Estudiante {index + 1}</h4>
+                  {students.length > 1 && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => removeStudent(student.id)}
+                      className="text-red-600 hover:text-red-700 hover:bg-red-50"
                     >
-                      Cambiar
+                      ✕ Eliminar
                     </Button>
-                  </div>
-                ) : (
-                  schools.length > 0 && (
-                    <div className="space-y-2">
-                      <Label>Colegio/Sede *</Label>
-                      <Select
-                        value={schoolId}
-                        onValueChange={(value) => {
-                          setSchoolId(value);
-                          const s = schools.find(sch => sch.id === value);
-                          if (s) setSchoolName(s.name);
-                        }}
-                      >
-                        <SelectTrigger className="h-12 border-2 focus:border-blue-500">
-                          <SelectValue placeholder="Selecciona tu colegio" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {schools.map((school) => (
-                            <SelectItem key={school.id} value={school.id}>
-                              {school.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <p className="text-xs text-muted-foreground italic">
-                        Selecciona el colegio donde estudian tus hijos
-                      </p>
-                    </div>
-                  )
-                )}
+                  )}
+                </div>
 
                 <div>
                   <Label>Nombre Completo *</Label>
                   <Input
-                    value={parentData.full_name}
-                    onChange={(e) => setParentData({ ...parentData, full_name: e.target.value })}
-                    placeholder="Nombres y Apellidos"
+                    value={student.full_name}
+                    onChange={(e) => updateStudent(student.id, 'full_name', e.target.value)}
+                    placeholder="Ej: Juan Pérez García"
+                    className="h-12 text-base"
                   />
                 </div>
 
-                <div>
-                  <Label>DNI *</Label>
-                  <Input
-                    value={parentData.dni}
-                    onChange={(e) => setParentData({ ...parentData, dni: e.target.value })}
-                    placeholder="12345678"
-                    maxLength={8}
-                  />
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <Label>Grado *</Label>
+                    <Input
+                      value={student.grade}
+                      onChange={(e) => updateStudent(student.id, 'grade', e.target.value)}
+                      placeholder="Ej: 5to"
+                      className="h-12 text-base"
+                    />
+                  </div>
+                  <div>
+                    <Label>Sección *</Label>
+                    <Input
+                      value={student.section}
+                      onChange={(e) => updateStudent(student.id, 'section', e.target.value)}
+                      placeholder="Ej: A"
+                      className="h-12 text-base"
+                    />
+                  </div>
                 </div>
-
-                <div>
-                  <Label>Teléfono Principal *</Label>
-                  <Input
-                    value={parentData.phone_1}
-                    onChange={(e) => setParentData({ ...parentData, phone_1: e.target.value })}
-                    placeholder="999888777"
-                    maxLength={9}
-                  />
-                </div>
-
-                <div>
-                  <Label>Teléfono Secundario (Opcional)</Label>
-                  <Input
-                    value={parentData.phone_2}
-                    onChange={(e) => setParentData({ ...parentData, phone_2: e.target.value })}
-                    placeholder="999888666"
-                    maxLength={9}
-                  />
-                </div>
-
-                <div>
-                  <Label>Dirección *</Label>
-                  <Input
-                    value={parentData.address}
-                    onChange={(e) => setParentData({ ...parentData, address: e.target.value })}
-                    placeholder="Av/Jr/Calle, Nro. Distrito"
-                  />
-                </div>
-
-                <Button
-                  onClick={handleNextStep}
-                  className="w-full h-12 text-lg"
-                >
-                  Siguiente: Registrar Hijos
-                </Button>
               </div>
-            )}
-
-            {/* PASO 2: Datos de los Hijos */}
-            {currentStep === 2 && (
-              <div className="space-y-6">
-            {/* Advertencia de alergias */}
-            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 text-sm">
-              <p className="font-semibold text-yellow-800 mb-1">⚠️ Importante - Alergias Alimentarias</p>
-              <p className="text-yellow-700">
-                El registro de alergias es <strong>solo informativo</strong>. Lima Café 28 no se hace responsable por reacciones alérgicas. 
-                Es tu responsabilidad verificar los ingredientes de cada producto.
-              </p>
-            </div>
-
-            {/* Formularios de estudiantes */}
-            {students.map((student, index) => (
-              <Card key={student.id} className="border-2">
-                <CardHeader className="pb-3 bg-gray-50">
-                  <div className="flex justify-between items-center">
-                    <CardTitle className="text-base">Estudiante {index + 1}</CardTitle>
-                    {students.length > 1 && (
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => removeStudent(student.id)}
-                      >
-                        <Trash2 className="h-4 w-4 text-red-600" />
-                      </Button>
-                    )}
-                  </div>
-                </CardHeader>
-                <CardContent className="space-y-4 pt-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="md:col-span-2">
-                      <Label>Nombre Completo *</Label>
-                      <Input
-                        value={student.full_name}
-                        onChange={(e) => updateStudent(student.id, 'full_name', e.target.value)}
-                        placeholder="Nombres y Apellidos"
-                      />
-                    </div>
-
-                    <div>
-                      <Label>Grado *</Label>
-                      <Select
-                        value={student.grade}
-                        onValueChange={(value) => updateStudent(student.id, 'grade', value)}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Selecciona" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {GRADES.map((grade) => (
-                            <SelectItem key={grade} value={grade}>
-                              {grade}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <div>
-                      <Label>Sección</Label>
-                      <Input
-                        value={student.section}
-                        onChange={(e) => updateStudent(student.id, 'section', e.target.value.toUpperCase())}
-                        placeholder="A, B, C..."
-                        maxLength={2}
-                      />
-                    </div>
-
-                    <div className="md:col-span-2">
-                      <Label>Relación Familiar *</Label>
-                      <Select
-                        value={student.relationship}
-                        onValueChange={(value) => updateStudent(student.id, 'relationship', value)}
-                      >
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {RELATIONSHIPS.map((rel) => (
-                            <SelectItem key={rel.value} value={rel.value}>
-                              {rel.label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <div className="md:col-span-2">
-                      <div className="flex items-center gap-2 mb-2">
-                        <input
-                          type="checkbox"
-                          id={`allergy-${student.id}`}
-                          checked={student.has_allergies}
-                          onChange={(e) =>
-                            updateStudent(student.id, 'has_allergies', e.target.checked)
-                          }
-                          className="rounded"
-                        />
-                        <Label htmlFor={`allergy-${student.id}`}>
-                          Tiene alergias o intolerancias alimentarias
-                        </Label>
-                      </div>
-                      {student.has_allergies && (
-                        <Input
-                          value={student.allergy_notes}
-                          onChange={(e) =>
-                            updateStudent(student.id, 'allergy_notes', e.target.value)
-                          }
-                          placeholder="Especifica: gluten, lácteos, maní, mariscos, etc."
-                        />
-                      )}
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
             ))}
+          </div>
 
-                {/* Botón agregar estudiante */}
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={addStudent}
-                  className="w-full border-dashed border-2"
-                >
-                  <Plus className="h-4 w-4 mr-2" />
-                  Agregar Otro Estudiante
-                </Button>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={addStudent}
+            className="w-full h-12 border-2 border-purple-300 text-purple-700 hover:bg-purple-50"
+          >
+            <UserPlus className="mr-2 h-5 w-5" />
+            Agregar otro hijo
+          </Button>
 
-                {/* Botones de navegación */}
-                <div className="flex gap-4">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => setCurrentStep(1)}
-                    disabled={loading}
-                    className="flex-1"
-                  >
-                    Atrás
-                  </Button>
-                  <Button
-                    onClick={handleSubmit}
-                    disabled={loading}
-                    className="flex-1 h-12 text-lg"
-                  >
-                    {loading ? (
-                      <>
-                        <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                        Registrando...
-                      </>
-                    ) : (
-                      <>
-                        <CheckCircle2 className="mr-2 h-5 w-5" />
-                        Finalizar Registro
-                      </>
-                    )}
-                  </Button>
-                </div>
-              </div>
+          <Button 
+            onClick={handleFinish} 
+            disabled={loading} 
+            className="w-full h-14 text-lg font-bold bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700"
+          >
+            {loading ? (
+              <>
+                <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                Finalizando...
+              </>
+            ) : (
+              <>
+                🎉 Finalizar y Entrar al Portal
+              </>
             )}
-
-          </CardContent>
-        </Card>
-      </div>
+          </Button>
+        </CardContent>
+      </Card>
     </div>
   );
 }
-
