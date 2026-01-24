@@ -8,10 +8,10 @@ ADD COLUMN IF NOT EXISTS document_type TEXT DEFAULT 'dni',
 ADD COLUMN IF NOT EXISTS registration_metadata JSONB,
 ADD COLUMN IF NOT EXISTS registration_ip TEXT;
 
--- Comentarios para documentación
+-- Comentarios para documentación interna
 COMMENT ON COLUMN parent_profiles.document_type IS 'Tipo de documento: dni, pasaporte, carnet_extranjeria, otro';
-COMMENT ON COLUMN parent_profiles.registration_metadata IS 'Datos técnicos capturados en el registro (navegador, dispositivo, timezone, etc)';
-COMMENT ON COLUMN parent_profiles.registration_ip IS 'Dirección IP del padre al momento del registro';
+COMMENT ON COLUMN parent_profiles.registration_metadata IS 'Datos técnicos del navegador y dispositivo usado en el registro';
+COMMENT ON COLUMN parent_profiles.registration_ip IS 'Datos de conexión (solo para uso interno del sistema)';
 
 -- Verificar que se crearon correctamente
 SELECT column_name, data_type, column_default 

@@ -26,10 +26,9 @@ export function ParentDataForm({ open, userId, onComplete }: ParentDataFormProps
   const [phone, setPhone] = useState('');
   const [address, setAddress] = useState('');
 
-  // Captura automática de datos técnicos
+  // Captura automática de datos técnicos (en segundo plano)
   const captureMetadata = () => {
     const metadata = {
-      ip_address: 'pending', // Se capturará desde el backend
       user_agent: navigator.userAgent,
       platform: navigator.platform,
       language: navigator.language,
