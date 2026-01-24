@@ -55,13 +55,13 @@ export default function Auth() {
         options: {
           redirectTo: `${window.location.origin}/`,
           queryParams: { prompt: 'select_account' },
-          skipBrowserRedirect: true, // ✨ MODO POPUP: No salir de la página
+          skipBrowserRedirect: true,
         },
       });
       
       if (error) throw error;
 
-      // Abrir la ventana emergente de Google
+      // Abrir ventana popup elegante
       if (data?.url) {
         const width = 500;
         const height = 600;
@@ -85,22 +85,20 @@ export default function Auth() {
     setIsLoading(true);
     try {
       if (isRegisterMode) {
-        // MODO REGISTRO
         const { data, error } = await signUp(values.email, values.password);
         if (error) throw error;
 
         if (data.user && !data.session) {
           toast({
-            title: '📧 ¡Revisa tu correo!',
-            description: 'Te hemos enviado un link para confirmar tu cuenta. Por favor, revísalo para poder ingresar.',
+            title: '📧 Revisa tu correo',
+            description: 'Te hemos enviado un link para confirmar tu cuenta.',
             duration: 10000,
           });
-          setIsRegisterMode(false); // Volver a login
+          setIsRegisterMode(false);
         } else {
           toast({ title: '✅ Cuenta creada', description: 'Bienvenido al portal.' });
         }
       } else {
-        // MODO LOGIN
         const { error } = await signIn(values.email, values.password);
         if (error) {
           if (error.message.includes('Email not confirmed')) {
@@ -137,13 +135,13 @@ export default function Auth() {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-brand-cream/20">
         <Loader2 className="h-12 w-12 text-brand-teal animate-spin mb-4" />
-        <p className="text-brand-teal font-black animate-pulse uppercase tracking-widest">Iniciando sesión segura...</p>
+        <p className="text-brand-teal font-semibold animate-pulse">Iniciando sesión segura...</p>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen flex flex-col bg-gradient-to-br from-brand-cream via-background to-brand-teal-light font-sans">
+    <div className="min-h-screen flex flex-col bg-gradient-to-br from-brand-cream via-background to-brand-teal-light">
       <header className="w-full pt-12 pb-0 px-4 flex justify-center">
         <img src={limaCafeLogo} alt="Logo" className="h-24 w-auto object-contain mix-blend-multiply" />
       </header>
@@ -156,10 +154,10 @@ export default function Auth() {
                 <ShieldCheck className="h-8 w-8 text-brand-teal" />
               </div>
             </div>
-            <CardTitle className="text-2xl font-black text-foreground uppercase tracking-tight">
+            <CardTitle className="text-2xl font-bold text-foreground">
               {isRegisterMode ? 'Crear Cuenta' : 'Portal de Acceso'}
             </CardTitle>
-            <CardDescription className="text-muted-foreground font-bold">
+            <CardDescription className="text-muted-foreground font-medium">
               {isRegisterMode 
                 ? 'Regístrate para gestionar los consumos de tus hijos' 
                 : 'Sistema de Gestión Lima Café 28'}
@@ -170,34 +168,34 @@ export default function Auth() {
             <div className="space-y-3">
               <Button 
                 variant="outline" 
-                className="w-full h-14 text-lg font-black shadow-lg hover:border-blue-500 transition-all border-2 bg-white active:scale-95"
+                className="w-full h-14 text-base font-semibold shadow-md hover:shadow-lg hover:border-blue-500 transition-all border-2 bg-white"
                 onClick={() => handleSocialLogin('google')}
                 disabled={isLoading}
               >
-                <svg className="mr-3 h-6 w-6" viewBox="0 0 24 24">
+                <svg className="mr-3 h-5 w-5" viewBox="0 0 24 24">
                   <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
                   <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
                   <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
                   <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
                 </svg>
-                {isRegisterMode ? 'REGISTRARME CON GOOGLE' : 'CONTINUAR CON GOOGLE'}
+                Continuar con Google
               </Button>
 
               <Button 
                 variant="outline" 
-                className="w-full h-14 text-lg font-black shadow-md opacity-50 cursor-not-allowed border-2 bg-white"
+                className="w-full h-14 text-base font-semibold shadow-sm opacity-60 cursor-not-allowed border-2 bg-white"
                 disabled={true}
               >
-                <svg className="mr-3 h-6 w-6" viewBox="0 0 24 24">
+                <svg className="mr-3 h-5 w-5" viewBox="0 0 24 24">
                   <path fill="#f25022" d="M0 0h11.377v11.372H0z"/><path fill="#00a4ef" d="M12.623 0H24v11.372H12.623z"/><path fill="#7fba00" d="M0 12.628h11.377V24H0z"/><path fill="#ffb900" d="M12.623 12.628H24V24H12.623z"/>
                 </svg>
-                MICROSOFT (Próximamente)
+                Microsoft (Próximamente)
               </Button>
 
               <div className="relative my-8">
                 <Separator className="bg-gray-200" />
                 <div className="absolute inset-0 flex items-center justify-center">
-                  <span className="bg-card px-4 text-[10px] text-muted-foreground font-black uppercase tracking-[0.2em]">o usa tu correo</span>
+                  <span className="bg-card px-4 text-xs text-muted-foreground font-medium">O usa tu correo</span>
                 </div>
               </div>
 
@@ -208,8 +206,8 @@ export default function Auth() {
                     name="email"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel className="font-black text-xs uppercase tracking-wider text-gray-500 ml-1">Correo Electrónico</FormLabel>
-                        <FormControl><Input placeholder="tu@email.com" {...field} className="h-12 border-2 focus:border-brand-teal font-medium" /></FormControl>
+                        <FormLabel className="font-semibold text-sm text-gray-700">Correo Electrónico</FormLabel>
+                        <FormControl><Input placeholder="tu@email.com" {...field} className="h-12 border-2 focus:border-brand-teal" /></FormControl>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -220,15 +218,15 @@ export default function Auth() {
                     render={({ field }) => (
                       <FormItem>
                         <div className="flex justify-between items-center">
-                          <FormLabel className="font-black text-xs uppercase tracking-wider text-gray-500 ml-1">Contraseña</FormLabel>
+                          <FormLabel className="font-semibold text-sm text-gray-700">Contraseña</FormLabel>
                           {!isRegisterMode && (
-                            <button type="button" onClick={() => navigate('/auth?type=recovery')} className="text-[10px] text-primary hover:underline font-black uppercase tracking-tighter">¿Olvidaste tu clave?</button>
+                            <button type="button" onClick={() => navigate('/auth?type=recovery')} className="text-xs text-primary hover:underline font-medium">¿Olvidaste tu clave?</button>
                           )}
                         </div>
                         <FormControl>
                           <div className="relative">
-                            <Input type={showPassword ? "text" : "password"} {...field} className="h-12 pr-10 border-2 focus:border-brand-teal font-medium" />
-                            <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-3 text-gray-400">
+                            <Input type={showPassword ? "text" : "password"} {...field} className="h-12 pr-10 border-2 focus:border-brand-teal" />
+                            <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-3 text-gray-400 hover:text-gray-600">
                               {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
                             </button>
                           </div>
@@ -237,8 +235,8 @@ export default function Auth() {
                       </FormItem>
                     )}
                   />
-                  <Button type="submit" className="w-full h-14 text-lg font-black bg-brand-teal hover:bg-brand-teal/90 text-white shadow-xl active:scale-95 transition-all rounded-xl" disabled={isLoading}>
-                    {isLoading ? <Loader2 className="animate-spin" /> : (isRegisterMode ? 'CREAR MI CUENTA' : 'INICIAR SESIÓN')}
+                  <Button type="submit" className="w-full h-14 text-base font-bold bg-brand-teal hover:bg-brand-teal/90 text-white shadow-lg transition-all rounded-xl" disabled={isLoading}>
+                    {isLoading ? <Loader2 className="animate-spin" /> : (isRegisterMode ? 'Crear Mi Cuenta' : 'Iniciar Sesión')}
                   </Button>
                 </form>
               </Form>
@@ -246,7 +244,7 @@ export default function Auth() {
               <div className="mt-6 text-center">
                 <button 
                   onClick={() => setIsRegisterMode(!isRegisterMode)}
-                  className="text-xs font-black text-gray-500 hover:text-brand-teal transition-colors uppercase tracking-widest border-b-2 border-transparent hover:border-brand-teal pb-1"
+                  className="text-sm font-semibold text-gray-600 hover:text-brand-teal transition-colors"
                 >
                   {isRegisterMode ? '¿Ya tienes cuenta? Ingresa aquí' : '¿No tienes cuenta? Regístrate aquí'}
                 </button>
@@ -256,13 +254,13 @@ export default function Auth() {
         </Card>
       </main>
 
-      {/* Footer Pro Elegante */}
+      {/* Footer Profesional */}
       <footer className="py-8 text-center space-y-2">
         <p className="text-sm md:text-base font-medium text-muted-foreground px-4">
-          © 2026 ERP Profesional diseñado por <span className="text-primary font-black">ARQUISIA Soluciones</span> para <span className="text-foreground font-black">Lima Café 28</span> — 
-          <span className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground font-black ml-1">
-            Versión {APP_CONFIG.version}
-          </span>
+          © 2026 ERP Profesional diseñado por <span className="text-primary font-bold">ARQUISIA Soluciones</span> para <span className="text-foreground font-bold">Lima Café 28</span>
+        </p>
+        <p className="text-xs text-muted-foreground/70 font-medium">
+          Versión {APP_CONFIG.version} • {APP_CONFIG.status}
         </p>
       </footer>
     </div>
