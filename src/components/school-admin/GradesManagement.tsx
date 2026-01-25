@@ -327,6 +327,7 @@ export const GradesManagement = ({ schoolId }: GradesManagementProps) => {
           school_id: selectedSchoolId,
           name: newLevelName.trim(),
           order_index: levels.length,
+          is_active: true, // ✅ CRÍTICO: Establecer is_active en true
         })
         .select()
         .single();
@@ -369,6 +370,7 @@ export const GradesManagement = ({ schoolId }: GradesManagementProps) => {
           level_id: selectedLevel,
           name: newClassroomName.trim(),
           order_index: classrooms.length,
+          is_active: true, // ✅ CRÍTICO: Establecer is_active en true
         });
 
       if (error) throw error;
