@@ -82,7 +82,6 @@ interface Student {
   daily_limit?: number;
   weekly_limit?: number;
   monthly_limit?: number;
-  is_blocked?: boolean;
 }
 
 interface Product {
@@ -477,7 +476,7 @@ const POS = () => {
       
       const { data, error } = await supabase
         .from('students')
-        .select('id, full_name, photo_url, balance, grade, section, free_account, limit_type, daily_limit, weekly_limit, monthly_limit, is_blocked')
+        .select('id, full_name, photo_url, balance, grade, section, free_account, limit_type, daily_limit, weekly_limit, monthly_limit')
         .eq('is_active', true)
         .ilike('full_name', `%${query}%`)
         .limit(5);
@@ -536,17 +535,18 @@ const POS = () => {
     statusColor: string;
     reason?: string;
   }> => {
-    // 1. Verificar si está bloqueado
-    if (student.is_blocked) {
-      return {
-        canPurchase: false,
-        statusText: '🚫 Cuenta Bloqueada',
-        statusColor: 'text-red-600',
-        reason: 'Cuenta bloqueada por el padre'
-      };
-    }
+    // NOTA: Removido is_blocked porque la columna no existe en la tabla
+    // Si en el futuro se agrega, descomentar esta sección:
+    // if (student.is_blocked) {
+    //   return {
+    //     canPurchase: false,
+    //     statusText: '🚫 Cuenta Bloqueada',
+    //     statusColor: 'text-red-600',
+    //     reason: 'Cuenta bloqueada por el padre'
+    //   };
+    // }
 
-    // 2. Cuenta Libre (sin topes)
+    // 1. Cuenta Libre (sin topes)
     if (student.free_account) {
       const limitText = student.daily_limit && student.daily_limit > 0 
         ? `Tope Diario: S/ ${student.daily_limit.toFixed(2)}`
@@ -559,7 +559,7 @@ const POS = () => {
       };
     }
 
-    // 3. Con Recargas (sin cuenta libre)
+    // 2. Con Recargas (sin cuenta libre)
     const balance = student.balance || 0;
     
     if (balance <= 0) {
@@ -571,7 +571,7 @@ const POS = () => {
       };
     }
 
-    // 4. Con Topes activos
+    // 3. Con Topes activos
     if (student.limit_type && student.limit_type !== 'none') {
       try {
         const today = new Date().toISOString().split('T')[0];
@@ -643,7 +643,7 @@ const POS = () => {
       }
     }
 
-    // 5. Sin límites pero con saldo (default)
+    // 4. Sin límites pero con saldo (default)
     return {
       canPurchase: true,
       statusText: `💰 Saldo: S/ ${balance.toFixed(2)}`,
