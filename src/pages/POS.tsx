@@ -704,7 +704,6 @@ const POS = () => {
     setSelectedStudent(student);
     setStudentSearch(student.full_name);
     setShowStudentResults(false);
-    setStudentWillPay(false); // Por defecto, estudiante va a crédito
   };
 
   const selectGenericClient = () => {
@@ -726,7 +725,6 @@ const POS = () => {
     setClientMode(null);
     setSelectedStudent(null);
     setStudentSearch('');
-    setStudentWillPay(false);
     setCart([]);
     setProductSearch('');
     setSelectedCategory('todos');
@@ -852,7 +850,6 @@ const POS = () => {
 
       console.log('🔵 INICIANDO CHECKOUT', {
         clientMode,
-        studentWillPay,
         selectedStudent: selectedStudent?.full_name,
         total,
         userId: user?.id
@@ -1496,19 +1493,7 @@ const POS = () => {
                         <p className="text-sm mb-1 uppercase font-bold text-gray-400">Total Compra</p>
                         <p className="text-4xl font-black">S/ {total.toFixed(2)}</p>
                       </div>
-                      {studentWillPay && cashAmount > 0 && (
-                        <div className="text-right">
-                          <p className="text-sm mb-1 uppercase font-bold text-emerald-400">Abono Efectivo</p>
-                          <p className="text-2xl font-black text-emerald-400">- S/ {cashAmount.toFixed(2)}</p>
-                        </div>
-                      )}
                     </div>
-                    {studentWillPay && cashAmount > 0 && (
-                      <div className="mt-2 pt-2 border-t border-slate-700 flex justify-between items-center">
-                        <p className="text-xs uppercase font-bold text-yellow-400 text-gray-400">Por Cobrar del Saldo</p>
-                        <p className="text-xl font-black text-yellow-400">S/ {Math.max(0, total - cashAmount).toFixed(2)}</p>
-                      </div>
-                    )}
                     <p className="text-xs text-gray-400 mt-2">{cart.length} productos</p>
                   </div>
 
@@ -1518,7 +1503,7 @@ const POS = () => {
                       <div>
                         <p className="font-bold text-red-800 text-sm">Saldo Insuficiente</p>
                         <p className="text-xs text-red-600">
-                          Falta: S/ {( (studentWillPay ? Math.max(0, total - cashAmount) : total) - selectedStudent.balance).toFixed(2)}
+                          Falta: S/ {(total - selectedStudent.balance).toFixed(2)}
                         </p>
                       </div>
                     </div>
