@@ -74,13 +74,17 @@ export function AddStudentModal({ isOpen, onClose, onSuccess }: AddStudentModalP
   // Filtrar aulas cuando cambia el nivel seleccionado
   useEffect(() => {
     if (formData.level_id) {
+      console.log('🔍 Filtrando aulas para level_id:', formData.level_id);
+      console.log('📦 Aulas disponibles:', classrooms);
       const filtered = classrooms.filter(c => c.level_id === formData.level_id);
+      console.log('✅ Aulas filtradas:', filtered);
       setFilteredClassrooms(filtered);
       // Limpiar aula seleccionada si ya no está en la lista filtrada
       if (formData.classroom_id && !filtered.find(c => c.id === formData.classroom_id)) {
         setFormData(prev => ({ ...prev, classroom_id: '' }));
       }
     } else {
+      console.log('⚠️ No hay level_id seleccionado');
       setFilteredClassrooms([]);
       setFormData(prev => ({ ...prev, classroom_id: '' }));
     }
@@ -112,6 +116,8 @@ export function AddStudentModal({ isOpen, onClose, onSuccess }: AddStudentModalP
   const fetchLevelsAndClassrooms = async (schoolId: string) => {
     setIsLoadingLevels(true);
     try {
+      console.log('🔍 Cargando niveles y aulas para school_id:', schoolId);
+      
       // Cargar niveles de esa sede
       const { data: levelsData, error: levelsError } = await supabase
         .from('school_levels')
@@ -121,6 +127,7 @@ export function AddStudentModal({ isOpen, onClose, onSuccess }: AddStudentModalP
         .order('order_index');
 
       if (levelsError) throw levelsError;
+      console.log('✅ Niveles cargados:', levelsData);
       setLevels(levelsData || []);
 
       // Cargar todas las aulas de esa sede
@@ -132,9 +139,10 @@ export function AddStudentModal({ isOpen, onClose, onSuccess }: AddStudentModalP
         .order('order_index');
 
       if (classroomsError) throw classroomsError;
+      console.log('✅ Aulas cargadas:', classroomsData);
       setClassrooms(classroomsData || []);
     } catch (error: any) {
-      console.error('Error fetching levels and classrooms:', error);
+      console.error('❌ Error fetching levels and classrooms:', error);
       toast({
         variant: 'destructive',
         title: 'Error',
