@@ -985,7 +985,6 @@ const POS = () => {
         }
 
         ticketInfo.newBalance = newBalance;
-        ticketInfo.cashPaid = cashPaid;
         ticketInfo.amountToDeduct = amountToDeduct;
         ticketInfo.isFreeAccount = isFreeAccount;
       } else {
