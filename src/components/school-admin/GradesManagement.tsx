@@ -182,8 +182,14 @@ export const GradesManagement = ({ schoolId }: GradesManagementProps) => {
 
       setLevels(levelsWithCount);
       
-      if (levelsWithCount.length > 0 && !selectedLevel) {
-        setSelectedLevel(levelsWithCount[0].id);
+      // Solo establecer el selectedLevel si no hay uno YA seleccionado
+      // O si el seleccionado ya no existe en la nueva lista de niveles
+      if (levelsWithCount.length > 0) {
+        const selectedLevelExists = levelsWithCount.some(l => l.id === selectedLevel);
+        if (!selectedLevel || !selectedLevelExists) {
+          console.log('📌 [GradesManagement] Estableciendo nivel inicial:', levelsWithCount[0].id);
+          setSelectedLevel(levelsWithCount[0].id);
+        }
       }
     } catch (error: any) {
       console.error('Error fetching levels:', error);
