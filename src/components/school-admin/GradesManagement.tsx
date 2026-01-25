@@ -193,6 +193,8 @@ export const GradesManagement = ({ schoolId }: GradesManagementProps) => {
   const fetchClassrooms = async (levelId: string) => {
     if (!selectedSchoolId) return;
     
+    console.log('🔍 [GradesManagement] Cargando aulas para level_id:', levelId, 'school_id:', selectedSchoolId);
+    
     try {
       const { data, error } = await supabase
         .from('school_classrooms')
@@ -203,6 +205,8 @@ export const GradesManagement = ({ schoolId }: GradesManagementProps) => {
         .order('order_index');
 
       if (error) throw error;
+
+      console.log('✅ [GradesManagement] Aulas encontradas:', data);
 
       // Contar estudiantes por aula
       const classroomsWithCount = await Promise.all(
@@ -315,6 +319,12 @@ export const GradesManagement = ({ schoolId }: GradesManagementProps) => {
   const createClassroom = async () => {
     if (!selectedSchoolId || !selectedLevel || !newClassroomName.trim()) return;
 
+    console.log('🎓 [GradesManagement] Creando aula:', {
+      school_id: selectedSchoolId,
+      level_id: selectedLevel,
+      name: newClassroomName.trim()
+    });
+
     try {
       const { error } = await supabase
         .from('school_classrooms')
@@ -327,11 +337,14 @@ export const GradesManagement = ({ schoolId }: GradesManagementProps) => {
 
       if (error) throw error;
 
+      console.log('✅ [GradesManagement] Aula creada exitosamente');
+
       toast({ title: '✅ Aula creada', description: `${newClassroomName} agregada correctamente` });
       setNewClassroomName('');
       setShowNewClassroomModal(false);
       fetchClassrooms(selectedLevel);
     } catch (error: any) {
+      console.error('❌ [GradesManagement] Error al crear aula:', error);
       toast({ variant: 'destructive', title: 'Error', description: error.message });
     }
   };
