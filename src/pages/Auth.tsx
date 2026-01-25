@@ -164,51 +164,65 @@ export default function Auth() {
 
   return (
     <div className="min-h-screen flex flex-col bg-gradient-to-br from-[#FAFAF9] via-white to-stone-100">
-      <header className="w-full pt-12 pb-0 px-4 flex justify-center">
-        <img src={limaCafeLogo} alt="Logo" className="h-24 w-auto object-contain mix-blend-multiply" />
+      {/* Header - Logo más pequeño en móvil */}
+      <header className="w-full pt-8 sm:pt-12 pb-0 px-4 flex justify-center">
+        <img 
+          src={limaCafeLogo} 
+          alt="Logo" 
+          className="h-16 sm:h-20 md:h-24 w-auto object-contain mix-blend-multiply transition-all" 
+        />
       </header>
 
-      <main className="flex-1 flex items-start justify-center p-4 pt-2 pb-12">
+      {/* Main - Menos padding en móvil */}
+      <main className="flex-1 flex items-start justify-center p-3 sm:p-4 pt-2 pb-8 sm:pb-12">
         <Card className="w-full max-w-md shadow-lg border border-stone-200/50 bg-white/95 backdrop-blur-sm overflow-hidden rounded-2xl">
-          <CardHeader className="text-center space-y-3 pb-4 pt-8">
-            <div className="flex justify-center mb-2">
-              <div className="bg-gradient-to-br from-[#8B7355]/10 to-[#6B5744]/10 p-3 rounded-2xl">
-                <ShieldCheck className="h-8 w-8 text-[#8B7355]" />
+          {/* Header del Card - Padding ajustado para móvil */}
+          <CardHeader className="text-center space-y-2 sm:space-y-3 pb-3 sm:pb-4 pt-6 sm:pt-8 px-4 sm:px-6">
+            <div className="flex justify-center mb-1 sm:mb-2">
+              <div className="bg-gradient-to-br from-[#8B7355]/10 to-[#6B5744]/10 p-2.5 sm:p-3 rounded-xl sm:rounded-2xl">
+                <ShieldCheck className="h-7 w-7 sm:h-8 sm:w-8 text-[#8B7355]" />
               </div>
             </div>
-            <CardTitle className="text-2xl font-light text-stone-800 tracking-wide">
+            <CardTitle className="text-xl sm:text-2xl font-light text-stone-800 tracking-wide">
               {isRegisterMode ? 'Crear Cuenta' : 'Portal de Acceso'}
             </CardTitle>
-            <CardDescription className="text-stone-500 font-normal text-sm tracking-wide">
+            <CardDescription className="text-stone-500 font-normal text-xs sm:text-sm tracking-wide px-2">
               {isRegisterMode 
                 ? 'Regístrate para gestionar los consumos de tus hijos' 
                 : 'Sistema de Gestión Lima Café 28'}
             </CardDescription>
           </CardHeader>
 
-          <CardContent className="space-y-6 px-8 pb-8">
-            <form onSubmit={handleSubmit} className="space-y-5">
-              <div className="space-y-2">
-                <label className="font-medium text-xs text-stone-600 uppercase tracking-wider">Correo Electrónico</label>
+          {/* Content - Padding responsivo */}
+          <CardContent className="space-y-5 sm:space-y-6 px-4 sm:px-6 md:px-8 pb-6 sm:pb-8">
+            <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-5">
+              {/* Email */}
+              <div className="space-y-1.5 sm:space-y-2">
+                <label className="font-medium text-[10px] sm:text-xs text-stone-600 uppercase tracking-wider">
+                  Correo Electrónico
+                </label>
                 <Input 
                   type="email"
                   placeholder="tu@email.com" 
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="h-12 border border-stone-200 focus:border-[#8B7355] rounded-xl transition-all"
+                  className="h-11 sm:h-12 border border-stone-200 focus:border-[#8B7355] rounded-xl transition-all text-sm sm:text-base"
                   disabled={isLoading}
                   autoComplete="email"
                 />
               </div>
 
-              <div className="space-y-2">
+              {/* Contraseña */}
+              <div className="space-y-1.5 sm:space-y-2">
                 <div className="flex justify-between items-center">
-                  <label className="font-medium text-xs text-stone-600 uppercase tracking-wider">Contraseña</label>
+                  <label className="font-medium text-[10px] sm:text-xs text-stone-600 uppercase tracking-wider">
+                    Contraseña
+                  </label>
                   {!isRegisterMode && (
                     <button 
                       type="button" 
                       onClick={() => navigate('/auth?type=recovery')} 
-                      className="text-xs text-[#8B7355] hover:underline font-normal"
+                      className="text-[10px] sm:text-xs text-[#8B7355] hover:underline font-normal"
                     >
                       ¿Olvidaste tu clave?
                     </button>
@@ -219,62 +233,67 @@ export default function Auth() {
                     type={showPassword ? "text" : "password"}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="h-12 pr-10 border border-stone-200 focus:border-[#8B7355] rounded-xl transition-all"
+                    className="h-11 sm:h-12 pr-10 border border-stone-200 focus:border-[#8B7355] rounded-xl transition-all text-sm sm:text-base"
                     disabled={isLoading}
                     autoComplete={isRegisterMode ? "new-password" : "current-password"}
                   />
                   <button 
                     type="button" 
                     onClick={() => setShowPassword(!showPassword)} 
-                    className="absolute right-3 top-3 text-stone-400 hover:text-stone-600"
+                    className="absolute right-3 top-2.5 sm:top-3 text-stone-400 hover:text-stone-600"
                     tabIndex={-1}
                   >
-                    {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                    {showPassword ? <EyeOff size={18} className="sm:w-5 sm:h-5" /> : <Eye size={18} className="sm:w-5 sm:h-5" />}
                   </button>
                 </div>
               </div>
 
+              {/* Confirmar Contraseña */}
               {isRegisterMode && (
-                <div className="space-y-2">
-                  <label className="font-medium text-xs text-stone-600 uppercase tracking-wider">Confirmar Contraseña</label>
+                <div className="space-y-1.5 sm:space-y-2">
+                  <label className="font-medium text-[10px] sm:text-xs text-stone-600 uppercase tracking-wider">
+                    Confirmar Contraseña
+                  </label>
                   <div className="relative">
                     <Input 
                       type={showConfirmPassword ? "text" : "password"}
                       value={confirmPassword}
                       onChange={(e) => setConfirmPassword(e.target.value)}
-                      className="h-12 pr-10 border border-stone-200 focus:border-[#8B7355] rounded-xl transition-all"
+                      className="h-11 sm:h-12 pr-10 border border-stone-200 focus:border-[#8B7355] rounded-xl transition-all text-sm sm:text-base"
                       disabled={isLoading}
                       autoComplete="new-password"
                     />
                     <button 
                       type="button" 
                       onClick={() => setShowConfirmPassword(!showConfirmPassword)} 
-                      className="absolute right-3 top-3 text-stone-400 hover:text-stone-600"
+                      className="absolute right-3 top-2.5 sm:top-3 text-stone-400 hover:text-stone-600"
                       tabIndex={-1}
                     >
-                      {showConfirmPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                      {showConfirmPassword ? <EyeOff size={18} className="sm:w-5 sm:h-5" /> : <Eye size={18} className="sm:w-5 sm:h-5" />}
                     </button>
                   </div>
                 </div>
               )}
 
+              {/* Botón Submit - Altura responsiva */}
               <Button 
                 type="submit" 
-                className="w-full h-14 text-base font-medium bg-gradient-to-r from-[#8B7355] to-[#6B5744] hover:from-[#6B5744] hover:to-[#5B4734] text-white shadow-md transition-all rounded-xl tracking-wide" 
+                className="w-full h-12 sm:h-14 text-sm sm:text-base font-medium bg-gradient-to-r from-[#8B7355] to-[#6B5744] hover:from-[#6B5744] hover:to-[#5B4734] text-white shadow-md transition-all rounded-xl tracking-wide" 
                 disabled={isLoading}
               >
-                {isLoading ? <Loader2 className="animate-spin" /> : (isRegisterMode ? 'Crear Mi Cuenta' : 'Iniciar Sesión')}
+                {isLoading ? <Loader2 className="animate-spin h-5 w-5" /> : (isRegisterMode ? 'Crear Mi Cuenta' : 'Iniciar Sesión')}
               </Button>
             </form>
 
-            <div className="mt-6 text-center">
+            {/* Link para cambiar modo - Texto más pequeño en móvil */}
+            <div className="mt-4 sm:mt-6 text-center">
               <button 
                 onClick={() => {
                   setIsRegisterMode(!isRegisterMode);
                   setPassword('');
                   setConfirmPassword('');
                 }}
-                className="text-sm font-normal text-stone-500 hover:text-[#8B7355] transition-colors tracking-wide"
+                className="text-xs sm:text-sm font-normal text-stone-500 hover:text-[#8B7355] transition-colors tracking-wide"
                 type="button"
               >
                 {isRegisterMode ? '¿Ya tienes cuenta? Ingresa aquí' : '¿No tienes cuenta? Regístrate aquí'}
@@ -284,11 +303,14 @@ export default function Auth() {
         </Card>
       </main>
 
-      <footer className="py-8 text-center space-y-2">
-        <p className="text-sm md:text-base font-normal text-stone-500 px-4 tracking-wide">
-          © 2026 ERP Profesional diseñado por <span className="text-[#8B7355] font-medium">ARQUISIA Soluciones</span> para <span className="text-stone-800 font-medium">Lima Café 28</span>
+      {/* Footer - Texto más pequeño y ajustado en móvil */}
+      <footer className="py-4 sm:py-6 md:py-8 text-center space-y-1.5 sm:space-y-2">
+        <p className="text-xs sm:text-sm md:text-base font-normal text-stone-500 px-4 tracking-wide leading-relaxed">
+          © 2026 ERP Profesional diseñado por{' '}
+          <span className="text-[#8B7355] font-medium">ARQUISIA Soluciones</span> para{' '}
+          <span className="text-stone-800 font-medium">Lima Café 28</span>
         </p>
-        <p className="text-xs text-stone-400 font-normal tracking-wide">
+        <p className="text-[10px] sm:text-xs text-stone-400 font-normal tracking-wide">
           Versión {APP_CONFIG.version} • {APP_CONFIG.status}
         </p>
       </footer>
