@@ -218,64 +218,64 @@ export function ParentDataForm({ onSuccess, isLoading: externalLoading, setIsLoa
   };
 
   return (
-    <Card className="w-full max-w-2xl mx-auto shadow-xl border border-stone-200/50 bg-white">
-      <CardHeader className="text-center space-y-3 pb-6 pt-8">
-        <div className="flex justify-center mb-2">
-          <div className="bg-gradient-to-br from-[#8B7355]/10 to-[#6B5744]/10 p-4 rounded-2xl">
-            {step === 1 && <UserCheck className="h-8 w-8 text-[#8B7355]" />}
-            {step === 2 && <Users className="h-8 w-8 text-[#8B7355]" />}
-            {step === 3 && <Scale className="h-8 w-8 text-[#8B7355]" />}
+    <Card className="w-full max-w-2xl mx-auto shadow-xl border border-stone-200/50 bg-white max-h-[90vh] overflow-y-auto">
+      <CardHeader className="text-center space-y-2 sm:space-y-3 pb-4 sm:pb-6 pt-6 sm:pt-8 px-4 sm:px-6">
+        <div className="flex justify-center mb-1 sm:mb-2">
+          <div className="bg-gradient-to-br from-emerald-50/50 to-[#8B7355]/5 p-3 sm:p-4 rounded-xl sm:rounded-2xl">
+            {step === 1 && <UserCheck className="h-7 w-7 sm:h-8 sm:w-8 text-emerald-600/80" />}
+            {step === 2 && <Users className="h-7 w-7 sm:h-8 sm:w-8 text-emerald-600/80" />}
+            {step === 3 && <Scale className="h-7 w-7 sm:h-8 sm:w-8 text-emerald-600/80" />}
           </div>
         </div>
-        <CardTitle className="text-2xl font-light text-stone-800 tracking-wide">
+        <CardTitle className="text-xl sm:text-2xl font-light text-stone-800 tracking-wide px-2">
           {step === 1 && 'Datos del Responsable Principal'}
           {step === 2 && 'Segundo Responsable de Pago'}
           {step === 3 && 'Aceptación Legal'}
         </CardTitle>
-        <CardDescription className="text-stone-500 font-normal text-sm tracking-wide">
+        <CardDescription className="text-stone-500 font-normal text-xs sm:text-sm tracking-wide px-2">
           {step === 1 && 'Información de quien crea la cuenta'}
           {step === 2 && 'Datos adicionales del segundo responsable (email y dirección opcionales)'}
           {step === 3 && 'Confirma los términos para continuar'}
         </CardDescription>
         
-        {/* Indicador de pasos */}
-        <div className="flex justify-center gap-2 pt-4">
+        {/* Indicador de pasos - Más grande en móvil */}
+        <div className="flex justify-center gap-2 pt-3 sm:pt-4">
           {[1, 2, 3].map((s) => (
             <div
               key={s}
-              className={`h-2 rounded-full transition-all duration-300 ${
-                s === step ? 'w-8 bg-[#8B7355]' : s < step ? 'w-2 bg-[#8B7355]/50' : 'w-2 bg-stone-200'
+              className={`h-1.5 sm:h-2 rounded-full transition-all duration-300 ${
+                s === step ? 'w-8 sm:w-10 bg-emerald-600' : s < step ? 'w-1.5 sm:w-2 bg-emerald-600/50' : 'w-1.5 sm:w-2 bg-stone-200'
               }`}
             />
           ))}
         </div>
       </CardHeader>
 
-      <CardContent className="px-8 pb-8">
-        <form onSubmit={handleSubmit} className="space-y-6">
+      <CardContent className="px-4 sm:px-6 md:px-8 pb-6 sm:pb-8">
+        <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-5 md:space-y-6">
           {/* PASO 1: RESPONSABLE PRINCIPAL */}
           {step === 1 && (
-            <div className="space-y-5">
-              <div className="space-y-2">
-                <Label className="font-medium text-xs text-stone-600 uppercase tracking-wider">
+            <div className="space-y-4 sm:space-y-5">
+              <div className="space-y-1.5 sm:space-y-2">
+                <Label className="font-medium text-[10px] sm:text-xs text-stone-600 uppercase tracking-wider">
                   Nombres Completos *
                 </Label>
                 <Input
                   value={fullName}
                   onChange={(e) => setFullName(e.target.value)}
                   placeholder="Ej: Juan Carlos"
-                  className="h-12 border border-stone-200 focus:border-[#8B7355] rounded-xl"
+                  className="h-11 sm:h-12 border border-stone-200 focus:border-emerald-500/50 rounded-xl text-sm sm:text-base"
                   disabled={isLoading}
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label className="font-medium text-xs text-stone-600 uppercase tracking-wider">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                <div className="space-y-1.5 sm:space-y-2">
+                  <Label className="font-medium text-[10px] sm:text-xs text-stone-600 uppercase tracking-wider">
                     Tipo de Documento *
                   </Label>
                   <Select value={documentType} onValueChange={setDocumentType} disabled={isLoading}>
-                    <SelectTrigger className="h-12 border border-stone-200 focus:border-[#8B7355] rounded-xl">
+                    <SelectTrigger className="h-11 sm:h-12 border border-stone-200 focus:border-emerald-500/50 rounded-xl text-sm sm:text-base">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -286,42 +286,42 @@ export function ParentDataForm({ onSuccess, isLoading: externalLoading, setIsLoa
                   </Select>
                 </div>
 
-                <div className="space-y-2">
-                  <Label className="font-medium text-xs text-stone-600 uppercase tracking-wider">
+                <div className="space-y-1.5 sm:space-y-2">
+                  <Label className="font-medium text-[10px] sm:text-xs text-stone-600 uppercase tracking-wider">
                     Número de Documento *
                   </Label>
                   <Input
                     value={dni}
                     onChange={(e) => setDni(e.target.value)}
                     placeholder="Ej: 12345678"
-                    className="h-12 border border-stone-200 focus:border-[#8B7355] rounded-xl"
+                    className="h-11 sm:h-12 border border-stone-200 focus:border-emerald-500/50 rounded-xl text-sm sm:text-base"
                     disabled={isLoading}
                   />
                 </div>
               </div>
 
-              <div className="space-y-2">
-                <Label className="font-medium text-xs text-stone-600 uppercase tracking-wider">
+              <div className="space-y-1.5 sm:space-y-2">
+                <Label className="font-medium text-[10px] sm:text-xs text-stone-600 uppercase tracking-wider">
                   Teléfono *
                 </Label>
                 <Input
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
                   placeholder="Ej: 987654321"
-                  className="h-12 border border-stone-200 focus:border-[#8B7355] rounded-xl"
+                  className="h-11 sm:h-12 border border-stone-200 focus:border-emerald-500/50 rounded-xl text-sm sm:text-base"
                   disabled={isLoading}
                 />
               </div>
 
-              <div className="space-y-2">
-                <Label className="font-medium text-xs text-stone-600 uppercase tracking-wider">
+              <div className="space-y-1.5 sm:space-y-2">
+                <Label className="font-medium text-[10px] sm:text-xs text-stone-600 uppercase tracking-wider">
                   Dirección *
                 </Label>
                 <Input
                   value={address}
                   onChange={(e) => setAddress(e.target.value)}
                   placeholder="Ej: Av. Principal 123, Lima"
-                  className="h-12 border border-stone-200 focus:border-[#8B7355] rounded-xl"
+                  className="h-11 sm:h-12 border border-stone-200 focus:border-emerald-500/50 rounded-xl text-sm sm:text-base"
                   disabled={isLoading}
                 />
               </div>
@@ -329,7 +329,7 @@ export function ParentDataForm({ onSuccess, isLoading: externalLoading, setIsLoa
               <Button
                 type="button"
                 onClick={handleNextStep}
-                className="w-full h-14 text-base font-medium bg-gradient-to-r from-[#8B7355] to-[#6B5744] hover:from-[#6B5744] hover:to-[#5B4734] text-white shadow-md rounded-xl tracking-wide"
+                className="w-full h-12 sm:h-14 text-sm sm:text-base font-medium bg-gradient-to-r from-emerald-600/90 via-[#8B7355] to-[#6B5744] hover:from-emerald-700/90 hover:via-[#6B5744] hover:to-[#5B4734] text-white shadow-md rounded-xl tracking-wide"
                 disabled={isLoading}
               >
                 Continuar
@@ -339,41 +339,41 @@ export function ParentDataForm({ onSuccess, isLoading: externalLoading, setIsLoa
 
           {/* PASO 2: SEGUNDO RESPONSABLE */}
           {step === 2 && (
-            <div className="space-y-5">
-              <div className="space-y-2">
-                <Label className="font-medium text-xs text-stone-600 uppercase tracking-wider">
+            <div className="space-y-4 sm:space-y-5">
+              <div className="space-y-1.5 sm:space-y-2">
+                <Label className="font-medium text-[10px] sm:text-xs text-stone-600 uppercase tracking-wider">
                   Nombres Completos *
                 </Label>
                 <Input
                   value={resp2FullName}
                   onChange={(e) => setResp2FullName(e.target.value)}
                   placeholder="Ej: María Elena"
-                  className="h-12 border border-stone-200 focus:border-[#8B7355] rounded-xl"
+                  className="h-11 sm:h-12 border border-stone-200 focus:border-emerald-500/50 rounded-xl text-sm sm:text-base"
                   disabled={isLoading}
                 />
               </div>
 
-              <div className="space-y-2">
-                <Label className="font-medium text-xs text-stone-600 uppercase tracking-wider flex items-center gap-2">
-                  Email <span className="text-stone-400 text-[10px] normal-case">(opcional)</span>
+              <div className="space-y-1.5 sm:space-y-2">
+                <Label className="font-medium text-[10px] sm:text-xs text-stone-600 uppercase tracking-wider flex items-center gap-1.5">
+                  Email <span className="text-stone-400 text-[9px] sm:text-[10px] normal-case">(opcional)</span>
                 </Label>
                 <Input
                   type="email"
                   value={resp2Email}
                   onChange={(e) => setResp2Email(e.target.value)}
                   placeholder="Ej: maria@email.com"
-                  className="h-12 border border-stone-200 focus:border-[#8B7355] rounded-xl"
+                  className="h-11 sm:h-12 border border-stone-200 focus:border-emerald-500/50 rounded-xl text-sm sm:text-base"
                   disabled={isLoading}
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label className="font-medium text-xs text-stone-600 uppercase tracking-wider">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                <div className="space-y-1.5 sm:space-y-2">
+                  <Label className="font-medium text-[10px] sm:text-xs text-stone-600 uppercase tracking-wider">
                     Tipo de Documento *
                   </Label>
                   <Select value={resp2DocumentType} onValueChange={setResp2DocumentType} disabled={isLoading}>
-                    <SelectTrigger className="h-12 border border-stone-200 focus:border-[#8B7355] rounded-xl">
+                    <SelectTrigger className="h-11 sm:h-12 border border-stone-200 focus:border-emerald-500/50 rounded-xl text-sm sm:text-base">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -384,52 +384,52 @@ export function ParentDataForm({ onSuccess, isLoading: externalLoading, setIsLoa
                   </Select>
                 </div>
 
-                <div className="space-y-2">
-                  <Label className="font-medium text-xs text-stone-600 uppercase tracking-wider">
+                <div className="space-y-1.5 sm:space-y-2">
+                  <Label className="font-medium text-[10px] sm:text-xs text-stone-600 uppercase tracking-wider">
                     Número de Documento *
                   </Label>
                   <Input
                     value={resp2Dni}
                     onChange={(e) => setResp2Dni(e.target.value)}
                     placeholder="Ej: 87654321"
-                    className="h-12 border border-stone-200 focus:border-[#8B7355] rounded-xl"
+                    className="h-11 sm:h-12 border border-stone-200 focus:border-emerald-500/50 rounded-xl text-sm sm:text-base"
                     disabled={isLoading}
                   />
                 </div>
               </div>
 
-              <div className="space-y-2">
-                <Label className="font-medium text-xs text-stone-600 uppercase tracking-wider">
+              <div className="space-y-1.5 sm:space-y-2">
+                <Label className="font-medium text-[10px] sm:text-xs text-stone-600 uppercase tracking-wider">
                   Teléfono *
                 </Label>
                 <Input
                   value={resp2Phone}
                   onChange={(e) => setResp2Phone(e.target.value)}
                   placeholder="Ej: 912345678"
-                  className="h-12 border border-stone-200 focus:border-[#8B7355] rounded-xl"
+                  className="h-11 sm:h-12 border border-stone-200 focus:border-emerald-500/50 rounded-xl text-sm sm:text-base"
                   disabled={isLoading}
                 />
               </div>
 
-              <div className="space-y-2">
-                <Label className="font-medium text-xs text-stone-600 uppercase tracking-wider flex items-center gap-2">
-                  Dirección <span className="text-stone-400 text-[10px] normal-case">(opcional)</span>
+              <div className="space-y-1.5 sm:space-y-2">
+                <Label className="font-medium text-[10px] sm:text-xs text-stone-600 uppercase tracking-wider flex items-center gap-1.5">
+                  Dirección <span className="text-stone-400 text-[9px] sm:text-[10px] normal-case">(opcional)</span>
                 </Label>
                 <Input
                   value={resp2Address}
                   onChange={(e) => setResp2Address(e.target.value)}
                   placeholder="Ej: Av. Secundaria 456, Lima"
-                  className="h-12 border border-stone-200 focus:border-[#8B7355] rounded-xl"
+                  className="h-11 sm:h-12 border border-stone-200 focus:border-emerald-500/50 rounded-xl text-sm sm:text-base"
                   disabled={isLoading}
                 />
               </div>
 
-              <div className="flex gap-3">
+              <div className="flex gap-2 sm:gap-3 pt-2">
                 <Button
                   type="button"
                   onClick={() => setStep(1)}
                   variant="outline"
-                  className="flex-1 h-12 border border-stone-200 rounded-xl"
+                  className="flex-1 h-11 sm:h-12 border border-stone-200 rounded-xl text-sm sm:text-base"
                   disabled={isLoading}
                 >
                   Atrás
@@ -437,7 +437,7 @@ export function ParentDataForm({ onSuccess, isLoading: externalLoading, setIsLoa
                 <Button
                   type="button"
                   onClick={handleNextStep}
-                  className="flex-1 h-14 text-base font-medium bg-gradient-to-r from-[#8B7355] to-[#6B5744] hover:from-[#6B5744] hover:to-[#5B4734] text-white shadow-md rounded-xl tracking-wide"
+                  className="flex-1 h-12 sm:h-14 text-sm sm:text-base font-medium bg-gradient-to-r from-emerald-600/90 via-[#8B7355] to-[#6B5744] hover:from-emerald-700/90 hover:via-[#6B5744] hover:to-[#5B4734] text-white shadow-md rounded-xl tracking-wide"
                   disabled={isLoading}
                 >
                   Continuar
@@ -448,21 +448,21 @@ export function ParentDataForm({ onSuccess, isLoading: externalLoading, setIsLoa
 
           {/* PASO 3: CLÁUSULA LEGAL */}
           {step === 3 && (
-            <div className="space-y-6">
-              <div className="bg-stone-50/50 border border-stone-200/50 rounded-2xl p-6 space-y-4">
-                <div className="flex items-start gap-3">
-                  <ShieldCheck className="h-6 w-6 text-[#8B7355] flex-shrink-0 mt-1" />
-                  <div className="space-y-2">
-                    <h4 className="font-medium text-sm text-stone-800 tracking-wide">
+            <div className="space-y-4 sm:space-y-5 md:space-y-6">
+              <div className="bg-stone-50/50 border border-stone-200/50 rounded-xl sm:rounded-2xl p-4 sm:p-5 md:p-6 space-y-3 sm:space-y-4">
+                <div className="flex items-start gap-2 sm:gap-3">
+                  <ShieldCheck className="h-5 w-5 sm:h-6 sm:w-6 text-emerald-600 flex-shrink-0 mt-0.5 sm:mt-1" />
+                  <div className="space-y-1.5 sm:space-y-2">
+                    <h4 className="font-medium text-xs sm:text-sm text-stone-800 tracking-wide">
                       Cláusula Legal - Cobranza Judicial
                     </h4>
-                    <p className="text-xs text-stone-600 leading-relaxed">
+                    <p className="text-[11px] sm:text-xs text-stone-600 leading-relaxed">
                       Al aceptar estos términos, reconozco que en caso de incumplimiento de pago de los consumos realizados
                       por mi(s) hijo(s) en el kiosco escolar <span className="font-medium">Lima Café 28</span>, autorizo
                       expresamente a la institución a iniciar las acciones legales de cobranza judicial que correspondan,
                       incluyendo el cobro de intereses moratorios y gastos administrativos.
                     </p>
-                    <p className="text-xs text-stone-600 leading-relaxed">
+                    <p className="text-[11px] sm:text-xs text-stone-600 leading-relaxed">
                       Los datos proporcionados serán utilizados exclusivamente para fines de gestión de pagos y comunicación
                       con los responsables de pago, conforme a la Ley de Protección de Datos Personales.
                     </p>
@@ -470,7 +470,7 @@ export function ParentDataForm({ onSuccess, isLoading: externalLoading, setIsLoa
                 </div>
               </div>
 
-              <div className="flex items-start gap-3 p-4 bg-white border border-stone-200 rounded-xl">
+              <div className="flex items-start gap-2 sm:gap-3 p-3 sm:p-4 bg-white border border-stone-200 rounded-xl">
                 <Checkbox
                   id="legal"
                   checked={legalAcceptance}
@@ -480,31 +480,31 @@ export function ParentDataForm({ onSuccess, isLoading: externalLoading, setIsLoa
                 />
                 <label
                   htmlFor="legal"
-                  className="text-sm text-stone-700 leading-relaxed cursor-pointer"
+                  className="text-xs sm:text-sm text-stone-700 leading-relaxed cursor-pointer"
                 >
                   He leído y acepto la cláusula legal de cobranza judicial en caso de impago, y confirmo que los datos
                   proporcionados son correctos y veraces.
                 </label>
               </div>
 
-              <div className="flex gap-3">
+              <div className="flex gap-2 sm:gap-3 pt-2">
                 <Button
                   type="button"
                   onClick={() => setStep(2)}
                   variant="outline"
-                  className="flex-1 h-12 border border-stone-200 rounded-xl"
+                  className="flex-1 h-11 sm:h-12 border border-stone-200 rounded-xl text-sm sm:text-base"
                   disabled={isLoading}
                 >
                   Atrás
                 </Button>
                 <Button
                   type="submit"
-                  className="flex-1 h-14 text-base font-medium bg-gradient-to-r from-[#8B7355] to-[#6B5744] hover:from-[#6B5744] hover:to-[#5B4734] text-white shadow-md rounded-xl tracking-wide"
+                  className="flex-1 h-12 sm:h-14 text-sm sm:text-base font-medium bg-gradient-to-r from-emerald-600/90 via-[#8B7355] to-[#6B5744] hover:from-emerald-700/90 hover:via-[#6B5744] hover:to-[#5B4734] text-white shadow-md rounded-xl tracking-wide"
                   disabled={isLoading || !legalAcceptance}
                 >
                   {isLoading ? (
                     <>
-                      <Loader2 className="animate-spin mr-2" />
+                      <Loader2 className="animate-spin mr-2 h-4 w-4 sm:h-5 sm:w-5" />
                       Guardando...
                     </>
                   ) : (
