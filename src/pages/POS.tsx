@@ -1731,8 +1731,17 @@ const POS = () => {
                     step="0.50"
                     value={cashGiven}
                     onChange={(e) => setCashGiven(e.target.value)}
+                    onKeyDown={(e) => {
+                      // ENTER → Continuar (si el monto es suficiente)
+                      if (e.key === 'Enter' && parseFloat(cashGiven) >= getTotal()) {
+                        e.preventDefault();
+                        // Simular click en el botón CONTINUAR
+                        setShowConfirmDialog(false);
+                        setShowDocumentTypeDialog(true);
+                      }
+                    }}
                     placeholder="Ej: 50.00"
-                    className="h-16 text-2xl font-bold text-center border-emerald-300"
+                    className="h-20 text-3xl font-bold text-center border-emerald-300"
                     autoFocus
                   />
                   <p className="text-xs text-emerald-700 mt-2 text-center">
