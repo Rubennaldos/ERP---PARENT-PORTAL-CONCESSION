@@ -74,9 +74,16 @@ export const PaymentsTab = ({ userId }: PaymentsTabProps) => {
           .from('purchase_visibility_delay')
           .select('delay_days')
           .eq('school_id', student.school_id)
-          .single();
+          .maybeSingle();
 
         const delayDays = delayData?.delay_days ?? 2;
+        
+        console.log('📅 Filtro de delay aplicado (Pagos):', {
+          studentName: student.full_name,
+          schoolId: student.school_id,
+          delayDays,
+          message: `Mostrando solo compras hasta hace ${delayDays} días`
+        });
         
         // ✅ Calcular fecha límite
         const cutoffDate = new Date();

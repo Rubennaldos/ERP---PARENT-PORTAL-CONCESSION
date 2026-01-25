@@ -62,11 +62,11 @@ export const PurchaseHistoryModal = ({
       if (studentError) throw studentError;
 
       // ✅ PASO 2: Obtener delay configurado para la sede
-      const { data: delayData, error: delayError } = await supabase
+      const { data: delayData } = await supabase
         .from('purchase_visibility_delay')
         .select('delay_days')
         .eq('school_id', studentData.school_id)
-        .single();
+        .maybeSingle();
 
       // Si no hay configuración, usar 2 días por defecto
       const delayDays = delayData?.delay_days ?? 2;
