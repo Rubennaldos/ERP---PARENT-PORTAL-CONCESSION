@@ -494,66 +494,66 @@ export function SpendingLimitsModal({
 
       {/* Modal de Advertencia - Cambio de Modo de Cuenta */}
       <Dialog open={showModeChangeWarning} onOpenChange={setShowModeChangeWarning}>
-        <DialogContent className="sm:max-w-lg max-h-[85vh] overflow-y-auto z-[60]">
-          <DialogHeader>
-            <div className="flex items-center gap-3 mb-2">
-              <div className="w-12 h-12 bg-amber-100 rounded-2xl flex items-center justify-center">
-                <ShieldAlert className="h-6 w-6 text-amber-600" />
+        <DialogContent className="sm:max-w-lg max-h-[85vh] overflow-y-auto border border-stone-200/50 bg-white shadow-2xl">
+          <DialogHeader className="pb-4">
+            <div className="flex flex-col items-center text-center space-y-2 sm:space-y-3">
+              <div className="w-14 h-14 sm:w-16 sm:h-16 bg-gradient-to-br from-amber-50/50 to-amber-100/30 rounded-xl sm:rounded-2xl flex items-center justify-center border border-amber-200/30 shadow-sm">
+                <ShieldAlert className="h-7 w-7 sm:h-8 sm:w-8 text-amber-600/80" />
               </div>
               <div>
-                <DialogTitle className="text-xl font-black text-slate-800">
-                  ⚠️ Cambiar a Recargas
+                <DialogTitle className="text-xl sm:text-2xl font-light text-stone-800 tracking-wide">
+                  Cambiar a Recargas
                 </DialogTitle>
-                <DialogDescription className="text-sm text-slate-500">
+                <DialogDescription className="text-xs sm:text-sm text-stone-500 mt-1.5 font-normal px-2">
                   ¿Seguro quieres cambiar el método?
                 </DialogDescription>
               </div>
             </div>
           </DialogHeader>
 
-          <div className="space-y-4 py-2">
-            <Alert className="bg-emerald-50 border-emerald-200">
+          <div className="space-y-4 py-2 px-6">
+            <Alert className="bg-emerald-50/50 border-emerald-200/30">
               <Info className="h-4 w-4 text-emerald-600" />
-              <AlertDescription className="text-sm text-emerald-800 leading-relaxed">
-                <strong>Cuenta Libre</strong> es más conveniente porque:
+              <AlertDescription className="text-sm text-emerald-800 leading-relaxed font-normal">
+                <strong className="font-medium">Cuenta Libre</strong> es más conveniente porque:
               </AlertDescription>
             </Alert>
 
-            <ul className="space-y-2 text-sm text-slate-600">
+            <ul className="space-y-2 text-sm text-stone-600">
               <li className="flex items-start gap-2">
-                <span className="text-emerald-600 font-bold">✓</span>
+                <span className="text-emerald-600 font-medium">✓</span>
                 <span>No necesitas estar recargando constantemente</span>
               </li>
               <li className="flex items-start gap-2">
-                <span className="text-emerald-600 font-bold">✓</span>
+                <span className="text-emerald-600 font-medium">✓</span>
                 <span>Tu hijo nunca se queda sin poder comprar</span>
               </li>
               <li className="flex items-start gap-2">
-                <span className="text-emerald-600 font-bold">✓</span>
+                <span className="text-emerald-600 font-medium">✓</span>
                 <span>Pagas todo junto al final del mes</span>
               </li>
             </ul>
 
-            <Alert className="bg-amber-50 border-amber-200">
+            <Alert className="bg-amber-50/50 border-amber-200/30">
               <AlertCircle className="h-4 w-4 text-amber-600" />
-              <AlertDescription className="text-xs text-amber-800">
-                <strong>Con Recargas:</strong> Deberás recargar saldo antes de cada compra. Si se acaba el saldo, tu hijo no podrá comprar hasta que recargues.
+              <AlertDescription className="text-xs text-amber-800 leading-relaxed">
+                <strong className="font-medium">Con Recargas:</strong> Deberás recargar saldo antes de cada compra. Si se acaba el saldo, tu hijo no podrá comprar hasta que recargues.
               </AlertDescription>
             </Alert>
 
             <div className="flex flex-col gap-3 pt-2">
               <Button
                 onClick={cancelModeChange}
-                className="h-14 text-base font-black bg-emerald-600 hover:bg-emerald-700 text-white shadow-xl rounded-2xl transition-all hover:scale-[1.02] active:scale-95 flex items-center justify-center gap-2 border-b-4 border-emerald-800"
+                className="h-12 sm:h-14 text-sm sm:text-base font-medium bg-gradient-to-r from-emerald-600/90 to-[#8B7355]/80 hover:from-emerald-700/90 hover:to-[#6B5744]/80 text-white shadow-lg rounded-xl transition-all hover:scale-[1.02] active:scale-95 flex items-center justify-center gap-2"
               >
-                <Check className="h-6 w-6" />
+                <Check className="h-5 w-5 sm:h-6 sm:w-6" />
                 MANTENER CUENTA LIBRE (RECOMENDADO)
               </Button>
               
               <Button
                 variant="ghost"
                 onClick={confirmModeChange}
-                className="h-10 text-xs font-bold text-slate-400 hover:text-blue-700 hover:bg-blue-50 rounded-xl transition-all"
+                className="h-9 sm:h-10 text-xs font-normal text-stone-400 hover:text-emerald-700 hover:bg-emerald-50/30 rounded-xl transition-all"
               >
                 Sí, cambiar a modo con recargas
               </Button>
@@ -564,70 +564,70 @@ export function SpendingLimitsModal({
 
       {/* Modal de Advertencia - Cambio de Tope */}
       <Dialog open={showWarning} onOpenChange={setShowWarning}>
-        <DialogContent className="sm:max-w-lg max-h-[85vh] overflow-y-auto z-[60]">
-          <DialogHeader>
-            <div className="flex items-center gap-3 mb-2">
-              <div className="w-12 h-12 bg-amber-100 rounded-2xl flex items-center justify-center">
-                <ShieldAlert className="h-6 w-6 text-amber-600" />
+        <DialogContent className="sm:max-w-lg max-h-[85vh] overflow-y-auto border border-stone-200/50 bg-white shadow-2xl">
+          <DialogHeader className="pb-4">
+            <div className="flex flex-col items-center text-center space-y-2 sm:space-y-3">
+              <div className="w-14 h-14 sm:w-16 sm:h-16 bg-gradient-to-br from-amber-50/50 to-amber-100/30 rounded-xl sm:rounded-2xl flex items-center justify-center border border-amber-200/30 shadow-sm">
+                <ShieldAlert className="h-7 w-7 sm:h-8 sm:w-8 text-amber-600/80" />
               </div>
               <div>
-                <DialogTitle className="text-xl font-black text-slate-800">
-                  ⚠️ ¿Estás seguro?
+                <DialogTitle className="text-xl sm:text-2xl font-light text-stone-800 tracking-wide">
+                  ¿Estás seguro?
                 </DialogTitle>
-                <DialogDescription className="text-sm text-slate-500">
+                <DialogDescription className="text-xs sm:text-sm text-stone-500 mt-1.5 font-normal px-2">
                   Cambiar a modo con tope
                 </DialogDescription>
               </div>
             </div>
           </DialogHeader>
 
-          <div className="space-y-4 py-2">
-            <Alert className="bg-emerald-50 border-emerald-200">
+          <div className="space-y-4 py-2 px-6">
+            <Alert className="bg-emerald-50/50 border-emerald-200/30">
               <Info className="h-4 w-4 text-emerald-600" />
-              <AlertDescription className="text-sm text-emerald-800 leading-relaxed">
-                <strong>🎯 Compra Inteligente</strong> es el modo <strong>más flexible</strong> y está pensado para que tus hijos puedan acceder a alimentos saludables sin preocupaciones. Con este modo:
+              <AlertDescription className="text-sm text-emerald-800 leading-relaxed font-normal">
+                <strong className="font-medium">Compra Inteligente</strong> es el modo <strong className="font-medium">más flexible</strong> y está pensado para que tus hijos puedan acceder a alimentos saludables sin preocupaciones. Con este modo:
               </AlertDescription>
             </Alert>
 
-            <ul className="space-y-2 text-sm text-slate-600">
+            <ul className="space-y-2 text-sm text-stone-600">
               <li className="flex items-start gap-2">
-                <span className="text-emerald-600 font-bold">✓</span>
+                <span className="text-emerald-600 font-medium">✓</span>
                 <span>Tus hijos no se quedan sin comer si olvidas recargar</span>
               </li>
               <li className="flex items-start gap-2">
-                <span className="text-emerald-600 font-bold">✓</span>
+                <span className="text-emerald-600 font-medium">✓</span>
                 <span>Pagas cómodamente al final del mes</span>
               </li>
               <li className="flex items-start gap-2">
-                <span className="text-emerald-600 font-bold">✓</span>
+                <span className="text-emerald-600 font-medium">✓</span>
                 <span>Ves todo el historial de consumo en tiempo real</span>
               </li>
               <li className="flex items-start gap-2">
-                <span className="text-emerald-600 font-bold">✓</span>
+                <span className="text-emerald-600 font-medium">✓</span>
                 <span>Puedes establecer topes si lo necesitas después</span>
               </li>
             </ul>
 
-            <Alert className="bg-amber-50 border-amber-200">
+            <Alert className="bg-amber-50/50 border-amber-200/30">
               <AlertCircle className="h-4 w-4 text-amber-600" />
-              <AlertDescription className="text-xs text-amber-800">
-                <strong>Nota:</strong> Los topes pueden bloquear compras si tu hijo ya gastó el límite, incluso si es para alimentos nutritivos. ¿Seguro quieres activar un tope?
+              <AlertDescription className="text-xs text-amber-800 leading-relaxed">
+                <strong className="font-medium">Nota:</strong> Los topes pueden bloquear compras si tu hijo ya gastó el límite, incluso si es para alimentos nutritivos. ¿Seguro quieres activar un tope?
               </AlertDescription>
             </Alert>
 
             <div className="flex flex-col gap-3 pt-2">
               <Button
                 onClick={cancelTypeChange}
-                className="h-14 text-base font-black bg-emerald-600 hover:bg-emerald-700 text-white shadow-xl rounded-2xl transition-all hover:scale-[1.02] active:scale-95 flex items-center justify-center gap-2 border-b-4 border-emerald-800"
+                className="h-12 sm:h-14 text-sm sm:text-base font-medium bg-gradient-to-r from-emerald-600/90 to-[#8B7355]/80 hover:from-emerald-700/90 hover:to-[#6B5744]/80 text-white shadow-lg rounded-xl transition-all hover:scale-[1.02] active:scale-95 flex items-center justify-center gap-2"
               >
-                <Check className="h-6 w-6" />
+                <Check className="h-5 w-5 sm:h-6 sm:w-6" />
                 MANTENER COMPRA INTELIGENTE (RECOMENDADO)
               </Button>
               
               <Button
                 variant="ghost"
                 onClick={confirmTypeChange}
-                className="h-10 text-xs font-bold text-slate-400 hover:text-amber-700 hover:bg-amber-50 rounded-xl transition-all"
+                className="h-9 sm:h-10 text-xs font-normal text-stone-400 hover:text-amber-700 hover:bg-amber-50/30 rounded-xl transition-all"
               >
                 Sí, prefiero activar un tope de gasto
               </Button>
