@@ -163,39 +163,39 @@ export default function Auth() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col bg-gradient-to-br from-brand-cream via-background to-brand-teal-light">
+    <div className="min-h-screen flex flex-col bg-gradient-to-br from-[#FAFAF9] via-white to-stone-100">
       <header className="w-full pt-12 pb-0 px-4 flex justify-center">
         <img src={limaCafeLogo} alt="Logo" className="h-24 w-auto object-contain mix-blend-multiply" />
       </header>
 
       <main className="flex-1 flex items-start justify-center p-4 pt-2 pb-12">
-        <Card className="w-full max-w-md shadow-2xl border-border/30 bg-card/95 backdrop-blur-sm overflow-hidden border-t-4 border-t-brand-teal rounded-2xl">
-          <CardHeader className="text-center space-y-2 pb-4">
+        <Card className="w-full max-w-md shadow-lg border border-stone-200/50 bg-white/95 backdrop-blur-sm overflow-hidden rounded-2xl">
+          <CardHeader className="text-center space-y-3 pb-4 pt-8">
             <div className="flex justify-center mb-2">
-              <div className="bg-brand-teal/10 p-3 rounded-full">
-                <ShieldCheck className="h-8 w-8 text-brand-teal" />
+              <div className="bg-gradient-to-br from-[#8B7355]/10 to-[#6B5744]/10 p-3 rounded-2xl">
+                <ShieldCheck className="h-8 w-8 text-[#8B7355]" />
               </div>
             </div>
-            <CardTitle className="text-2xl font-bold text-foreground">
+            <CardTitle className="text-2xl font-light text-stone-800 tracking-wide">
               {isRegisterMode ? 'Crear Cuenta' : 'Portal de Acceso'}
             </CardTitle>
-            <CardDescription className="text-muted-foreground font-medium">
+            <CardDescription className="text-stone-500 font-normal text-sm tracking-wide">
               {isRegisterMode 
                 ? 'Regístrate para gestionar los consumos de tus hijos' 
                 : 'Sistema de Gestión Lima Café 28'}
             </CardDescription>
           </CardHeader>
 
-          <CardContent className="space-y-6">
-            <form onSubmit={handleSubmit} className="space-y-4">
+          <CardContent className="space-y-6 px-8 pb-8">
+            <form onSubmit={handleSubmit} className="space-y-5">
               <div className="space-y-2">
-                <label className="font-semibold text-sm text-gray-700">Correo Electrónico</label>
+                <label className="font-medium text-xs text-stone-600 uppercase tracking-wider">Correo Electrónico</label>
                 <Input 
                   type="email"
                   placeholder="tu@email.com" 
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="h-12 border-2 focus:border-brand-teal"
+                  className="h-12 border border-stone-200 focus:border-[#8B7355] rounded-xl transition-all"
                   disabled={isLoading}
                   autoComplete="email"
                 />
@@ -203,12 +203,12 @@ export default function Auth() {
 
               <div className="space-y-2">
                 <div className="flex justify-between items-center">
-                  <label className="font-semibold text-sm text-gray-700">Contraseña</label>
+                  <label className="font-medium text-xs text-stone-600 uppercase tracking-wider">Contraseña</label>
                   {!isRegisterMode && (
                     <button 
                       type="button" 
                       onClick={() => navigate('/auth?type=recovery')} 
-                      className="text-xs text-primary hover:underline font-medium"
+                      className="text-xs text-[#8B7355] hover:underline font-normal"
                     >
                       ¿Olvidaste tu clave?
                     </button>
@@ -219,14 +219,14 @@ export default function Auth() {
                     type={showPassword ? "text" : "password"}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="h-12 pr-10 border-2 focus:border-brand-teal"
+                    className="h-12 pr-10 border border-stone-200 focus:border-[#8B7355] rounded-xl transition-all"
                     disabled={isLoading}
                     autoComplete={isRegisterMode ? "new-password" : "current-password"}
                   />
                   <button 
                     type="button" 
                     onClick={() => setShowPassword(!showPassword)} 
-                    className="absolute right-3 top-3 text-gray-400 hover:text-gray-600"
+                    className="absolute right-3 top-3 text-stone-400 hover:text-stone-600"
                     tabIndex={-1}
                   >
                     {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
@@ -236,20 +236,20 @@ export default function Auth() {
 
               {isRegisterMode && (
                 <div className="space-y-2">
-                  <label className="font-semibold text-sm text-gray-700">Confirmar Contraseña</label>
+                  <label className="font-medium text-xs text-stone-600 uppercase tracking-wider">Confirmar Contraseña</label>
                   <div className="relative">
                     <Input 
                       type={showConfirmPassword ? "text" : "password"}
                       value={confirmPassword}
                       onChange={(e) => setConfirmPassword(e.target.value)}
-                      className="h-12 pr-10 border-2 focus:border-brand-teal"
+                      className="h-12 pr-10 border border-stone-200 focus:border-[#8B7355] rounded-xl transition-all"
                       disabled={isLoading}
                       autoComplete="new-password"
                     />
                     <button 
                       type="button" 
                       onClick={() => setShowConfirmPassword(!showConfirmPassword)} 
-                      className="absolute right-3 top-3 text-gray-400 hover:text-gray-600"
+                      className="absolute right-3 top-3 text-stone-400 hover:text-stone-600"
                       tabIndex={-1}
                     >
                       {showConfirmPassword ? <EyeOff size={20} /> : <Eye size={20} />}
@@ -260,7 +260,7 @@ export default function Auth() {
 
               <Button 
                 type="submit" 
-                className="w-full h-14 text-base font-bold bg-brand-teal hover:bg-brand-teal/90 text-white shadow-lg transition-all rounded-xl" 
+                className="w-full h-14 text-base font-medium bg-gradient-to-r from-[#8B7355] to-[#6B5744] hover:from-[#6B5744] hover:to-[#5B4734] text-white shadow-md transition-all rounded-xl tracking-wide" 
                 disabled={isLoading}
               >
                 {isLoading ? <Loader2 className="animate-spin" /> : (isRegisterMode ? 'Crear Mi Cuenta' : 'Iniciar Sesión')}
@@ -274,7 +274,7 @@ export default function Auth() {
                   setPassword('');
                   setConfirmPassword('');
                 }}
-                className="text-sm font-semibold text-gray-600 hover:text-brand-teal transition-colors"
+                className="text-sm font-normal text-stone-500 hover:text-[#8B7355] transition-colors tracking-wide"
                 type="button"
               >
                 {isRegisterMode ? '¿Ya tienes cuenta? Ingresa aquí' : '¿No tienes cuenta? Regístrate aquí'}
@@ -285,10 +285,10 @@ export default function Auth() {
       </main>
 
       <footer className="py-8 text-center space-y-2">
-        <p className="text-sm md:text-base font-medium text-muted-foreground px-4">
-          © 2026 ERP Profesional diseñado por <span className="text-primary font-bold">ARQUISIA Soluciones</span> para <span className="text-foreground font-bold">Lima Café 28</span>
+        <p className="text-sm md:text-base font-normal text-stone-500 px-4 tracking-wide">
+          © 2026 ERP Profesional diseñado por <span className="text-[#8B7355] font-medium">ARQUISIA Soluciones</span> para <span className="text-stone-800 font-medium">Lima Café 28</span>
         </p>
-        <p className="text-xs text-muted-foreground/70 font-medium">
+        <p className="text-xs text-stone-400 font-normal tracking-wide">
           Versión {APP_CONFIG.version} • {APP_CONFIG.status}
         </p>
       </footer>

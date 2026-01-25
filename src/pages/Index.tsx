@@ -505,25 +505,25 @@ const Index = () => {
   }
 
   return (
-    <div className="min-h-screen bg-[#FDFCFB] pb-24">
+    <div className="min-h-screen bg-[#FAFAF9] pb-24">
       {/* Header Minimalista y Elegante */}
-      <header className="bg-white border-b border-slate-100 sticky top-0 z-40 shadow-sm">
-        <div className="max-w-7xl mx-auto px-6 py-4">
+      <header className="bg-white border-b border-stone-200/50 sticky top-0 z-40 shadow-sm backdrop-blur-sm bg-white/95">
+        <div className="max-w-7xl mx-auto px-6 py-5">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
-              <div className="w-10 h-10 bg-[#8B4513] rounded-xl flex items-center justify-center shadow-sm">
+              <div className="w-11 h-11 bg-gradient-to-br from-[#8B7355] to-[#6B5744] rounded-2xl flex items-center justify-center shadow-sm">
                 <GraduationCap className="h-6 w-6 text-white" />
               </div>
               <div>
-                <h1 className="text-xl font-black text-[#8B4513]">Lima Café 28</h1>
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em]">Portal de Padres</p>
+                <h1 className="text-xl font-light text-[#6B5744] tracking-wide">Lima Café 28</h1>
+                <p className="text-[10px] font-medium text-stone-400 uppercase tracking-[0.25em]">Portal de Padres</p>
               </div>
             </div>
             
             <div className="flex items-center gap-4">
               <div className="hidden md:block text-right">
-                <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Bienvenido</p>
-                <p className="text-sm font-black text-slate-800">{parentName || 'Padre de Familia'}</p>
+                <p className="text-[11px] font-medium text-stone-400 uppercase tracking-wider">Bienvenido</p>
+                <p className="text-sm font-medium text-stone-700">{parentName || 'Padre de Familia'}</p>
               </div>
               <VersionBadge />
             </div>
@@ -532,28 +532,28 @@ const Index = () => {
       </header>
 
       {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-6 py-8">
+      <main className="max-w-7xl mx-auto px-6 py-10">
         {activeTab === 'alumnos' && (
           <div className="space-y-8">
-            <div className="mb-2">
-              <h2 className="text-3xl font-black text-slate-800 tracking-tight">Mis Hijos</h2>
-              <p className="text-slate-400 font-medium mt-1">Gestión centralizada de cuentas escolares</p>
+            <div className="mb-8">
+              <h2 className="text-3xl font-light text-stone-800 tracking-wide mb-2">Mis Hijos</h2>
+              <p className="text-stone-400 font-normal text-sm tracking-wide">Gestión centralizada de cuentas escolares</p>
             </div>
 
             {students.length === 0 ? (
-              <Card className="border-2 border-dashed border-[#D2691E]/30">
-                <CardContent className="flex flex-col items-center justify-center py-16">
-                  <GraduationCap className="h-16 w-16 text-[#D2691E]/40 mb-4" />
-                  <h3 className="text-xl font-bold text-gray-900 mb-2">
+              <Card className="border border-dashed border-stone-300/50 bg-white shadow-sm">
+                <CardContent className="flex flex-col items-center justify-center py-20">
+                  <GraduationCap className="h-14 w-14 text-stone-300 mb-6" />
+                  <h3 className="text-xl font-normal text-stone-800 mb-3 tracking-wide">
                     No hay estudiantes registrados
                   </h3>
-                  <p className="text-gray-600 mb-6 text-center max-w-md text-sm">
+                  <p className="text-stone-500 mb-8 text-center max-w-md text-sm leading-relaxed">
                     Agrega a tu primer hijo para empezar a usar el kiosco escolar
                   </p>
                   <Button 
                     size="lg" 
                     onClick={() => setShowAddStudent(true)}
-                    className="bg-[#8B4513] hover:bg-[#A0522D]"
+                    className="bg-gradient-to-r from-[#8B7355] to-[#6B5744] hover:from-[#6B5744] hover:to-[#5B4734] text-white shadow-md transition-all duration-300"
                   >
                     <Plus className="h-5 w-5 mr-2" />
                     Agregar Mi Primer Hijo
@@ -562,7 +562,7 @@ const Index = () => {
               </Card>
             ) : (
               <>
-                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
                   {students.map((student) => (
                     <StudentCard
                       key={student.id}
@@ -579,12 +579,12 @@ const Index = () => {
                 </div>
 
                 <Card 
-                  className="border-2 border-dashed border-[#D2691E]/30 hover:border-[#D2691E] hover:bg-[#FFF8E7] transition-all cursor-pointer"
+                  className="border border-dashed border-stone-300/50 hover:border-[#8B7355] hover:bg-stone-50/50 transition-all duration-300 cursor-pointer shadow-sm"
                   onClick={() => setShowAddStudent(true)}
                 >
                   <CardContent className="flex items-center justify-center py-8">
-                    <Plus className="h-6 w-6 text-[#8B4513] mr-2" />
-                    <span className="text-[#8B4513] font-semibold">Agregar otro estudiante</span>
+                    <Plus className="h-5 w-5 text-[#8B7355] mr-2" />
+                    <span className="text-[#8B7355] font-normal tracking-wide">Agregar otro estudiante</span>
                   </CardContent>
                 </Card>
               </>
@@ -776,58 +776,58 @@ const Index = () => {
         />
       )}
 
-      {/* Navegación Inferior Fija - Colores Lima Café 28 */}
-      <nav className="fixed bottom-0 left-0 right-0 bg-white border-t-2 border-[#8B4513]/20 shadow-lg z-50">
+      {/* Navegación Inferior Fija - Colores Elegantes y Sutiles */}
+      <nav className="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-md border-t border-stone-200/50 shadow-lg z-50">
         <div className="max-w-7xl mx-auto px-2">
           <div className="grid grid-cols-4 gap-1">
             <button
               onClick={() => setActiveTab('alumnos')}
-              className={`flex flex-col items-center justify-center py-3 transition-all ${
+              className={`flex flex-col items-center justify-center py-3 transition-all duration-200 ${
                 activeTab === 'alumnos'
-                  ? 'text-[#8B4513] bg-[#FFF8E7]'
-                  : 'text-gray-500 hover:text-[#8B4513] hover:bg-gray-50'
+                  ? 'text-[#8B7355] bg-stone-50'
+                  : 'text-stone-400 hover:text-[#8B7355] hover:bg-stone-50/50'
               }`}
             >
               <Home className="h-6 w-6 mb-1" />
-              <span className="text-xs font-semibold">Mis Hijos</span>
+              <span className="text-xs font-normal tracking-wide">Mis Hijos</span>
             </button>
 
             <button
               onClick={() => {
                 setActiveTab('almuerzos');
               }}
-              className={`flex flex-col items-center justify-center py-3 transition-all ${
+              className={`flex flex-col items-center justify-center py-3 transition-all duration-200 ${
                 activeTab === 'almuerzos'
-                  ? 'text-[#8B4513] bg-[#FFF8E7]'
-                  : 'text-gray-500 hover:text-[#8B4513] hover:bg-gray-50'
+                  ? 'text-[#8B7355] bg-stone-50'
+                  : 'text-stone-400 hover:text-[#8B7355] hover:bg-stone-50/50'
               }`}
             >
               <UtensilsCrossed className="h-6 w-6 mb-1" />
-              <span className="text-xs font-semibold">Almuerzos</span>
+              <span className="text-xs font-normal tracking-wide">Almuerzos</span>
             </button>
 
             <button
               onClick={() => setActiveTab('pagos')}
-              className={`flex flex-col items-center justify-center py-3 transition-all ${
+              className={`flex flex-col items-center justify-center py-3 transition-all duration-200 ${
                 activeTab === 'pagos'
-                  ? 'text-[#8B4513] bg-[#FFF8E7]'
-                  : 'text-gray-500 hover:text-[#8B4513] hover:bg-gray-50'
+                  ? 'text-[#8B7355] bg-stone-50'
+                  : 'text-stone-400 hover:text-[#8B7355] hover:bg-stone-50/50'
               }`}
             >
               <Wallet className="h-6 w-6 mb-1" />
-              <span className="text-xs font-semibold">Pagos</span>
+              <span className="text-xs font-normal tracking-wide">Pagos</span>
             </button>
 
             <button
               onClick={() => setActiveTab('mas')}
-              className={`flex flex-col items-center justify-center py-3 transition-all ${
+              className={`flex flex-col items-center justify-center py-3 transition-all duration-200 ${
                 activeTab === 'mas'
-                  ? 'text-[#8B4513] bg-[#FFF8E7]'
-                  : 'text-gray-500 hover:text-[#8B4513] hover:bg-gray-50'
+                  ? 'text-[#8B7355] bg-stone-50'
+                  : 'text-stone-400 hover:text-[#8B7355] hover:bg-stone-50/50'
               }`}
             >
               <MenuIcon className="h-6 w-6 mb-1" />
-              <span className="text-xs font-semibold">Más</span>
+              <span className="text-xs font-normal tracking-wide">Más</span>
             </button>
           </div>
         </div>

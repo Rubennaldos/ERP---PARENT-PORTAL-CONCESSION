@@ -60,17 +60,17 @@ export function StudentCard({
   const buttonText = hasDebt ? 'Pagar Deudas' : 'Recargar Saldo';
 
   return (
-    <Card className="overflow-hidden hover:shadow-xl transition-all duration-300 border border-slate-100 bg-white group">
+    <Card className="overflow-hidden hover:shadow-lg transition-all duration-300 border border-stone-200/50 bg-white group">
       {/* Header Minimalista */}
-      <div className={`h-2 relative transition-colors duration-500 ${
-        hasDebt ? 'bg-rose-500' : 'bg-[#8B4513]'
+      <div className={`h-1.5 relative transition-colors duration-500 ${
+        hasDebt ? 'bg-rose-400' : 'bg-gradient-to-r from-[#8B7355] to-[#6B5744]'
       }`} />
 
       {/* Perfil */}
       <div className="px-6 pt-8 pb-4 relative">
         <div className="flex items-start gap-4">
           <div 
-            className="w-20 h-20 rounded-2xl border-2 border-slate-50 bg-slate-50 overflow-hidden cursor-pointer hover:scale-105 transition-transform duration-300 shadow-sm flex-shrink-0"
+            className="w-20 h-20 rounded-2xl border border-stone-200/50 bg-stone-50/50 overflow-hidden cursor-pointer hover:scale-105 transition-transform duration-300 shadow-sm flex-shrink-0"
             onClick={onPhotoClick}
           >
             {student.photo_url ? (
@@ -80,8 +80,8 @@ export function StudentCard({
                 className="w-full h-full object-cover"
               />
             ) : (
-              <div className="w-full h-full flex items-center justify-center bg-slate-100">
-                <span className="text-2xl font-black text-slate-400">
+              <div className="w-full h-full flex items-center justify-center bg-stone-100/50">
+                <span className="text-2xl font-light text-stone-400">
                   {student.full_name.charAt(0).toUpperCase()}
                 </span>
               </div>
@@ -89,25 +89,25 @@ export function StudentCard({
           </div>
           
           <div className="flex-1 pt-1">
-            <h3 className="text-xl font-black text-slate-800 leading-tight group-hover:text-[#8B4513] transition-colors">
+            <h3 className="text-xl font-normal text-stone-800 leading-tight group-hover:text-[#8B7355] transition-colors tracking-wide">
               {student.full_name}
             </h3>
-            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">
-              {student.grade} <span className="text-slate-200">|</span> {student.section}
+            <p className="text-[10px] font-medium text-stone-400 uppercase tracking-[0.2em] mt-2">
+              {student.grade} <span className="text-stone-300">·</span> {student.section}
             </p>
             
             <div className="flex gap-2 mt-3">
               {isFreeAccount ? (
-                <Badge className="bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border-0 py-0.5 px-2 rounded-lg font-bold text-[9px] uppercase tracking-wider">
+                <Badge className="bg-emerald-50 text-emerald-600 hover:bg-emerald-100 border-0 py-0.5 px-2.5 rounded-lg font-medium text-[9px] uppercase tracking-wider">
                   Cuenta Libre
                 </Badge>
               ) : (
-                <Badge className="bg-amber-50 text-amber-700 hover:bg-amber-100 border-0 py-0.5 px-2 rounded-lg font-bold text-[9px] uppercase tracking-wider">
+                <Badge className="bg-amber-50 text-amber-600 hover:bg-amber-100 border-0 py-0.5 px-2.5 rounded-lg font-medium text-[9px] uppercase tracking-wider">
                   Prepago
                 </Badge>
               )}
               {hasDebt && (
-                <Badge className="bg-rose-50 text-rose-700 border-0 py-0.5 px-2 rounded-lg font-bold text-[9px] uppercase tracking-wider animate-pulse">
+                <Badge className="bg-rose-50 text-rose-600 border-0 py-0.5 px-2.5 rounded-lg font-medium text-[9px] uppercase tracking-wider animate-pulse">
                   Deuda
                 </Badge>
               )}
@@ -121,9 +121,9 @@ export function StudentCard({
             e.stopPropagation();
             onPhotoClick();
           }}
-          className="absolute top-20 left-20 w-8 h-8 bg-white rounded-xl shadow-md border border-slate-100 flex items-center justify-center hover:bg-slate-50 transition-all active:scale-90"
+          className="absolute top-20 left-20 w-8 h-8 bg-white rounded-xl shadow-sm border border-stone-200/50 flex items-center justify-center hover:bg-stone-50 transition-all active:scale-90"
         >
-          <Camera className="h-4 w-4 text-slate-400" />
+          <Camera className="h-4 w-4 text-stone-400" />
         </button>
       </div>
 
@@ -131,28 +131,28 @@ export function StudentCard({
       <CardContent className="pb-6 px-6 pt-2">
         {/* Saldo/Deuda - Diseño Limpio Estilo Banco */}
         <div className={`rounded-2xl p-5 mb-6 border transition-all duration-300 ${
-          hasDebt ? 'bg-rose-50/30 border-rose-100' : 'bg-slate-50/30 border-slate-100'
+          hasDebt ? 'bg-rose-50/30 border-rose-200/50' : 'bg-stone-50/30 border-stone-200/50'
         }`}>
           <div className="flex items-center justify-between">
             <div className="flex-1">
-              <div className="flex items-center gap-2 mb-1">
-                <span className={`text-[9px] font-black uppercase tracking-[0.2em] ${
-                  hasDebt ? 'text-rose-500' : 'text-slate-400'
+              <div className="flex items-center gap-2 mb-1.5">
+                <span className={`text-[9px] font-medium uppercase tracking-[0.2em] ${
+                  hasDebt ? 'text-rose-500' : 'text-stone-400'
                 }`}>
                   {hasDebt ? 'Total Adeudado' : 'Saldo a Favor'}
                 </span>
                 <Popover>
                   <PopoverTrigger asChild>
-                    <button className="text-slate-300 hover:text-slate-500 transition-colors">
+                    <button className="text-stone-300 hover:text-stone-500 transition-colors">
                       <Info className="h-3 w-3" />
                     </button>
                   </PopoverTrigger>
-                  <PopoverContent className="w-80 shadow-2xl border border-slate-100 rounded-2xl p-4" side="top" align="start">
+                  <PopoverContent className="w-80 shadow-lg border border-stone-200/50 rounded-2xl p-4" side="top" align="start">
                     <div className="space-y-2">
-                      <h4 className="font-black text-sm text-slate-800">
+                      <h4 className="font-medium text-sm text-stone-800">
                         {hasDebt ? '💳 Información de Deuda' : '✅ Información de Saldo'}
                       </h4>
-                      <p className="text-xs text-slate-500 leading-relaxed">
+                      <p className="text-xs text-stone-500 leading-relaxed">
                         {hasDebt 
                           ? `Consumos pendientes de pago realizados por ${student.full_name}.`
                           : `Monto disponible que ${student.full_name} puede usar en el kiosco.`
@@ -162,14 +162,14 @@ export function StudentCard({
                   </PopoverContent>
                 </Popover>
               </div>
-              <p className={`text-3xl font-black tracking-tighter ${
+              <p className={`text-3xl font-light tracking-tight ${
                 hasDebt ? 'text-rose-600' : 'text-emerald-600'
               }`}>
                 S/ {Math.abs(student.balance).toFixed(2)}
               </p>
             </div>
             <div className={`p-3 rounded-xl ${
-              hasDebt ? 'bg-rose-100 text-rose-600' : 'bg-emerald-100 text-emerald-600'
+              hasDebt ? 'bg-rose-100/50 text-rose-500' : 'bg-emerald-100/50 text-emerald-600'
             }`}>
               <Wallet className="h-6 w-6" />
             </div>
@@ -180,7 +180,7 @@ export function StudentCard({
         <div className="space-y-3">
           <Button
             onClick={onLunchFast}
-            className="w-full h-14 text-base font-black bg-[#8B4513] hover:bg-[#6F370F] text-white shadow-md rounded-xl transition-all active:scale-95"
+            className="w-full h-14 text-base font-medium bg-gradient-to-r from-[#8B7355] to-[#6B5744] hover:from-[#6B5744] hover:to-[#5B4734] text-white shadow-md rounded-xl transition-all active:scale-95 tracking-wide"
           >
             <UtensilsCrossed className="h-5 w-5 mr-2" />
             LUNCH FAST!
@@ -190,10 +190,10 @@ export function StudentCard({
             <Button
               onClick={onRecharge}
               variant="outline"
-              className={`w-full h-12 text-sm font-bold rounded-xl border-2 transition-all active:scale-95 ${
+              className={`w-full h-12 text-sm font-medium rounded-xl border transition-all active:scale-95 ${
                 hasDebt 
-                  ? 'border-rose-200 text-rose-600 hover:bg-rose-50 hover:border-rose-300'
-                  : 'border-slate-200 text-slate-600 hover:bg-slate-50'
+                  ? 'border-rose-200/50 text-rose-600 hover:bg-rose-50/50 hover:border-rose-300'
+                  : 'border-stone-200/50 text-stone-600 hover:bg-stone-50/50'
               }`}
             >
               <CreditCard className="h-4 w-4 mr-2" />
@@ -205,16 +205,16 @@ export function StudentCard({
             <Button
               onClick={onViewHistory}
               variant="ghost"
-              className="h-11 rounded-xl text-slate-500 font-bold hover:bg-slate-100 transition-all text-xs"
+              className="h-11 rounded-xl text-stone-500 font-normal hover:bg-stone-50 transition-all text-xs tracking-wide"
             >
-              <History className="h-4 w-4 mr-1" />
+              <History className="h-4 w-4 mr-1.5" />
               Historial
             </Button>
           </div>
 
           <button
             onClick={onOpenSettings}
-            className="w-full pt-2 flex items-center justify-center gap-2 text-slate-300 hover:text-[#8B4513] transition-colors group/btn"
+            className="w-full pt-2 flex items-center justify-center gap-2 text-stone-300 hover:text-[#8B7355] transition-colors group/btn"
           >
             <Settings2 className="h-5 w-5 group-hover/btn:rotate-90 transition-transform duration-500" />
           </button>
