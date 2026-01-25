@@ -76,10 +76,13 @@ export const PurchaseHistoryModal = ({
       cutoffDate.setDate(cutoffDate.getDate() - delayDays);
       const cutoffDateISO = cutoffDate.toISOString();
 
-      console.log('📅 Filtro de delay aplicado:', {
+      console.log('📅 Filtro de delay aplicado (Historial):', {
+        studentName,
         delayDays,
-        cutoffDate: cutoffDate.toLocaleDateString('es-ES'),
-        message: `Mostrando solo compras hasta hace ${delayDays} días`
+        hoy: new Date().toLocaleString('es-PE'),
+        cutoffDate: cutoffDate.toLocaleString('es-PE'),
+        cutoffDateISO,
+        message: `Solo compras HASTA ${cutoffDate.toLocaleDateString('es-PE')}`
       });
 
       // ✅ PASO 4: Obtener compras con filtro de fecha
@@ -93,6 +96,16 @@ export const PurchaseHistoryModal = ({
         .limit(50);
 
       if (transError) throw transError;
+      
+      console.log('🛒 Compras obtenidas (Historial):', {
+        studentName,
+        cantidadCompras: transactions?.length || 0,
+        compras: transactions?.map(t => ({
+          fecha: new Date(t.created_at).toLocaleString('es-PE'),
+          monto: t.amount,
+          descripcion: t.description
+        }))
+      });
 
       if (!transactions || transactions.length === 0) {
         setPurchases([]);

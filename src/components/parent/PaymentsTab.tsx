@@ -78,17 +78,20 @@ export const PaymentsTab = ({ userId }: PaymentsTabProps) => {
 
         const delayDays = delayData?.delay_days ?? 2;
         
-        console.log('📅 Filtro de delay aplicado (Pagos):', {
-          studentName: student.full_name,
-          schoolId: student.school_id,
-          delayDays,
-          message: `Mostrando solo compras hasta hace ${delayDays} días`
-        });
-        
         // ✅ Calcular fecha límite
         const cutoffDate = new Date();
         cutoffDate.setDate(cutoffDate.getDate() - delayDays);
         const cutoffDateISO = cutoffDate.toISOString();
+        
+        console.log('📅 Filtro de delay aplicado (Pagos):', {
+          studentName: student.full_name,
+          schoolId: student.school_id,
+          delayDays,
+          hoy: new Date().toLocaleString('es-PE'),
+          cutoffDate: cutoffDate.toLocaleString('es-PE'),
+          cutoffDateISO,
+          message: `Solo compras HASTA ${cutoffDate.toLocaleDateString('es-PE')}`
+        });
 
         // ✅ Obtener transacciones con filtro de fecha
         const { data: transactions, error: transError } = await supabase
@@ -101,6 +104,16 @@ export const PaymentsTab = ({ userId }: PaymentsTabProps) => {
           .order('created_at', { ascending: false });
 
         if (transError) throw transError;
+        
+        console.log('💰 Transacciones obtenidas:', {
+          studentName: student.full_name,
+          cantidadTransacciones: transactions?.length || 0,
+          transacciones: transactions?.map(t => ({
+            fecha: new Date(t.created_at).toLocaleString('es-PE'),
+            monto: t.amount,
+            descripcion: t.description
+          }))
+        });
 
         if (transactions && transactions.length > 0) {
           const totalDebt = transactions.reduce((sum, t) => sum + Math.abs(t.amount), 0);
