@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
-import { Plus, Trash2, GraduationCap, Users, Edit2, Check, X, School, Building2 } from 'lucide-react';
+import { Plus, Trash2, GraduationCap, Users, Edit2, Check, X, School, Building2, Search } from 'lucide-react';
 
 interface Level {
   id: string;
@@ -71,6 +71,29 @@ export const GradesManagement = ({ schoolId }: GradesManagementProps) => {
   const [students, setStudents] = useState<Student[]>([]);
   const [allSchoolsStudents, setAllSchoolsStudents] = useState<SchoolWithStudents[]>([]);
   const [selectedLevel, setSelectedLevel] = useState<string | null>(null);
+  
+  // Estados para filtros de búsqueda
+  const [searchName, setSearchName] = useState('');
+  const [searchGrade, setSearchGrade] = useState('');
+  const [searchClassroom, setSearchClassroom] = useState('');
+  
+  // Función para filtrar estudiantes
+  const filterStudents = (studentsList: Student[]) => {
+    return studentsList.filter(student => {
+      const matchesName = !searchName || 
+        student.full_name?.toLowerCase().includes(searchName.toLowerCase());
+      
+      const matchesGrade = !searchGrade || 
+        student.grade?.toLowerCase().includes(searchGrade.toLowerCase()) ||
+        levels.find(l => l.id === student.level_id)?.name.toLowerCase().includes(searchGrade.toLowerCase());
+      
+      const matchesClassroom = !searchClassroom || 
+        student.section?.toLowerCase().includes(searchClassroom.toLowerCase()) ||
+        classrooms.find(c => c.id === student.classroom_id)?.name.toLowerCase().includes(searchClassroom.toLowerCase());
+      
+      return matchesName && matchesGrade && matchesClassroom;
+    });
+  };
   
   const [showNewLevelModal, setShowNewLevelModal] = useState(false);
   const [showNewClassroomModal, setShowNewClassroomModal] = useState(false);
@@ -725,10 +748,68 @@ export const GradesManagement = ({ schoolId }: GradesManagementProps) => {
                     <h3 className="font-bold text-lg">
                       {isAdminGeneral ? 'Estudiantes de Mi Sede' : 'Todos los Estudiantes de esta Sede'}
                     </h3>
-                    <Badge variant="outline">{students.length} estudiantes</Badge>
+                    <Badge variant="outline">{filterStudents(students).length} de {students.length} estudiantes</Badge>
                   </div>
+                  
+                  {/* Filtros de Búsqueda */}
+                  <Card className="border-2 border-blue-200 bg-blue-50/50">
+                    <CardContent className="p-4">
+                      <div className="flex items-center gap-2 mb-3">
+                        <Search className="h-5 w-5 text-blue-600" />
+                        <h4 className="font-semibold text-blue-900">Buscar Estudiantes</h4>
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                        <div className="space-y-1">
+                          <Label htmlFor="search-name" className="text-xs text-gray-700">Nombre del Estudiante</Label>
+                          <Input
+                            id="search-name"
+                            placeholder="Ej: Juan Pérez"
+                            value={searchName}
+                            onChange={(e) => setSearchName(e.target.value)}
+                            className="h-9"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <Label htmlFor="search-grade" className="text-xs text-gray-700">Grado/Nivel</Label>
+                          <Input
+                            id="search-grade"
+                            placeholder="Ej: little"
+                            value={searchGrade}
+                            onChange={(e) => setSearchGrade(e.target.value)}
+                            className="h-9"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <Label htmlFor="search-classroom" className="text-xs text-gray-700">Aula/Sección</Label>
+                          <Input
+                            id="search-classroom"
+                            placeholder="Ej: geoge"
+                            value={searchClassroom}
+                            onChange={(e) => setSearchClassroom(e.target.value)}
+                            className="h-9"
+                          />
+                        </div>
+                      </div>
+                      {(searchName || searchGrade || searchClassroom) && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            setSearchName('');
+                            setSearchGrade('');
+                            setSearchClassroom('');
+                          }}
+                          className="mt-2 text-xs text-blue-600 hover:text-blue-800"
+                        >
+                          <X className="h-3 w-3 mr-1" />
+                          Limpiar filtros
+                        </Button>
+                      )}
+                    </CardContent>
+                  </Card>
+                  
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                    {students.map((student) => {
+                    {filterStudents(students).map((student) => {
                       const level = levels.find(l => l.id === student.level_id);
                       const classroom = classrooms.find(c => c.id === student.classroom_id);
                       
@@ -759,11 +840,76 @@ export const GradesManagement = ({ schoolId }: GradesManagementProps) => {
                   <div className="flex justify-between items-center mb-4">
                     <h3 className="font-bold text-xl">Estudiantes por Sede</h3>
                     <Badge variant="outline" className="text-base">
-                      {allSchoolsStudents.reduce((acc, school) => acc + school.students.length, 0)} estudiantes totales
+                      {allSchoolsStudents.reduce((acc, school) => 
+                        acc + filterStudents(school.students).length, 0
+                      )} de {allSchoolsStudents.reduce((acc, school) => acc + school.students.length, 0)} estudiantes totales
                     </Badge>
                   </div>
                   
-                  {allSchoolsStudents.map((school) => (
+                  {/* Filtros de Búsqueda Global */}
+                  <Card className="border-2 border-purple-200 bg-purple-50/50">
+                    <CardContent className="p-4">
+                      <div className="flex items-center gap-2 mb-3">
+                        <Search className="h-5 w-5 text-purple-600" />
+                        <h4 className="font-semibold text-purple-900">Buscar en Todas las Sedes</h4>
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                        <div className="space-y-1">
+                          <Label htmlFor="search-name-all" className="text-xs text-gray-700">Nombre del Estudiante</Label>
+                          <Input
+                            id="search-name-all"
+                            placeholder="Ej: Juan Pérez"
+                            value={searchName}
+                            onChange={(e) => setSearchName(e.target.value)}
+                            className="h-9"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <Label htmlFor="search-grade-all" className="text-xs text-gray-700">Grado/Nivel</Label>
+                          <Input
+                            id="search-grade-all"
+                            placeholder="Ej: little"
+                            value={searchGrade}
+                            onChange={(e) => setSearchGrade(e.target.value)}
+                            className="h-9"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <Label htmlFor="search-classroom-all" className="text-xs text-gray-700">Aula/Sección</Label>
+                          <Input
+                            id="search-classroom-all"
+                            placeholder="Ej: geoge"
+                            value={searchClassroom}
+                            onChange={(e) => setSearchClassroom(e.target.value)}
+                            className="h-9"
+                          />
+                        </div>
+                      </div>
+                      {(searchName || searchGrade || searchClassroom) && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            setSearchName('');
+                            setSearchGrade('');
+                            setSearchClassroom('');
+                          }}
+                          className="mt-2 text-xs text-purple-600 hover:text-purple-800"
+                        >
+                          <X className="h-3 w-3 mr-1" />
+                          Limpiar filtros
+                        </Button>
+                      )}
+                    </CardContent>
+                  </Card>
+                  
+                  {allSchoolsStudents.map((school) => {
+                    const filteredSchoolStudents = filterStudents(school.students);
+                    if (filteredSchoolStudents.length === 0 && (searchName || searchGrade || searchClassroom)) {
+                      return null; // No mostrar sedes sin resultados cuando hay filtros activos
+                    }
+                    
+                    return (
                     <Card key={school.id} className="border-2 shadow-md">
                       <CardHeader className="bg-gradient-to-r from-purple-50 to-pink-50 border-b-2">
                         <div className="flex justify-between items-center">
@@ -772,12 +918,12 @@ export const GradesManagement = ({ schoolId }: GradesManagementProps) => {
                             {school.name}
                           </CardTitle>
                           <Badge variant="secondary" className="text-base">
-                            {school.students.length} estudiantes
+                            {filteredSchoolStudents.length} {filteredSchoolStudents.length !== school.students.length && `de ${school.students.length}`} estudiantes
                           </Badge>
                         </div>
                       </CardHeader>
                       <CardContent className="p-6">
-                        {school.students.length > 0 ? (
+                        {filteredSchoolStudents.length > 0 ? (
                           <div className="rounded-lg border overflow-hidden">
                             <Table>
                               <TableHeader>
@@ -788,7 +934,7 @@ export const GradesManagement = ({ schoolId }: GradesManagementProps) => {
                                 </TableRow>
                               </TableHeader>
                               <TableBody>
-                                {school.students.map((student) => (
+                                {filteredSchoolStudents.map((student) => (
                                   <TableRow key={student.id} className="hover:bg-gray-50">
                                     <TableCell className="font-medium">{student.full_name}</TableCell>
                                     <TableCell>
@@ -814,7 +960,8 @@ export const GradesManagement = ({ schoolId }: GradesManagementProps) => {
                         )}
                       </CardContent>
                     </Card>
-                  ))}
+                    );
+                  })}
 
                   {allSchoolsStudents.length === 0 && (
                     <Card>
