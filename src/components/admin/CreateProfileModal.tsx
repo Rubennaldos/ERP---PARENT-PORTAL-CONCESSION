@@ -49,6 +49,10 @@ const baseSchema = z.object({
   email: z.string().email('Email inválido'),
   full_name: z.string().min(3, 'El nombre debe tener al menos 3 caracteres'),
   password: z.string().min(6, 'La contraseña debe tener al menos 6 caracteres'),
+  confirmPassword: z.string().min(6, 'Debe confirmar la contraseña'),
+}).refine((data) => data.password === data.confirmPassword, {
+  message: "Las contraseñas no coinciden",
+  path: ["confirmPassword"],
 });
 
 // Esquemas específicos por rol
@@ -118,6 +122,7 @@ export const CreateProfileModal = ({ open, onOpenChange, onSuccess }: CreateProf
       email: '',
       full_name: '',
       password: '',
+      confirmPassword: '',
       school_id: '',
       pos_number: 1,
       ticket_prefix: '',
@@ -456,6 +461,20 @@ export const CreateProfileModal = ({ open, onOpenChange, onSuccess }: CreateProf
                       <FormLabel>Contraseña *</FormLabel>
                       <FormControl>
                         <Input type="password" placeholder="Mínimo 6 caracteres" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="confirmPassword"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Confirmar Contraseña *</FormLabel>
+                      <FormControl>
+                        <Input type="password" placeholder="Repite la contraseña" {...field} />
                       </FormControl>
                       <FormDescription>
                         El usuario podrá cambiarla después
