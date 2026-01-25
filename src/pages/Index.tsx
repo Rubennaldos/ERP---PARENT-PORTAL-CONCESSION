@@ -527,64 +527,71 @@ const Index = () => {
   }
 
   return (
-    <div className="min-h-screen bg-[#FAFAF9] pb-24">
-      {/* Header Minimalista y Elegante */}
+    <div className="min-h-screen bg-[#FAFAF9] pb-20 sm:pb-24">
+      {/* Header Minimalista y Elegante - Responsive */}
       <header className="bg-white border-b border-stone-200/50 sticky top-0 z-40 shadow-sm backdrop-blur-sm bg-white/95">
-        <div className="max-w-7xl mx-auto px-6 py-5">
+        <div className="max-w-7xl mx-auto px-3 sm:px-4 md:px-6 py-3 sm:py-4 md:py-5">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <div className="w-11 h-11 bg-gradient-to-br from-[#8B7355] to-[#6B5744] rounded-2xl flex items-center justify-center shadow-sm">
-                <GraduationCap className="h-6 w-6 text-white" />
+            {/* Logo y Título - Más compacto en móvil */}
+            <div className="flex items-center gap-2 sm:gap-3 md:gap-4">
+              <div className="w-9 h-9 sm:w-10 sm:h-10 md:w-11 md:h-11 bg-gradient-to-br from-emerald-600/90 via-[#8B7355] to-[#6B5744] rounded-xl sm:rounded-2xl flex items-center justify-center shadow-sm">
+                <GraduationCap className="h-5 w-5 sm:h-5.5 sm:w-5.5 md:h-6 md:w-6 text-white" />
               </div>
               <div>
-                <h1 className="text-xl font-light text-[#6B5744] tracking-wide">Lima Café 28</h1>
-                <p className="text-[10px] font-medium text-stone-400 uppercase tracking-[0.25em]">Portal de Padres</p>
+                <h1 className="text-base sm:text-lg md:text-xl font-light text-[#6B5744] tracking-wide">Lima Café 28</h1>
+                <p className="text-[9px] sm:text-[10px] font-medium text-stone-400 uppercase tracking-[0.2em] sm:tracking-[0.25em]">Portal de Padres</p>
               </div>
             </div>
             
-            <div className="flex items-center gap-4">
+            {/* Nombre usuario - Hidden en móvil, visible en tablet+ */}
+            <div className="flex items-center gap-2 sm:gap-3 md:gap-4">
               <div className="hidden md:block text-right">
                 <p className="text-[11px] font-medium text-stone-400 uppercase tracking-wider">Bienvenido</p>
                 <p className="text-sm font-medium text-stone-700">{parentName || 'Padre de Familia'}</p>
               </div>
-              <VersionBadge />
+              {/* VersionBadge hidden en móvil */}
+              <div className="hidden sm:block">
+                <VersionBadge />
+              </div>
             </div>
           </div>
         </div>
       </header>
 
-      {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-6 py-10">
+      {/* Main Content - Padding responsivo */}
+      <main className="max-w-7xl mx-auto px-3 sm:px-4 md:px-6 py-4 sm:py-6 md:py-10">
         {activeTab === 'alumnos' && (
-          <div className="space-y-8">
-            <div className="mb-8">
-              <h2 className="text-3xl font-light text-stone-800 tracking-wide mb-2">Mis Hijos</h2>
-              <p className="text-stone-400 font-normal text-sm tracking-wide">Gestión centralizada de cuentas escolares</p>
+          <div className="space-y-6 sm:space-y-8">
+            {/* Título - Más pequeño en móvil */}
+            <div className="mb-4 sm:mb-6 md:mb-8">
+              <h2 className="text-2xl sm:text-2xl md:text-3xl font-light text-stone-800 tracking-wide mb-1 sm:mb-2">Mis Hijos</h2>
+              <p className="text-stone-400 font-normal text-xs sm:text-sm tracking-wide">Gestión centralizada de cuentas escolares</p>
             </div>
 
             {students.length === 0 ? (
               <Card className="border border-dashed border-stone-300/50 bg-white shadow-sm">
-                <CardContent className="flex flex-col items-center justify-center py-20">
-                  <GraduationCap className="h-14 w-14 text-stone-300 mb-6" />
-                  <h3 className="text-xl font-normal text-stone-800 mb-3 tracking-wide">
+                <CardContent className="flex flex-col items-center justify-center py-12 sm:py-16 md:py-20 px-4">
+                  <GraduationCap className="h-12 w-12 sm:h-13 sm:w-13 md:h-14 md:w-14 text-stone-300 mb-4 sm:mb-5 md:mb-6" />
+                  <h3 className="text-lg sm:text-xl font-normal text-stone-800 mb-2 sm:mb-3 tracking-wide text-center">
                     No hay estudiantes registrados
                   </h3>
-                  <p className="text-stone-500 mb-8 text-center max-w-md text-sm leading-relaxed">
+                  <p className="text-stone-500 mb-6 sm:mb-7 md:mb-8 text-center max-w-md text-xs sm:text-sm leading-relaxed px-2">
                     Agrega a tu primer hijo para empezar a usar el kiosco escolar
                   </p>
                   <Button 
                     size="lg" 
                     onClick={() => setShowAddStudent(true)}
-                    className="bg-gradient-to-r from-[#8B7355] to-[#6B5744] hover:from-[#6B5744] hover:to-[#5B4734] text-white shadow-md transition-all duration-300"
+                    className="bg-gradient-to-r from-emerald-600/90 via-[#8B7355] to-[#6B5744] hover:from-emerald-700/90 hover:via-[#6B5744] hover:to-[#5B4734] text-white shadow-md transition-all duration-300 h-12 sm:h-auto text-sm sm:text-base"
                   >
-                    <Plus className="h-5 w-5 mr-2" />
+                    <Plus className="h-4 w-4 sm:h-5 sm:w-5 mr-2" />
                     Agregar Mi Primer Hijo
                   </Button>
                 </CardContent>
               </Card>
             ) : (
               <>
-                <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                {/* Grid - 1 columna en móvil, 2 en tablet, 3 en desktop */}
+                <div className="grid gap-4 sm:gap-5 md:gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
                   {students.map((student) => (
                     <StudentCard
                       key={student.id}
@@ -600,13 +607,14 @@ const Index = () => {
                   ))}
                 </div>
 
+                {/* Card para agregar más estudiantes */}
                 <Card 
-                  className="border border-dashed border-stone-300/50 hover:border-[#8B7355] hover:bg-stone-50/50 transition-all duration-300 cursor-pointer shadow-sm"
+                  className="border border-dashed border-stone-300/50 hover:border-emerald-500/50 hover:bg-emerald-50/30 transition-all duration-300 cursor-pointer shadow-sm"
                   onClick={() => setShowAddStudent(true)}
                 >
-                  <CardContent className="flex items-center justify-center py-8">
-                    <Plus className="h-5 w-5 text-[#8B7355] mr-2" />
-                    <span className="text-[#8B7355] font-normal tracking-wide">Agregar otro estudiante</span>
+                  <CardContent className="flex items-center justify-center py-6 sm:py-7 md:py-8">
+                    <Plus className="h-4 w-4 sm:h-5 sm:w-5 text-emerald-600 mr-2" />
+                    <span className="text-emerald-700 font-normal tracking-wide text-sm sm:text-base">Agregar otro estudiante</span>
                   </CardContent>
                 </Card>
               </>
@@ -798,58 +806,58 @@ const Index = () => {
         />
       )}
 
-      {/* Navegación Inferior Fija - Colores Elegantes y Sutiles */}
+      {/* Navegación Inferior Fija - Optimizada para móvil */}
       <nav className="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-md border-t border-stone-200/50 shadow-lg z-50">
-        <div className="max-w-7xl mx-auto px-2">
-          <div className="grid grid-cols-4 gap-1">
+        <div className="max-w-7xl mx-auto px-1 sm:px-2">
+          <div className="grid grid-cols-4 gap-0.5 sm:gap-1">
             <button
               onClick={() => setActiveTab('alumnos')}
-              className={`flex flex-col items-center justify-center py-3 transition-all duration-200 ${
+              className={`flex flex-col items-center justify-center py-2.5 sm:py-3 transition-all duration-200 rounded-lg ${
                 activeTab === 'alumnos'
-                  ? 'text-[#8B7355] bg-stone-50'
-                  : 'text-stone-400 hover:text-[#8B7355] hover:bg-stone-50/50'
+                  ? 'text-emerald-700 bg-emerald-50'
+                  : 'text-stone-400 hover:text-emerald-600 hover:bg-emerald-50/30'
               }`}
             >
-              <Home className="h-6 w-6 mb-1" />
-              <span className="text-xs font-normal tracking-wide">Mis Hijos</span>
+              <Home className="h-5 w-5 sm:h-6 sm:w-6 mb-0.5 sm:mb-1" />
+              <span className="text-[10px] sm:text-xs font-normal tracking-wide">Mis Hijos</span>
             </button>
 
             <button
               onClick={() => {
                 setActiveTab('almuerzos');
               }}
-              className={`flex flex-col items-center justify-center py-3 transition-all duration-200 ${
+              className={`flex flex-col items-center justify-center py-2.5 sm:py-3 transition-all duration-200 rounded-lg ${
                 activeTab === 'almuerzos'
-                  ? 'text-[#8B7355] bg-stone-50'
-                  : 'text-stone-400 hover:text-[#8B7355] hover:bg-stone-50/50'
+                  ? 'text-emerald-700 bg-emerald-50'
+                  : 'text-stone-400 hover:text-emerald-600 hover:bg-emerald-50/30'
               }`}
             >
-              <UtensilsCrossed className="h-6 w-6 mb-1" />
-              <span className="text-xs font-normal tracking-wide">Almuerzos</span>
+              <UtensilsCrossed className="h-5 w-5 sm:h-6 sm:w-6 mb-0.5 sm:mb-1" />
+              <span className="text-[10px] sm:text-xs font-normal tracking-wide">Almuerzos</span>
             </button>
 
             <button
               onClick={() => setActiveTab('pagos')}
-              className={`flex flex-col items-center justify-center py-3 transition-all duration-200 ${
+              className={`flex flex-col items-center justify-center py-2.5 sm:py-3 transition-all duration-200 rounded-lg ${
                 activeTab === 'pagos'
-                  ? 'text-[#8B7355] bg-stone-50'
-                  : 'text-stone-400 hover:text-[#8B7355] hover:bg-stone-50/50'
+                  ? 'text-emerald-700 bg-emerald-50'
+                  : 'text-stone-400 hover:text-emerald-600 hover:bg-emerald-50/30'
               }`}
             >
-              <Wallet className="h-6 w-6 mb-1" />
-              <span className="text-xs font-normal tracking-wide">Pagos</span>
+              <Wallet className="h-5 w-5 sm:h-6 sm:w-6 mb-0.5 sm:mb-1" />
+              <span className="text-[10px] sm:text-xs font-normal tracking-wide">Pagos</span>
             </button>
 
             <button
               onClick={() => setActiveTab('mas')}
-              className={`flex flex-col items-center justify-center py-3 transition-all duration-200 ${
+              className={`flex flex-col items-center justify-center py-2.5 sm:py-3 transition-all duration-200 rounded-lg ${
                 activeTab === 'mas'
-                  ? 'text-[#8B7355] bg-stone-50'
-                  : 'text-stone-400 hover:text-[#8B7355] hover:bg-stone-50/50'
+                  ? 'text-emerald-700 bg-emerald-50'
+                  : 'text-stone-400 hover:text-emerald-600 hover:bg-emerald-50/30'
               }`}
             >
-              <MenuIcon className="h-6 w-6 mb-1" />
-              <span className="text-xs font-normal tracking-wide">Más</span>
+              <MenuIcon className="h-5 w-5 sm:h-6 sm:w-6 mb-0.5 sm:mb-1" />
+              <span className="text-[10px] sm:text-xs font-normal tracking-wide">Más</span>
             </button>
           </div>
         </div>
