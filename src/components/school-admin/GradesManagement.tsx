@@ -104,6 +104,7 @@ export const GradesManagement = ({ schoolId }: GradesManagementProps) => {
 
   useEffect(() => {
     if (selectedLevel && selectedSchoolId) {
+      console.log('🔄 [GradesManagement useEffect] Cargando aulas porque cambió selectedLevel:', selectedLevel);
       fetchClassrooms(selectedLevel);
     }
   }, [selectedLevel, selectedSchoolId]);
@@ -223,6 +224,9 @@ export const GradesManagement = ({ schoolId }: GradesManagementProps) => {
         })
       );
 
+      console.log('✅ [GradesManagement] Aulas procesadas con contador:', classroomsWithCount);
+      console.log('✅ [GradesManagement] Estableciendo estado con', classroomsWithCount.length, 'aulas');
+      
       setClassrooms(classroomsWithCount);
     } catch (error: any) {
       console.error('Error fetching classrooms:', error);
@@ -604,6 +608,10 @@ export const GradesManagement = ({ schoolId }: GradesManagementProps) => {
                   </div>
                   {selectedLevel ? (
                     <div className="space-y-2">
+                      {(() => {
+                        console.log('🎨 [GradesManagement RENDER] Renderizando aulas. classrooms.length:', classrooms.length, 'classrooms:', classrooms);
+                        return null;
+                      })()}
                       {classrooms.map((classroom) => (
                         <div
                           key={classroom.id}
