@@ -1388,45 +1388,49 @@ const POS = () => {
                 </div>
               ) : selectedStudent && (
                 <div>
-                  <div className="flex items-center gap-3 mb-2">
+                  <div className="flex items-center gap-4 mb-2">
                     {/* Foto del estudiante */}
                     {selectedStudent.photo_url && (
                       <div 
-                        className="relative w-16 h-16 flex-shrink-0 cursor-pointer group"
+                        className="relative w-20 h-20 flex-shrink-0 cursor-pointer group"
                         onClick={() => setShowPhotoModal(true)}
                       >
                         <img 
                           src={selectedStudent.photo_url} 
                           alt={selectedStudent.full_name}
-                          className="w-full h-full object-cover rounded-lg border-2 border-white shadow-lg"
+                          className="w-full h-full object-cover rounded-xl border-3 border-white shadow-lg"
                         />
-                        <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg flex items-center justify-center">
+                        <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity rounded-xl flex items-center justify-center">
                           <Maximize2 className="h-6 w-6 text-white" />
                         </div>
                       </div>
                     )}
                     
                     <div className="flex-1">
-                      <h3 className="font-bold text-base">{selectedStudent.full_name}</h3>
-                      <p className="text-xs text-emerald-100">{selectedStudent.grade} - {selectedStudent.section}</p>
+                      <h3 className="font-black text-2xl text-white leading-tight">{selectedStudent.full_name}</h3>
+                      <p className="text-sm text-emerald-100 font-medium mt-1">{selectedStudent.grade} - {selectedStudent.section}</p>
                       {selectedStudent.free_account !== false && (
-                        <div className="mt-1">
-                          <span className="text-[10px] bg-green-400 text-green-900 px-2 py-0.5 rounded-full font-bold">
+                        <div className="mt-2">
+                          <span className="text-xs bg-green-400 text-green-900 px-3 py-1 rounded-full font-bold shadow-md">
                             ✓ CUENTA LIBRE
                           </span>
                         </div>
                       )}
                     </div>
+                    
+                    {/* Botón CAMBIAR en círculo */}
                     <button
                       onClick={resetClient}
-                      className="hover:bg-emerald-700 px-3 py-1.5 rounded-lg transition-colors font-semibold text-sm"
+                      className="w-16 h-16 rounded-full bg-white/20 hover:bg-white/30 border-2 border-white/40 flex items-center justify-center transition-all hover:scale-105 shadow-lg backdrop-blur-sm"
+                      title="Cambiar estudiante"
                     >
-                      CAMBIAR
+                      <div className="text-center">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-white mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+                        </svg>
+                        <span className="text-[9px] font-bold text-white uppercase">Cambiar</span>
+                      </div>
                     </button>
-                  </div>
-                  <div className="flex justify-between items-center bg-emerald-700/50 rounded-lg px-3 py-2 mb-2">
-                    <span className="text-sm">{selectedStudent.free_account !== false ? 'CONSUMO' : 'SALDO'}</span>
-                    <span className="text-2xl font-black">S/ {selectedStudent.balance.toFixed(2)}</span>
                   </div>
                 </div>
               )}
