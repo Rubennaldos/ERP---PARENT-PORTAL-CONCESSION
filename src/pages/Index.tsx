@@ -115,29 +115,35 @@ const Index = () => {
   const fetchParentProfile = async () => {
     if (!user) return;
     try {
-      // Obtener nombre del perfil
-      const { data: profileData, error: profileError } = await supabase
-        .from('profiles')
-        .select('full_name')
-        .eq('id', user.id)
-        .single();
-      
-      if (profileData && profileData.full_name) {
-        setParentName(profileData.full_name);
-      }
-
-      // Verificar si ya aceptó el consentimiento de fotos
-      const { data: consentData, error: consentError } = await supabase
+      // Obtener nombre del responsable de pago principal desde parent_profiles
+      const { data: parentProfileData, error: parentProfileError } = await supabase
         .from('parent_profiles')
-        .select('photo_consent')
+        .select('full_name, photo_consent')
         .eq('user_id', user.id)
-        .maybeSingle(); // Usar maybeSingle en lugar de single para evitar error si no existe
-
-      if (consentData && consentData.photo_consent === true) {
-        setPhotoConsentAccepted(true);
-        console.log('✅ Photo consent already accepted');
+        .maybeSingle();
+      
+      // Si existe el nombre en parent_profiles, usarlo (prioridad)
+      if (parentProfileData && parentProfileData.full_name) {
+        setParentName(parentProfileData.full_name);
+        
+        // Verificar consentimiento de fotos
+        if (parentProfileData.photo_consent === true) {
+          setPhotoConsentAccepted(true);
+          console.log('✅ Photo consent already accepted');
+        } else {
+          console.log('⚠️ Photo consent not found or not accepted');
+        }
       } else {
-        console.log('⚠️ Photo consent not found or not accepted');
+        // Fallback: obtener nombre del perfil básico
+        const { data: profileData, error: profileError } = await supabase
+          .from('profiles')
+          .select('full_name')
+          .eq('id', user.id)
+          .single();
+        
+        if (profileData && profileData.full_name) {
+          setParentName(profileData.full_name);
+        }
       }
     } catch (e) {
       console.error("Error fetching parent profile:", e);
