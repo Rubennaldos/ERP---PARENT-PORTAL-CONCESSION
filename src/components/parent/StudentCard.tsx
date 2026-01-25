@@ -61,16 +61,16 @@ export function StudentCard({
 
   return (
     <Card className="overflow-hidden hover:shadow-lg transition-all duration-300 border border-stone-200/50 bg-white group">
-      {/* Header Minimalista */}
+      {/* Header Minimalista con toque sutil de verde */}
       <div className={`h-1.5 relative transition-colors duration-500 ${
-        hasDebt ? 'bg-rose-400' : 'bg-gradient-to-r from-[#8B7355] to-[#6B5744]'
+        hasDebt ? 'bg-rose-400' : 'bg-gradient-to-r from-emerald-500/70 via-[#8B7355] to-[#6B5744]'
       }`} />
 
       {/* Perfil */}
       <div className="px-6 pt-8 pb-4 relative">
         <div className="flex items-start gap-4">
           <div 
-            className="w-20 h-20 rounded-2xl border border-stone-200/50 bg-stone-50/50 overflow-hidden cursor-pointer hover:scale-105 transition-transform duration-300 shadow-sm flex-shrink-0"
+            className="w-20 h-20 rounded-2xl border border-stone-200/50 bg-gradient-to-br from-stone-50/50 to-emerald-50/20 overflow-hidden cursor-pointer hover:scale-105 transition-transform duration-300 shadow-sm flex-shrink-0"
             onClick={onPhotoClick}
           >
             {student.photo_url ? (
@@ -80,7 +80,7 @@ export function StudentCard({
                 className="w-full h-full object-cover"
               />
             ) : (
-              <div className="w-full h-full flex items-center justify-center bg-stone-100/50">
+              <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-stone-100/50 to-emerald-50/30">
                 <span className="text-2xl font-light text-stone-400">
                   {student.full_name.charAt(0).toUpperCase()}
                 </span>
@@ -89,7 +89,7 @@ export function StudentCard({
           </div>
           
           <div className="flex-1 pt-1">
-            <h3 className="text-xl font-normal text-stone-800 leading-tight group-hover:text-[#8B7355] transition-colors tracking-wide">
+            <h3 className="text-xl font-normal text-stone-800 leading-tight group-hover:text-emerald-700 transition-colors tracking-wide">
               {student.full_name}
             </h3>
             <p className="text-[10px] font-medium text-stone-400 uppercase tracking-[0.2em] mt-2">
@@ -98,7 +98,7 @@ export function StudentCard({
             
             <div className="flex gap-2 mt-3">
               {isFreeAccount ? (
-                <Badge className="bg-emerald-50 text-emerald-600 hover:bg-emerald-100 border-0 py-0.5 px-2.5 rounded-lg font-medium text-[9px] uppercase tracking-wider">
+                <Badge className="bg-emerald-50/80 text-emerald-700 hover:bg-emerald-100/80 border border-emerald-200/30 py-0.5 px-2.5 rounded-lg font-medium text-[9px] uppercase tracking-wider">
                   Cuenta Libre
                 </Badge>
               ) : (
@@ -115,15 +115,15 @@ export function StudentCard({
           </div>
         </div>
 
-        {/* Icono de cámara minimalista */}
+        {/* Icono de cámara minimalista con toque verde */}
         <button
           onClick={(e) => {
             e.stopPropagation();
             onPhotoClick();
           }}
-          className="absolute top-20 left-20 w-8 h-8 bg-white rounded-xl shadow-sm border border-stone-200/50 flex items-center justify-center hover:bg-stone-50 transition-all active:scale-90"
+          className="absolute top-20 left-20 w-8 h-8 bg-white rounded-xl shadow-sm border border-emerald-200/20 flex items-center justify-center hover:bg-emerald-50/30 transition-all active:scale-90"
         >
-          <Camera className="h-4 w-4 text-stone-400" />
+          <Camera className="h-4 w-4 text-stone-400 hover:text-emerald-600" />
         </button>
       </div>
 
@@ -131,7 +131,7 @@ export function StudentCard({
       <CardContent className="pb-6 px-6 pt-2">
         {/* Saldo/Deuda - Diseño Limpio Estilo Banco */}
         <div className={`rounded-2xl p-5 mb-6 border transition-all duration-300 ${
-          hasDebt ? 'bg-rose-50/30 border-rose-200/50' : 'bg-stone-50/30 border-stone-200/50'
+          hasDebt ? 'bg-rose-50/30 border-rose-200/50' : 'bg-gradient-to-br from-stone-50/30 to-emerald-50/20 border-emerald-200/20'
         }`}>
           <div className="flex items-center justify-between">
             <div className="flex-1">
@@ -143,7 +143,7 @@ export function StudentCard({
                 </span>
                 <Popover>
                   <PopoverTrigger asChild>
-                    <button className="text-stone-300 hover:text-stone-500 transition-colors">
+                    <button className="text-stone-300 hover:text-emerald-500 transition-colors">
                       <Info className="h-3 w-3" />
                     </button>
                   </PopoverTrigger>
@@ -169,18 +169,18 @@ export function StudentCard({
               </p>
             </div>
             <div className={`p-3 rounded-xl ${
-              hasDebt ? 'bg-rose-100/50 text-rose-500' : 'bg-emerald-100/50 text-emerald-600'
+              hasDebt ? 'bg-rose-100/50 text-rose-500' : 'bg-emerald-100/60 text-emerald-600'
             }`}>
               <Wallet className="h-6 w-6" />
             </div>
           </div>
         </div>
 
-        {/* Botones - Diseño Limpio */}
+        {/* Botones - Diseño Limpio con toque verde */}
         <div className="space-y-3">
           <Button
             onClick={onLunchFast}
-            className="w-full h-14 text-base font-medium bg-gradient-to-r from-[#8B7355] to-[#6B5744] hover:from-[#6B5744] hover:to-[#5B4734] text-white shadow-md rounded-xl transition-all active:scale-95 tracking-wide"
+            className="w-full h-14 text-base font-medium bg-gradient-to-r from-emerald-600/90 via-[#8B7355] to-[#6B5744] hover:from-emerald-700/90 hover:via-[#6B5744] hover:to-[#5B4734] text-white shadow-md rounded-xl transition-all active:scale-95 tracking-wide"
           >
             <UtensilsCrossed className="h-5 w-5 mr-2" />
             LUNCH FAST!
@@ -193,7 +193,7 @@ export function StudentCard({
               className={`w-full h-12 text-sm font-medium rounded-xl border transition-all active:scale-95 ${
                 hasDebt 
                   ? 'border-rose-200/50 text-rose-600 hover:bg-rose-50/50 hover:border-rose-300'
-                  : 'border-stone-200/50 text-stone-600 hover:bg-stone-50/50'
+                  : 'border-emerald-200/40 text-emerald-700 hover:bg-emerald-50/30 hover:border-emerald-300/50'
               }`}
             >
               <CreditCard className="h-4 w-4 mr-2" />
@@ -205,7 +205,7 @@ export function StudentCard({
             <Button
               onClick={onViewHistory}
               variant="ghost"
-              className="h-11 rounded-xl text-stone-500 font-normal hover:bg-stone-50 transition-all text-xs tracking-wide"
+              className="h-11 rounded-xl text-stone-500 font-normal hover:bg-emerald-50/30 hover:text-emerald-700 transition-all text-xs tracking-wide"
             >
               <History className="h-4 w-4 mr-1.5" />
               Historial
@@ -214,7 +214,7 @@ export function StudentCard({
 
           <button
             onClick={onOpenSettings}
-            className="w-full pt-2 flex items-center justify-center gap-2 text-stone-300 hover:text-[#8B7355] transition-colors group/btn"
+            className="w-full pt-2 flex items-center justify-center gap-2 text-stone-300 hover:text-emerald-600 transition-colors group/btn"
           >
             <Settings2 className="h-5 w-5 group-hover/btn:rotate-90 transition-transform duration-500" />
           </button>
