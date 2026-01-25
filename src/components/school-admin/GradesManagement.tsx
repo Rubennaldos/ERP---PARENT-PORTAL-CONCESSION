@@ -157,6 +157,8 @@ export const GradesManagement = ({ schoolId }: GradesManagementProps) => {
   const fetchLevels = async () => {
     if (!selectedSchoolId) return;
     
+    console.log('📚 [fetchLevels] Cargando niveles para school_id:', selectedSchoolId);
+    
     try {
       const { data, error } = await supabase
         .from('school_levels')
@@ -166,6 +168,8 @@ export const GradesManagement = ({ schoolId }: GradesManagementProps) => {
         .order('order_index');
 
       if (error) throw error;
+
+      console.log('✅ [fetchLevels] Niveles cargados de BD:', data?.length || 0, data?.map(l => l.name));
 
       // Contar estudiantes por nivel
       const levelsWithCount = await Promise.all(
@@ -314,6 +318,8 @@ export const GradesManagement = ({ schoolId }: GradesManagementProps) => {
   const createLevel = async () => {
     if (!selectedSchoolId || !newLevelName.trim()) return;
 
+    console.log('📝 [createLevel] Creando nuevo grado:', newLevelName);
+
     try {
       const { data, error } = await supabase
         .from('school_levels')
@@ -326,6 +332,8 @@ export const GradesManagement = ({ schoolId }: GradesManagementProps) => {
         .single();
 
       if (error) throw error;
+
+      console.log('✅ [createLevel] Grado creado exitosamente:', data);
 
       toast({ title: '✅ Grado creado', description: `${newLevelName} agregado correctamente` });
       setNewLevelName('');
