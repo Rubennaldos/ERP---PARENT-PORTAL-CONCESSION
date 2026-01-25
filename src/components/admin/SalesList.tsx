@@ -1040,11 +1040,11 @@ export const SalesList = () => {
               Anular Venta
             </DialogTitle>
             <DialogDescription>
-              Ticket: {selectedTransaction?.ticket_code}
+              <span className="block">Ticket: {selectedTransaction?.ticket_code}</span>
               {selectedTransaction?.student && (
-                <div className="mt-2 p-2 bg-amber-50 border border-amber-200 rounded text-sm">
+                <span className="block mt-2 p-2 bg-amber-50 border border-amber-200 rounded text-sm">
                   ⚠️ Se devolverá S/ {Math.abs(selectedTransaction.amount).toFixed(2)} a {selectedTransaction.student.full_name}
-                </div>
+                </span>
               )}
             </DialogDescription>
           </DialogHeader>
