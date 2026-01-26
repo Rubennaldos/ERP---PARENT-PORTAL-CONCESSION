@@ -54,7 +54,7 @@ interface BillingConfig {
 
 export const BillingConfig = () => {
   const { user } = useAuth();
-  const { role } = useRole();
+  const { role, canViewAllSchools: canViewAllSchoolsFromHook } = useRole();
   const { toast } = useToast();
 
   const [loading, setLoading] = useState(true);
@@ -76,7 +76,11 @@ export const BillingConfig = () => {
   const [showDelayWarning, setShowDelayWarning] = useState(false);
   const [pendingDelayValue, setPendingDelayValue] = useState<number>(2);
 
-  const canViewAllSchools = role === 'admin_general';
+  console.log('🎭 Rol actual:', role);
+  console.log('🔐 canViewAllSchools del hook:', canViewAllSchoolsFromHook);
+  
+  // Usar el canViewAllSchools del hook en lugar de calcularlo aquí
+  const canViewAllSchools = canViewAllSchoolsFromHook;
 
   // Generar información de pago formateada
   const getPaymentInfoText = () => {
@@ -148,7 +152,7 @@ export const BillingConfig = () => {
           setLoading(false); // Detener carga si no hay sede
         }
       } else if (data && data.length > 0) {
-        console.log('✅ Admin General - Estableciendo primera sede:', data[0].id);
+        console.log('✅ Admin General o sin restricciones - Estableciendo primera sede:', data[0].id);
         setSelectedSchool(data[0].id);
       } else {
         console.log('❌ No hay sedes disponibles');
