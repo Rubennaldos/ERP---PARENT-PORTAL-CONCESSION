@@ -252,22 +252,29 @@ Gracias.`);
 
   // ✅ Funciones para manejar el delay
   const handleDelayChange = (value: string) => {
+    console.log('🔄 Select cambió a:', value);
     const newValue = parseInt(value);
     setPendingDelayValue(newValue);
     
+    console.log('📝 Nuevo valor:', newValue, 'Valor actual:', delayDays);
+    
     if (newValue === 0) {
+      console.log('⚡ Abriendo modal EN VIVO');
       setShowLiveWarning(true);
     } else if (newValue !== delayDays) {
+      console.log('⏱️ Abriendo modal de cambio de delay');
       setShowDelayWarning(true);
     }
   };
 
   const confirmLiveModeChange = async () => {
+    console.log('⚡ Confirmando modo EN VIVO...');
     await saveDelayConfig(0);
     setShowLiveWarning(false);
   };
 
   const confirmDelayChange = async () => {
+    console.log('⏱️ Confirmando cambio de delay a:', pendingDelayValue);
     await saveDelayConfig(pendingDelayValue);
     setShowDelayWarning(false);
   };
