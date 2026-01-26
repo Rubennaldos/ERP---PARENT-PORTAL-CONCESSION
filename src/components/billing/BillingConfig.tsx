@@ -581,23 +581,23 @@ Gracias.`);
               <Zap className="h-6 w-6 text-yellow-500" />
               ⚡ Activar Modo EN VIVO
             </DialogTitle>
-            <DialogDescription className="text-base pt-4 space-y-3">
-              <p className="font-semibold text-gray-900">
+            <DialogDescription className="text-base pt-4">
+              <span className="block font-semibold text-gray-900 mb-3">
                 ¿Estás seguro de activar el modo EN VIVO?
-              </p>
-              <div className="bg-yellow-50 border-2 border-yellow-300 rounded-lg p-4">
-                <p className="text-sm text-gray-700">
+              </span>
+              <span className="block bg-yellow-50 border-2 border-yellow-300 rounded-lg p-4">
+                <span className="block text-sm text-gray-700 mb-2">
                   <strong>Esto significa que:</strong>
-                </p>
-                <ul className="text-sm text-gray-700 mt-2 space-y-1 list-disc list-inside">
-                  <li>Los padres verán <strong>todas las compras al instante</strong></li>
-                  <li>No habrá tiempo de verificación</li>
-                  <li>Pueden reclamar inmediatamente</li>
-                </ul>
-              </div>
-              <p className="text-sm text-gray-600">
+                </span>
+                <span className="block text-sm text-gray-700 space-y-1">
+                  <span className="block">• Los padres verán <strong>todas las compras al instante</strong></span>
+                  <span className="block">• No habrá tiempo de verificación</span>
+                  <span className="block">• Pueden reclamar inmediatamente</span>
+                </span>
+              </span>
+              <span className="block text-sm text-gray-600 mt-3">
                 Solo activa esto si estás seguro de que el sistema está funcionando correctamente.
-              </p>
+              </span>
             </DialogDescription>
           </DialogHeader>
           <div className="flex gap-3 mt-4">
@@ -630,19 +630,19 @@ Gracias.`);
               <Clock className="h-6 w-6 text-amber-600" />
               Cambiar Delay de Visibilidad
             </DialogTitle>
-            <DialogDescription className="text-base pt-4 space-y-3">
-              <p className="font-semibold text-gray-900">
+            <DialogDescription className="text-base pt-4">
+              <span className="block font-semibold text-gray-900 mb-3">
                 ¿Confirmas el cambio a {pendingDelayValue} día{pendingDelayValue > 1 ? 's' : ''}?
-              </p>
-              <div className="bg-amber-50 border-2 border-amber-300 rounded-lg p-4">
-                <p className="text-sm text-gray-700">
+              </span>
+              <span className="block bg-amber-50 border-2 border-amber-300 rounded-lg p-4">
+                <span className="block text-sm text-gray-700 mb-2">
                   <strong>Los padres verán:</strong>
-                </p>
-                <ul className="text-sm text-gray-700 mt-2 space-y-1 list-disc list-inside">
-                  <li>Compras de hace <strong>{pendingDelayValue}+ días</strong></li>
-                  <li>Compras de hoy NO aparecerán hasta dentro de <strong>{pendingDelayValue} día{pendingDelayValue > 1 ? 's' : ''}</strong></li>
-                </ul>
-              </div>
+                </span>
+                <span className="block text-sm text-gray-700 space-y-1">
+                  <span className="block">• Compras de hace <strong>{pendingDelayValue}+ días</strong></span>
+                  <span className="block">• Compras de hoy NO aparecerán hasta dentro de <strong>{pendingDelayValue} día{pendingDelayValue > 1 ? 's' : ''}</strong></span>
+                </span>
+              </span>
             </DialogDescription>
           </DialogHeader>
           <div className="flex gap-3 mt-4">
