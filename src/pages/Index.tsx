@@ -79,7 +79,16 @@ const Index = () => {
   const [loading, setLoading] = useState(true);
   const [parentName, setParentName] = useState<string>('');
   const [showAddStudent, setShowAddStudent] = useState(false);
-  const [activeTab, setActiveTab] = useState('alumnos');
+  // Estado para la navegación por pestañas
+  const [activeTab, setActiveTab] = useState(() => {
+    // Restaurar la pestaña guardada al recargar
+    return sessionStorage.getItem('parentPortalTab') || 'alumnos';
+  });
+
+  // Guardar la pestaña activa cuando cambia
+  useEffect(() => {
+    sessionStorage.setItem('parentPortalTab', activeTab);
+  }, [activeTab]);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [showParentDataForm, setShowParentDataForm] = useState(false);
   const [isParentFormLoading, setIsParentFormLoading] = useState(false);
