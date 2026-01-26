@@ -118,33 +118,44 @@ export const BillingConfig = () => {
 
   const fetchSchools = async () => {
     try {
+      console.log('🏫 Cargando sedes...');
       const { data, error } = await supabase
         .from('schools')
         .select('*')
         .order('name');
       
       if (error) throw error;
+      console.log('📦 Sedes obtenidas:', data);
       setSchools(data || []);
 
+      console.log('🔍 canViewAllSchools:', canViewAllSchools, 'user:', !!user);
+
       if (!canViewAllSchools && user) {
+        console.log('👤 Buscando sede del usuario...');
         const { data: profile } = await supabase
           .from('profiles')
           .select('school_id')
           .eq('id', user.id)
           .single();
         
+        console.log('🎯 Profile del usuario:', profile);
+        
         if (profile?.school_id) {
+          console.log('✅ Estableciendo selectedSchool:', profile.school_id);
           setSelectedSchool(profile.school_id);
         } else {
+          console.log('❌ Usuario sin sede asignada');
           setLoading(false); // Detener carga si no hay sede
         }
       } else if (data && data.length > 0) {
+        console.log('✅ Admin General - Estableciendo primera sede:', data[0].id);
         setSelectedSchool(data[0].id);
       } else {
+        console.log('❌ No hay sedes disponibles');
         setLoading(false); // Detener carga si no hay sedes
       }
     } catch (error) {
-      console.error('Error fetching schools:', error);
+      console.error('❌ Error fetching schools:', error);
       setLoading(false);
     }
   };
