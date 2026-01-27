@@ -175,7 +175,9 @@ export function ParentDataForm({ onSuccess, isLoading: externalLoading, setIsLoa
       
       const { error } = await supabase
         .from('parent_profiles')
-        .update({
+        .upsert({
+          user_id: user.id, // Necesario para UPSERT
+          
           // Responsable principal
           full_name: fullName,
           document_type: documentType,
@@ -200,8 +202,9 @@ export function ParentDataForm({ onSuccess, isLoading: externalLoading, setIsLoa
           
           // Timestamp de actualización
           updated_at: new Date().toISOString(),
-        })
-        .eq('user_id', user.id);
+        }, {
+          onConflict: 'user_id' // Actualizar si ya existe el user_id
+        });
 
       if (error) {
         console.error('❌ Error guardando datos:', error);
