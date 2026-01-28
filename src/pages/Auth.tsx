@@ -5,8 +5,9 @@ import { useRole } from '@/hooks/useRole';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Eye, EyeOff, ShieldCheck } from 'lucide-react';
+import { Loader2, Eye, EyeOff, ShieldCheck, HelpCircle, Phone, Mail, AlertCircle } from 'lucide-react';
 import SplashScreen from '@/components/SplashScreen';
 import limaCafeLogo from '@/assets/lima-cafe-logo.png';
 import { APP_CONFIG } from '@/config/app.config';
@@ -22,6 +23,7 @@ export default function Auth() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [showSplash, setShowSplash] = useState(true);
   const [isRegisterMode, setIsRegisterMode] = useState(false);
+  const [showPasswordRecoveryModal, setShowPasswordRecoveryModal] = useState(false);
   
   // Estados del formulario
   const [email, setEmail] = useState('');
@@ -221,7 +223,7 @@ export default function Auth() {
                   {!isRegisterMode && (
                     <button 
                       type="button" 
-                      onClick={() => navigate('/auth?type=recovery')} 
+                      onClick={() => setShowPasswordRecoveryModal(true)} 
                       className="text-[10px] sm:text-xs text-[#8B7355] hover:underline font-normal"
                     >
                       ¿Olvidaste tu clave?
@@ -314,6 +316,80 @@ export default function Auth() {
           Versión {APP_CONFIG.version} • {APP_CONFIG.status}
         </p>
       </footer>
+
+      {/* Modal de Recuperación de Contraseña */}
+      <Dialog open={showPasswordRecoveryModal} onOpenChange={setShowPasswordRecoveryModal}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-xl flex items-center gap-2">
+              <HelpCircle className="h-6 w-6 text-[#8B4513]" />
+              ¿Olvidaste tu contraseña?
+            </DialogTitle>
+            <DialogDescription>
+              Sistema de recuperación sin correo electrónico
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            {/* Mensaje principal */}
+            <div className="bg-amber-50 border-2 border-amber-200 rounded-lg p-4">
+              <div className="flex gap-3">
+                <AlertCircle className="h-5 w-5 text-amber-600 flex-shrink-0 mt-0.5" />
+                <div className="text-sm text-amber-800">
+                  <strong className="block mb-2">Importante:</strong>
+                  <p>
+                    Actualmente el sistema <strong>no tiene configurado el envío de correos electrónicos</strong>.
+                    Para recuperar tu contraseña, debes contactar al administrador del sistema.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Instrucciones */}
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <h4 className="font-bold text-blue-900 mb-3 flex items-center gap-2">
+                <Phone className="h-4 w-4" />
+                ¿Cómo recuperar mi contraseña?
+              </h4>
+              <ol className="text-sm text-blue-800 space-y-2 list-decimal list-inside">
+                <li>Contacta al <strong>Administrador del Sistema</strong></li>
+                <li>Proporciona tu <strong>correo electrónico registrado</strong></li>
+                <li>El administrador reseteará tu contraseña desde el panel de control</li>
+                <li>Recibirás una <strong>contraseña temporal</strong> que deberás cambiar en tu primer inicio de sesión</li>
+              </ol>
+            </div>
+
+            {/* Contacto */}
+            <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+              <h4 className="font-bold text-green-900 mb-2">Contacto del Administrador:</h4>
+              <div className="space-y-2 text-sm text-green-800">
+                <div className="flex items-center gap-2">
+                  <Mail className="h-4 w-4" />
+                  <span><strong>Email:</strong> admin@limacafe28.com</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Phone className="h-4 w-4" />
+                  <span><strong>Teléfono:</strong> (01) XXX-XXXX</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Nota de seguridad */}
+            <p className="text-xs text-gray-600 text-center">
+              💡 <strong>Recomendación:</strong> Una vez recuperes tu contraseña, cámbiala inmediatamente 
+              desde el menú de configuración ⚙️
+            </p>
+          </div>
+
+          {/* Botón */}
+          <Button
+            onClick={() => setShowPasswordRecoveryModal(false)}
+            className="w-full bg-[#8B4513] hover:bg-[#A0522D]"
+          >
+            Entendido
+          </Button>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

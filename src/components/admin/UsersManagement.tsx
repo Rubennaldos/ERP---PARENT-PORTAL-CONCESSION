@@ -4,6 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { ResetUserPasswordModal } from '@/components/admin/ResetUserPasswordModal';
 import { 
   Table, 
   TableBody, 
@@ -583,62 +584,20 @@ export function UsersManagement() {
         </DialogContent>
       </Dialog>
 
-      {/* Dialog: Cambiar Contraseña */}
-      <Dialog open={!!resetPasswordUser} onOpenChange={(open) => !open && setResetPasswordUser(null)}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Cambiar Contraseña</DialogTitle>
-            <DialogDescription>
-              Usuario: <strong>{resetPasswordUser?.email}</strong>
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
-              <p className="text-sm text-yellow-800">
-                <strong>⚠️ Importante:</strong> Por razones de seguridad, NO se pueden ver las contraseñas actuales (están encriptadas).
-              </p>
-              <p className="text-sm text-yellow-800 mt-2">
-                Puedes establecer una contraseña temporal que el usuario deberá cambiar después.
-              </p>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="new-password">Nueva Contraseña</Label>
-              <div className="flex gap-2">
-                <Input
-                  id="new-password"
-                  type="text"
-                  value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
-                  placeholder="Mínimo 6 caracteres"
-                />
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={generateTempPassword}
-                >
-                  Generar
-                </Button>
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Puedes generar una contraseña aleatoria o escribir una personalizada.
-              </p>
-            </div>
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-              <p className="text-sm text-blue-800">
-                <strong>💡 Alternativa:</strong> El usuario puede usar la opción "Olvidé mi contraseña" en la pantalla de login para resetear su contraseña por email.
-              </p>
-            </div>
-            <div className="flex gap-2 justify-end">
-              <Button variant="outline" onClick={() => setResetPasswordUser(null)}>
-                Cancelar
-              </Button>
-              <Button onClick={handleResetPassword} disabled={!newPassword || newPassword.length < 6}>
-                Cambiar Contraseña
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
+      {/* Modal: Resetear Contraseña */}
+      <ResetUserPasswordModal
+        open={!!resetPasswordUser}
+        onOpenChange={(open) => !open && setResetPasswordUser(null)}
+        userEmail={resetPasswordUser?.email || ''}
+        userName={resetPasswordUser?.profile?.full_name}
+        onSuccess={() => {
+          toast({
+            title: '✅ Contraseña Reseteada',
+            description: 'La contraseña temporal ha sido generada',
+          });
+          setResetPasswordUser(null);
+        }}
+      />
 
       {/* Dialog: Confirmar Eliminación */}
       <Dialog open={!!deletingUser} onOpenChange={(open) => !open && setDeletingUser(null)}>
