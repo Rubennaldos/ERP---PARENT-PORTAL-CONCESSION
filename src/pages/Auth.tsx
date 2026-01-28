@@ -319,24 +319,24 @@ export default function Auth() {
 
       {/* Modal de Recuperación de Contraseña */}
       <Dialog open={showPasswordRecoveryModal} onOpenChange={setShowPasswordRecoveryModal}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-lg">
           <DialogHeader>
-            <DialogTitle className="text-xl flex items-center gap-2">
-              <HelpCircle className="h-6 w-6 text-[#8B4513]" />
+            <DialogTitle className="text-lg flex items-center gap-2">
+              <HelpCircle className="h-5 w-5 text-[#8B4513]" />
               ¿Olvidaste tu contraseña?
             </DialogTitle>
-            <DialogDescription>
+            <DialogDescription className="text-sm">
               Sistema de recuperación sin correo electrónico
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-4 py-4">
+          <div className="space-y-3 py-3">
             {/* Mensaje principal */}
-            <div className="bg-amber-50 border-2 border-amber-200 rounded-lg p-4">
-              <div className="flex gap-3">
-                <AlertCircle className="h-5 w-5 text-amber-600 flex-shrink-0 mt-0.5" />
-                <div className="text-sm text-amber-800">
-                  <strong className="block mb-2">Importante:</strong>
+            <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
+              <div className="flex gap-2">
+                <AlertCircle className="h-4 w-4 text-amber-600 flex-shrink-0 mt-0.5" />
+                <div className="text-xs text-amber-800">
+                  <strong className="block mb-1">Importante:</strong>
                   <p>
                     Actualmente el sistema <strong>no tiene configurado el envío de correos electrónicos</strong>.
                     Para recuperar tu contraseña, debes contactar al administrador del sistema.
@@ -346,12 +346,9 @@ export default function Auth() {
             </div>
 
             {/* Instrucciones */}
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-              <h4 className="font-bold text-blue-900 mb-3 flex items-center gap-2">
-                <Phone className="h-4 w-4" />
-                ¿Cómo recuperar mi contraseña?
-              </h4>
-              <ol className="text-sm text-blue-800 space-y-2 list-decimal list-inside">
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+              <h4 className="font-bold text-blue-900 text-sm mb-2">¿Cómo recuperar mi contraseña?</h4>
+              <ol className="text-xs text-blue-800 space-y-1 list-decimal list-inside ml-1">
                 <li>Contacta al <strong>Administrador del Sistema</strong></li>
                 <li>Proporciona tu <strong>correo electrónico registrado</strong></li>
                 <li>El administrador reseteará tu contraseña desde el panel de control</li>
@@ -360,22 +357,16 @@ export default function Auth() {
             </div>
 
             {/* Contacto */}
-            <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-              <h4 className="font-bold text-green-900 mb-2">Contacto del Administrador:</h4>
-              <div className="space-y-2 text-sm text-green-800">
-                <div className="flex items-center gap-2">
-                  <Mail className="h-4 w-4" />
-                  <span><strong>Email:</strong> admin@limacafe28.com</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Phone className="h-4 w-4" />
-                  <span><strong>Teléfono:</strong> (01) XXX-XXXX</span>
-                </div>
+            <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+              <h4 className="font-bold text-green-900 text-sm mb-2">Contacto del Administrador:</h4>
+              <div className="flex items-center gap-2 text-sm text-green-800">
+                <Mail className="h-4 w-4 flex-shrink-0" />
+                <span><strong>Email:</strong> fiorella@limacafe28.com</span>
               </div>
             </div>
 
             {/* Nota de seguridad */}
-            <p className="text-xs text-gray-600 text-center">
+            <p className="text-xs text-gray-600 text-center px-2">
               💡 <strong>Recomendación:</strong> Una vez recuperes tu contraseña, cámbiala inmediatamente 
               desde el menú de configuración ⚙️
             </p>
