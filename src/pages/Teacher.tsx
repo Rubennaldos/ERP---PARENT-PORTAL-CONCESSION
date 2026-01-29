@@ -61,17 +61,19 @@ export default function Teacher() {
         .from('teacher_profiles_with_schools')
         .select('*')
         .eq('id', user?.id)
-        .single();
+        .maybeSingle();
 
       if (error) {
-        if (error.code === 'PGRST116') {
-          // No existe perfil, mostrar onboarding
-          console.log('📝 Profesor sin perfil, mostrando onboarding');
-          setShowOnboarding(true);
-          setLoading(false);
-          return;
-        }
+        console.error('❌ Error cargando perfil:', error);
         throw error;
+      }
+
+      // Si no hay perfil, mostrar onboarding
+      if (!profile) {
+        console.log('📝 Profesor sin perfil, mostrando onboarding');
+        setShowOnboarding(true);
+        setLoading(false);
+        return;
       }
 
       console.log('✅ Perfil encontrado:', profile);

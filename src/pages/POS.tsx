@@ -486,6 +486,7 @@ const POS = () => {
         .from('combos')
         .select('*')
         .eq('active', true)
+        .eq('school_id', profile.school_id)
         .order('created_at', { ascending: false });
 
       if (error) {
