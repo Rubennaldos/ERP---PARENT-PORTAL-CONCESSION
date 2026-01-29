@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRole } from '@/hooks/useRole';
 import { supabase } from '@/lib/supabase';
@@ -10,7 +9,6 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { 
-  ArrowLeft, 
   Calendar, 
   UtensilsCrossed, 
   CheckCircle2, 
@@ -62,7 +60,6 @@ interface School {
 export default function LunchOrders() {
   const { user } = useAuth();
   const { role, canViewAllSchools } = useRole();
-  const navigate = useNavigate();
   const { toast } = useToast();
 
   const [loading, setLoading] = useState(true);
@@ -273,49 +270,37 @@ export default function LunchOrders() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 p-6">
+    <div className="space-y-6">
       {/* Header */}
-      <div className="max-w-7xl mx-auto mb-6">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <Button
-              variant="ghost"
-              onClick={() => navigate('/dashboard')}
-              className="gap-2"
-            >
-              <ArrowLeft className="h-4 w-4" />
-              Volver al Panel
-            </Button>
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
-                <UtensilsCrossed className="h-8 w-8 text-blue-600" />
-                Pedidos de Almuerzo
-              </h1>
-              <p className="text-gray-600">Gestiona las entregas de almuerzos del día</p>
-            </div>
-          </div>
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-2xl font-bold text-gray-900 flex items-center gap-3">
+            <UtensilsCrossed className="h-6 w-6 text-blue-600" />
+            Gestión de Pedidos
+          </h2>
+          <p className="text-gray-600">Gestiona las entregas de almuerzos del día</p>
+        </div>
 
-          <div className="flex gap-2">
-            <Button
-              onClick={() => setShowDeliverWithoutOrder(true)}
-              className="bg-orange-600 hover:bg-orange-700 gap-2"
-            >
-              <PackagePlus className="h-4 w-4" />
-              Entregar sin pedido
-            </Button>
-            <Button
-              onClick={() => setShowCreateTemporary(true)}
-              className="bg-purple-600 hover:bg-purple-700 gap-2"
-            >
-              <UserPlus className="h-4 w-4" />
-              Crear Puente Temporal
-            </Button>
-          </div>
+        <div className="flex gap-2">
+          <Button
+            onClick={() => setShowDeliverWithoutOrder(true)}
+            className="bg-orange-600 hover:bg-orange-700 gap-2"
+          >
+            <PackagePlus className="h-4 w-4" />
+            Entregar sin pedido
+          </Button>
+          <Button
+            onClick={() => setShowCreateTemporary(true)}
+            className="bg-purple-600 hover:bg-purple-700 gap-2"
+          >
+            <UserPlus className="h-4 w-4" />
+            Crear Puente Temporal
+          </Button>
         </div>
       </div>
 
       {/* Filters */}
-      <Card className="max-w-7xl mx-auto mb-6">
+      <Card>
         <CardHeader>
           <CardTitle className="text-lg flex items-center gap-2">
             <Filter className="h-5 w-5" />
@@ -391,7 +376,7 @@ export default function LunchOrders() {
       </Card>
 
       {/* Lista de pedidos */}
-      <Card className="max-w-7xl mx-auto">
+      <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
             <div>

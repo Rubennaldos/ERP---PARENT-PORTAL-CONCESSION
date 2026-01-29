@@ -45,6 +45,7 @@ import { MassUploadModal } from '@/components/lunch/MassUploadModal';
 import { SpecialDayModal } from '@/components/lunch/SpecialDayModal';
 import { LunchAnalyticsDashboard } from '@/components/lunch/LunchAnalyticsDashboard';
 import { LunchConfiguration } from '@/components/lunch/LunchConfiguration';
+import LunchOrders from '@/pages/LunchOrders';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
@@ -425,8 +426,9 @@ const LunchCalendar = () => {
 
       <main className="container mx-auto px-4 py-8">
         <Tabs defaultValue="calendar" className="w-full">
-          <TabsList className="grid w-full grid-cols-3 mb-6">
+          <TabsList className="grid w-full grid-cols-4 mb-6">
             <TabsTrigger value="calendar">📅 Calendario</TabsTrigger>
+            <TabsTrigger value="orders">🍽️ Pedidos</TabsTrigger>
             <TabsTrigger value="analytics">📊 Analytics</TabsTrigger>
             <TabsTrigger value="config">⚙️ Configuración</TabsTrigger>
           </TabsList>
@@ -791,6 +793,11 @@ const LunchCalendar = () => {
             </Card>
           </div>
         </div>
+          </TabsContent>
+
+          {/* Tab: Pedidos */}
+          <TabsContent value="orders">
+            <LunchOrders />
           </TabsContent>
 
           {/* Tab: Analytics */}

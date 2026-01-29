@@ -276,18 +276,6 @@ const Dashboard = () => {
           status: 'functional' as const,
         },
         {
-          id: '11',
-          code: 'lunch_orders',
-          name: 'Pedidos de Almuerzo',
-          description: 'Gestión de pedidos, entregas y puentes temporales',
-          icon: 'UtensilsCrossed',
-          color: 'orange',
-          route: '/lunch-orders',
-          is_active: true,
-          is_enabled: false,
-          status: 'functional' as const,
-        },
-        {
           id: '7',
           code: 'logistica',
           name: 'Logística',
