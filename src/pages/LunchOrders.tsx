@@ -31,7 +31,7 @@ interface LunchOrder {
   id: string;
   order_date: string;
   status: string;
-  ordered_at: string;
+  created_at: string;
   delivered_at: string | null;
   cancelled_at: string | null;
   postponed_at: string | null;
@@ -120,7 +120,7 @@ export default function LunchOrders() {
           )
         `)
         .eq('order_date', selectedDate)
-        .order('ordered_at', { ascending: false });
+        .order('created_at', { ascending: false });
 
       // Si no puede ver todas las sedes, filtrar por sus sedes asignadas
       if (!canViewAllSchools && user) {
@@ -448,7 +448,7 @@ export default function LunchOrders() {
                         </p>
                       )}
                       <p className="text-sm text-gray-500">
-                        Pedido: {format(new Date(order.ordered_at), "HH:mm", { locale: es })}
+                        Pedido: {format(new Date(order.created_at), "HH:mm", { locale: es })}
                       </p>
                     </div>
 
