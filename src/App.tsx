@@ -19,6 +19,7 @@ import Comedor from "./pages/Comedor";
 import SalesList from "./pages/SalesList";
 import Cobranzas from "./pages/Cobranzas";
 import Finanzas from "./pages/Finanzas";
+import LunchOrders from "./pages/LunchOrders";
 import ParentConfiguration from "./pages/ParentConfiguration";
 import Products from "./pages/Products";
 import PaymentStats from "./pages/PaymentStats";
@@ -139,6 +140,14 @@ const App = () => (
               element={
                 <ProtectedRoute allowedRoles={['admin_general', 'superadmin']}>
                   <Finanzas />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/lunch-orders"
+              element={
+                <ProtectedRoute allowedRoles={['admin_general', 'superadmin', 'operador_caja', 'gestor_unidad']}>
+                  <LunchOrders />
                 </ProtectedRoute>
               }
             />

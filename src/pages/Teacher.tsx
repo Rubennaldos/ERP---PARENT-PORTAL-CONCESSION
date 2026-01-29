@@ -5,7 +5,7 @@ import { supabase } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { LogOut, User, ShoppingBag, UtensilsCrossed, Home, MoreHorizontal, Loader2 } from 'lucide-react';
+import { LogOut, User, ShoppingBag, UtensilsCrossed, Home, MoreHorizontal, Loader2, DollarSign } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { TeacherOnboardingModal } from '@/components/teacher/TeacherOnboardingModal';
 import { TeacherMoreMenu } from '@/components/teacher/TeacherMoreMenu';
@@ -39,6 +39,7 @@ export default function Teacher() {
   const [purchaseHistory, setPurchaseHistory] = useState<any[]>([]);
   const [totalSpent, setTotalSpent] = useState(0);
   const [delayDays, setDelayDays] = useState<number>(0);
+  const [currentBalance, setCurrentBalance] = useState<number>(0);
 
   useEffect(() => {
     if (user) {
@@ -48,10 +49,43 @@ export default function Teacher() {
 
   useEffect(() => {
     // Cargar datos según la pestaña activa
-    if (teacherProfile && activeTab === 'history') {
-      fetchPurchaseHistory();
+    if (teacherProfile) {
+      if (activeTab === 'history') {
+        fetchPurchaseHistory();
+      } else if (activeTab === 'payments') {
+        fetchCurrentBalance();
+      }
     }
   }, [activeTab, teacherProfile]);
+
+  const fetchCurrentBalance = async () => {
+    if (!teacherProfile) return;
+
+    try {
+      console.log('💰 Calculando balance actual del profesor');
+
+      // Obtener todas las transacciones del profesor
+      const { data: transactions, error } = await supabase
+        .from('transactions')
+        .select('amount')
+        .eq('teacher_id', teacherProfile.id);
+
+      if (error) throw error;
+
+      // Calcular balance
+      const balance = transactions?.reduce((sum, t) => sum + t.amount, 0) || 0;
+      setCurrentBalance(balance);
+
+      console.log('✅ Balance actual:', balance);
+    } catch (error: any) {
+      console.error('❌ Error calculando balance:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'No se pudo calcular el balance.',
+      });
+    }
+  };
 
   const checkOnboardingStatus = async () => {
     try {
@@ -238,7 +272,7 @@ export default function Teacher() {
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {teacherProfile && teacherProfile.onboarding_completed ? (
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className="grid w-full grid-cols-4 mb-6">
+            <TabsList className="grid w-full grid-cols-5 mb-6">
               <TabsTrigger value="home" className="gap-2">
                 <Home className="h-4 w-4" />
                 Inicio
@@ -250,6 +284,10 @@ export default function Teacher() {
               <TabsTrigger value="history" className="gap-2">
                 <ShoppingBag className="h-4 w-4" />
                 Historial
+              </TabsTrigger>
+              <TabsTrigger value="payments" className="gap-2">
+                <DollarSign className="h-4 w-4" />
+                Pagos
               </TabsTrigger>
               <TabsTrigger value="menu" className="gap-2">
                 <UtensilsCrossed className="h-4 w-4" />
@@ -444,6 +482,114 @@ export default function Teacher() {
                             <div className="text-right">
                               <p className="text-2xl font-bold text-red-600">
                                 S/ {Math.abs(transaction.amount).toFixed(2)}
+                              </p>
+                            </div>
+                          </div>
+
+                          {/* Detalle de items */}
+                          {transaction.transaction_items && transaction.transaction_items.length > 0 && (
+                            <div className="mt-3 pt-3 border-t">
+                              <p className="text-xs font-semibold text-gray-600 mb-2">Productos:</p>
+                              <div className="space-y-1">
+                                {transaction.transaction_items.map((item: any, idx: number) => (
+                                  <div key={idx} className="flex justify-between text-sm">
+                                    <span className="text-gray-700">
+                                      {item.quantity}x {item.product_name}
+                                    </span>
+                                    <span className="text-gray-900 font-medium">
+                                      S/ {item.subtotal.toFixed(2)}
+                                    </span>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            {/* TAB: PAGOS */}
+            <TabsContent value="payments" className="space-y-6">
+              {/* Card: Balance Actual */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Balance de Cuenta</CardTitle>
+                  <CardDescription>
+                    Como profesor, tu cuenta es libre sin límites de gasto.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className={`p-6 rounded-lg ${currentBalance < 0 ? 'bg-red-50' : 'bg-green-50'}`}>
+                    <p className="text-sm text-gray-600 mb-2">Balance actual:</p>
+                    <p className={`text-4xl font-bold ${currentBalance < 0 ? 'text-red-600' : 'text-green-600'}`}>
+                      S/ {Math.abs(currentBalance).toFixed(2)}
+                    </p>
+                    {currentBalance < 0 && (
+                      <p className="text-sm text-red-600 mt-2">
+                        ⚠️ Tienes una deuda pendiente
+                      </p>
+                    )}
+                    {currentBalance >= 0 && (
+                      <p className="text-sm text-green-600 mt-2">
+                        ✅ Sin deudas pendientes
+                      </p>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Card: Historial de Transacciones */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Todas las Transacciones</CardTitle>
+                  <CardDescription>
+                    Historial completo de compras y pagos
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {purchaseHistory.length === 0 ? (
+                    <div className="text-center py-12 text-gray-500">
+                      <DollarSign className="h-16 w-16 mx-auto mb-4 opacity-30" />
+                      <p className="text-lg font-semibold mb-2">Sin transacciones</p>
+                      <p className="text-sm">
+                        Aún no has realizado ninguna compra.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {purchaseHistory.map((transaction) => (
+                        <div key={transaction.id} className="border rounded-lg p-4">
+                          <div className="flex justify-between items-start">
+                            <div className="flex-1">
+                              <p className="font-semibold text-gray-900">
+                                {transaction.description}
+                              </p>
+                              <p className="text-sm text-gray-500">
+                                {new Date(transaction.created_at).toLocaleDateString('es-PE', {
+                                  weekday: 'long',
+                                  year: 'numeric',
+                                  month: 'long',
+                                  day: 'numeric',
+                                  hour: '2-digit',
+                                  minute: '2-digit',
+                                })}
+                              </p>
+                              {transaction.ticket_code && (
+                                <p className="text-xs text-gray-400 mt-1">
+                                  Ticket: {transaction.ticket_code}
+                                </p>
+                              )}
+                            </div>
+                            <div className="text-right">
+                              <p className={`text-2xl font-bold ${transaction.amount < 0 ? 'text-red-600' : 'text-green-600'}`}>
+                                {transaction.amount < 0 ? '-' : '+'} S/ {Math.abs(transaction.amount).toFixed(2)}
+                              </p>
+                              <p className="text-xs text-gray-500 mt-1">
+                                {transaction.amount < 0 ? 'Compra' : 'Pago'}
                               </p>
                             </div>
                           </div>
