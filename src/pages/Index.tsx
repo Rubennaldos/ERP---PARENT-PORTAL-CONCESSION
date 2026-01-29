@@ -42,6 +42,7 @@ import { PhotoConsentModal } from '@/components/parent/PhotoConsentModal';
 import { PurchaseHistoryModal } from '@/components/parent/PurchaseHistoryModal';
 import { LunchCalendarView } from '@/components/parent/LunchCalendarView';
 import { LunchOrderCalendar } from '@/components/parent/LunchOrderCalendar';
+import { ParentLunchOrders } from '@/components/parent/ParentLunchOrders';
 import { ParentDataForm } from '@/components/parent/ParentDataForm';
 import { useOnboardingCheck } from '@/hooks/useOnboardingCheck';
 
@@ -747,7 +748,11 @@ const Index = () => {
         {/* Pestaña Almuerzos */}
         <div className={activeTab !== 'almuerzos' ? 'hidden' : ''}>
           {user && (
-            <div className="px-4">
+            <div className="px-4 space-y-6">
+              {/* Mis Pedidos de Almuerzo */}
+              <ParentLunchOrders parentId={user.id} />
+              
+              {/* Calendario para Hacer Pedidos */}
               <LunchOrderCalendar
                 isOpen={true}
                 onClose={() => {}}
