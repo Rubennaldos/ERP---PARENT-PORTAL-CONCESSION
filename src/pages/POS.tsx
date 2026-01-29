@@ -190,6 +190,7 @@ const POS = () => {
   const [requiresInvoice, setRequiresInvoice] = useState(false);
   const [showPaymentDialog, setShowPaymentDialog] = useState(false);
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
+  const [showCreditConfirmDialog, setShowCreditConfirmDialog] = useState(false); // Modal para cuenta de crédito
 
   // NUEVO: Campo "Con cuánto paga" para calcular vuelto
   const [cashGiven, setCashGiven] = useState('');
@@ -840,8 +841,14 @@ const POS = () => {
   const handleCheckoutClick = () => {
     if (!canCheckout()) return;
 
-    // Siempre mostrar modal de confirmación primero
-    setShowConfirmDialog(true);
+    // Decidir qué modal mostrar según el tipo de cliente
+    if (clientMode === 'student') {
+      // Cuenta de crédito: Modal simple de confirmación (sin métodos de pago)
+      setShowCreditConfirmDialog(true);
+    } else {
+      // Cliente genérico: Modal de selección de método de pago
+      setShowConfirmDialog(true);
+    }
   };
 
   const handleConfirmCheckout = async (shouldPrint: boolean = false) => {
@@ -857,6 +864,7 @@ const POS = () => {
       
     // Después de procesar, resetear automáticamente
     setShowConfirmDialog(false);
+    setShowCreditConfirmDialog(false);
     resetClient();
   };
 
@@ -2085,6 +2093,116 @@ const POS = () => {
                 Cancelar
               </Button>
             </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* MODAL DE CONFIRMACIÓN PARA CUENTA DE CRÉDITO */}
+      <Dialog open={showCreditConfirmDialog} onOpenChange={setShowCreditConfirmDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-2xl font-bold flex items-center gap-2">
+              <CheckCircle2 className="h-7 w-7 text-emerald-600" />
+              Confirmar Compra a Crédito
+            </DialogTitle>
+          </DialogHeader>
+          
+          <div className="space-y-6">
+            {/* Resumen de Compra */}
+            <div className="bg-gradient-to-r from-slate-800 to-slate-900 text-white rounded-2xl p-6">
+              <div className="text-center">
+                <p className="text-sm text-gray-300 uppercase font-semibold mb-2">Total a Cobrar</p>
+                <p className="text-5xl font-black mb-3">S/ {getTotal().toFixed(2)}</p>
+                <div className="bg-emerald-500 text-white px-4 py-2 rounded-full inline-block">
+                  <p className="text-sm font-bold">PAGO A CRÉDITO</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Información del Cliente */}
+            {selectedStudent && (
+              <div className="bg-blue-50 border-2 border-blue-200 rounded-xl p-4">
+                <div className="flex items-center gap-3">
+                  <User className="h-8 w-8 text-blue-600" />
+                  <div>
+                    <p className="text-sm text-gray-600 font-semibold">Cliente</p>
+                    <p className="text-lg font-bold text-gray-900">{selectedStudent.full_name}</p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Detalle de Productos */}
+            <div className="bg-gray-50 rounded-xl p-4 max-h-48 overflow-y-auto">
+              <p className="text-sm font-bold text-gray-700 mb-3">Productos ({cart.length})</p>
+              <div className="space-y-2">
+                {cart.map((item, index) => (
+                  <div key={index} className="flex justify-between text-sm">
+                    <span className="text-gray-700">
+                      {item.quantity}x {item.name}
+                    </span>
+                    <span className="font-bold text-gray-900">
+                      S/ {(item.price * item.quantity).toFixed(2)}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Botones de Acción */}
+            <div className="grid grid-cols-2 gap-3">
+              <Button
+                onClick={async () => {
+                  await handleConfirmCheckout(false); // Sin imprimir
+                }}
+                disabled={isProcessing}
+                className="h-14 text-base font-bold bg-emerald-500 hover:bg-emerald-600"
+              >
+                {isProcessing ? (
+                  <>
+                    <Loader2 className="h-5 w-5 mr-2 animate-spin" />
+                    Procesando...
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle2 className="h-5 w-5 mr-2" />
+                    Confirmar
+                  </>
+                )}
+              </Button>
+
+              <Button
+                onClick={async () => {
+                  await handleConfirmCheckout(true); // Con impresión
+                }}
+                disabled={isProcessing}
+                variant="outline"
+                className="h-14 text-base font-bold border-2 border-blue-500 text-blue-600 hover:bg-blue-50"
+              >
+                {isProcessing ? (
+                  <>
+                    <Loader2 className="h-5 w-5 mr-2 animate-spin" />
+                    Procesando...
+                  </>
+                ) : (
+                  <>
+                    <Printer className="h-5 w-5 mr-2" />
+                    Confirmar e Imprimir
+                  </>
+                )}
+              </Button>
+            </div>
+
+            <Button
+              variant="ghost"
+              onClick={() => {
+                setShowCreditConfirmDialog(false);
+              }}
+              disabled={isProcessing}
+              className="w-full"
+            >
+              Cancelar
+            </Button>
           </div>
         </DialogContent>
       </Dialog>
