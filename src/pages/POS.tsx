@@ -79,6 +79,7 @@ interface Student {
   balance: number;
   grade: string;
   section: string;
+  school_id?: string;
   free_account?: boolean;
   limit_type?: 'none' | 'daily' | 'weekly' | 'monthly';
   daily_limit?: number;
@@ -88,6 +89,7 @@ interface Student {
 
 interface Product {
   id: string;
+  barcode?: string;
   name: string;
   description?: string;
   price: number;
@@ -162,12 +164,18 @@ const POS = () => {
   const [userSchoolId, setUserSchoolId] = useState<string | null>(null);
 
   // Estados de cliente
-  const [clientMode, setClientMode] = useState<'student' | 'generic' | null>(null);
+  const [clientMode, setClientMode] = useState<'student' | 'generic' | 'teacher' | null>(null);
   const [studentSearch, setStudentSearch] = useState('');
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
   const [students, setStudents] = useState<Student[]>([]);
   const [studentAccountStatuses, setStudentAccountStatuses] = useState<Map<string, { canPurchase: boolean; statusText: string; statusColor: string; reason?: string }>>(new Map());
   const [showStudentResults, setShowStudentResults] = useState(false);
+
+  // Estados de profesor
+  const [teacherSearch, setTeacherSearch] = useState('');
+  const [selectedTeacher, setSelectedTeacher] = useState<any | null>(null);
+  const [teachers, setTeachers] = useState<any[]>([]);
+  const [showTeacherResults, setShowTeacherResults] = useState(false);
   const [showPhotoModal, setShowPhotoModal] = useState(false); // Para ampliar foto del estudiante
 
   // Estados de productos
@@ -329,6 +337,17 @@ const POS = () => {
       setShowStudentResults(false);
     }
   }, [studentSearch, clientMode]);
+
+  // Buscar profesores
+  useEffect(() => {
+    if (clientMode === 'teacher' && teacherSearch.trim().length >= 2) {
+      searchTeachers(teacherSearch);
+      setShowTeacherResults(true);
+    } else {
+      setTeachers([]);
+      setShowTeacherResults(false);
+    }
+  }, [teacherSearch, clientMode]);
 
   // Efecto para Escucha Global de Teclado (Pistola de Código de Barras + Atajos)
   useEffect(() => {
@@ -597,6 +616,44 @@ const POS = () => {
     }
   };
 
+  const searchTeachers = async (query: string) => {
+    try {
+      console.log('🔍 Buscando profesores con query:', query);
+      console.log('🏫 Filtrando por sede:', userSchoolId);
+      
+      // Construir la consulta base
+      let teachersQuery = supabase
+        .from('teacher_profiles_with_schools')
+        .select('*')
+        .ilike('full_name', `%${query}%`);
+      
+      // Si el usuario tiene una sede asignada, filtrar profesores de esa sede
+      if (userSchoolId) {
+        teachersQuery = teachersQuery.or(`school_1_id.eq.${userSchoolId},school_2_id.eq.${userSchoolId}`);
+        console.log('✅ Aplicando filtro de sede:', userSchoolId);
+      } else {
+        console.warn('⚠️ Usuario sin sede asignada, mostrando todos los profesores');
+      }
+      
+      const { data, error } = await teachersQuery.limit(5);
+
+      if (error) {
+        console.error('❌ Error en consulta de profesores:', error);
+        throw error;
+      }
+
+      console.log('✅ Profesores encontrados:', data?.length || 0);
+      setTeachers(data || []);
+    } catch (error: any) {
+      console.error('❌ Error crítico buscando profesores:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Error al buscar profesores',
+        description: error.message || 'No se pudo realizar la búsqueda'
+      });
+    }
+  };
+
   // ✅ Función helper para determinar el estado de cuenta del estudiante
   const getAccountStatus = async (student: Student): Promise<{
     canPurchase: boolean;
@@ -726,6 +783,13 @@ const POS = () => {
     setShowStudentResults(false);
   };
 
+  const selectTeacher = (teacher: any) => {
+    console.log('👨‍🏫 Profesor seleccionado:', teacher);
+    setSelectedTeacher(teacher);
+    setTeacherSearch(teacher.full_name);
+    setShowTeacherResults(false);
+  };
+
   const selectGenericClient = () => {
     setClientMode('generic');
     setSelectedStudent(null);
@@ -740,15 +804,26 @@ const POS = () => {
     setShowStudentResults(false);
   };
 
+  const selectTeacherMode = () => {
+    console.log('👨‍🏫 Modo Profesor seleccionado');
+    setClientMode('teacher');
+    setSelectedTeacher(null);
+    setTeacherSearch('');
+    setShowTeacherResults(false);
+  };
+
   const resetClient = () => {
     console.log('🧹 Limpiando estado del cliente...');
     setClientMode(null);
     setSelectedStudent(null);
     setStudentSearch('');
+    setSelectedTeacher(null);
+    setTeacherSearch('');
     setCart([]);
     setProductSearch('');
     setSelectedCategory('todos');
     setShowStudentResults(false);
+    setShowTeacherResults(false);
     setPaymentMethod(null);
     setYapeNumber('');
     setPlinNumber('');
@@ -830,6 +905,11 @@ const POS = () => {
       return selectedStudent.balance >= getTotal();
     }
     
+    // Si es profesor (siempre cuenta libre, sin límites)
+    if (clientMode === 'teacher' && selectedTeacher) {
+      return true;
+    }
+    
     // Si es cliente genérico, permitir (el documento se elige en el modal de pago)
     if (clientMode === 'generic') {
       return true;
@@ -842,8 +922,8 @@ const POS = () => {
     if (!canCheckout()) return;
 
     // Decidir qué modal mostrar según el tipo de cliente
-    if (clientMode === 'student') {
-      // Cuenta de crédito: Modal simple de confirmación (sin métodos de pago)
+    if (clientMode === 'student' || clientMode === 'teacher') {
+      // Cuenta de crédito (estudiante o profesor): Modal simple de confirmación (sin métodos de pago)
       setShowCreditConfirmDialog(true);
     } else {
       // Cliente genérico: Modal de selección de método de pago
@@ -878,6 +958,7 @@ const POS = () => {
       console.log('🔵 INICIANDO CHECKOUT', {
         clientMode,
         selectedStudent: selectedStudent?.full_name,
+        selectedTeacher: selectedTeacher?.full_name,
         total,
         userId: user?.id
       });
@@ -901,9 +982,13 @@ const POS = () => {
       }
 
       // Preparar datos del ticket
+      const clientName = clientMode === 'student' ? selectedStudent?.full_name :
+                        clientMode === 'teacher' ? selectedTeacher?.full_name :
+                        'CLIENTE GENÉRICO';
+
       const ticketInfo: any = {
         code: ticketCode,
-        clientName: clientMode === 'student' ? selectedStudent?.full_name : 'CLIENTE GENÉRICO',
+        clientName: clientName,
         clientType: clientMode,
         items: cart,
         total: total,
@@ -1016,8 +1101,8 @@ const POS = () => {
             subtotal: total,
             discount: 0,
             payment_method: isFreeAccount ? 'debt' : 'cash', // Si es cuenta libre, es "fiado"
-            cash_received: isFreeAccount ? null : cashAmount,
-            change_given: isFreeAccount ? null : (cashAmount - total),
+            cash_received: isFreeAccount ? null : parseFloat(cashGiven) || total,
+            change_given: isFreeAccount ? null : (parseFloat(cashGiven) || total) - total,
             items: salesItems,
           });
         
@@ -1042,6 +1127,75 @@ const POS = () => {
         ticketInfo.newBalance = newBalance;
         ticketInfo.amountToDeduct = amountToDeduct;
         ticketInfo.isFreeAccount = isFreeAccount;
+      } else if (clientMode === 'teacher' && selectedTeacher) {
+        // Profesor - Cuenta libre sin límites
+        console.log('👨‍🏫 Procesando compra de profesor');
+
+        // Crear transacción
+        const { data: transaction, error: transError } = await supabase
+          .from('transactions')
+          .insert({
+            student_id: null,
+            teacher_id: selectedTeacher.id,
+            type: 'purchase',
+            amount: -total,
+            description: `Compra Profesor: ${selectedTeacher.full_name} - ${cart.length} items`,
+            balance_after: 0, // Profesores no tienen balance
+            created_by: user?.id,
+            ticket_code: ticketCode,
+          })
+          .select()
+          .single();
+
+        if (transError) {
+          console.error('❌ Error creando transacción de profesor:', transError);
+          throw transError;
+        }
+
+        console.log('✅ Transacción creada:', transaction.id);
+
+        // Insertar items de la transacción
+        const items = cart.map(item => ({
+          transaction_id: transaction.id,
+          product_id: item.product.id,
+          product_name: item.product.name,
+          quantity: item.quantity,
+          unit_price: item.product.price,
+          subtotal: item.product.price * item.quantity,
+        }));
+
+        await supabase.from('transaction_items').insert(items);
+
+        // Registrar en tabla SALES para módulo de Finanzas
+        const salesItems = cart.map(item => ({
+          product_id: item.product.id,
+          product_name: item.product.name,
+          barcode: item.product.barcode || null,
+          quantity: item.quantity,
+          price: item.product.price,
+          subtotal: item.product.price * item.quantity,
+        }));
+
+        await supabase
+          .from('sales')
+          .insert({
+            transaction_id: ticketCode,
+            teacher_id: selectedTeacher.id,
+            school_id: selectedTeacher.school_id_1 || null,
+            cashier_id: user?.id,
+            total: total,
+            subtotal: total,
+            discount: 0,
+            payment_method: 'teacher_account', // Identificador especial para profesores
+            cash_received: null,
+            change_given: null,
+            items: salesItems,
+          });
+        
+        console.log('✅ Venta de profesor registrada en tabla sales');
+
+        ticketInfo.isFreeAccount = true;
+        ticketInfo.teacherName = selectedTeacher.full_name;
       } else {
         // Cliente genérico - Solo registrar la venta
         const { data: transaction, error: transError } = await supabase
@@ -1098,9 +1252,9 @@ const POS = () => {
             total: total,
             subtotal: total,
             discount: 0,
-            payment_method: 'cash',
-            cash_received: cashAmount,
-            change_given: cashAmount - total,
+            payment_method: paymentMethod || 'cash',
+            cash_received: parseFloat(cashGiven) || total,
+            change_given: (parseFloat(cashGiven) || total) - total,
             items: salesItems,
           });
         
@@ -1252,7 +1406,7 @@ const POS = () => {
               </div>
             </div>
             
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-3 gap-4">
               {/* Cliente Genérico */}
               <button
                 onClick={selectGenericClient}
@@ -1271,6 +1425,16 @@ const POS = () => {
                 <User className="h-16 w-16 mx-auto mb-4 text-gray-400 group-hover:text-blue-600" />
                 <h3 className="text-xl font-bold mb-2">Crédito</h3>
                 <p className="text-sm text-gray-600">Compra a crédito (Descuenta de saldo)</p>
+              </button>
+
+              {/* Profesor */}
+              <button
+                onClick={selectTeacherMode}
+                className="p-8 border-2 border-gray-300 rounded-xl hover:border-purple-500 hover:bg-purple-50 transition-all group"
+              >
+                <UtensilsCrossed className="h-16 w-16 mx-auto mb-4 text-gray-400 group-hover:text-purple-600" />
+                <h3 className="text-xl font-bold mb-2">Profesor</h3>
+                <p className="text-sm text-gray-600">Cuenta libre (Sin límites)</p>
               </button>
             </div>
           </div>
@@ -1358,8 +1522,72 @@ const POS = () => {
         </div>
       )}
 
+      {/* Modal de Búsqueda de Profesor */}
+      {clientMode === 'teacher' && !selectedTeacher && (
+        <div className="absolute inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-2xl font-bold">Buscar Profesor</h2>
+              <Button 
+                variant="ghost" 
+                onClick={resetClient}
+                className="text-gray-600 hover:bg-gray-100"
+              >
+                Volver
+              </Button>
+            </div>
+            
+            <div className="relative mb-4">
+              <Search className="absolute left-4 top-4 h-5 w-5 text-gray-400" />
+              <Input
+                placeholder="Escribe el nombre del profesor..."
+                value={teacherSearch}
+                onChange={(e) => setTeacherSearch(e.target.value)}
+                className="pl-12 text-lg h-14 border-2"
+                autoFocus
+              />
+            </div>
+
+            {showTeacherResults && teachers.length > 0 && (
+              <div className="space-y-2 max-h-96 overflow-y-auto">
+                {teachers.map((teacher) => (
+                  <button
+                    key={teacher.id}
+                    onClick={() => selectTeacher(teacher)}
+                    className="w-full p-4 border-2 rounded-xl text-left flex items-center gap-4 transition-all hover:bg-purple-50 border-gray-200 hover:border-purple-500 cursor-pointer"
+                  >
+                    <div className="flex-1">
+                      <p className="font-bold text-lg">
+                        {teacher.full_name}
+                      </p>
+                      <p className="text-sm text-gray-500">
+                        {teacher.area && `${teacher.area.charAt(0).toUpperCase() + teacher.area.slice(1)}`}
+                        {teacher.school_1_name && ` • ${teacher.school_1_name}`}
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-xs text-gray-500 mb-1">Estado</p>
+                      <p className="text-sm font-bold text-purple-600">
+                        ✅ Cuenta Libre
+                      </p>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {teacherSearch.length >= 2 && teachers.length === 0 && (
+              <div className="text-center py-8 text-gray-500">
+                <User className="h-16 w-16 mx-auto mb-3 opacity-30" />
+                <p>No se encontraron profesores</p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Layout de 3 Zonas (Solo si hay cliente seleccionado) */}
-      {(clientMode === 'generic' || (clientMode === 'student' && selectedStudent)) && (
+      {(clientMode === 'generic' || (clientMode === 'student' && selectedStudent) || (clientMode === 'teacher' && selectedTeacher)) && (
         <div className="flex-1 flex overflow-hidden print:hidden">
           
           {/* ZONA 1: CATEGORÍAS */}
@@ -2139,10 +2367,10 @@ const POS = () => {
                 {cart.map((item, index) => (
                   <div key={index} className="flex justify-between text-sm">
                     <span className="text-gray-700">
-                      {item.quantity}x {item.name}
+                      {item.quantity}x {item.product.name}
                     </span>
                     <span className="font-bold text-gray-900">
-                      S/ {(item.price * item.quantity).toFixed(2)}
+                      S/ {(item.product.price * item.quantity).toFixed(2)}
                     </span>
                   </div>
                 ))}
