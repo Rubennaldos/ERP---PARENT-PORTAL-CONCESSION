@@ -9,6 +9,7 @@ import { PermissionProtectedRoute } from "@/components/PermissionProtectedRoute"
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
+import Teacher from "./pages/Teacher";
 // Eliminamos imports innecesarios para simplificar
 import SuperAdmin from "./pages/SuperAdmin";
 import Dashboard from "./pages/Dashboard";
@@ -52,6 +53,16 @@ const App = () => (
               element={
                 <ProtectedRoute allowedRoles={['parent']}>
                   <Index />
+                </ProtectedRoute>
+              }
+            />
+            
+            {/* Portal de Profesores - Solo para rol 'teacher' */}
+            <Route
+              path="/teacher"
+              element={
+                <ProtectedRoute allowedRoles={['teacher']}>
+                  <Teacher />
                 </ProtectedRoute>
               }
             />

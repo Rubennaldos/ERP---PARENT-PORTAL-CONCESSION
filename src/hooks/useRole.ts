@@ -4,6 +4,7 @@ import { supabase } from '@/lib/supabase';
 
 export type UserRole = 
   | 'parent' 
+  | 'teacher'
   | 'superadmin' 
   | 'admin_general' 
   | 'supervisor_red' 
@@ -99,6 +100,8 @@ export function useRole(): UseRoleReturn {
     switch (role) {
       case 'parent':
         return '/';
+      case 'teacher':
+        return '/teacher'; // Portal del profesor
       case 'superadmin':
         return '/superadmin'; // Panel técnico del programador
       case 'admin_general':
