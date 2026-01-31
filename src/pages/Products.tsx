@@ -571,6 +571,22 @@ const Products = () => {
                 </div>
               </div>
             )}
+            {f.price_cost && f.price_sale && parseFloat(f.price_sale) <= parseFloat(f.price_cost) && (
+              <div className="bg-red-50 border border-red-300 rounded-lg p-4">
+                <div className="flex items-center gap-3">
+                  <AlertTriangle className="h-8 w-8 text-red-600" />
+                  <div>
+                    <p className="text-base font-bold text-red-900">⚠️ Advertencia: Precio de Venta Menor al Costo</p>
+                    <p className="text-sm text-red-700 mt-1">
+                      El precio de venta debe ser mayor al costo para obtener ganancias.
+                      {parseFloat(f.price_sale) < parseFloat(f.price_cost) && (
+                        <span className="font-semibold"> Pérdida: S/ {(parseFloat(f.price_cost) - parseFloat(f.price_sale)).toFixed(2)} por unidad</span>
+                      )}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
             <div className="flex items-center gap-3 p-4 bg-gray-50 rounded-lg">
               <Switch 
                 checked={f.has_igv} 

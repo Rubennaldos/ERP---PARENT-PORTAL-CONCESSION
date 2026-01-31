@@ -67,6 +67,9 @@ export const CombosPromotionsManager = () => {
     active: true,
   });
 
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
+
   const [promoForm, setPromoForm] = useState<Promotion>({
     name: '',
     discount_type: 'percentage',
@@ -90,9 +93,24 @@ export const CombosPromotionsManager = () => {
   const fetchProducts = async () => {
     const { data } = await supabase.from('products').select('*').eq('active', true);
     setProducts(data || []);
+    setFilteredProducts(data || []);
     const cats = Array.from(new Set((data || []).map(p => p.category)));
     setCategories(cats);
   };
+
+  // Filtrar productos cuando cambia la búsqueda
+  useEffect(() => {
+    if (!searchQuery.trim()) {
+      setFilteredProducts(products);
+    } else {
+      const query = searchQuery.toLowerCase();
+      const filtered = products.filter(p => 
+        p.name.toLowerCase().includes(query) ||
+        p.category.toLowerCase().includes(query)
+      );
+      setFilteredProducts(filtered);
+    }
+  }, [searchQuery, products]);
 
   const fetchSchools = async () => {
     const { data } = await supabase.from('schools').select('id, name').eq('is_active', true);
@@ -516,6 +534,25 @@ export const CombosPromotionsManager = () => {
                   </div>
                   <h3 className="text-2xl font-bold">Selecciona los productos</h3>
                 </div>
+
+                {/* Buscador Inteligente */}
+                <div className="relative mb-4">
+                  <Input
+                    type="text"
+                    placeholder="🔍 Buscar productos por nombre o categoría..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="h-12 text-base pl-4 pr-10"
+                  />
+                  {searchQuery && (
+                    <button
+                      onClick={() => setSearchQuery('')}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                    >
+                      ✕
+                    </button>
+                  )}
+                </div>
                 
                 {comboForm.products.map((item, index) => (
                   <div key={index} className="flex gap-2 items-center p-4 bg-gray-50 rounded-lg">
@@ -527,13 +564,19 @@ export const CombosPromotionsManager = () => {
                         <SelectTrigger className="h-12">
                           <SelectValue placeholder="Selecciona producto" />
                         </SelectTrigger>
-                        <SelectContent>
-                          {products.map(p => (
-                            <SelectItem key={p.id} value={p.id}>
-                              {getCategoryEmoji(p.category)} {p.name} - S/ {p.price_sale}
-                              {p.has_stock && ' 📦'}
-                            </SelectItem>
-                          ))}
+                        <SelectContent className="max-h-60">
+                          {filteredProducts.length === 0 ? (
+                            <div className="p-4 text-center text-gray-500 text-sm">
+                              {searchQuery ? `No se encontraron productos con "${searchQuery}"` : 'No hay productos disponibles'}
+                            </div>
+                          ) : (
+                            filteredProducts.map(p => (
+                              <SelectItem key={p.id} value={p.id}>
+                                {getCategoryEmoji(p.category)} {p.name} - S/ {p.price_sale}
+                                {p.has_stock && ' 📦'}
+                              </SelectItem>
+                            ))
+                          )}
                         </SelectContent>
                       </Select>
                     </div>
@@ -542,7 +585,7 @@ export const CombosPromotionsManager = () => {
                       min="1"
                       value={item.quantity}
                       onChange={(e) => updateComboProduct(index, 'quantity', parseInt(e.target.value))}
-                      className="w-20 h-12 text-center text-lg font-bold"
+                      className="w-20 h-12 text-center text-lg font-bold [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                     />
                     <Button
                       variant="destructive"
@@ -589,16 +632,40 @@ export const CombosPromotionsManager = () => {
                   <div className="border-t-2 border-dashed pt-4">
                     <Label className="text-lg font-semibold mb-2 block">Precio del Combo</Label>
                     <div className="relative">
-                      <span className="absolute left-6 top-1/2 -translate-y-1/2 text-4xl text-gray-400">S/</span>
+                      <span className="absolute left-8 top-1/2 -translate-y-1/2 text-6xl font-black text-gray-400">S/</span>
                       <Input
                         type="number"
                         step="0.01"
-                        value={comboForm.combo_price}
-                        onChange={(e) => setComboForm({ ...comboForm, combo_price: parseFloat(e.target.value) })}
-                        className="h-20 text-5xl font-black pl-20 text-center bg-white border-4 border-purple-200"
+                        min="0"
+                        value={comboForm.combo_price || ''}
+                        onChange={(e) => {
+                          const value = e.target.value === '' ? 0 : parseFloat(e.target.value);
+                          setComboForm({ ...comboForm, combo_price: value });
+                        }}
+                        placeholder="0.00"
+                        className="h-28 text-7xl font-black pl-32 text-center bg-white border-4 border-purple-200 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                       />
                     </div>
                   </div>
+
+                  {/* Advertencia si precio es mayor */}
+                  {comboForm.combo_price > 0 && comboForm.combo_price > calculateComboTotal() && (
+                    <div className="bg-red-50 border-2 border-red-300 rounded-xl p-4">
+                      <div className="flex items-center gap-3">
+                        <div className="text-4xl">⚠️</div>
+                        <div>
+                          <p className="font-bold text-red-900 text-lg">El precio del combo es mayor que comprarlo por separado</p>
+                          <p className="text-red-700 text-sm mt-1">
+                            Precio individual: S/ {calculateComboTotal().toFixed(2)} | 
+                            Precio combo: S/ {comboForm.combo_price.toFixed(2)} | 
+                            Diferencia: <span className="font-bold">+S/ {(comboForm.combo_price - calculateComboTotal()).toFixed(2)}</span>
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Mostrar ahorro si es menor */}
                   {comboForm.combo_price > 0 && comboForm.combo_price < calculateComboTotal() && (
                     <div className="bg-gradient-to-r from-green-500 to-emerald-500 text-white rounded-xl p-4">
                       <div className="flex items-center justify-between">
