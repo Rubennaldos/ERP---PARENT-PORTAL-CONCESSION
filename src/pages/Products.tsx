@@ -61,6 +61,8 @@ const Products = () => {
   const { toast } = useToast();
   
   const [products, setProducts] = useState<Product[]>([]);
+  const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
+  const [searchQuery, setSearchQuery] = useState('');
   const [schools, setSchools] = useState<School[]>([]);
   const [categories, setCategories] = useState<string[]>([]);
   const [showProductModal, setShowProductModal] = useState(false);
@@ -114,6 +116,22 @@ const Products = () => {
     fetchSchools();
   }, []);
 
+  // Filtrar productos cuando cambia la búsqueda
+  useEffect(() => {
+    if (!searchQuery.trim()) {
+      setFilteredProducts(products);
+    } else {
+      const query = searchQuery.toLowerCase();
+      const filtered = products.filter(p => 
+        p.name.toLowerCase().includes(query) ||
+        p.code.toLowerCase().includes(query) ||
+        p.category.toLowerCase().includes(query) ||
+        p.description?.toLowerCase().includes(query)
+      );
+      setFilteredProducts(filtered);
+    }
+  }, [searchQuery, products]);
+
   useEffect(() => {
     calculateDashStats();
   }, [products]);
@@ -160,12 +178,30 @@ const Products = () => {
     const { data } = await supabase.from('products').select('*').order('name');
     const productsData = data || [];
     setProducts(productsData);
+    setFilteredProducts(productsData); // Inicializar productos filtrados
+    
+    // Categorías predefinidas COMPLETAS
+    const predefinedCategories = [
+      'bebidas',
+      'dulces',
+      'frutas',
+      'menu',
+      'snacks',
+      'galletas',
+      'chocolates',
+      'golosinas',
+      'jugos',
+      'refrescos',
+      'sandwiches',
+      'postres',
+      'otros'
+    ];
     
     // Extraer categorías únicas de los productos existentes
     const dbCategories = Array.from(new Set(productsData.map(p => p.category).filter(Boolean)));
     
-    // Ordenar alfabéticamente
-    const allCategories = dbCategories.sort();
+    // Combinar predefinidas con las de BD (sin duplicados)
+    const allCategories = Array.from(new Set([...predefinedCategories, ...dbCategories])).sort();
     setCategories(allCategories);
     
     setLoading(false);
@@ -385,7 +421,7 @@ const Products = () => {
               <div>
                 <Label className="text-base font-semibold">Categoría</Label>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-2">
-                  {categories.slice(0, 4).map(cat => (
+                  {['bebidas', 'dulces', 'frutas', 'menu'].map(cat => (
                     <button
                       key={cat}
                       type="button"
@@ -397,23 +433,25 @@ const Products = () => {
                       }`}
                     >
                       <div className="text-2xl mb-1">
-                        {cat === 'bebidas' ? '🥤' : cat === 'snacks' ? '🍪' : cat === 'menu' ? '🍽️' : '📦'}
+                        {cat === 'bebidas' ? '🥤' : cat === 'dulces' ? '🍬' : cat === 'frutas' ? '🍎' : '🍽️'}
                       </div>
                       <div className="text-sm capitalize">{cat}</div>
                     </button>
                   ))}
                 </div>
-                {categories.length > 4 && (
-                  <Select 
-                    value={f.category} 
-                    onValueChange={v => { f.category = v; forceUpdate({}); }}
-                  >
-                    <SelectTrigger className="h-12 mt-3"><SelectValue placeholder="Más categorías..." /></SelectTrigger>
-                    <SelectContent>
-                      {categories.map(cat => <SelectItem key={cat} value={cat}>{cat}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                )}
+                <Select 
+                  value={f.category} 
+                  onValueChange={v => { f.category = v; forceUpdate({}); }}
+                >
+                  <SelectTrigger className="h-12 mt-3"><SelectValue placeholder="Más categorías..." /></SelectTrigger>
+                  <SelectContent className="max-h-60">
+                    {categories.map(cat => (
+                      <SelectItem key={cat} value={cat} className="capitalize">
+                        {cat}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
                 <Input 
                   placeholder="O escribe una nueva categoría" 
                   defaultValue={f.newCategory}
@@ -428,7 +466,7 @@ const Products = () => {
                     onClick={() => {
                       const newCat = f.newCategory.trim();
                       if (newCat && !categories.includes(newCat)) {
-                        setCategories(prev => [...prev, newCat]);
+                        setCategories(prev => [...prev, newCat].sort());
                         f.category = newCat;
                         f.newCategory = '';
                         forceUpdate({});
@@ -931,10 +969,10 @@ const Products = () => {
           <TabsContent value="productos">
             <Card>
               <CardHeader>
-                <div className="flex justify-between items-center">
+                <div className="flex justify-between items-center mb-4">
                   <div>
                     <CardTitle>Lista de Productos</CardTitle>
-                    <CardDescription>{products.length} productos registrados</CardDescription>
+                    <CardDescription>{filteredProducts.length} de {products.length} productos</CardDescription>
                   </div>
                   <div className="flex gap-2">
                     <Button 
@@ -951,10 +989,47 @@ const Products = () => {
                     </Button>
                   </div>
                 </div>
+                {/* Buscador */}
+                <div className="relative">
+                  <Input
+                    type="text"
+                    placeholder="🔍 Buscar productos por nombre, código o categoría..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="h-12 text-base pl-4 pr-10"
+                  />
+                  {searchQuery && (
+                    <button
+                      onClick={() => setSearchQuery('')}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                    >
+                      ✕
+                    </button>
+                  )}
+                </div>
               </CardHeader>
               <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {products.map(product => (
+                {filteredProducts.length === 0 ? (
+                  <div className="text-center py-12">
+                    <Package className="h-16 w-16 text-gray-300 mx-auto mb-4" />
+                    <p className="text-gray-500">
+                      {searchQuery 
+                        ? `No se encontraron productos con "${searchQuery}"` 
+                        : 'No hay productos registrados'}
+                    </p>
+                    {searchQuery && (
+                      <Button 
+                        variant="outline" 
+                        onClick={() => setSearchQuery('')}
+                        className="mt-4"
+                      >
+                        Limpiar búsqueda
+                      </Button>
+                    )}
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {filteredProducts.map(product => (
                     <Card key={product.id} className="hover:shadow-lg transition">
                       <CardHeader>
                         <div className="flex justify-between items-start">
@@ -1005,6 +1080,7 @@ const Products = () => {
                     </Card>
                   ))}
                 </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
