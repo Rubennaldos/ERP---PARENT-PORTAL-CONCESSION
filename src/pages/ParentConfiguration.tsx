@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
-import { Search, Users, BarChart3, FileText, Plus, Edit, Download, Baby, UserCircle, ArrowLeft } from 'lucide-react';
+import { Search, Users, BarChart3, FileText, Plus, Edit, Download, Baby, UserCircle, ArrowLeft, Mail, Phone, MapPin, CreditCard, Wallet, User2, IdCard } from 'lucide-react';
 import { ParentAnalyticsDashboard } from '@/components/admin/ParentAnalyticsDashboard';
 import { supabase } from '@/lib/supabase';
 import { useToast } from '@/hooks/use-toast';
@@ -29,6 +29,10 @@ interface Student {
   full_name: string;
   grade: string;
   section: string;
+  photo_url?: string;
+  account_type?: 'cash' | 'credit';
+  credit_balance?: number;
+  school_id?: string;
 }
 
 interface ParentProfile {
@@ -37,10 +41,19 @@ interface ParentProfile {
   full_name: string;
   nickname?: string;
   dni: string;
+  document_type?: string;
   phone_1: string;
   phone_2?: string;
   email?: string;
   address: string;
+  // Segundo Responsable
+  responsible_2_full_name?: string;
+  responsible_2_dni?: string;
+  responsible_2_document_type?: string;
+  responsible_2_phone_1?: string;
+  responsible_2_email?: string;
+  responsible_2_address?: string;
+  // Otros
   school_id: string;
   school: School | null;
   children?: Student[];
@@ -214,7 +227,13 @@ const ParentConfiguration = () => {
         .from('parent_profiles')
         .select(`
           *,
-          school:schools(id, name, code)
+          school:schools(id, name, code),
+          responsible_2_full_name,
+          responsible_2_dni,
+          responsible_2_document_type,
+          responsible_2_phone_1,
+          responsible_2_email,
+          responsible_2_address
         `);
 
       // Aplicar filtro de sede según permisos
@@ -253,7 +272,7 @@ const ParentConfiguration = () => {
       if (userIds.length > 0) {
         const { data, error: studentsError } = await supabase
           .from('students')
-          .select('id, full_name, grade, section, parent_id')
+          .select('id, full_name, grade, section, parent_id, photo_url, account_type, credit_balance, school_id')
           .in('parent_id', userIds);
         
         if (studentsError) {
@@ -507,23 +526,23 @@ const ParentConfiguration = () => {
   }
 
   return (
-    <div className="min-h-screen bg-[#FDFCFB] p-6">
+    <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-teal-50 to-green-50 p-6">
       <div className="max-w-7xl mx-auto space-y-6">
         {/* Header */}
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between bg-white/80 backdrop-blur-sm rounded-2xl p-6 border-2 border-emerald-200 shadow-lg">
           <div>
-            <h1 className="text-3xl font-black text-slate-800 flex items-center gap-3">
-              <Users className="h-8 w-8 text-[#8B4513]" />
+            <h1 className="text-3xl font-black text-emerald-900 flex items-center gap-3">
+              <Users className="h-8 w-8 text-emerald-600" />
               Configuración de Padres
             </h1>
-            <p className="text-slate-400 font-medium mt-1">
+            <p className="text-emerald-600 font-medium mt-1">
               Gestiona perfiles, visualiza estadísticas y genera reportes del sistema
             </p>
           </div>
           <Button 
             variant="outline" 
             onClick={() => navigate('/dashboard')}
-            className="gap-2"
+            className="gap-2 border-emerald-300 text-emerald-700 hover:bg-emerald-100"
           >
             <ArrowLeft className="h-4 w-4" />
             Volver al Panel
@@ -532,16 +551,16 @@ const ParentConfiguration = () => {
 
         {/* Tabs principales */}
         <Tabs defaultValue="parents" className="w-full">
-          <TabsList className="grid w-full grid-cols-3 bg-white border rounded-xl p-1">
-            <TabsTrigger value="parents" className="data-[state=active]:bg-[#8B4513] data-[state=active]:text-white">
+          <TabsList className="grid w-full grid-cols-3 bg-white/90 backdrop-blur-sm border-2 border-emerald-200 rounded-xl p-1 shadow-md">
+            <TabsTrigger value="parents" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-emerald-500 data-[state=active]:to-teal-500 data-[state=active]:text-white">
               <Users className="h-4 w-4 mr-2" />
               Gestión de Padres
             </TabsTrigger>
-            <TabsTrigger value="analytics" className="data-[state=active]:bg-[#8B4513] data-[state=active]:text-white">
+            <TabsTrigger value="analytics" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-emerald-500 data-[state=active]:to-teal-500 data-[state=active]:text-white">
               <BarChart3 className="h-4 w-4 mr-2" />
               Lima Analytics
             </TabsTrigger>
-            <TabsTrigger value="reports" className="data-[state=active]:bg-[#8B4513] data-[state=active]:text-white">
+            <TabsTrigger value="reports" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-emerald-500 data-[state=active]:to-teal-500 data-[state=active]:text-white">
               <FileText className="h-4 w-4 mr-2" />
               Reportes Excel
             </TabsTrigger>
@@ -549,31 +568,31 @@ const ParentConfiguration = () => {
 
           {/* Pestaña de Gestión de Padres */}
           <TabsContent value="parents" className="mt-6">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Users className="h-6 w-6 text-[#8B4513]" />
+            <Card className="border-2 border-emerald-200 bg-white/80 backdrop-blur-sm shadow-lg">
+              <CardHeader className="bg-gradient-to-r from-emerald-100/60 to-teal-100/40 border-b-2 border-emerald-200">
+                <CardTitle className="flex items-center gap-2 text-emerald-900">
+                  <Users className="h-6 w-6 text-emerald-600" />
                   Lista de Padres y Estudiantes
                 </CardTitle>
-                <CardDescription>
+                <CardDescription className="text-emerald-700">
                   Gestiona los perfiles de padres y estudiantes del sistema.
                 </CardDescription>
               </CardHeader>
-              <CardContent>
+              <CardContent className="pt-6">
                 {/* Barra de herramientas */}
                 <div className="flex flex-col sm:flex-row gap-4 mb-6">
                   <div className="flex-1 relative">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-emerald-500" />
                     <Input
                       placeholder="Buscar por nombre, DNI o sobrenombre..."
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
-                      className="pl-10"
+                      className="pl-10 border-emerald-300 focus:border-emerald-500 focus:ring-emerald-500"
                     />
                   </div>
                   {canViewAllSchools && (
                     <Select value={selectedSchool} onValueChange={setSelectedSchool}>
-                      <SelectTrigger className="w-full sm:w-[200px]">
+                      <SelectTrigger className="w-full sm:w-[200px] border-emerald-300">
                         <SelectValue placeholder="Todas las sedes" />
                       </SelectTrigger>
                       <SelectContent>
@@ -587,68 +606,177 @@ const ParentConfiguration = () => {
                     </Select>
                   )}
                   {permissions.canCreateParent && (
-                    <Button onClick={() => setShowCreateModal(true)} className="gap-2 bg-[#8B4513] hover:bg-[#6F370F]">
+                    <Button onClick={() => setShowCreateModal(true)} className="gap-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white shadow-md">
                       <Plus className="h-4 w-4" />
                       Nuevo Padre
                     </Button>
                   )}
-                  <Button onClick={exportToExcel} variant="outline" className="gap-2">
+                  <Button onClick={exportToExcel} variant="outline" className="gap-2 border-emerald-300 text-emerald-700 hover:bg-emerald-100">
                     <Download className="h-4 w-4" />
                     Excel
                   </Button>
-                  <Button onClick={exportToPDF} variant="outline" className="gap-2">
+                  <Button onClick={exportToPDF} variant="outline" className="gap-2 border-emerald-300 text-emerald-700 hover:bg-emerald-100">
                     <Download className="h-4 w-4" />
                     PDF
                   </Button>
                 </div>
 
-                {/* Lista de padres */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {/* Lista de padres - DISEÑO RENOVADO */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                   {filteredParents.map(parent => (
-                    <Card key={parent.id} className="border-l-4 border-l-[#8B4513]">
-                      <CardHeader className="pb-3">
+                    <Card key={parent.id} className="border-l-4 border-l-emerald-400 bg-gradient-to-br from-emerald-50/50 to-teal-50/30 hover:shadow-xl transition-all duration-300">
+                      <CardHeader className="pb-4 bg-gradient-to-r from-emerald-100/60 to-teal-100/40 border-b border-emerald-200">
                         <div className="flex items-start justify-between">
                           <div className="flex-1">
-                            <CardTitle className="text-lg">{parent.full_name}</CardTitle>
+                            <CardTitle className="text-xl text-emerald-900 flex items-center gap-2">
+                              <UserCircle className="h-6 w-6 text-emerald-600" />
+                              {parent.full_name}
+                            </CardTitle>
                             {parent.nickname && (
-                              <p className="text-sm text-muted-foreground flex items-center gap-1 mt-1">
-                                <UserCircle className="h-3 w-3" />
+                              <p className="text-sm text-emerald-700 mt-1 font-medium">
                                 "{parent.nickname}"
                               </p>
                             )}
                           </div>
-                        </div>
-                      </CardHeader>
-                      <CardContent className="space-y-2">
-                        <div className="text-sm">
-                          <p><strong>DNI:</strong> {parent.dni}</p>
-                          <p><strong>Teléfono:</strong> {parent.phone_1}</p>
-                          <p><strong>Sede:</strong> {parent.school?.name || 'Sin asignar'}</p>
-                          <p className="flex items-center gap-1">
-                            <Baby className="h-4 w-4" />
-                            <strong>Hijos:</strong> {parent.children?.length || 0}
-                          </p>
-                        </div>
-                        
-                        <div className="flex gap-2 pt-2">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => handleViewChildren(parent)}
-                            className="flex-1"
-                          >
-                            <Baby className="h-4 w-4 mr-1" />
-                            Ver Hijos
-                          </Button>
                           {permissions.canEditParent && (
                             <Button
                               size="sm"
-                              variant="outline"
+                              variant="ghost"
                               onClick={() => openEditModal(parent)}
+                              className="hover:bg-emerald-200"
                             >
-                              <Edit className="h-4 w-4" />
+                              <Edit className="h-4 w-4 text-emerald-700" />
                             </Button>
                           )}
+                        </div>
+                      </CardHeader>
+                      <CardContent className="pt-4 space-y-4">
+                        {/* Sección: Responsable Principal */}
+                        <div className="bg-white/60 rounded-lg p-4 border border-emerald-200">
+                          <h3 className="text-sm font-bold text-emerald-800 mb-3 flex items-center gap-2">
+                            <User2 className="h-4 w-4" />
+                            Responsable Principal
+                          </h3>
+                          <div className="grid grid-cols-2 gap-3 text-sm">
+                            <div className="flex items-start gap-2">
+                              <IdCard className="h-4 w-4 text-emerald-600 mt-0.5 flex-shrink-0" />
+                              <div>
+                                <p className="text-emerald-600 text-xs font-medium">DNI</p>
+                                <p className="text-gray-800 font-semibold">{parent.dni}</p>
+                              </div>
+                            </div>
+                            <div className="flex items-start gap-2">
+                              <Phone className="h-4 w-4 text-emerald-600 mt-0.5 flex-shrink-0" />
+                              <div>
+                                <p className="text-emerald-600 text-xs font-medium">Teléfono</p>
+                                <p className="text-gray-800 font-semibold">{parent.phone_1}</p>
+                              </div>
+                            </div>
+                            {parent.phone_2 && (
+                              <div className="flex items-start gap-2">
+                                <Phone className="h-4 w-4 text-emerald-600 mt-0.5 flex-shrink-0" />
+                                <div>
+                                  <p className="text-emerald-600 text-xs font-medium">Teléfono 2</p>
+                                  <p className="text-gray-800 font-semibold">{parent.phone_2}</p>
+                                </div>
+                              </div>
+                            )}
+                            {parent.email && (
+                              <div className="flex items-start gap-2 col-span-2">
+                                <Mail className="h-4 w-4 text-emerald-600 mt-0.5 flex-shrink-0" />
+                                <div>
+                                  <p className="text-emerald-600 text-xs font-medium">Email</p>
+                                  <p className="text-gray-800 font-semibold break-all">{parent.email}</p>
+                                </div>
+                              </div>
+                            )}
+                            <div className="flex items-start gap-2 col-span-2">
+                              <MapPin className="h-4 w-4 text-emerald-600 mt-0.5 flex-shrink-0" />
+                              <div>
+                                <p className="text-emerald-600 text-xs font-medium">Dirección</p>
+                                <p className="text-gray-800 font-semibold">{parent.address}</p>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Sección: Segundo Responsable (si existe) */}
+                        {parent.responsible_2_full_name && (
+                          <div className="bg-teal-50/60 rounded-lg p-4 border border-teal-200">
+                            <h3 className="text-sm font-bold text-teal-800 mb-3 flex items-center gap-2">
+                              <User2 className="h-4 w-4" />
+                              Segundo Responsable
+                            </h3>
+                            <div className="grid grid-cols-2 gap-3 text-sm">
+                              <div className="col-span-2">
+                                <p className="text-teal-600 text-xs font-medium">Nombre</p>
+                                <p className="text-gray-800 font-semibold">{parent.responsible_2_full_name}</p>
+                              </div>
+                              {parent.responsible_2_dni && (
+                                <div className="flex items-start gap-2">
+                                  <IdCard className="h-4 w-4 text-teal-600 mt-0.5 flex-shrink-0" />
+                                  <div>
+                                    <p className="text-teal-600 text-xs font-medium">DNI</p>
+                                    <p className="text-gray-800 font-semibold">{parent.responsible_2_dni}</p>
+                                  </div>
+                                </div>
+                              )}
+                              {parent.responsible_2_phone_1 && (
+                                <div className="flex items-start gap-2">
+                                  <Phone className="h-4 w-4 text-teal-600 mt-0.5 flex-shrink-0" />
+                                  <div>
+                                    <p className="text-teal-600 text-xs font-medium">Teléfono</p>
+                                    <p className="text-gray-800 font-semibold">{parent.responsible_2_phone_1}</p>
+                                  </div>
+                                </div>
+                              )}
+                              {parent.responsible_2_email && (
+                                <div className="flex items-start gap-2 col-span-2">
+                                  <Mail className="h-4 w-4 text-teal-600 mt-0.5 flex-shrink-0" />
+                                  <div>
+                                    <p className="text-teal-600 text-xs font-medium">Email</p>
+                                    <p className="text-gray-800 font-semibold break-all">{parent.responsible_2_email}</p>
+                                  </div>
+                                </div>
+                              )}
+                              {parent.responsible_2_address && (
+                                <div className="flex items-start gap-2 col-span-2">
+                                  <MapPin className="h-4 w-4 text-teal-600 mt-0.5 flex-shrink-0" />
+                                  <div>
+                                    <p className="text-teal-600 text-xs font-medium">Dirección</p>
+                                    <p className="text-gray-800 font-semibold">{parent.responsible_2_address}</p>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Información de Sede e Hijos */}
+                        <div className="flex items-center justify-between bg-emerald-100/50 rounded-lg p-3 border border-emerald-200">
+                          <div className="flex items-center gap-2">
+                            <Baby className="h-5 w-5 text-emerald-700" />
+                            <div>
+                              <p className="text-xs text-emerald-600 font-medium">Hijos Registrados</p>
+                              <p className="text-lg font-bold text-emerald-900">{parent.children?.length || 0}</p>
+                            </div>
+                          </div>
+                          <Button
+                            size="sm"
+                            onClick={() => handleViewChildren(parent)}
+                            className="bg-emerald-600 hover:bg-emerald-700 text-white"
+                          >
+                            <Baby className="h-4 w-4 mr-2" />
+                            Ver Detalles
+                          </Button>
+                        </div>
+
+                        {/* Información de Sede */}
+                        <div className="text-center pt-2 border-t border-emerald-200">
+                          <p className="text-xs text-emerald-600 font-medium">Sede Asignada</p>
+                          <Badge variant="outline" className="mt-1 bg-emerald-100 text-emerald-800 border-emerald-300">
+                            {parent.school?.name || 'Sin asignar'}
+                          </Badge>
                         </div>
                       </CardContent>
                     </Card>
@@ -656,18 +784,18 @@ const ParentConfiguration = () => {
                 </div>
 
                 {filteredParents.length === 0 && (
-                  <div className="text-center py-12 bg-amber-50 rounded-xl border-2 border-amber-200">
-                    <Users className="h-16 w-16 text-amber-600 mx-auto mb-4" />
+                  <div className="text-center py-16 bg-emerald-50/50 rounded-2xl border-2 border-dashed border-emerald-300">
+                    <Users className="h-20 w-20 text-emerald-300 mx-auto mb-4" />
                     {parents.length === 0 ? (
                       <>
-                        <p className="text-lg font-bold text-amber-900 mb-2">No hay padres registrados</p>
-                        <p className="text-amber-700 mb-4">
+                        <p className="text-xl font-bold text-emerald-900 mb-2">No hay padres registrados</p>
+                        <p className="text-emerald-700 mb-6">
                           No se encontraron padres en el sistema. Crea el primer padre usando el botón "Nuevo Padre".
                         </p>
                         {permissions.canCreateParent && (
                           <Button 
                             onClick={() => setShowCreateModal(true)} 
-                            className="bg-[#8B4513] hover:bg-[#6F370F]"
+                            className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white shadow-md"
                           >
                             <Plus className="h-4 w-4 mr-2" />
                             Crear Primer Padre
@@ -676,8 +804,8 @@ const ParentConfiguration = () => {
                       </>
                     ) : (
                       <>
-                        <p className="text-lg font-bold text-amber-900">No se encontraron resultados</p>
-                        <p className="text-amber-700">
+                        <p className="text-xl font-bold text-emerald-900 mb-2">No se encontraron resultados</p>
+                        <p className="text-emerald-700">
                           No hay padres que coincidan con los filtros aplicados.
                         </p>
                       </>
@@ -825,10 +953,10 @@ const ParentConfiguration = () => {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => { setShowCreateModal(false); resetForm(); }}>
+            <Button variant="outline" onClick={() => { setShowCreateModal(false); resetForm(); }} className="border-emerald-300 text-emerald-700 hover:bg-emerald-100">
               Cancelar
             </Button>
-            <Button onClick={handleCreateParent} className="bg-[#8B4513] hover:bg-[#6F370F]">Crear Padre</Button>
+            <Button onClick={handleCreateParent} className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white shadow-md">Crear Padre</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -915,44 +1043,115 @@ const ParentConfiguration = () => {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => { setShowEditModal(false); resetForm(); }}>
+            <Button variant="outline" onClick={() => { setShowEditModal(false); resetForm(); }} className="border-emerald-300 text-emerald-700 hover:bg-emerald-100">
               Cancelar
             </Button>
-            <Button onClick={handleEditParent} className="bg-[#8B4513] hover:bg-[#6F370F]">Guardar Cambios</Button>
+            <Button onClick={handleEditParent} className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white shadow-md">Guardar Cambios</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* Modal Ver Hijos */}
+      {/* Modal Ver Hijos - DISEÑO RENOVADO */}
       <Dialog open={showChildrenModal} onOpenChange={setShowChildrenModal}>
-        <DialogContent className="max-w-3xl">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Baby className="h-5 w-5" />
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto bg-gradient-to-br from-emerald-50 to-teal-50">
+          <DialogHeader className="border-b border-emerald-200 pb-4">
+            <DialogTitle className="flex items-center gap-3 text-2xl text-emerald-900">
+              <Baby className="h-7 w-7 text-emerald-600" />
               Hijos de {selectedParent?.full_name}
-              {selectedParent?.nickname && (
-                <span className="text-sm text-muted-foreground">({selectedParent.nickname})</span>
-              )}
             </DialogTitle>
+            {selectedParent?.nickname && (
+              <p className="text-sm text-emerald-700 font-medium">({selectedParent.nickname})</p>
+            )}
           </DialogHeader>
           
           {parentChildren.length > 0 ? (
             <div className="space-y-4">
               {parentChildren.map(child => (
-                <Card key={child.id}>
-                  <CardContent className="pt-6">
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <Label className="text-muted-foreground">Nombre Completo</Label>
-                        <p className="font-medium">{child.full_name}</p>
+                <Card key={child.id} className="border-2 border-emerald-200 bg-white/80 hover:shadow-lg transition-all">
+                  <CardContent className="p-6">
+                    <div className="flex gap-6">
+                      {/* Foto del Estudiante */}
+                      <div className="flex-shrink-0">
+                        <div className="w-24 h-24 rounded-full overflow-hidden border-4 border-emerald-300 bg-emerald-100 flex items-center justify-center">
+                          {child.photo_url ? (
+                            <img 
+                              src={child.photo_url} 
+                              alt={child.full_name} 
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            <UserCircle className="w-16 h-16 text-emerald-400" />
+                          )}
+                        </div>
                       </div>
-                      <div>
-                        <Label className="text-muted-foreground">Grado</Label>
-                        <p className="font-medium">{child.grade}</p>
-                      </div>
-                      <div>
-                        <Label className="text-muted-foreground">Sección</Label>
-                        <p className="font-medium">{child.section}</p>
+
+                      {/* Información del Estudiante */}
+                      <div className="flex-1 space-y-4">
+                        {/* Nombre y Datos Básicos */}
+                        <div>
+                          <h3 className="text-xl font-bold text-emerald-900 mb-2">{child.full_name}</h3>
+                          <div className="grid grid-cols-2 gap-4">
+                            <div className="bg-emerald-50 rounded-lg p-3 border border-emerald-200">
+                              <p className="text-xs text-emerald-600 font-medium mb-1">Grado</p>
+                              <p className="text-lg font-bold text-emerald-900">{child.grade}</p>
+                            </div>
+                            <div className="bg-emerald-50 rounded-lg p-3 border border-emerald-200">
+                              <p className="text-xs text-emerald-600 font-medium mb-1">Sección</p>
+                              <p className="text-lg font-bold text-emerald-900">{child.section}</p>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Tipo de Cuenta y Saldo */}
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className={`rounded-lg p-4 border-2 ${
+                            child.account_type === 'credit' 
+                              ? 'bg-gradient-to-br from-blue-50 to-indigo-50 border-blue-300' 
+                              : 'bg-gradient-to-br from-amber-50 to-orange-50 border-amber-300'
+                          }`}>
+                            <div className="flex items-center gap-2 mb-2">
+                              {child.account_type === 'credit' ? (
+                                <CreditCard className="h-5 w-5 text-blue-600" />
+                              ) : (
+                                <Wallet className="h-5 w-5 text-amber-600" />
+                              )}
+                              <p className={`text-sm font-bold ${
+                                child.account_type === 'credit' ? 'text-blue-700' : 'text-amber-700'
+                              }`}>
+                                Tipo de Cuenta
+                              </p>
+                            </div>
+                            <Badge 
+                              variant="secondary" 
+                              className={`text-sm ${
+                                child.account_type === 'credit' 
+                                  ? 'bg-blue-100 text-blue-800 border-blue-300' 
+                                  : 'bg-amber-100 text-amber-800 border-amber-300'
+                              }`}
+                            >
+                              {child.account_type === 'credit' ? '💳 Cuenta Crédito' : '💵 Pago en Efectivo'}
+                            </Badge>
+                          </div>
+
+                          {child.account_type === 'credit' && (
+                            <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-lg p-4 border-2 border-green-300">
+                              <div className="flex items-center gap-2 mb-2">
+                                <Wallet className="h-5 w-5 text-green-600" />
+                                <p className="text-sm font-bold text-green-700">Saldo Actual</p>
+                              </div>
+                              <p className="text-2xl font-black text-green-900">
+                                S/ {(child.credit_balance || 0).toFixed(2)}
+                              </p>
+                              <p className={`text-xs mt-1 font-medium ${
+                                (child.credit_balance || 0) < 0 
+                                  ? 'text-red-600' 
+                                  : 'text-green-600'
+                              }`}>
+                                {(child.credit_balance || 0) < 0 ? '⚠️ Deuda Pendiente' : '✅ Saldo Disponible'}
+                              </p>
+                            </div>
+                          )}
+                        </div>
                       </div>
                     </div>
                   </CardContent>
@@ -960,16 +1159,22 @@ const ParentConfiguration = () => {
               ))}
             </div>
           ) : (
-            <div className="text-center py-12">
-              <Baby className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-              <p className="text-muted-foreground">
+            <div className="text-center py-16 bg-white/60 rounded-xl border-2 border-dashed border-emerald-300">
+              <Baby className="h-16 w-16 text-emerald-300 mx-auto mb-4" />
+              <p className="text-lg font-bold text-emerald-800 mb-2">
+                Sin hijos registrados
+              </p>
+              <p className="text-emerald-600">
                 Este padre no tiene hijos registrados en el sistema.
               </p>
             </div>
           )}
           
-          <DialogFooter>
-            <Button onClick={() => setShowChildrenModal(false)} className="bg-[#8B4513] hover:bg-[#6F370F]">
+          <DialogFooter className="border-t border-emerald-200 pt-4">
+            <Button 
+              onClick={() => setShowChildrenModal(false)} 
+              className="bg-emerald-600 hover:bg-emerald-700 text-white px-8"
+            >
               Cerrar
             </Button>
           </DialogFooter>
