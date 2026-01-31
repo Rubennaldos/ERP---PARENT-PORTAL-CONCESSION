@@ -69,6 +69,9 @@ export const CombosPromotionsManager = () => {
 
   const [searchQuery, setSearchQuery] = useState('');
   const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
+  const [promoSearchQuery, setPromoSearchQuery] = useState('');
+  const [filteredPromoProducts, setFilteredPromoProducts] = useState<Product[]>([]);
+  const [filteredCategories, setFilteredCategories] = useState<string[]>([]);
 
   const [promoForm, setPromoForm] = useState<Promotion>({
     name: '',
@@ -94,11 +97,13 @@ export const CombosPromotionsManager = () => {
     const { data } = await supabase.from('products').select('*').eq('active', true);
     setProducts(data || []);
     setFilteredProducts(data || []);
+    setFilteredPromoProducts(data || []);
     const cats = Array.from(new Set((data || []).map(p => p.category)));
     setCategories(cats);
+    setFilteredCategories(cats);
   };
 
-  // Filtrar productos cuando cambia la búsqueda
+  // Filtrar productos cuando cambia la búsqueda del combo
   useEffect(() => {
     if (!searchQuery.trim()) {
       setFilteredProducts(products);
@@ -111,6 +116,33 @@ export const CombosPromotionsManager = () => {
       setFilteredProducts(filtered);
     }
   }, [searchQuery, products]);
+
+  // Filtrar productos de promoción
+  useEffect(() => {
+    if (!promoSearchQuery.trim()) {
+      setFilteredPromoProducts(products);
+    } else {
+      const query = promoSearchQuery.toLowerCase();
+      const filtered = products.filter(p => 
+        p.name.toLowerCase().includes(query) ||
+        p.category.toLowerCase().includes(query)
+      );
+      setFilteredPromoProducts(filtered);
+    }
+  }, [promoSearchQuery, products]);
+
+  // Filtrar categorías de promoción
+  useEffect(() => {
+    if (!promoSearchQuery.trim()) {
+      setFilteredCategories(categories);
+    } else {
+      const query = promoSearchQuery.toLowerCase();
+      const filtered = categories.filter(cat => 
+        cat.toLowerCase().includes(query)
+      );
+      setFilteredCategories(filtered);
+    }
+  }, [promoSearchQuery, categories]);
 
   const fetchSchools = async () => {
     const { data } = await supabase.from('schools').select('id, name').eq('is_active', true);
@@ -266,8 +298,11 @@ export const CombosPromotionsManager = () => {
     }
 
     try {
+      // NO enviar applyToAllSchools al backend
+      const { applyToAllSchools, ...promoData } = promoForm;
+      
       const { error } = await supabase.from('promotions').insert({
-        ...promoForm,
+        ...promoData,
         school_ids: selectedSchools
       });
       if (error) throw error;
@@ -321,6 +356,7 @@ export const CombosPromotionsManager = () => {
       applyToAllSchools: true,
       active: true,
     });
+    setPromoSearchQuery(''); // Limpiar búsqueda
   };
 
   // Emojis por categoría
@@ -850,46 +886,102 @@ export const CombosPromotionsManager = () => {
             </div>
 
             {promoForm.applies_to === 'category' && (
-              <div className="grid grid-cols-2 gap-2">
-                {categories.map(cat => (
-                  <Button
-                    key={cat}
-                    type="button"
-                    variant={promoForm.target_ids.includes(cat) ? 'default' : 'outline'}
-                    className="h-12"
-                    onClick={() => {
-                      if (promoForm.target_ids.includes(cat)) {
-                        setPromoForm({ ...promoForm, target_ids: promoForm.target_ids.filter(id => id !== cat) });
-                      } else {
-                        setPromoForm({ ...promoForm, target_ids: [...promoForm.target_ids, cat] });
-                      }
-                    }}
-                  >
-                    {getCategoryEmoji(cat)} <span className="capitalize ml-2">{cat}</span>
-                  </Button>
-                ))}
+              <div className="space-y-3">
+                {/* Buscador de categorías */}
+                <div className="relative">
+                  <Input
+                    type="text"
+                    placeholder="🔍 Buscar categorías..."
+                    value={promoSearchQuery}
+                    onChange={(e) => setPromoSearchQuery(e.target.value)}
+                    className="h-12 text-base pl-4 pr-10"
+                  />
+                  {promoSearchQuery && (
+                    <button
+                      onClick={() => setPromoSearchQuery('')}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                    >
+                      ✕
+                    </button>
+                  )}
+                </div>
+
+                {/* Grid de categorías filtradas */}
+                {filteredCategories.length === 0 ? (
+                  <div className="p-4 text-center text-gray-500 text-sm border-2 border-dashed rounded-lg">
+                    No se encontraron categorías con "{promoSearchQuery}"
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-2 gap-2">
+                    {filteredCategories.map(cat => (
+                      <Button
+                        key={cat}
+                        type="button"
+                        variant={promoForm.target_ids.includes(cat) ? 'default' : 'outline'}
+                        className="h-12"
+                        onClick={() => {
+                          if (promoForm.target_ids.includes(cat)) {
+                            setPromoForm({ ...promoForm, target_ids: promoForm.target_ids.filter(id => id !== cat) });
+                          } else {
+                            setPromoForm({ ...promoForm, target_ids: [...promoForm.target_ids, cat] });
+                          }
+                        }}
+                      >
+                        {getCategoryEmoji(cat)} <span className="capitalize ml-2">{cat}</span>
+                      </Button>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
 
             {promoForm.applies_to === 'product' && (
-              <div className="max-h-48 overflow-y-auto border rounded p-2 space-y-1">
-                {products.map(prod => (
-                  <Button
-                    key={prod.id}
-                    type="button"
-                    variant={promoForm.target_ids.includes(prod.id) ? 'default' : 'ghost'}
-                    className="w-full justify-start h-10"
-                    onClick={() => {
-                      if (promoForm.target_ids.includes(prod.id)) {
-                        setPromoForm({ ...promoForm, target_ids: promoForm.target_ids.filter(id => id !== prod.id) });
-                      } else {
-                        setPromoForm({ ...promoForm, target_ids: [...promoForm.target_ids, prod.id] });
-                      }
-                    }}
-                  >
-                    {getCategoryEmoji(prod.category)} {prod.name}
-                  </Button>
-                ))}
+              <div className="space-y-3">
+                {/* Buscador de productos */}
+                <div className="relative">
+                  <Input
+                    type="text"
+                    placeholder="🔍 Buscar productos..."
+                    value={promoSearchQuery}
+                    onChange={(e) => setPromoSearchQuery(e.target.value)}
+                    className="h-12 text-base pl-4 pr-10"
+                  />
+                  {promoSearchQuery && (
+                    <button
+                      onClick={() => setPromoSearchQuery('')}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                    >
+                      ✕
+                    </button>
+                  )}
+                </div>
+
+                {/* Lista de productos filtrados */}
+                {filteredPromoProducts.length === 0 ? (
+                  <div className="p-4 text-center text-gray-500 text-sm border-2 border-dashed rounded-lg">
+                    No se encontraron productos con "{promoSearchQuery}"
+                  </div>
+                ) : (
+                  <div className="max-h-48 overflow-y-auto border rounded p-2 space-y-1">
+                    {filteredPromoProducts.map(prod => (
+                      <Button
+                        key={prod.id}
+                        type="button"
+                        variant={promoForm.target_ids.includes(prod.id) ? 'default' : 'ghost'}
+                        className="w-full justify-start h-10"
+                        onClick={() => {
+                          if (promoForm.target_ids.includes(prod.id)) {
+                            setPromoForm({ ...promoForm, target_ids: promoForm.target_ids.filter(id => id !== prod.id) });
+                          } else {
+                            setPromoForm({ ...promoForm, target_ids: [...promoForm.target_ids, prod.id] });
+                          }
+                        }}
+                      >
+                        {getCategoryEmoji(prod.category)} {prod.name}
+                      </Button>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
 
