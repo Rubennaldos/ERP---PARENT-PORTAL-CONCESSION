@@ -993,16 +993,18 @@ const Index = () => {
 
       {/* Modal de Formulario de Datos del Padre (PRIMERO) */}
       {showParentDataForm && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <ParentDataForm
-            onSuccess={() => {
-              setShowParentDataForm(false);
-              // Después de completar datos, verificar onboarding de cuenta libre
-              checkOnboardingStatus();
-            }}
-            isLoading={isParentFormLoading}
-            setIsLoading={setIsParentFormLoading}
-          />
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-start justify-center p-4 overflow-y-auto">
+          <div className="w-full max-w-2xl my-4">
+            <ParentDataForm
+              onSuccess={() => {
+                setShowParentDataForm(false);
+                // Después de completar datos, verificar onboarding de cuenta libre
+                checkOnboardingStatus();
+              }}
+              isLoading={isParentFormLoading}
+              setIsLoading={setIsParentFormLoading}
+            />
+          </div>
         </div>
       )}
 

@@ -10,6 +10,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, UserCheck, Users, Scale, ShieldCheck } from 'lucide-react';
 
+// v1.4.6 - Improved scroll and responsive design
+
 interface ParentDataFormProps {
   onSuccess: () => void;
   isLoading?: boolean;
@@ -389,8 +391,8 @@ export function ParentDataForm({ onSuccess, isLoading: externalLoading, setIsLoa
   };
 
   return (
-    <Card className="w-full max-w-2xl mx-auto shadow-xl border border-stone-200/50 bg-white flex flex-col" style={{ maxHeight: '90vh' }}>
-      <CardHeader className="text-center space-y-2 sm:space-y-3 pb-4 sm:pb-6 pt-6 sm:pt-8 px-4 sm:px-6 flex-shrink-0">
+    <Card className="w-full shadow-xl border border-stone-200/50 bg-white">
+      <CardHeader className="text-center space-y-2 sm:space-y-3 pb-4 sm:pb-6 pt-6 sm:pt-8 px-4 sm:px-6">
         <div className="flex justify-center mb-1 sm:mb-2">
           <div className="bg-gradient-to-br from-emerald-50/50 to-[#8B7355]/5 p-3 sm:p-4 rounded-xl sm:rounded-2xl">
             {step === 1 && <UserCheck className="h-7 w-7 sm:h-8 sm:w-8 text-emerald-600/80" />}
@@ -422,7 +424,7 @@ export function ParentDataForm({ onSuccess, isLoading: externalLoading, setIsLoa
         </div>
       </CardHeader>
 
-      <CardContent className="px-4 sm:px-6 md:px-8 pb-6 sm:pb-8 flex-1 overflow-y-auto">
+      <CardContent className="px-4 sm:px-6 md:px-8 pb-6 sm:pb-8">
         <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-5 md:space-y-6">
           {/* PASO 1: RESPONSABLE PRINCIPAL */}
           {step === 1 && (
