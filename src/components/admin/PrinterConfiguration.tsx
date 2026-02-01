@@ -77,6 +77,13 @@ interface PrinterConfig {
   // Campos para corte automático
   auto_cut_paper: boolean;
   cut_mode: 'partial' | 'full';
+  // Campos para impresión por tipo de venta
+  print_ticket_general: boolean;
+  print_comanda_general: boolean;
+  print_ticket_credit: boolean;
+  print_comanda_credit: boolean;
+  print_ticket_teacher: boolean;
+  print_comanda_teacher: boolean;
 }
 
 export function PrinterConfiguration() {
@@ -129,7 +136,14 @@ export function PrinterConfiguration() {
     connection_timeout: 5000,
     // Valores por defecto para corte
     auto_cut_paper: true,
-    cut_mode: 'partial'
+    cut_mode: 'partial',
+    // Valores por defecto para impresión por tipo de venta
+    print_ticket_general: true,
+    print_comanda_general: true,
+    print_ticket_credit: false,
+    print_comanda_credit: true,
+    print_ticket_teacher: false,
+    print_comanda_teacher: true
   });
 
   // Cargar sedes
@@ -934,6 +948,167 @@ export function PrinterConfiguration() {
                     </p>
                   </div>
                 )}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Card de Configuración por Tipo de Venta */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg flex items-center gap-2">
+                🎯 Configuración por Tipo de Venta
+              </CardTitle>
+              <CardDescription>
+                Define qué se imprime según el tipo de cliente (General, Crédito, Profesor)
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              {/* Venta General */}
+              <div className="border-2 border-blue-200 rounded-lg p-4 bg-blue-50 dark:bg-blue-950/20">
+                <div className="flex items-center gap-2 mb-3">
+                  <div className="w-10 h-10 rounded-full bg-blue-500 text-white flex items-center justify-center font-bold">
+                    💳
+                  </div>
+                  <div>
+                    <h4 className="font-semibold text-lg">Venta General</h4>
+                    <p className="text-xs text-muted-foreground">Efectivo / Tarjeta / Yape</p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="flex items-center justify-between p-3 border rounded-lg bg-white dark:bg-gray-900">
+                    <div>
+                      <Label className="font-medium">📄 Ticket</Label>
+                      <p className="text-xs text-muted-foreground">Para el cliente</p>
+                    </div>
+                    <Switch
+                      checked={config.print_ticket_general}
+                      onCheckedChange={(checked) => setConfig({ ...config, print_ticket_general: checked })}
+                    />
+                  </div>
+
+                  <div className="flex items-center justify-between p-3 border rounded-lg bg-white dark:bg-gray-900">
+                    <div>
+                      <Label className="font-medium">🍽️ Comanda</Label>
+                      <p className="text-xs text-muted-foreground">Para cocina/bar</p>
+                    </div>
+                    <Switch
+                      checked={config.print_comanda_general}
+                      onCheckedChange={(checked) => setConfig({ ...config, print_comanda_general: checked })}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Venta a Crédito */}
+              <div className="border-2 border-green-200 rounded-lg p-4 bg-green-50 dark:bg-green-950/20">
+                <div className="flex items-center gap-2 mb-3">
+                  <div className="w-10 h-10 rounded-full bg-green-500 text-white flex items-center justify-center font-bold">
+                    🎓
+                  </div>
+                  <div>
+                    <h4 className="font-semibold text-lg">Venta a Crédito</h4>
+                    <p className="text-xs text-muted-foreground">Estudiantes con cuenta crédito</p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="flex items-center justify-between p-3 border rounded-lg bg-white dark:bg-gray-900">
+                    <div>
+                      <Label className="font-medium">📄 Ticket</Label>
+                      <p className="text-xs text-muted-foreground">Para el estudiante</p>
+                    </div>
+                    <Switch
+                      checked={config.print_ticket_credit}
+                      onCheckedChange={(checked) => setConfig({ ...config, print_ticket_credit: checked })}
+                    />
+                  </div>
+
+                  <div className="flex items-center justify-between p-3 border rounded-lg bg-white dark:bg-gray-900">
+                    <div>
+                      <Label className="font-medium">🍽️ Comanda</Label>
+                      <p className="text-xs text-muted-foreground">Para cocina/bar</p>
+                    </div>
+                    <Switch
+                      checked={config.print_comanda_credit}
+                      onCheckedChange={(checked) => setConfig({ ...config, print_comanda_credit: checked })}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Venta a Profesores */}
+              <div className="border-2 border-purple-200 rounded-lg p-4 bg-purple-50 dark:bg-purple-950/20">
+                <div className="flex items-center gap-2 mb-3">
+                  <div className="w-10 h-10 rounded-full bg-purple-500 text-white flex items-center justify-center font-bold">
+                    👨‍🏫
+                  </div>
+                  <div>
+                    <h4 className="font-semibold text-lg">Venta a Profesor/Personal</h4>
+                    <p className="text-xs text-muted-foreground">Profesores y personal administrativo</p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="flex items-center justify-between p-3 border rounded-lg bg-white dark:bg-gray-900">
+                    <div>
+                      <Label className="font-medium">📄 Ticket</Label>
+                      <p className="text-xs text-muted-foreground">Para el profesor</p>
+                    </div>
+                    <Switch
+                      checked={config.print_ticket_teacher}
+                      onCheckedChange={(checked) => setConfig({ ...config, print_ticket_teacher: checked })}
+                    />
+                  </div>
+
+                  <div className="flex items-center justify-between p-3 border rounded-lg bg-white dark:bg-gray-900">
+                    <div>
+                      <Label className="font-medium">🍽️ Comanda</Label>
+                      <p className="text-xs text-muted-foreground">Para cocina/bar</p>
+                    </div>
+                    <Switch
+                      checked={config.print_comanda_teacher}
+                      onCheckedChange={(checked) => setConfig({ ...config, print_comanda_teacher: checked })}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Resumen visual */}
+              <div className="border-2 border-orange-200 rounded-lg p-4 bg-orange-50 dark:bg-orange-950/20">
+                <h4 className="font-semibold mb-3 flex items-center gap-2">
+                  <CheckCircle2 className="h-5 w-5 text-orange-600" />
+                  Resumen de Impresión Configurada
+                </h4>
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between items-center">
+                    <span className="font-medium">💳 General:</span>
+                    <span className="text-muted-foreground">
+                      {config.print_ticket_general ? '📄 Ticket' : ''} 
+                      {config.print_ticket_general && config.print_comanda_general ? ' + ' : ''}
+                      {config.print_comanda_general ? '🍽️ Comanda' : ''}
+                      {!config.print_ticket_general && !config.print_comanda_general ? '❌ Ninguno' : ''}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="font-medium">🎓 Crédito:</span>
+                    <span className="text-muted-foreground">
+                      {config.print_ticket_credit ? '📄 Ticket' : ''} 
+                      {config.print_ticket_credit && config.print_comanda_credit ? ' + ' : ''}
+                      {config.print_comanda_credit ? '🍽️ Comanda' : ''}
+                      {!config.print_ticket_credit && !config.print_comanda_credit ? '❌ Ninguno' : ''}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="font-medium">👨‍🏫 Profesor:</span>
+                    <span className="text-muted-foreground">
+                      {config.print_ticket_teacher ? '📄 Ticket' : ''} 
+                      {config.print_ticket_teacher && config.print_comanda_teacher ? ' + ' : ''}
+                      {config.print_comanda_teacher ? '🍽️ Comanda' : ''}
+                      {!config.print_ticket_teacher && !config.print_comanda_teacher ? '❌ Ninguno' : ''}
+                    </span>
+                  </div>
+                </div>
               </div>
             </CardContent>
           </Card>
