@@ -71,6 +71,7 @@ import { supabase } from '@/lib/supabase';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { getProductsForSchool } from '@/lib/productPricing';
+import { printPOSSale } from '@/lib/posPrinterService';
 
 interface Student {
   id: string;
@@ -982,6 +983,13 @@ const POS = () => {
         ticketCode = `TMP-${Date.now()}`;
       }
 
+      // Obtener school_id del cajero (para impresión)
+      const { data: cashierProfile } = await supabase
+        .from('profiles')
+        .select('school_id')
+        .eq('id', user?.id)
+        .single();
+
       // Preparar datos del ticket
       const clientName = clientMode === 'student' ? selectedStudent?.full_name :
                         clientMode === 'teacher' ? selectedTeacher?.full_name :
@@ -1227,13 +1235,6 @@ const POS = () => {
         await supabase.from('transaction_items').insert(items);
 
         // **NUEVO: Registrar en tabla SALES para módulo de Finanzas**
-        // Obtener school_id del cajero actual
-        const { data: cashierProfile } = await supabase
-          .from('profiles')
-          .select('school_id')
-          .eq('id', user?.id)
-          .single();
-
         const salesItems = cart.map(item => ({
           product_id: item.product.id,
           product_name: item.product.name,
@@ -1273,6 +1274,21 @@ const POS = () => {
         description: `Ticket: ${ticketCode}`,
         duration: 2000,
       });
+
+      // 🖨️ IMPRIMIR AUTOMÁTICAMENTE según configuración
+      const schoolIdForPrint = selectedStudent?.school_id || selectedTeacher?.school_id_1 || cashierProfile?.school_id;
+      
+      if (schoolIdForPrint) {
+        printPOSSale({
+          ticketCode,
+          clientName: ticketInfo.clientName,
+          cart,
+          total,
+          paymentMethod: clientMode === 'teacher' ? 'teacher' : (isFreeAccount ? 'credit' : paymentMethod),
+          saleType: clientMode === 'teacher' ? 'teacher' : (clientMode === 'student' ? 'credit' : 'general'),
+          schoolId: schoolIdForPrint
+        }).catch(err => console.error('Error en impresión:', err));
+      }
 
       // Guardar datos del ticket para imprimir si es necesario
       setTicketData(ticketInfo);
