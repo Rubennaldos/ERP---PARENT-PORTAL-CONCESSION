@@ -74,6 +74,9 @@ interface PrinterConfig {
   wifi_ssid: string | null;
   is_thermal_printer: boolean;
   connection_timeout: number;
+  // Campos para corte automático
+  auto_cut_paper: boolean;
+  cut_mode: 'partial' | 'full';
 }
 
 export function PrinterConfiguration() {
@@ -123,7 +126,10 @@ export function PrinterConfiguration() {
     bluetooth_address: null,
     wifi_ssid: null,
     is_thermal_printer: true,
-    connection_timeout: 5000
+    connection_timeout: 5000,
+    // Valores por defecto para corte
+    auto_cut_paper: true,
+    cut_mode: 'partial'
   });
 
   // Cargar sedes
@@ -457,20 +463,69 @@ export function PrinterConfiguration() {
           <head>
             <title>Ticket de Prueba - ${testOrderCode}</title>
             <style>
-              body { margin: 0; padding: 20px; font-family: monospace; }
+              * {
+                margin: 0;
+                padding: 0;
+                box-sizing: border-box;
+              }
+              
+              body { 
+                margin: 0; 
+                padding: 0;
+                font-family: monospace;
+                background: white;
+              }
+              
+              .ticket-container {
+                padding: 10px;
+                page-break-after: always;
+              }
+              
+              .comanda-container {
+                padding: 10px;
+                page-break-after: always;
+              }
+              
               @media print {
-                body { margin: 0; padding: 0; }
-                .page-break { page-break-after: always; }
+                body { 
+                  margin: 0; 
+                  padding: 0; 
+                }
+                
+                .ticket-container {
+                  page-break-after: ${config.print_comanda && config.print_separate_comanda ? 'always' : 'auto'};
+                  page-break-inside: avoid;
+                }
+                
+                .comanda-container {
+                  page-break-before: always;
+                  page-break-after: always;
+                  page-break-inside: avoid;
+                }
+                
+                /* Evitar márgenes adicionales */
+                @page {
+                  margin: 0mm;
+                  size: ${config.paper_width}mm auto;
+                }
               }
             </style>
           </head>
           <body>
-            ${ticketContent}
-            ${config.print_comanda && config.print_separate_comanda ? `<div class="page-break"></div>${comandaContent}` : ''}
+            <div class="ticket-container">
+              ${ticketContent}
+            </div>
+            ${config.print_comanda && config.print_separate_comanda ? `<div class="comanda-container">${comandaContent}</div>` : ''}
             <script>
               window.onload = function() {
-                window.print();
-                setTimeout(function() { window.close(); }, 100);
+                // Esperar un momento para que se renderice
+                setTimeout(function() {
+                  window.print();
+                  // Cerrar después de enviar a imprimir
+                  setTimeout(function() { 
+                    window.close(); 
+                  }, 500);
+                }, 300);
               }
             </script>
           </body>
@@ -834,6 +889,51 @@ export function PrinterConfiguration() {
                 <p className="text-xs text-muted-foreground">
                   Tiempo máximo para intentar conectar con la impresora (por defecto 5000ms = 5 segundos)
                 </p>
+              </div>
+
+              {/* Corte Automático */}
+              <div className="space-y-4 border-t pt-4 mt-4">
+                <div className="flex items-center justify-between p-4 border rounded-lg bg-red-50 dark:bg-red-950/20">
+                  <div>
+                    <Label className="font-semibold flex items-center gap-2">
+                      ✂️ Corte Automático de Papel
+                    </Label>
+                    <p className="text-sm text-muted-foreground">
+                      Activar para que corte el papel después de cada impresión
+                    </p>
+                  </div>
+                  <Switch
+                    checked={config.auto_cut_paper}
+                    onCheckedChange={(checked) => setConfig({ ...config, auto_cut_paper: checked })}
+                  />
+                </div>
+
+                {config.auto_cut_paper && (
+                  <div className="space-y-2 pl-4">
+                    <Label htmlFor="cut-mode">Modo de Corte</Label>
+                    <Select 
+                      value={config.cut_mode} 
+                      onValueChange={(val: 'partial' | 'full') => 
+                        setConfig({ ...config, cut_mode: val })
+                      }
+                    >
+                      <SelectTrigger id="cut-mode">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="partial">
+                          Corte Parcial (deja un pedacito sin cortar)
+                        </SelectItem>
+                        <SelectItem value="full">
+                          Corte Total (corta completamente)
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-muted-foreground">
+                      💡 Corte parcial es recomendado para facilitar el desgarre manual
+                    </p>
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>
