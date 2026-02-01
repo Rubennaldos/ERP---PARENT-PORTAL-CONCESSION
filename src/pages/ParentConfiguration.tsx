@@ -64,6 +64,24 @@ interface ParentProfile {
   created_at: string;
 }
 
+interface TeacherProfile {
+  id: string;
+  full_name: string;
+  dni: string;
+  document_type?: string;
+  phone_1: string;
+  corporate_phone?: string;
+  email: string;
+  corporate_email?: string;
+  address?: string;
+  work_area?: string;
+  school_1?: string;
+  school_2?: string;
+  school_1_data?: School | null;
+  school_2_data?: School | null;
+  created_at: string;
+}
+
 const ParentConfiguration = () => {
   const { toast } = useToast();
   const { user } = useAuth();
@@ -72,9 +90,12 @@ const ParentConfiguration = () => {
   
   const [loading, setLoading] = useState(true);
   const [parents, setParents] = useState<ParentProfile[]>([]);
+  const [teachers, setTeachers] = useState<TeacherProfile[]>([]);
   const [schools, setSchools] = useState<School[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
+  const [searchTermTeacher, setSearchTermTeacher] = useState('');
   const [selectedSchool, setSelectedSchool] = useState<string>('all');
+  const [selectedSchoolTeacher, setSelectedSchoolTeacher] = useState<string>('all');
   const [selectedSchoolAnalytics, setSelectedSchoolAnalytics] = useState<string>('all');
   
   // Permisos
@@ -293,6 +314,61 @@ const ParentConfiguration = () => {
       }));
       
       setParents(parentsWithChildren);
+
+      // ==================== CARGAR PROFESORES ====================
+      let teachersQuery = supabase
+        .from('teacher_profiles')
+        .select('*');
+
+      // Aplicar filtro de sede según permisos
+      if (!canViewAllSchools && userSchoolId) {
+        console.log('🔒 Filtrando profesores por sede:', userSchoolId);
+        teachersQuery = teachersQuery.or(`school_1.eq.${userSchoolId},school_2.eq.${userSchoolId}`);
+      } else {
+        console.log('🌍 Viendo todos los profesores');
+      }
+
+      const { data: teachersData, error: teachersError } = await teachersQuery.order('full_name');
+      
+      if (teachersError) {
+        console.error('❌ Error al cargar profesores:', teachersError);
+      } else {
+        console.log('👨‍🏫 Profesores encontrados:', teachersData?.length || 0);
+        
+        // Enriquecer con datos de sedes
+        const teachersWithSchools = await Promise.all(
+          (teachersData || []).map(async (teacher) => {
+            let school_1_data = null;
+            let school_2_data = null;
+
+            if (teacher.school_1) {
+              const { data: s1 } = await supabase
+                .from('schools')
+                .select('id, name, code')
+                .eq('id', teacher.school_1)
+                .single();
+              school_1_data = s1;
+            }
+
+            if (teacher.school_2) {
+              const { data: s2 } = await supabase
+                .from('schools')
+                .select('id, name, code')
+                .eq('id', teacher.school_2)
+                .single();
+              school_2_data = s2;
+            }
+
+            return {
+              ...teacher,
+              school_1_data,
+              school_2_data,
+            };
+          })
+        );
+
+        setTeachers(teachersWithSchools);
+      }
     } catch (error) {
       console.error('Error al cargar datos:', error);
       toast({
@@ -479,6 +555,70 @@ const ParentConfiguration = () => {
     });
   };
 
+  const exportTeachersToExcel = () => {
+    const data = filteredTeachers.map(teacher => ({
+      'Nombre Completo': teacher.full_name,
+      'DNI': teacher.dni,
+      'Tipo de Documento': teacher.document_type || 'DNI',
+      'Email Personal': teacher.email || '-',
+      'Email Corporativo': teacher.corporate_email || '-',
+      'Teléfono Personal': teacher.phone_1 || '-',
+      'Teléfono Empresa': teacher.corporate_phone || '-',
+      'Dirección': teacher.address || '-',
+      'Área de Trabajo': teacher.work_area || '-',
+      'Sede Principal': teacher.school_1_data?.name || '-',
+      'Sede Secundaria': teacher.school_2_data?.name || '-',
+    }));
+
+    const ws = XLSX.utils.json_to_sheet(data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Profesores');
+    XLSX.writeFile(wb, `Profesores_${new Date().toISOString().split('T')[0]}.xlsx`);
+
+    toast({
+      title: '✅ Exportado',
+      description: 'Los datos de profesores se han exportado a Excel.',
+    });
+  };
+
+  const exportTeachersToPDF = () => {
+    const doc = new jsPDF();
+    
+    doc.setFontSize(18);
+    doc.text('ARQUISIA', 15, 15);
+    doc.text('Lima Café 28', 150, 15);
+    
+    doc.setFontSize(14);
+    doc.text('Reporte de Profesores', 15, 30);
+    
+    doc.setFontSize(10);
+    doc.text(`Fecha: ${new Date().toLocaleDateString()}`, 15, 38);
+
+    const tableData = filteredTeachers.map(teacher => [
+      teacher.full_name,
+      teacher.dni,
+      teacher.email || '-',
+      teacher.phone_1 || '-',
+      teacher.work_area || '-',
+      teacher.school_1_data?.name || '-',
+    ]);
+
+    autoTable(doc, {
+      startY: 45,
+      head: [['Nombre', 'DNI', 'Email', 'Teléfono', 'Área', 'Sede']],
+      body: tableData,
+      styles: { fontSize: 8 },
+      headStyles: { fillColor: [16, 185, 129] }, // Color emerald
+    });
+
+    doc.save(`Profesores_${new Date().toISOString().split('T')[0]}.pdf`);
+
+    toast({
+      title: '✅ Exportado',
+      description: 'Los datos de profesores se han exportado a PDF.',
+    });
+  };
+
   const resetForm = () => {
     setFormData({
       full_name: '',
@@ -518,6 +658,19 @@ const ParentConfiguration = () => {
     return matchesSearch && matchesSchool;
   });
 
+  const filteredTeachers = teachers.filter(teacher => {
+    const matchesSearch = teacher.full_name.toLowerCase().includes(searchTermTeacher.toLowerCase()) ||
+                         teacher.dni.includes(searchTermTeacher) ||
+                         (teacher.email && teacher.email.toLowerCase().includes(searchTermTeacher.toLowerCase())) ||
+                         (teacher.corporate_email && teacher.corporate_email.toLowerCase().includes(searchTermTeacher.toLowerCase()));
+    
+    const matchesSchool = selectedSchoolTeacher === 'all' || 
+                         teacher.school_1 === selectedSchoolTeacher || 
+                         teacher.school_2 === selectedSchoolTeacher;
+    
+    return matchesSearch && matchesSchool;
+  });
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -537,10 +690,10 @@ const ParentConfiguration = () => {
           <div>
             <h1 className="text-3xl font-black text-emerald-900 flex items-center gap-3">
               <Users className="h-8 w-8 text-emerald-600" />
-              Configuración de Padres
+              Configuración de Padres y Profesores
             </h1>
             <p className="text-emerald-600 font-medium mt-1">
-              Gestiona perfiles, visualiza estadísticas y genera reportes del sistema
+              Gestiona perfiles de padres, profesores, estudiantes y genera reportes del sistema
             </p>
           </div>
           <Button 
@@ -555,10 +708,14 @@ const ParentConfiguration = () => {
 
         {/* Tabs principales */}
         <Tabs defaultValue="parents" className="w-full">
-          <TabsList className="grid w-full grid-cols-3 bg-white/90 backdrop-blur-sm border-2 border-emerald-200 rounded-xl p-1 shadow-md">
+          <TabsList className="grid w-full grid-cols-4 bg-white/90 backdrop-blur-sm border-2 border-emerald-200 rounded-xl p-1 shadow-md">
             <TabsTrigger value="parents" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-emerald-500 data-[state=active]:to-teal-500 data-[state=active]:text-white">
               <Users className="h-4 w-4 mr-2" />
               Gestión de Padres
+            </TabsTrigger>
+            <TabsTrigger value="teachers" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-emerald-500 data-[state=active]:to-teal-500 data-[state=active]:text-white">
+              <User2 className="h-4 w-4 mr-2" />
+              Gestión de Profesores
             </TabsTrigger>
             <TabsTrigger value="analytics" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-emerald-500 data-[state=active]:to-teal-500 data-[state=active]:text-white">
               <BarChart3 className="h-4 w-4 mr-2" />
@@ -811,6 +968,171 @@ const ParentConfiguration = () => {
                         <p className="text-xl font-bold text-emerald-900 mb-2">No se encontraron resultados</p>
                         <p className="text-emerald-700">
                           No hay padres que coincidan con los filtros aplicados.
+                        </p>
+                      </>
+                    )}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Pestaña de Gestión de Profesores */}
+          <TabsContent value="teachers" className="mt-6">
+            <Card className="border-2 border-emerald-200 bg-white/80 backdrop-blur-sm shadow-lg">
+              <CardHeader className="bg-gradient-to-r from-emerald-100/60 to-teal-100/40 border-b-2 border-emerald-200">
+                <CardTitle className="flex items-center gap-2 text-emerald-900">
+                  <User2 className="h-6 w-6 text-emerald-600" />
+                  Lista de Profesores
+                </CardTitle>
+                <CardDescription className="text-emerald-700">
+                  Visualiza y gestiona los perfiles de profesores del sistema.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="pt-6">
+                {/* Barra de herramientas */}
+                <div className="flex flex-col sm:flex-row gap-4 mb-6">
+                  <div className="flex-1 relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-emerald-500" />
+                    <Input
+                      placeholder="Buscar por nombre, DNI o correo..."
+                      value={searchTermTeacher}
+                      onChange={(e) => setSearchTermTeacher(e.target.value)}
+                      className="pl-10 border-emerald-300 focus:border-emerald-500 focus:ring-emerald-500"
+                    />
+                  </div>
+                  {canViewAllSchools && (
+                    <Select value={selectedSchoolTeacher} onValueChange={setSelectedSchoolTeacher}>
+                      <SelectTrigger className="w-full sm:w-[200px] border-emerald-300">
+                        <SelectValue placeholder="Todas las sedes" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">Todas las sedes</SelectItem>
+                        {schools.map(school => (
+                          <SelectItem key={school.id} value={school.id}>
+                            {school.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
+                  <Button onClick={() => exportTeachersToExcel()} variant="outline" className="gap-2 border-emerald-300 text-emerald-700 hover:bg-emerald-100">
+                    <Download className="h-4 w-4" />
+                    Excel
+                  </Button>
+                  <Button onClick={() => exportTeachersToPDF()} variant="outline" className="gap-2 border-emerald-300 text-emerald-700 hover:bg-emerald-100">
+                    <Download className="h-4 w-4" />
+                    PDF
+                  </Button>
+                </div>
+
+                {/* Lista de profesores */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  {filteredTeachers.map(teacher => (
+                    <Card key={teacher.id} className="border-l-4 border-l-emerald-400 bg-gradient-to-br from-emerald-50/50 to-teal-50/30 hover:shadow-xl transition-all duration-300">
+                      <CardContent className="p-6">
+                        {/* Header con nombre completo */}
+                        <div className="flex items-start justify-between mb-4">
+                          <div className="flex-1">
+                            <h3 className="text-xl font-black text-emerald-900 mb-1">{teacher.full_name}</h3>
+                            <div className="flex items-center gap-2 text-sm text-emerald-700">
+                              <IdCard className="h-4 w-4" />
+                              <span className="font-semibold">{teacher.document_type || 'DNI'}: {teacher.dni}</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Información de contacto */}
+                        <div className="space-y-3 mb-4">
+                          <div className="grid grid-cols-1 gap-2">
+                            <div className="flex items-center gap-2 text-sm">
+                              <Mail className="h-4 w-4 text-emerald-600" />
+                              <span className="font-medium text-emerald-800">Personal:</span>
+                              <span className="text-emerald-700">{teacher.email || 'No registrado'}</span>
+                            </div>
+                            {teacher.corporate_email && (
+                              <div className="flex items-center gap-2 text-sm">
+                                <Mail className="h-4 w-4 text-teal-600" />
+                                <span className="font-medium text-teal-800">Corporativo:</span>
+                                <span className="text-teal-700">{teacher.corporate_email}</span>
+                              </div>
+                            )}
+                          </div>
+
+                          <div className="grid grid-cols-1 gap-2">
+                            <div className="flex items-center gap-2 text-sm">
+                              <Phone className="h-4 w-4 text-emerald-600" />
+                              <span className="font-medium text-emerald-800">Personal:</span>
+                              <span className="text-emerald-700">{teacher.phone_1 || 'No registrado'}</span>
+                            </div>
+                            {teacher.corporate_phone && (
+                              <div className="flex items-center gap-2 text-sm">
+                                <Phone className="h-4 w-4 text-teal-600" />
+                                <span className="font-medium text-teal-800">Empresa:</span>
+                                <span className="text-teal-700">{teacher.corporate_phone}</span>
+                              </div>
+                            )}
+                          </div>
+
+                          {teacher.address && (
+                            <div className="flex items-center gap-2 text-sm">
+                              <MapPin className="h-4 w-4 text-emerald-600" />
+                              <span className="font-medium text-emerald-800">Dirección:</span>
+                              <span className="text-emerald-700">{teacher.address}</span>
+                            </div>
+                          )}
+
+                          {teacher.work_area && (
+                            <div className="flex items-center gap-2 text-sm">
+                              <Users className="h-4 w-4 text-emerald-600" />
+                              <span className="font-medium text-emerald-800">Área:</span>
+                              <span className="text-emerald-700">{teacher.work_area}</span>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Sedes */}
+                        <div className="border-t-2 border-emerald-200 pt-4">
+                          <p className="text-sm font-bold text-emerald-800 mb-2">Sedes Asignadas:</p>
+                          <div className="space-y-2">
+                            {teacher.school_1_data && (
+                              <Badge className="bg-gradient-to-r from-emerald-500 to-teal-500 text-white">
+                                Principal: {teacher.school_1_data.name}
+                              </Badge>
+                            )}
+                            {teacher.school_2_data && (
+                              <Badge className="bg-gradient-to-r from-teal-500 to-cyan-500 text-white ml-2">
+                                Secundaria: {teacher.school_2_data.name}
+                              </Badge>
+                            )}
+                            {!teacher.school_1_data && !teacher.school_2_data && (
+                              <Badge variant="outline" className="border-amber-500 text-amber-700">
+                                Sin sede asignada
+                              </Badge>
+                            )}
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+
+                {/* Empty state */}
+                {filteredTeachers.length === 0 && (
+                  <div className="text-center py-16 bg-gradient-to-br from-emerald-50/50 to-teal-50/30 rounded-2xl border-2 border-dashed border-emerald-300">
+                    {teachers.length === 0 ? (
+                      <>
+                        <User2 className="h-16 w-16 text-emerald-400 mx-auto mb-4" />
+                        <p className="text-xl font-bold text-emerald-900 mb-2">No hay profesores registrados</p>
+                        <p className="text-emerald-700">
+                          Los profesores deben registrarse desde el Portal del Profesor.
+                        </p>
+                      </>
+                    ) : (
+                      <>
+                        <p className="text-xl font-bold text-emerald-900 mb-2">No se encontraron resultados</p>
+                        <p className="text-emerald-700">
+                          No hay profesores que coincidan con los filtros aplicados.
                         </p>
                       </>
                     )}

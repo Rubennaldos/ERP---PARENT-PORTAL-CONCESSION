@@ -10,9 +10,11 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useToast } from "@/hooks/use-toast";
-import { Lock, Users, Shield, ShieldCheck, AlertTriangle, CheckCircle2, XCircle, Loader2, Building2, UserPlus, Eye, EyeOff, Edit2, Key } from "lucide-react";
+import { Lock, Users, Shield, ShieldCheck, AlertTriangle, CheckCircle2, XCircle, Loader2, Building2, UserPlus, Eye, EyeOff, Edit2, Key, Settings2, Search } from "lucide-react";
 import { CreateProfileModal } from './CreateProfileModal';
 import { ResetUserPasswordModal } from './ResetUserPasswordModal';
+import { ManageCustomSchoolsModal } from './ManageCustomSchoolsModal';
+import { Input } from "@/components/ui/input";
 
 interface School {
   id: string;
@@ -35,6 +37,7 @@ interface UserProfile {
   role: string;
   school_id: string | null;
   school: { name: string; code: string } | null;
+  custom_schools: string[] | null;
 }
 
 interface ModulePermissions {
@@ -196,6 +199,8 @@ export const AccessControlModuleV2 = () => {
   const [createProfileModalOpen, setCreateProfileModalOpen] = useState(false);
   const [resetPasswordModalOpen, setResetPasswordModalOpen] = useState(false);
   const [userToResetPassword, setUserToResetPassword] = useState<UserProfile | null>(null);
+  const [manageSchoolsModalOpen, setManageSchoolsModalOpen] = useState(false);
+  const [userToManageSchools, setUserToManageSchools] = useState<UserProfile | null>(null);
 
   // State for Role Permissions Tab
   const [selectedRole, setSelectedRole] = useState<string>('gestor_unidad');
@@ -205,6 +210,7 @@ export const AccessControlModuleV2 = () => {
   // State for User Permissions Tab
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [selectedUser, setSelectedUser] = useState<UserProfile | null>(null);
+  const [userSearchTerm, setUserSearchTerm] = useState('');
 
   useEffect(() => {
     fetchInitialData();
@@ -231,6 +237,23 @@ export const AccessControlModuleV2 = () => {
     });
     // TODO: Implementar modal de edición de usuario
   };
+
+  const handleManageSchools = (user: UserProfile) => {
+    console.log('🏫 Abriendo gestión de sedes para:', user.email);
+    setUserToManageSchools(user);
+    setManageSchoolsModalOpen(true);
+  };
+
+  // Filtrar usuarios según búsqueda
+  const filteredUsers = users.filter(user => {
+    const searchLower = userSearchTerm.toLowerCase();
+    return (
+      user.full_name?.toLowerCase().includes(searchLower) ||
+      user.email?.toLowerCase().includes(searchLower) ||
+      user.school?.name?.toLowerCase().includes(searchLower) ||
+      ROLES.find(r => r.value === user.role)?.label.toLowerCase().includes(searchLower)
+    );
+  });
 
   const fetchInitialData = async () => {
     try {
@@ -788,10 +811,29 @@ export const AccessControlModuleV2 = () => {
                     se implementarán en una futura versión.
                   </p>
                 </div>
+
+                {/* Buscador de usuarios */}
+                <div className="flex items-center gap-3">
+                  <div className="relative flex-1">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                    <Input
+                      placeholder="Buscar por nombre, email, sede o rol..."
+                      value={userSearchTerm}
+                      onChange={(e) => setUserSearchTerm(e.target.value)}
+                      className="pl-10"
+                    />
+                  </div>
+                  {userSearchTerm && (
+                    <Badge variant="outline" className="gap-2">
+                      <Users className="h-3 w-3" />
+                      {filteredUsers.length} de {users.length}
+                    </Badge>
+                  )}
+                </div>
                 
                 {/* Lista de usuarios */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {users.map(user => (
+                  {filteredUsers.map(user => (
                     <Card key={user.id}>
                       <CardHeader>
                         <div className="flex items-start justify-between">
@@ -816,7 +858,7 @@ export const AccessControlModuleV2 = () => {
                           </div>
                           
                           {/* Botones de acción */}
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-2 flex-wrap">
                             <Button
                               variant="outline"
                               size="sm"
@@ -825,6 +867,15 @@ export const AccessControlModuleV2 = () => {
                             >
                               <Edit2 className="h-4 w-4" />
                               Editar
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleManageSchools(user)}
+                              className="gap-2 border-blue-300 text-blue-700 hover:bg-blue-50"
+                            >
+                              <Settings2 className="h-4 w-4" />
+                              Gestión de Sedes
                             </Button>
                             <Button
                               variant="outline"
@@ -841,6 +892,17 @@ export const AccessControlModuleV2 = () => {
                     </Card>
                   ))}
                 </div>
+
+                {/* Empty state cuando no hay resultados */}
+                {filteredUsers.length === 0 && (
+                  <div className="text-center py-12 bg-slate-50 rounded-lg border-2 border-dashed">
+                    <Users className="h-12 w-12 text-slate-400 mx-auto mb-4" />
+                    <p className="text-slate-600 font-semibold mb-2">No se encontraron usuarios</p>
+                    <p className="text-slate-500 text-sm">
+                      {userSearchTerm ? 'Intenta con otro término de búsqueda' : 'No hay usuarios registrados'}
+                    </p>
+                  </div>
+                )}
               </div>
             </TabsContent>
           </Tabs>
@@ -873,6 +935,20 @@ export const AccessControlModuleV2 = () => {
           }}
         />
       )}
+
+      {/* Modal de Gestión de Sedes Personalizadas */}
+      <ManageCustomSchoolsModal
+        isOpen={manageSchoolsModalOpen}
+        onClose={() => {
+          setManageSchoolsModalOpen(false);
+          setUserToManageSchools(null);
+        }}
+        userProfile={userToManageSchools}
+        onSuccess={() => {
+          console.log('✅ Sedes actualizadas exitosamente');
+          fetchUsers(); // Refrescar la lista
+        }}
+      />
     </div>
   );
 };

@@ -80,11 +80,11 @@ const Dashboard = () => {
   useEffect(() => {
     // ✅ FIX: Solo cargar módulos cuando AMBOS user Y role estén disponibles
     if (user && role) {
-      console.log('✅ Usuario y rol disponibles, cargando módulos...');
+      // console.log('✅ Usuario y rol disponibles, cargando módulos...');
       fetchUserModules();
       fetchSchoolInfo(); // Obtener nombre de la sede
     } else {
-      console.log('⏳ Esperando user y role...', { user: !!user, role });
+      // console.log('⏳ Esperando user y role...', { user: !!user, role });
     }
   }, [user, role]);
 
@@ -105,7 +105,7 @@ const Dashboard = () => {
       }
 
       if (!profile?.school_id) {
-        console.log('ℹ️ Usuario sin sede asignada (posiblemente admin general o supervisor de red)');
+        // console.log('ℹ️ Usuario sin sede asignada (posiblemente admin general o supervisor de red)');
         return;
       }
 
@@ -123,7 +123,7 @@ const Dashboard = () => {
 
       if (school) {
         setSchoolName(school.name);
-        console.log('✅ Sede del usuario:', school.name);
+        // console.log('✅ Sede del usuario:', school.name);
       }
     } catch (error) {
       console.error('Error obteniendo información de sede:', error);
@@ -133,13 +133,13 @@ const Dashboard = () => {
   const fetchUserModules = async () => {
     // ✅ FIX: Verificación más robusta
     if (!user || !role) {
-      console.log('⚠️ No se puede cargar módulos: user o role faltante', { user: !!user, role });
+      // console.log('⚠️ No se puede cargar módulos: user o role faltante');
       return;
     }
 
     try {
       setLoading(true);
-      console.log('🔍 Cargando módulos para usuario:', user.id, 'Rol:', role);
+      // console.log('🔍 Cargando módulos para usuario:', user.id, 'Rol:', role);
 
       // Definir todos los módulos disponibles
       const allModules = [
@@ -182,8 +182,8 @@ const Dashboard = () => {
         {
           id: '4',
           code: 'config_padres',
-          name: 'Configuración Padres',
-          description: 'Gestión de padres y estudiantes',
+          name: 'Config. Padres y Profesores',
+          description: 'Gestión de padres, profesores y estudiantes',
           icon: 'Users',
           color: 'purple',
           route: '/parents',
@@ -388,21 +388,21 @@ const Dashboard = () => {
   };
 
   const handleModuleClick = (module: Module) => {
-    console.log('🖱️ Clic en módulo:', module.name, '| Ruta:', module.route);
+    // console.log('🖱️ Clic en módulo:', module.name, '| Ruta:', module.route);
     
     if (!module.is_enabled) {
-      console.log('❌ Módulo deshabilitado');
+      // console.log('❌ Módulo deshabilitado');
       alert(`No tienes acceso al módulo "${module.name}"`);
       return;
     }
 
     if (module.status === 'coming_soon') {
-      console.log('🚧 Módulo en desarrollo');
+      // console.log('🚧 Módulo en desarrollo');
       alert(`El módulo "${module.name}" estará disponible próximamente.`);
       return;
     }
 
-    console.log('✅ Navegando a:', module.route);
+    // console.log('✅ Navegando a:', module.route);
     navigate(module.route);
   };
 

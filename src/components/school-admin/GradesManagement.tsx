@@ -127,7 +127,7 @@ export const GradesManagement = ({ schoolId }: GradesManagementProps) => {
 
   useEffect(() => {
     if (selectedLevel && selectedSchoolId) {
-      console.log('🔄 [GradesManagement useEffect] Cargando aulas porque cambió selectedLevel:', selectedLevel);
+      // console.log('🔄 [GradesManagement useEffect] Cargando aulas porque cambió selectedLevel:', selectedLevel);
       fetchClassrooms(selectedLevel);
     }
   }, [selectedLevel, selectedSchoolId]);
@@ -180,7 +180,7 @@ export const GradesManagement = ({ schoolId }: GradesManagementProps) => {
   const fetchLevels = async () => {
     if (!selectedSchoolId) return;
     
-    console.log('📚 [fetchLevels] Cargando niveles para school_id:', selectedSchoolId);
+    // console.log('📚 [fetchLevels] Cargando niveles para school_id:', selectedSchoolId);
     
     try {
       const { data, error } = await supabase
@@ -192,7 +192,7 @@ export const GradesManagement = ({ schoolId }: GradesManagementProps) => {
 
       if (error) throw error;
 
-      console.log('✅ [fetchLevels] Niveles cargados de BD:', data?.length || 0, data?.map(l => l.name));
+      // console.log('✅ [fetchLevels] Niveles cargados de BD:', data?.length || 0, data?.map(l => l.name));
 
       // Contar estudiantes por nivel
       const levelsWithCount = await Promise.all(
@@ -213,15 +213,15 @@ export const GradesManagement = ({ schoolId }: GradesManagementProps) => {
       // O si el seleccionado ya no existe en la nueva lista de niveles
       if (levelsWithCount.length > 0) {
         const selectedLevelExists = levelsWithCount.some(l => l.id === selectedLevel);
-        console.log('🔍 [fetchLevels] selectedLevel actual:', selectedLevel);
-        console.log('🔍 [fetchLevels] ¿El nivel seleccionado existe?:', selectedLevelExists);
-        console.log('🔍 [fetchLevels] Niveles disponibles:', levelsWithCount.map(l => ({ id: l.id, name: l.name })));
+        // console.log('🔍 [fetchLevels] selectedLevel actual:', selectedLevel);
+        // console.log('🔍 [fetchLevels] ¿El nivel seleccionado existe?:', selectedLevelExists);
+        // console.log('🔍 [fetchLevels] Niveles disponibles:', levelsWithCount.map(l => ({ id: l.id, name: l.name })));
         
         if (!selectedLevel || !selectedLevelExists) {
-          console.log('📌 [GradesManagement] Estableciendo nivel inicial:', levelsWithCount[0].id, levelsWithCount[0].name);
+          // console.log('📌 [GradesManagement] Estableciendo nivel inicial:', levelsWithCount[0].id, levelsWithCount[0].name);
           setSelectedLevel(levelsWithCount[0].id);
         } else {
-          console.log('✅ [GradesManagement] Manteniendo nivel seleccionado:', selectedLevel);
+          // console.log('✅ [GradesManagement] Manteniendo nivel seleccionado:', selectedLevel);
         }
       }
     } catch (error: any) {
@@ -233,7 +233,7 @@ export const GradesManagement = ({ schoolId }: GradesManagementProps) => {
   const fetchClassrooms = async (levelId: string) => {
     if (!selectedSchoolId) return;
     
-    console.log('🔍 [GradesManagement] Cargando aulas para level_id:', levelId, 'school_id:', selectedSchoolId);
+    // console.log('🔍 [GradesManagement] Cargando aulas para level_id:', levelId, 'school_id:', selectedSchoolId);
     
     try {
       const { data, error } = await supabase
@@ -247,8 +247,8 @@ export const GradesManagement = ({ schoolId }: GradesManagementProps) => {
 
       if (error) throw error;
 
-      console.log('✅ [GradesManagement] Aulas encontradas:', data);
-      console.log('✅ [GradesManagement] Total de aulas:', data?.length || 0);
+      // console.log('✅ [GradesManagement] Aulas encontradas:', data);
+      // console.log('✅ [GradesManagement] Total de aulas:', data?.length || 0);
 
       // Contar estudiantes por aula
       const classroomsWithCount = await Promise.all(
@@ -263,8 +263,8 @@ export const GradesManagement = ({ schoolId }: GradesManagementProps) => {
         })
       );
 
-      console.log('✅ [GradesManagement] Aulas procesadas con contador:', classroomsWithCount);
-      console.log('✅ [GradesManagement] Estableciendo estado con', classroomsWithCount.length, 'aulas');
+      // console.log('✅ [GradesManagement] Aulas procesadas con contador:', classroomsWithCount);
+      // console.log('✅ [GradesManagement] Estableciendo estado con', classroomsWithCount.length, 'aulas');
       
       setClassrooms(classroomsWithCount);
     } catch (error: any) {
@@ -341,7 +341,7 @@ export const GradesManagement = ({ schoolId }: GradesManagementProps) => {
   const createLevel = async () => {
     if (!selectedSchoolId || !newLevelName.trim()) return;
 
-    console.log('📝 [createLevel] Creando nuevo grado:', newLevelName);
+    // console.log('📝 [createLevel] Creando nuevo grado:', newLevelName);
 
     try {
       const { data, error } = await supabase
@@ -357,7 +357,7 @@ export const GradesManagement = ({ schoolId }: GradesManagementProps) => {
 
       if (error) throw error;
 
-      console.log('✅ [createLevel] Grado creado exitosamente:', data);
+      // console.log('✅ [createLevel] Grado creado exitosamente:', data);
 
       toast({ title: '✅ Grado creado', description: `${newLevelName} agregado correctamente` });
       setNewLevelName('');
@@ -365,7 +365,7 @@ export const GradesManagement = ({ schoolId }: GradesManagementProps) => {
       
       // Primero establecer el nuevo grado como seleccionado
       if (data) {
-        console.log('🆕 [createLevel] Seleccionando nuevo grado:', data.id, data.name);
+        // console.log('🆕 [createLevel] Seleccionando nuevo grado:', data.id, data.name);
         setSelectedLevel(data.id);
       }
       
@@ -379,11 +379,7 @@ export const GradesManagement = ({ schoolId }: GradesManagementProps) => {
   const createClassroom = async () => {
     if (!selectedSchoolId || !selectedLevel || !newClassroomName.trim()) return;
 
-    console.log('🎓 [GradesManagement] Creando aula:', {
-      school_id: selectedSchoolId,
-      level_id: selectedLevel,
-      name: newClassroomName.trim()
-    });
+    // console.log('🎓 [GradesManagement] Creando aula:', { school_id, level_id, name });
 
     try {
       const { error } = await supabase
@@ -398,7 +394,7 @@ export const GradesManagement = ({ schoolId }: GradesManagementProps) => {
 
       if (error) throw error;
 
-      console.log('✅ [GradesManagement] Aula creada exitosamente');
+      // console.log('✅ [GradesManagement] Aula creada exitosamente');
 
       toast({ title: '✅ Aula creada', description: `${newClassroomName} agregada correctamente` });
       setNewClassroomName('');
@@ -553,12 +549,35 @@ export const GradesManagement = ({ schoolId }: GradesManagementProps) => {
 
             {/* Tab: Grados y Aulas */}
             <TabsContent value="levels">
+              {/* Explicación del funcionamiento */}
+              <div className="mb-6 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-blue-200 rounded-xl">
+                <div className="flex items-start gap-3">
+                  <School className="h-6 w-6 text-blue-600 mt-1 flex-shrink-0" />
+                  <div>
+                    <h4 className="font-bold text-blue-900 mb-2">📚 ¿Cómo funciona?</h4>
+                    <p className="text-blue-800 text-sm leading-relaxed">
+                      Cada <strong>Grado/Nivel</strong> (ejemplo: "1er Grado", "Inicial 3 años") tiene sus propias <strong>Aulas/Secciones</strong> (ejemplo: "Aula A", "Aula B"). 
+                      <br />
+                      <span className="inline-block mt-2 font-semibold">
+                        👉 Selecciona un grado de la izquierda para ver y gestionar sus aulas en la derecha.
+                      </span>
+                    </p>
+                  </div>
+                </div>
+              </div>
+
               <div className="grid grid-cols-2 gap-6">
                 {/* Columna Izquierda: Grados */}
                 <div className="space-y-4">
-                  <div className="flex justify-between items-center">
-                    <h3 className="font-bold text-lg">Grados/Niveles</h3>
-                    <Button onClick={() => setShowNewLevelModal(true)} size="sm">
+                  <div className="flex justify-between items-center bg-gradient-to-r from-blue-100 to-blue-50 p-3 rounded-lg border-2 border-blue-300">
+                    <div>
+                      <h3 className="font-bold text-lg text-blue-900 flex items-center gap-2">
+                        <GraduationCap className="h-5 w-5" />
+                        1️⃣ Grados/Niveles
+                      </h3>
+                      <p className="text-xs text-blue-700 mt-1">Haz clic para ver sus aulas →</p>
+                    </div>
+                    <Button onClick={() => setShowNewLevelModal(true)} size="sm" className="bg-blue-600 hover:bg-blue-700">
                       <Plus className="h-4 w-4 mr-2" />
                       Agregar Grado
                     </Button>
@@ -643,19 +662,26 @@ export const GradesManagement = ({ schoolId }: GradesManagementProps) => {
 
                 {/* Columna Derecha: Aulas/Secciones */}
                 <div className="space-y-4">
-                  <div className="flex justify-between items-center">
-                    <h3 className="font-bold text-lg">
-                      Aulas/Secciones
-                      {selectedLevel && (
-                        <span className="text-sm text-muted-foreground ml-2">
-                          ({levels.find(l => l.id === selectedLevel)?.name})
-                        </span>
+                  <div className="flex justify-between items-center bg-gradient-to-r from-green-100 to-emerald-50 p-3 rounded-lg border-2 border-green-300">
+                    <div>
+                      <h3 className="font-bold text-lg text-green-900 flex items-center gap-2">
+                        <Users className="h-5 w-5" />
+                        2️⃣ Aulas/Secciones
+                        {selectedLevel && (
+                          <Badge className="ml-2 bg-green-600">
+                            {levels.find(l => l.id === selectedLevel)?.name}
+                          </Badge>
+                        )}
+                      </h3>
+                      {!selectedLevel && (
+                        <p className="text-xs text-green-700 mt-1">← Selecciona un grado primero</p>
                       )}
-                    </h3>
+                    </div>
                     <Button
                       onClick={() => setShowNewClassroomModal(true)}
                       size="sm"
                       disabled={!selectedLevel}
+                      className="bg-green-600 hover:bg-green-700 disabled:opacity-50"
                     >
                       <Plus className="h-4 w-4 mr-2" />
                       Agregar Aula
@@ -663,10 +689,6 @@ export const GradesManagement = ({ schoolId }: GradesManagementProps) => {
                   </div>
                   {selectedLevel ? (
                     <div className="space-y-2">
-                      {(() => {
-                        console.log('🎨 [GradesManagement RENDER] Renderizando aulas. classrooms.length:', classrooms.length, 'classrooms:', classrooms);
-                        return null;
-                      })()}
                       {classrooms.map((classroom) => (
                         <div
                           key={classroom.id}
@@ -733,9 +755,13 @@ export const GradesManagement = ({ schoolId }: GradesManagementProps) => {
                       )}
                     </div>
                   ) : (
-                    <p className="text-center text-muted-foreground py-8">
-                      Selecciona un grado para ver sus aulas
-                    </p>
+                    <div className="text-center py-12 bg-gradient-to-br from-amber-50 to-orange-50 rounded-xl border-2 border-dashed border-amber-300">
+                      <GraduationCap className="h-16 w-16 text-amber-400 mx-auto mb-4" />
+                      <p className="text-amber-900 font-bold text-lg mb-2">👈 Selecciona un grado primero</p>
+                      <p className="text-amber-700 text-sm">
+                        Haz clic en un grado de la columna izquierda para ver sus aulas
+                      </p>
+                    </div>
                   )}
                 </div>
               </div>

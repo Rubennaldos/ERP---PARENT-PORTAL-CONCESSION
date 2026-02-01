@@ -31,8 +31,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log('🔔 Auth Event:', event, session ? '✅ Sesión activa' : '❌ Sin sesión');
-      
       // Solo actualizar si realmente cambió la sesión (evitar re-renders innecesarios)
       setSession((prevSession) => {
         // Si no hay cambio en el ID de usuario, no actualizar
@@ -87,13 +85,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signUp = async (email: string, password: string, metadata: any = {}) => {
-    console.log('🔵 AuthContext.signUp() - INICIO');
-    console.log('   - email:', email);
-    console.log('   - metadata:', metadata);
-    console.log('   - supabase existe:', !!supabase);
+    // Debug logs comentados para mejorar performance
+    // console.log('🔵 AuthContext.signUp() - INICIO');
     
     if (!supabase) {
-      console.log('❌ AuthContext: Supabase NO configurado');
+      // console.log('❌ AuthContext: Supabase NO configurado');
       return {
         data: { user: null, session: null },
         error: {
@@ -106,9 +102,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     // Redirigir a la raíz del portal después de confirmar email
     const redirectUrl = `${window.location.origin}/`;
-    console.log('   - redirectUrl:', redirectUrl);
 
-    console.log('🔵 Llamando a supabase.auth.signUp()...');
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
@@ -118,11 +112,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       },
     });
     
-    console.log('🔵 Respuesta de Supabase:');
-    console.log('   - data:', data);
-    console.log('   - error:', error);
-    console.log('   - user creado:', !!data?.user);
-    console.log('   - session creada:', !!data?.session);
+    // Debug logs comentados para mejorar performance
+    // console.log('🔵 Respuesta de Supabase:', { data, error });
     
     return { data, error };
   };

@@ -161,71 +161,149 @@ const SchoolAdmin = () => {
 
           {/* Pestaña de Pedidos */}
           <TabsContent value="requests" className="mt-6">
-            <Card>
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <CardTitle className="flex items-center gap-2">
-                      <ShoppingCart className="h-6 w-6 text-[#8B4513]" />
-                      Mis Pedidos de Suministros
-                    </CardTitle>
-                    <CardDescription>
-                      Solicita mercadería e ingredientes para tu sede
-                    </CardDescription>
-                  </div>
-                  <Button 
-                    className="bg-[#8B4513] hover:bg-[#6F370F]"
-                    onClick={() => setShowCreateModal(true)}
-                  >
-                    <Plus className="h-4 w-4 mr-2" />
-                    Nuevo Pedido
-                  </Button>
+            <Card className="border-2 border-[#8B4513]/20">
+              <CardHeader className="bg-gradient-to-r from-amber-50 to-orange-50">
+                <div className="text-center">
+                  <CardTitle className="flex items-center justify-center gap-3 text-2xl mb-3">
+                    <ShoppingCart className="h-8 w-8 text-[#8B4513]" />
+                    Módulo de Pedidos
+                  </CardTitle>
+                  <Badge className="bg-gradient-to-r from-[#8B4513] to-amber-700 text-white text-lg px-6 py-2">
+                    🚧 Próximamente
+                  </Badge>
                 </div>
               </CardHeader>
-              <CardContent>
-                {myRequests.length > 0 ? (
-                  <div className="space-y-3">
-                    {myRequests.map(request => (
-                      <Card key={request.id} className="border-l-4 border-l-blue-500">
-                        <CardContent className="pt-4">
-                          <div className="flex items-center justify-between">
-                            <div className="flex-1">
-                              <p className="font-black text-slate-800 text-lg">{request.request_number}</p>
-                              <p className="text-sm text-slate-500">{request.items_count} items solicitados</p>
-                              {request.notes && (
-                                <p className="text-xs text-slate-400 mt-1">📝 {request.notes}</p>
-                              )}
-                              <p className="text-xs text-slate-400 mt-1">
-                                {new Date(request.created_at).toLocaleDateString('es-PE', {
-                                  year: 'numeric',
-                                  month: 'long',
-                                  day: 'numeric',
-                                  hour: '2-digit',
-                                  minute: '2-digit'
-                                })}
-                              </p>
-                            </div>
-                            <div>
-                              {getStatusBadge(request.status)}
-                            </div>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ))}
+              <CardContent className="pt-8">
+                {/* Especificaciones del Módulo */}
+                <div className="space-y-6 max-w-4xl mx-auto">
+                  {/* Descripción General */}
+                  <div className="bg-gradient-to-br from-blue-50 to-indigo-50 p-6 rounded-xl border-2 border-blue-200">
+                    <h3 className="text-xl font-black text-blue-900 mb-3 flex items-center gap-2">
+                      <ShoppingCart className="h-6 w-6" />
+                      ¿Qué es este módulo?
+                    </h3>
+                    <p className="text-blue-800 leading-relaxed">
+                      El módulo de <strong>Pedidos de Suministros</strong> permitirá a los administradores de sede solicitar mercadería, ingredientes y productos desde la sede central o almacén principal de forma organizada y trazable.
+                    </p>
                   </div>
-                ) : (
-                  <div className="text-center py-12">
-                    <ShoppingCart className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                    <p className="text-muted-foreground mb-4">No has creado pedidos aún</p>
-                    <Button 
-                      className="bg-[#8B4513] hover:bg-[#6F370F]"
-                      onClick={() => setShowCreateModal(true)}
-                    >
-                      <Plus className="h-4 w-4 mr-2" />
-                      Crear Primer Pedido
-                    </Button>
+
+                  {/* Funcionalidades */}
+                  <div className="bg-gradient-to-br from-emerald-50 to-teal-50 p-6 rounded-xl border-2 border-emerald-200">
+                    <h3 className="text-xl font-black text-emerald-900 mb-4 flex items-center gap-2">
+                      <CheckCircle2 className="h-6 w-6" />
+                      Funcionalidades Incluidas
+                    </h3>
+                    <ul className="space-y-3 text-emerald-800">
+                      <li className="flex items-start gap-3">
+                        <span className="text-emerald-600 font-bold text-xl">•</span>
+                        <div>
+                          <strong>Crear Pedidos:</strong> Solicitar productos del catálogo con cantidades específicas.
+                        </div>
+                      </li>
+                      <li className="flex items-start gap-3">
+                        <span className="text-emerald-600 font-bold text-xl">•</span>
+                        <div>
+                          <strong>Historial de Pedidos:</strong> Ver todos los pedidos realizados con su estado actual (Pendiente, En Proceso, Completado).
+                        </div>
+                      </li>
+                      <li className="flex items-start gap-3">
+                        <span className="text-emerald-600 font-bold text-xl">•</span>
+                        <div>
+                          <strong>Tracking en Tiempo Real:</strong> Seguimiento del estado de cada pedido desde la solicitud hasta la entrega.
+                        </div>
+                      </li>
+                      <li className="flex items-start gap-3">
+                        <span className="text-emerald-600 font-bold text-xl">•</span>
+                        <div>
+                          <strong>Notificaciones:</strong> Alertas cuando un pedido cambia de estado o es completado.
+                        </div>
+                      </li>
+                      <li className="flex items-start gap-3">
+                        <span className="text-emerald-600 font-bold text-xl">•</span>
+                        <div>
+                          <strong>Reportes:</strong> Generación de reportes de pedidos por fecha, estado o sede.
+                        </div>
+                      </li>
+                    </ul>
                   </div>
-                )}
+
+                  {/* Requerimientos */}
+                  <div className="bg-gradient-to-br from-amber-50 to-orange-50 p-6 rounded-xl border-2 border-amber-200">
+                    <h3 className="text-xl font-black text-amber-900 mb-4 flex items-center gap-2">
+                      <AlertTriangle className="h-6 w-6" />
+                      Requerimientos del Sistema
+                    </h3>
+                    <ul className="space-y-3 text-amber-800">
+                      <li className="flex items-start gap-3">
+                        <span className="text-amber-600 font-bold text-xl">•</span>
+                        <div>
+                          <strong>Catálogo de Productos:</strong> Base de datos completa con todos los productos disponibles para pedido.
+                        </div>
+                      </li>
+                      <li className="flex items-start gap-3">
+                        <span className="text-amber-600 font-bold text-xl">•</span>
+                        <div>
+                          <strong>Control de Inventario:</strong> Integración con el módulo de logística para verificar stock disponible.
+                        </div>
+                      </li>
+                      <li className="flex items-start gap-3">
+                        <span className="text-amber-600 font-bold text-xl">•</span>
+                        <div>
+                          <strong>Roles y Permisos:</strong> Definir qué usuarios pueden crear, aprobar y completar pedidos.
+                        </div>
+                      </li>
+                      <li className="flex items-start gap-3">
+                        <span className="text-amber-600 font-bold text-xl">•</span>
+                        <div>
+                          <strong>Sistema de Aprobación:</strong> Flujo de trabajo para aprobar pedidos antes de procesarlos.
+                        </div>
+                      </li>
+                      <li className="flex items-start gap-3">
+                        <span className="text-amber-600 font-bold text-xl">•</span>
+                        <div>
+                          <strong>Notificaciones por Email:</strong> Configuración SMTP para enviar alertas automáticas.
+                        </div>
+                      </li>
+                    </ul>
+                  </div>
+
+                  {/* Beneficios */}
+                  <div className="bg-gradient-to-br from-purple-50 to-pink-50 p-6 rounded-xl border-2 border-purple-200">
+                    <h3 className="text-xl font-black text-purple-900 mb-4 flex items-center gap-2">
+                      <Clock className="h-6 w-6" />
+                      Beneficios para tu Sede
+                    </h3>
+                    <ul className="space-y-3 text-purple-800">
+                      <li className="flex items-start gap-3">
+                        <span className="text-purple-600 font-bold text-xl">✓</span>
+                        <div>Mayor control y trazabilidad de los pedidos realizados.</div>
+                      </li>
+                      <li className="flex items-start gap-3">
+                        <span className="text-purple-600 font-bold text-xl">✓</span>
+                        <div>Reducción de errores en la gestión de inventarios.</div>
+                      </li>
+                      <li className="flex items-start gap-3">
+                        <span className="text-purple-600 font-bold text-xl">✓</span>
+                        <div>Optimización del tiempo en la solicitud de suministros.</div>
+                      </li>
+                      <li className="flex items-start gap-3">
+                        <span className="text-purple-600 font-bold text-xl">✓</span>
+                        <div>Visibilidad completa del estado de cada pedido.</div>
+                      </li>
+                      <li className="flex items-start gap-3">
+                        <span className="text-purple-600 font-bold text-xl">✓</span>
+                        <div>Mejor planificación y previsión de necesidades.</div>
+                      </li>
+                    </ul>
+                  </div>
+
+                  {/* Mensaje Final */}
+                  <div className="text-center bg-gradient-to-r from-slate-50 to-gray-100 p-6 rounded-xl border-2 border-slate-300">
+                    <p className="text-slate-600 text-lg">
+                      Este módulo estará disponible próximamente. Mientras tanto, puedes contactar al administrador para realizar pedidos manuales.
+                    </p>
+                  </div>
+                </div>
               </CardContent>
             </Card>
           </TabsContent>

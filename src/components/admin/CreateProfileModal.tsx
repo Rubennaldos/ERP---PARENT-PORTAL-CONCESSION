@@ -257,6 +257,9 @@ export const CreateProfileModal = ({ open, onOpenChange, onSuccess }: CreateProf
     setLoading(true);
     try {
       console.log('🚀 Llamando a Edge Function create-user...');
+      console.log('📋 Valores del formulario:', values);
+      console.log('🎭 Rol seleccionado:', selectedRole);
+      console.log('🏫 Sede seleccionada:', selectedSchool);
 
       // Obtener el token de sesión actual
       const { data: { session } } = await supabase.auth.getSession();
@@ -267,30 +270,38 @@ export const CreateProfileModal = ({ open, onOpenChange, onSuccess }: CreateProf
 
       console.log('✅ Sesión obtenida, invocando función...');
 
+      // Preparar el body de la petición
+      const requestBody = {
+        email: values.email,
+        password: values.password,
+        full_name: values.full_name,
+        role: selectedRole,
+        school_id: selectedSchool || null,
+        pos_number: values.pos_number || null,
+        ticket_prefix: values.ticket_prefix || null,
+        dni: values.dni || null,
+        phone_1: values.phone_1 || null,
+        address: values.address || null,
+        nickname: values.nickname || null,
+      };
+
+      console.log('📦 Body de la petición:', JSON.stringify(requestBody, null, 2));
+
       // Llamar a la Edge Function para crear el usuario
       const { data, error } = await supabase.functions.invoke('create-user', {
-        body: {
-          email: values.email,
-          password: values.password,
-          full_name: values.full_name,
-          role: selectedRole,
-          school_id: selectedSchool || null,
-          pos_number: values.pos_number || null,
-          ticket_prefix: values.ticket_prefix || null,
-          dni: values.dni || null,
-          phone_1: values.phone_1 || null,
-          address: values.address || null,
-          nickname: values.nickname || null,
-        },
+        body: requestBody,
         headers: {
           Authorization: `Bearer ${session.access_token}`,
         },
       });
 
       console.log('📦 Respuesta de la función:', data);
+      console.log('❌ Error de la función:', error);
 
       if (error) {
         console.error('❌ Error desde Edge Function:', error);
+        console.error('❌ Error message:', error.message);
+        console.error('❌ Error context:', error.context);
         
         // Verificar si es error 404 (función no existe) o 400 (bad request)
         if (error.message?.includes('404') || error.message?.includes('FunctionsRelayError')) {
@@ -301,6 +312,8 @@ export const CreateProfileModal = ({ open, onOpenChange, onSuccess }: CreateProf
       }
 
       if (!data?.success) {
+        console.error('❌ La función respondió pero con success=false');
+        console.error('❌ Error desde data:', data?.error);
         throw new Error(data?.error || 'Error desconocido al crear usuario');
       }
 
@@ -316,10 +329,14 @@ export const CreateProfileModal = ({ open, onOpenChange, onSuccess }: CreateProf
       onSuccess?.();
     } catch (error: any) {
       console.error('❌ Error creating profile:', error);
+      console.error('❌ Error completo:', JSON.stringify(error, null, 2));
+      console.error('❌ Error stack:', error.stack);
+      
       toast({
         variant: 'destructive',
         title: 'Error al crear perfil',
         description: error.message || 'Ocurrió un error inesperado',
+        duration: 7000,
       });
     } finally {
       setLoading(false);
