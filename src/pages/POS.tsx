@@ -1279,13 +1279,28 @@ const POS = () => {
       const schoolIdForPrint = selectedStudent?.school_id || selectedTeacher?.school_id_1 || cashierProfile?.school_id;
       
       if (schoolIdForPrint) {
+        // Determinar tipo de venta y método de pago basado en clientMode
+        let saleType: 'general' | 'credit' | 'teacher';
+        let paymentMethodForPrint: 'cash' | 'card' | 'credit' | 'teacher';
+        
+        if (clientMode === 'teacher') {
+          saleType = 'teacher';
+          paymentMethodForPrint = 'teacher';
+        } else if (clientMode === 'student') {
+          saleType = 'credit';
+          paymentMethodForPrint = 'credit';
+        } else {
+          saleType = 'general';
+          paymentMethodForPrint = (paymentMethod === 'card' ? 'card' : 'cash') as 'cash' | 'card';
+        }
+        
         printPOSSale({
           ticketCode,
           clientName: ticketInfo.clientName,
           cart,
           total,
-          paymentMethod: clientMode === 'teacher' ? 'teacher' : (isFreeAccount ? 'credit' : paymentMethod),
-          saleType: clientMode === 'teacher' ? 'teacher' : (clientMode === 'student' ? 'credit' : 'general'),
+          paymentMethod: paymentMethodForPrint,
+          saleType: saleType,
           schoolId: schoolIdForPrint
         }).catch(err => console.error('Error en impresión:', err));
       }
