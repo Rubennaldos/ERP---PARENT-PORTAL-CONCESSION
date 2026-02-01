@@ -20,7 +20,8 @@ import {
   CheckCircle2,
   XCircle,
   Building2,
-  Eye
+  Eye,
+  UtensilsCrossed
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 
@@ -52,6 +53,13 @@ interface PrinterConfig {
   show_barcode: boolean;
   auto_print: boolean;
   copies: number;
+  // Nuevos campos para comanda
+  print_comanda: boolean;
+  comanda_header: string;
+  comanda_copies: number;
+  auto_generate_qr: boolean;
+  qr_prefix: string;
+  print_separate_comanda: boolean;
 }
 
 export function PrinterConfiguration() {
@@ -85,7 +93,14 @@ export function PrinterConfiguration() {
     show_qr_code: false,
     show_barcode: false,
     auto_print: false,
-    copies: 1
+    copies: 1,
+    // Valores por defecto para comanda
+    print_comanda: true,
+    comanda_header: 'COMANDA DE COCINA',
+    comanda_copies: 1,
+    auto_generate_qr: true,
+    qr_prefix: 'ORD',
+    print_separate_comanda: true
   });
 
   // Cargar sedes
@@ -365,7 +380,7 @@ export function PrinterConfiguration() {
 
       {/* Tabs de configuración */}
       <Tabs defaultValue="general" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="general">
             <Settings2 className="h-4 w-4 mr-2" />
             General
@@ -377,6 +392,10 @@ export function PrinterConfiguration() {
           <TabsTrigger value="ticket">
             <FileText className="h-4 w-4 mr-2" />
             Formato Ticket
+          </TabsTrigger>
+          <TabsTrigger value="comanda">
+            <UtensilsCrossed className="h-4 w-4 mr-2" />
+            Comanda
           </TabsTrigger>
           <TabsTrigger value="preview">
             <Eye className="h-4 w-4 mr-2" />
@@ -685,107 +704,348 @@ export function PrinterConfiguration() {
           </Card>
         </TabsContent>
 
+        {/* TAB: Comanda */}
+        <TabsContent value="comanda" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">Configuración de Comanda</CardTitle>
+              <CardDescription>
+                Configura la impresión automática de comandas para cocina/bar
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="space-y-4">
+                <div className="flex items-center justify-between p-4 border rounded-lg bg-orange-50 dark:bg-orange-950/20">
+                  <div>
+                    <Label className="font-semibold">Imprimir Comanda Automáticamente</Label>
+                    <p className="text-sm text-muted-foreground">
+                      Después de cada venta, imprimir comanda para cocina/bar
+                    </p>
+                  </div>
+                  <Switch
+                    checked={config.print_comanda}
+                    onCheckedChange={(checked) => setConfig({ ...config, print_comanda: checked })}
+                  />
+                </div>
+
+                {config.print_comanda && (
+                  <>
+                    <div className="space-y-2">
+                      <Label htmlFor="comanda-header">Encabezado de Comanda</Label>
+                      <Input
+                        id="comanda-header"
+                        value={config.comanda_header}
+                        onChange={(e) => setConfig({ ...config, comanda_header: e.target.value })}
+                        placeholder="Ej: COMANDA DE COCINA"
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="comanda-copies">Copias de Comanda</Label>
+                        <Input
+                          id="comanda-copies"
+                          type="number"
+                          value={config.comanda_copies}
+                          onChange={(e) => setConfig({ ...config, comanda_copies: parseInt(e.target.value) || 1 })}
+                          min={1}
+                          max={5}
+                        />
+                        <p className="text-xs text-muted-foreground">
+                          Ej: 1 para cocina, 2 para cocina + bar
+                        </p>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="qr-prefix">Prefijo del Código</Label>
+                        <Input
+                          id="qr-prefix"
+                          value={config.qr_prefix}
+                          onChange={(e) => setConfig({ ...config, qr_prefix: e.target.value.toUpperCase() })}
+                          placeholder="ORD"
+                          maxLength={10}
+                        />
+                        <p className="text-xs text-muted-foreground">
+                          Ej: ORD-12345, PED-12345, TKT-12345
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between p-4 border rounded-lg">
+                      <div>
+                        <Label>Generar Código QR Único</Label>
+                        <p className="text-sm text-muted-foreground">
+                          Cada pedido tendrá un código QR aleatorio para seguimiento
+                        </p>
+                      </div>
+                      <Switch
+                        checked={config.auto_generate_qr}
+                        onCheckedChange={(checked) => setConfig({ ...config, auto_generate_qr: checked })}
+                      />
+                    </div>
+
+                    <div className="flex items-center justify-between p-4 border rounded-lg">
+                      <div>
+                        <Label>Imprimir Comanda Separada</Label>
+                        <p className="text-sm text-muted-foreground">
+                          Imprimir comanda como documento independiente (no junto al ticket)
+                        </p>
+                      </div>
+                      <Switch
+                        checked={config.print_separate_comanda}
+                        onCheckedChange={(checked) => setConfig({ ...config, print_separate_comanda: checked })}
+                      />
+                    </div>
+
+                    {/* Ejemplo visual de flujo de impresión */}
+                    <div className="border-2 border-dashed rounded-lg p-6 bg-muted/20">
+                      <h4 className="font-semibold mb-4 flex items-center gap-2">
+                        <Printer className="h-5 w-5" />
+                        Flujo de Impresión Automática
+                      </h4>
+                      <div className="space-y-3">
+                        <div className="flex items-center gap-3">
+                          <div className="flex-shrink-0 w-8 h-8 rounded-full bg-blue-500 text-white flex items-center justify-center text-sm font-bold">
+                            1
+                          </div>
+                          <div>
+                            <p className="font-medium">Se completa la venta en POS</p>
+                            <p className="text-sm text-muted-foreground">
+                              Ticket: {config.copies} copia(s) • Comanda: {config.comanda_copies} copia(s)
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-3">
+                          <div className="flex-shrink-0 w-8 h-8 rounded-full bg-green-500 text-white flex items-center justify-center text-sm font-bold">
+                            2
+                          </div>
+                          <div>
+                            <p className="font-medium">Se genera código único</p>
+                            <p className="text-sm text-muted-foreground">
+                              {config.auto_generate_qr ? `${config.qr_prefix}-XXXXX (con QR)` : 'Sin código QR'}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-3">
+                          <div className="flex-shrink-0 w-8 h-8 rounded-full bg-purple-500 text-white flex items-center justify-center text-sm font-bold">
+                            3
+                          </div>
+                          <div>
+                            <p className="font-medium">Impresión automática</p>
+                            <p className="text-sm text-muted-foreground">
+                              {config.print_separate_comanda 
+                                ? '📄 Ticket → Cliente | 🍽️ Comanda → Cocina (separados)'
+                                : '📄 Ticket + Comanda juntos'
+                              }
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
         {/* TAB: Vista Previa */}
         <TabsContent value="preview" className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle className="text-lg">Vista Previa del Ticket</CardTitle>
+              <CardTitle className="text-lg">Vista Previa de Impresión</CardTitle>
               <CardDescription>
-                Simulación de cómo se verá el ticket impreso
+                Simulación de cómo se verán el ticket y la comanda
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="flex justify-center">
-                <div 
-                  className="bg-white text-black p-6 rounded-lg shadow-lg border-2 border-dashed"
-                  style={{ 
-                    width: `${config.paper_width * 3}px`,
-                    fontFamily: config.font_family,
-                    fontSize: config.font_size === 'small' ? '12px' : config.font_size === 'large' ? '16px' : '14px'
-                  }}
-                >
-                  {/* Logo */}
-                  {logoPreview && (
-                    <div className="text-center mb-4">
-                      <img
-                        src={logoPreview}
-                        alt="Logo"
-                        style={{
-                          width: `${config.logo_width}px`,
-                          height: `${config.logo_height}px`,
-                          margin: '0 auto',
-                          objectFit: 'contain'
-                        }}
-                      />
-                    </div>
-                  )}
+              <div className="flex gap-6 justify-center flex-wrap">
+                {/* Vista Previa TICKET */}
+                <div>
+                  <h4 className="text-sm font-semibold mb-2 text-center">
+                    📄 TICKET (Cliente) {config.copies > 1 && `x${config.copies}`}
+                  </h4>
+                  <div 
+                    className="bg-white text-black p-6 rounded-lg shadow-lg border-2 border-dashed"
+                    style={{ 
+                      width: `${config.paper_width * 3}px`,
+                      fontFamily: config.font_family,
+                      fontSize: config.font_size === 'small' ? '12px' : config.font_size === 'large' ? '16px' : '14px'
+                    }}
+                  >
+                    {/* Logo */}
+                    {logoPreview && (
+                      <div className="text-center mb-4">
+                        <img
+                          src={logoPreview}
+                          alt="Logo"
+                          style={{
+                            width: `${config.logo_width}px`,
+                            height: `${config.logo_height}px`,
+                            margin: '0 auto',
+                            objectFit: 'contain'
+                          }}
+                        />
+                      </div>
+                    )}
 
-                  {/* Información del negocio */}
-                  <div className="text-center mb-4 border-b pb-2">
-                    <div className="font-bold">{config.business_name || selectedSchoolName}</div>
-                    {config.business_ruc && <div className="text-xs">RUC: {config.business_ruc}</div>}
-                    {config.business_address && <div className="text-xs">{config.business_address}</div>}
-                    {config.business_phone && <div className="text-xs">Tel: {config.business_phone}</div>}
+                    {/* Información del negocio */}
+                    <div className="text-center mb-4 border-b pb-2">
+                      <div className="font-bold">{config.business_name || selectedSchoolName}</div>
+                      {config.business_ruc && <div className="text-xs">RUC: {config.business_ruc}</div>}
+                      {config.business_address && <div className="text-xs">{config.business_address}</div>}
+                      {config.business_phone && <div className="text-xs">Tel: {config.business_phone}</div>}
+                    </div>
+
+                    {/* Header */}
+                    {config.print_header && (
+                      <div className="text-center font-bold mb-3 text-sm">
+                        {config.header_text}
+                      </div>
+                    )}
+
+                    {/* Contenido del ticket (ejemplo) */}
+                    <div className="space-y-1 mb-3 text-xs">
+                      <div className="flex justify-between">
+                        <span>Fecha:</span>
+                        <span>{new Date().toLocaleString('es-PE')}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Ticket:</span>
+                        <span>#{config.auto_generate_qr ? `${config.qr_prefix}-12345` : '001234'}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Cajero:</span>
+                        <span>Usuario Demo</span>
+                      </div>
+                    </div>
+
+                    <div className="border-t border-b py-2 mb-2">
+                      <div className="flex justify-between text-xs mb-1">
+                        <span>Producto de Ejemplo</span>
+                        <span>S/ 10.00</span>
+                      </div>
+                      <div className="flex justify-between text-xs">
+                        <span>Combo de Ejemplo</span>
+                        <span>S/ 15.00</span>
+                      </div>
+                    </div>
+
+                    <div className="text-right font-bold mb-3">
+                      TOTAL: S/ 25.00
+                    </div>
+
+                    {/* QR o Barcode */}
+                    {(config.show_qr_code || config.show_barcode || config.auto_generate_qr) && (
+                      <div className="text-center mb-3 border p-2">
+                        {(config.show_qr_code || config.auto_generate_qr) && (
+                          <div className="text-xs text-gray-500 font-mono">
+                            [QR: {config.qr_prefix}-12345]
+                          </div>
+                        )}
+                        {config.show_barcode && (
+                          <div className="text-xs text-gray-500 mt-1">|||||||||||||||||||</div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Footer */}
+                    {config.print_footer && (
+                      <div className="text-center text-xs border-t pt-2">
+                        {config.footer_text}
+                      </div>
+                    )}
                   </div>
-
-                  {/* Header */}
-                  {config.print_header && (
-                    <div className="text-center font-bold mb-3 text-sm">
-                      {config.header_text}
-                    </div>
-                  )}
-
-                  {/* Contenido del ticket (ejemplo) */}
-                  <div className="space-y-1 mb-3 text-xs">
-                    <div className="flex justify-between">
-                      <span>Fecha:</span>
-                      <span>{new Date().toLocaleString('es-PE')}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>Ticket:</span>
-                      <span>#001234</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>Cajero:</span>
-                      <span>Usuario Demo</span>
-                    </div>
-                  </div>
-
-                  <div className="border-t border-b py-2 mb-2">
-                    <div className="flex justify-between text-xs mb-1">
-                      <span>Producto de Ejemplo</span>
-                      <span>S/ 10.00</span>
-                    </div>
-                    <div className="flex justify-between text-xs">
-                      <span>Combo de Ejemplo</span>
-                      <span>S/ 15.00</span>
-                    </div>
-                  </div>
-
-                  <div className="text-right font-bold mb-3">
-                    TOTAL: S/ 25.00
-                  </div>
-
-                  {/* QR o Barcode */}
-                  {(config.show_qr_code || config.show_barcode) && (
-                    <div className="text-center mb-3">
-                      {config.show_qr_code && (
-                        <div className="text-xs text-gray-500">[Código QR]</div>
-                      )}
-                      {config.show_barcode && (
-                        <div className="text-xs text-gray-500">[Código de Barras]</div>
-                      )}
-                    </div>
-                  )}
-
-                  {/* Footer */}
-                  {config.print_footer && (
-                    <div className="text-center text-xs border-t pt-2">
-                      {config.footer_text}
-                    </div>
-                  )}
                 </div>
+
+                {/* Vista Previa COMANDA */}
+                {config.print_comanda && (
+                  <div>
+                    <h4 className="text-sm font-semibold mb-2 text-center text-orange-600">
+                      🍽️ COMANDA (Cocina/Bar) {config.comanda_copies > 1 && `x${config.comanda_copies}`}
+                    </h4>
+                    <div 
+                      className="bg-orange-50 text-black p-6 rounded-lg shadow-lg border-2 border-dashed border-orange-300"
+                      style={{ 
+                        width: `${config.paper_width * 3}px`,
+                        fontFamily: config.font_family,
+                        fontSize: config.font_size === 'small' ? '12px' : config.font_size === 'large' ? '16px' : '14px'
+                      }}
+                    >
+                      {/* Header de Comanda */}
+                      <div className="text-center font-bold text-lg mb-4 border-b-2 border-orange-400 pb-2">
+                        {config.comanda_header}
+                      </div>
+
+                      {/* Info del pedido */}
+                      <div className="space-y-1 mb-4 text-xs">
+                        <div className="flex justify-between">
+                          <span className="font-semibold">PEDIDO:</span>
+                          <span className="font-mono font-bold">
+                            {config.auto_generate_qr ? `${config.qr_prefix}-12345` : '#001234'}
+                          </span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="font-semibold">HORA:</span>
+                          <span>{new Date().toLocaleTimeString('es-PE')}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="font-semibold">MESA/CLIENTE:</span>
+                          <span>Cliente Demo</span>
+                        </div>
+                      </div>
+
+                      <div className="border-t-2 border-b-2 border-orange-400 py-3 mb-3">
+                        <div className="text-xs font-bold mb-2">PRODUCTOS:</div>
+                        <div className="space-y-2 text-xs">
+                          <div>
+                            <div className="font-semibold">1x Producto de Ejemplo</div>
+                            <div className="text-gray-600 ml-3">- Sin observaciones</div>
+                          </div>
+                          <div>
+                            <div className="font-semibold">1x Combo de Ejemplo</div>
+                            <div className="text-gray-600 ml-3">- Incluye bebida</div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* QR único de la comanda */}
+                      {config.auto_generate_qr && (
+                        <div className="text-center border-2 border-orange-400 p-3 bg-white">
+                          <div className="text-xs font-mono font-bold">
+                            QR: {config.qr_prefix}-12345
+                          </div>
+                          <div className="text-xs text-gray-500 mt-1">
+                            Escanear para confirmar entrega
+                          </div>
+                        </div>
+                      )}
+
+                      <div className="mt-3 text-center text-xs text-gray-600">
+                        ⏰ Preparar y entregar
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
+
+              {/* Información adicional */}
+              {config.print_comanda && (
+                <div className="mt-6 p-4 bg-blue-50 dark:bg-blue-950/20 rounded-lg border border-blue-200">
+                  <h5 className="font-semibold mb-2 flex items-center gap-2">
+                    <CheckCircle2 className="h-5 w-5 text-blue-600" />
+                    Flujo de Impresión Configurado
+                  </h5>
+                  <ul className="space-y-1 text-sm text-muted-foreground">
+                    <li>✅ Ticket: {config.copies} copia(s) para el cliente</li>
+                    <li>✅ Comanda: {config.comanda_copies} copia(s) para {config.print_separate_comanda ? 'cocina/bar (separada)' : 'cocina (junto al ticket)'}</li>
+                    <li>✅ Código único: {config.auto_generate_qr ? `${config.qr_prefix}-XXXXX con QR` : 'Sin QR'}</li>
+                    <li>✅ Impresión: {config.auto_print ? 'Automática después de venta' : 'Manual (requiere confirmación)'}</li>
+                  </ul>
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>

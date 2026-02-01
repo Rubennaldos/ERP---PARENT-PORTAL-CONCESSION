@@ -50,12 +50,7 @@ CREATE TABLE IF NOT EXISTS public.printer_configs (
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   created_by UUID REFERENCES auth.users(id),
-  updated_by UUID REFERENCES auth.users(id),
-  
-  -- Constraint: Una configuración activa por sede
-  CONSTRAINT unique_active_config_per_school 
-    UNIQUE (school_id, is_active) 
-    WHERE is_active = true
+  updated_by UUID REFERENCES auth.users(id)
 );
 
 -- Índices para mejorar el rendimiento
@@ -64,6 +59,11 @@ CREATE INDEX IF NOT EXISTS idx_printer_configs_school_id
 
 CREATE INDEX IF NOT EXISTS idx_printer_configs_active 
   ON public.printer_configs(is_active) 
+  WHERE is_active = true;
+
+-- Índice único parcial: Solo una configuración activa por sede
+CREATE UNIQUE INDEX IF NOT EXISTS idx_unique_active_config_per_school
+  ON public.printer_configs(school_id)
   WHERE is_active = true;
 
 -- Comentarios en la tabla y columnas
