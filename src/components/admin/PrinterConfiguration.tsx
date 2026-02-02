@@ -92,6 +92,12 @@ interface PrinterConfig {
   print_comanda_credit: boolean;
   print_ticket_teacher: boolean;
   print_comanda_teacher: boolean;
+  // Campos para cajón de dinero
+  open_cash_drawer?: boolean;
+  cash_drawer_pin?: number;
+  open_drawer_on_general?: boolean;
+  open_drawer_on_credit?: boolean;
+  open_drawer_on_teacher?: boolean;
 }
 
 export function PrinterConfiguration() {
@@ -151,7 +157,13 @@ export function PrinterConfiguration() {
     print_ticket_credit: false,
     print_comanda_credit: true,
     print_ticket_teacher: false,
-    print_comanda_teacher: true
+    print_comanda_teacher: true,
+    // Valores por defecto para cajón de dinero
+    open_cash_drawer: true,
+    cash_drawer_pin: 2,
+    open_drawer_on_general: true,
+    open_drawer_on_credit: false,
+    open_drawer_on_teacher: false
   });
 
   // Cargar sedes
@@ -1047,6 +1059,145 @@ export function PrinterConfiguration() {
                   </div>
                 )}
               </div>
+            </CardContent>
+          </Card>
+
+          {/* Card de Configuración del Cajón de Dinero */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg flex items-center gap-2">
+                💰 Cajón de Dinero Automático
+              </CardTitle>
+              <CardDescription>
+                Configura la apertura automática del cajón de dinero conectado a la impresora
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {/* Switch principal para habilitar cajón */}
+              <div className="flex items-center justify-between p-4 border rounded-lg bg-green-50 dark:bg-green-950/20">
+                <div>
+                  <Label className="font-semibold flex items-center gap-2">
+                    💰 Habilitar Apertura del Cajón
+                  </Label>
+                  <p className="text-sm text-muted-foreground">
+                    El cajón se abrirá automáticamente al imprimir tickets
+                  </p>
+                </div>
+                <Switch
+                  checked={config.open_cash_drawer ?? true}
+                  onCheckedChange={(checked) => setConfig({ ...config, open_cash_drawer: checked })}
+                />
+              </div>
+
+              {config.open_cash_drawer && (
+                <>
+                  {/* Pin del cajón */}
+                  <div className="space-y-2 p-4 border rounded-lg bg-blue-50 dark:bg-blue-950/10">
+                    <Label htmlFor="cash-drawer-pin" className="font-semibold">
+                      Pin del Cajón de Dinero
+                    </Label>
+                    <Select 
+                      value={String(config.cash_drawer_pin ?? 2)} 
+                      onValueChange={(val) => setConfig({ ...config, cash_drawer_pin: parseInt(val) })}
+                    >
+                      <SelectTrigger id="cash-drawer-pin">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="2">
+                          Pin 2 (Estándar - mayoría de impresoras)
+                        </SelectItem>
+                        <SelectItem value="5">
+                          Pin 5 (Alternativo - algunas marcas)
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-muted-foreground">
+                      💡 El pin 2 es el estándar. Si no funciona, prueba con pin 5
+                    </p>
+                  </div>
+
+                  {/* Configuración por tipo de venta */}
+                  <div className="space-y-3 p-4 border rounded-lg">
+                    <h4 className="font-semibold text-sm">Abrir cajón en:</h4>
+                    
+                    <div className="flex items-center justify-between p-3 border rounded-lg bg-white dark:bg-gray-900">
+                      <div>
+                        <Label className="font-medium">💳 Ventas Generales</Label>
+                        <p className="text-xs text-muted-foreground">Efectivo, Tarjeta, Yape</p>
+                      </div>
+                      <Switch
+                        checked={config.open_drawer_on_general ?? true}
+                        onCheckedChange={(checked) => setConfig({ ...config, open_drawer_on_general: checked })}
+                      />
+                    </div>
+
+                    <div className="flex items-center justify-between p-3 border rounded-lg bg-white dark:bg-gray-900">
+                      <div>
+                        <Label className="font-medium">🎓 Ventas a Crédito</Label>
+                        <p className="text-xs text-muted-foreground">Estudiantes con cuenta</p>
+                      </div>
+                      <Switch
+                        checked={config.open_drawer_on_credit ?? false}
+                        onCheckedChange={(checked) => setConfig({ ...config, open_drawer_on_credit: checked })}
+                      />
+                    </div>
+
+                    <div className="flex items-center justify-between p-3 border rounded-lg bg-white dark:bg-gray-900">
+                      <div>
+                        <Label className="font-medium">👨‍🏫 Ventas a Profesores</Label>
+                        <p className="text-xs text-muted-foreground">Personal docente</p>
+                      </div>
+                      <Switch
+                        checked={config.open_drawer_on_teacher ?? false}
+                        onCheckedChange={(checked) => setConfig({ ...config, open_drawer_on_teacher: checked })}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Información de conexión */}
+                  <div className="p-4 bg-yellow-50 dark:bg-yellow-950/20 border border-yellow-200 rounded-lg">
+                    <h4 className="font-semibold text-sm mb-2 flex items-center gap-2">
+                      <Cable className="h-4 w-4 text-yellow-600" />
+                      Conexión del Cajón de Dinero
+                    </h4>
+                    <ul className="space-y-1 text-xs text-muted-foreground">
+                      <li>✅ Conecta el cajón a la impresora térmica usando cable RJ-11</li>
+                      <li>✅ El puerto suele estar etiquetado como "DK" (Drawer Kick) o "CASH DRAWER"</li>
+                      <li>✅ Coloca la llave del cajón en posición "2" (controlado por impresora)</li>
+                      <li>✅ El cajón se abrirá automáticamente al imprimir según la configuración</li>
+                    </ul>
+                    <p className="text-xs text-blue-600 dark:text-blue-400 mt-2">
+                      📖 Ver <strong>GUIA_CAJON_DINERO.md</strong> para instrucciones detalladas
+                    </p>
+                  </div>
+
+                  {/* Resumen visual */}
+                  <div className="p-4 border rounded-lg bg-purple-50 dark:bg-purple-950/20">
+                    <h4 className="font-semibold text-sm mb-2">Resumen de Apertura</h4>
+                    <div className="space-y-1 text-xs">
+                      <div className="flex justify-between">
+                        <span>💳 Ventas Generales:</span>
+                        <span className={config.open_drawer_on_general ? 'text-green-600 font-semibold' : 'text-red-600'}>
+                          {config.open_drawer_on_general ? '✅ Abrirá cajón' : '❌ No abrirá'}
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>🎓 Ventas a Crédito:</span>
+                        <span className={config.open_drawer_on_credit ? 'text-green-600 font-semibold' : 'text-red-600'}>
+                          {config.open_drawer_on_credit ? '✅ Abrirá cajón' : '❌ No abrirá'}
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>👨‍🏫 Ventas a Profesores:</span>
+                        <span className={config.open_drawer_on_teacher ? 'text-green-600 font-semibold' : 'text-red-600'}>
+                          {config.open_drawer_on_teacher ? '✅ Abrirá cajón' : '❌ No abrirá'}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </>
+              )}
             </CardContent>
           </Card>
 
