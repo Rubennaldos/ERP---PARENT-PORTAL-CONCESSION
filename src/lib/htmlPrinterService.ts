@@ -302,23 +302,28 @@ function generateTicketHTML(data: TicketData): string {
       </div>
       
       <script>
-        // Auto-cerrar ventana después de imprimir
-        window.addEventListener('afterprint', function() {
-          console.log('✅ Impresión completada - Cerrando ventana en 1 segundo...');
+        // 🚀 Imprimir INMEDIATAMENTE cuando la ventana carga
+        window.addEventListener('load', function() {
+          console.log('🚀 Ventana cargada - Abriendo diálogo de impresión...');
+          // Pequeño delay para asegurar que todo esté renderizado
           setTimeout(function() {
-            window.close();
-          }, 1000);
+            window.print();
+          }, 100);
         });
         
-        // También cerrar si el usuario cancela la impresión
-        let printDialogClosed = false;
+        // Auto-cerrar ventana después de imprimir
+        window.addEventListener('afterprint', function() {
+          console.log('✅ Impresión completada - Cerrando ventana...');
+          setTimeout(function() {
+            window.close();
+          }, 500);
+        });
+        
+        // Cerrar si el usuario cancela
+        let printCancelled = false;
         window.addEventListener('focus', function() {
-          if (!printDialogClosed) {
-            printDialogClosed = true;
-            setTimeout(function() {
-              // Si no imprimió, cerrar después de 2 segundos
-              console.log('ℹ️  Si no vas a imprimir, la ventana se cerrará automáticamente');
-            }, 2000);
+          if (!printCancelled) {
+            printCancelled = true;
           }
         });
       </script>
@@ -556,12 +561,20 @@ function generateComandaHTML(data: ComandaData): string {
       </div>
       
       <script>
+        // 🚀 Imprimir INMEDIATAMENTE cuando la ventana carga
+        window.addEventListener('load', function() {
+          console.log('🚀 Comanda cargada - Abriendo diálogo de impresión...');
+          setTimeout(function() {
+            window.print();
+          }, 100);
+        });
+        
         // Auto-cerrar ventana después de imprimir
         window.addEventListener('afterprint', function() {
           console.log('✅ Comanda impresa - Cerrando ventana...');
           setTimeout(function() {
             window.close();
-          }, 1000);
+          }, 500);
         });
       </script>
     </body>
