@@ -127,11 +127,21 @@ function shouldPrintComanda(config: PrintConfig, saleType: string): boolean {
  */
 export async function printPOSSale(saleData: SaleData): Promise<void> {
   try {
-    // Verificar si QZ Tray está disponible
-    const qzAvailable = await isQZTrayAvailable();
-    
     // Obtener configuración de impresora
     const config = await getPrinterConfig(saleData.schoolId);
+    
+    // Intentar QZ Tray con timeout
+    let qzAvailable = false;
+    try {
+      console.log('🔍 Verificando QZ Tray...');
+      qzAvailable = await Promise.race([
+        isQZTrayAvailable(),
+        new Promise<boolean>((resolve) => setTimeout(() => resolve(false), 3000)) // 3 segundos timeout
+      ]);
+    } catch (error) {
+      console.warn('⚠️ Error verificando QZ Tray:', error);
+      qzAvailable = false;
+    }
     
     // Si QZ Tray NO está disponible, usar impresión HTML
     if (!qzAvailable) {
@@ -139,8 +149,10 @@ export async function printPOSSale(saleData: SaleData): Promise<void> {
       return await printPOSSaleHTML(saleData, config);
     }
     
+    console.log('✅ QZ Tray disponible - Intentando imprimir...');
+    
     if (!config) {
-      console.warn('⚠️ Sin configuración de impresora - Usando impresión HTML');
+      console.warn('⚠️ Sin configuración de impresora - Usando impresión HTML como fallback');
       return await printPOSSaleHTML(saleData, null);
     }
 
@@ -224,8 +236,17 @@ export async function printPOSSale(saleData: SaleData): Promise<void> {
     }
 
   } catch (error) {
-    console.error('❌ Error general en printPOSSale:', error);
-    // No lanzar error - la venta ya se completó exitosamente
+    console.error('❌ Error general en printPOSSale con QZ Tray:', error);
+    console.log('🔄 Intentando con impresión HTML como fallback...');
+    
+    // Fallback a HTML si QZ Tray falla
+    try {
+      const config = await getPrinterConfig(saleData.schoolId);
+      await printPOSSaleHTML(saleData, config);
+    } catch (htmlError) {
+      console.error('❌ Error también con HTML:', htmlError);
+      // No lanzar error - la venta ya se completó exitosamente
+    }
   }
 }
 
