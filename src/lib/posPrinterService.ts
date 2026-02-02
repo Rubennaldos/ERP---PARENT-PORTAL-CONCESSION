@@ -10,8 +10,8 @@ import {
   generateComandaContent,
   isQZTrayAvailable 
 } from './printerService';
-import { printTicketHTML, isHTMLPrintAvailable } from './htmlPrinterService';
-import type { TicketData } from './htmlPrinterService';
+import { printTicketHTML, printComandaHTML, isHTMLPrintAvailable } from './htmlPrinterService';
+import type { TicketData, ComandaData } from './htmlPrinterService';
 
 interface PrintConfig {
   printer_device_name: string;
@@ -257,37 +257,65 @@ async function printPOSSaleHTML(saleData: SaleData, config: PrintConfig | null):
   try {
     console.log('🖨️ Imprimiendo con HTML (sin QZ Tray)');
     
-    // Preparar datos del ticket para HTML
-    const ticketData: TicketData = {
-      businessName: config?.business_name || 'LIMA CAFÉ 28',
-      businessRuc: config?.business_ruc || null,
-      businessAddress: config?.business_address || null,
-      businessPhone: config?.business_phone || null,
-      ticketCode: saleData.ticketCode,
-      date: new Date().toLocaleString('es-PE'),
-      clientName: saleData.clientName,
-      items: saleData.cart.map(item => ({
-        name: item.product.name,
-        quantity: item.quantity,
-        price: item.product.price,
-        total: item.product.price * item.quantity
-      })),
-      subtotal: saleData.total / 1.18, // Sin IGV
-      tax: saleData.total - (saleData.total / 1.18), // IGV 18%
-      total: saleData.total,
-      paymentMethod: saleData.paymentMethod === 'cash' ? 'Efectivo' : 
-                     saleData.paymentMethod === 'card' ? 'Tarjeta' :
-                     saleData.paymentMethod === 'credit' ? 'Crédito' :
-                     saleData.paymentMethod === 'teacher' ? 'Profesor' : 'Otro',
-      headerText: config?.print_header ? config.header_text : undefined,
-      footerText: config?.print_footer ? config.footer_text : undefined
-    };
+    // Determinar si debe imprimir ticket y/o comanda
+    const shouldPrintTicketNow = config ? shouldPrintTicket(config, saleData.saleType) : true;
+    const shouldPrintComandaNow = config ? shouldPrintComanda(config, saleData.saleType) : 
+                                   (saleData.saleType === 'credit' || saleData.saleType === 'teacher');
     
-    // Imprimir usando HTML
-    printTicketHTML(ticketData);
+    // IMPRIMIR TICKET (si está configurado)
+    if (shouldPrintTicketNow) {
+      // Preparar datos del ticket para HTML
+      const ticketData: TicketData = {
+        businessName: config?.business_name || 'LIMA CAFÉ 28',
+        businessRuc: config?.business_ruc || null,
+        businessAddress: config?.business_address || null,
+        businessPhone: config?.business_phone || null,
+        ticketCode: saleData.ticketCode,
+        date: new Date().toLocaleString('es-PE'),
+        clientName: saleData.clientName,
+        items: saleData.cart.map(item => ({
+          name: item.product.name,
+          quantity: item.quantity,
+          price: item.product.price,
+          total: item.product.price * item.quantity
+        })),
+        subtotal: saleData.total / 1.18, // Sin IGV
+        tax: saleData.total - (saleData.total / 1.18), // IGV 18%
+        total: saleData.total,
+        paymentMethod: saleData.paymentMethod === 'cash' ? 'Efectivo' : 
+                       saleData.paymentMethod === 'card' ? 'Tarjeta' :
+                       saleData.paymentMethod === 'credit' ? 'Crédito' :
+                       saleData.paymentMethod === 'teacher' ? 'Profesor' : 'Otro',
+        headerText: config?.print_header ? config.header_text : undefined,
+        footerText: config?.print_footer ? config.footer_text : undefined
+      };
+      
+      // Imprimir ticket
+      printTicketHTML(ticketData);
+      console.log('✅ Ticket HTML generado');
+    }
     
-    console.log('✅ Ticket HTML generado exitosamente');
-    console.log('ℹ️  Ventana de impresión abierta - El usuario puede imprimir con Ctrl+P');
+    // IMPRIMIR COMANDA (si está configurado o es crédito/profesor)
+    if (shouldPrintComandaNow) {
+      // Pequeño delay para que no se abran ambas ventanas al mismo tiempo
+      setTimeout(() => {
+        const comandaData: ComandaData = {
+          ticketCode: saleData.ticketCode,
+          date: new Date().toLocaleString('es-PE'),
+          clientName: saleData.clientName,
+          items: saleData.cart.map(item => ({
+            name: item.product.name,
+            quantity: item.quantity
+          })),
+          headerText: config?.comanda_header || '🍽️ COMANDA COCINA'
+        };
+        
+        printComandaHTML(comandaData);
+        console.log('✅ Comanda HTML generada');
+      }, 800); // 800ms después del ticket
+    }
+    
+    console.log('ℹ️  Ventanas de impresión abiertas - El usuario puede imprimir con Ctrl+P');
     
   } catch (error) {
     console.error('❌ Error al imprimir con HTML:', error);

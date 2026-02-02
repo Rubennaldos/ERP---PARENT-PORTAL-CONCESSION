@@ -26,6 +26,18 @@ export interface TicketData {
   footerText?: string;
 }
 
+export interface ComandaData {
+  ticketCode: string;
+  date: string;
+  clientName: string;
+  items: Array<{
+    name: string;
+    quantity: number;
+    notes?: string;
+  }>;
+  headerText?: string;
+}
+
 /**
  * Generar HTML del ticket con estilos para impresora térmica
  */
@@ -309,21 +321,22 @@ export function printTicketHTML(ticketData: TicketData): void {
     // Generar HTML del ticket
     const ticketHTML = generateTicketHTML(ticketData);
     
-    // Abrir ventana nueva
-    const printWindow = window.open('', '_blank', 'width=400,height=600');
+    // Abrir ventana nueva optimizada (más rápida)
+    const printWindow = window.open('', '_blank', 'width=400,height=600,resizable=yes,scrollbars=yes');
     
     if (!printWindow) {
       throw new Error('No se pudo abrir ventana de impresión. Verifica que no esté bloqueada por el navegador.');
     }
     
-    // Escribir HTML en la ventana
+    // Escribir HTML en la ventana (más rápido con write directo)
+    printWindow.document.open();
     printWindow.document.write(ticketHTML);
     printWindow.document.close();
     
-    // Enfocar la ventana
+    // Enfocar la ventana inmediatamente
     printWindow.focus();
     
-    console.log('✅ Ventana de impresión abierta exitosamente');
+    console.log('✅ Ventana de ticket abierta en', Date.now());
     console.log('ℹ️  El usuario puede imprimir con Ctrl+P o click en "Imprimir Ticket"');
     
   } catch (error) {
@@ -340,7 +353,228 @@ export function isHTMLPrintAvailable(): boolean {
   return typeof window !== 'undefined' && typeof window.print === 'function';
 }
 
+/**
+ * Generar HTML de la comanda (para cocina)
+ */
+function generateComandaHTML(data: ComandaData): string {
+  const itemsHTML = data.items.map(item => `
+    <div class="comanda-item">
+      <div class="item-quantity">${item.quantity}x</div>
+      <div class="item-name">${item.name}</div>
+      ${item.notes ? `<div class="item-notes">→ ${item.notes}</div>` : ''}
+    </div>
+  `).join('');
+
+  return `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="UTF-8">
+      <title>Comanda ${data.ticketCode}</title>
+      <style>
+        @page {
+          size: 80mm auto;
+          margin: 0;
+        }
+        
+        @media print {
+          body { margin: 0; padding: 5mm; }
+          .no-print { display: none !important; }
+        }
+        
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+          font-family: 'Courier New', monospace;
+          font-size: 14px;
+          line-height: 1.5;
+          max-width: 80mm;
+          margin: 0 auto;
+          padding: 10px;
+        }
+        
+        .comanda-header {
+          text-align: center;
+          background: #000;
+          color: #fff;
+          padding: 15px;
+          margin-bottom: 15px;
+          font-size: 20px;
+          font-weight: bold;
+        }
+        
+        .comanda-info {
+          border: 2px solid #000;
+          padding: 10px;
+          margin-bottom: 15px;
+        }
+        
+        .info-line {
+          margin: 5px 0;
+          font-weight: bold;
+        }
+        
+        .comanda-title {
+          text-align: center;
+          font-size: 18px;
+          font-weight: bold;
+          margin: 15px 0 10px 0;
+          background: #f0f0f0;
+          padding: 8px;
+        }
+        
+        .comanda-item {
+          border-bottom: 1px dashed #ccc;
+          padding: 12px 0;
+        }
+        
+        .item-quantity {
+          font-size: 24px;
+          font-weight: bold;
+          color: #000;
+          display: inline-block;
+          min-width: 50px;
+        }
+        
+        .item-name {
+          font-size: 16px;
+          font-weight: bold;
+          margin: 5px 0;
+        }
+        
+        .item-notes {
+          font-size: 12px;
+          color: #666;
+          margin-left: 50px;
+          font-style: italic;
+        }
+        
+        .footer-comanda {
+          text-align: center;
+          margin-top: 20px;
+          padding: 15px;
+          background: #f9f9f9;
+          border: 2px dashed #000;
+        }
+        
+        .cut-line {
+          text-align: center;
+          margin: 20px 0 10px 0;
+          font-size: 10px;
+          color: #666;
+        }
+        
+        .print-button {
+          display: block;
+          width: 100%;
+          padding: 15px;
+          margin: 10px 0;
+          background: #FF5722;
+          color: white;
+          border: none;
+          border-radius: 5px;
+          font-size: 16px;
+          font-weight: bold;
+          cursor: pointer;
+        }
+        
+        .print-button:hover {
+          background: #E64A19;
+        }
+        
+        .close-button {
+          display: block;
+          width: 100%;
+          padding: 10px;
+          background: #607D8B;
+          color: white;
+          border: none;
+          border-radius: 5px;
+          font-size: 14px;
+          cursor: pointer;
+        }
+      </style>
+    </head>
+    <body>
+      <!-- Header destacado -->
+      <div class="comanda-header">
+        🍽️ COMANDA COCINA 🍽️
+      </div>
+      
+      <!-- Info del pedido -->
+      <div class="comanda-info">
+        <div class="info-line">PEDIDO: ${data.ticketCode}</div>
+        <div class="info-line">HORA: ${new Date().toLocaleTimeString('es-PE')}</div>
+        <div class="info-line">CLIENTE: ${data.clientName}</div>
+      </div>
+      
+      <!-- Título de productos -->
+      <div class="comanda-title">
+        PRODUCTOS A PREPARAR
+      </div>
+      
+      <!-- Items -->
+      <div>
+        ${itemsHTML}
+      </div>
+      
+      <!-- Footer -->
+      <div class="footer-comanda">
+        <strong>PREPARAR Y ENTREGAR</strong>
+      </div>
+      
+      <div class="cut-line">
+        ✂️ -------------------------------- ✂️<br>
+        <small>Cortar aquí</small>
+      </div>
+      
+      <!-- Buttons -->
+      <div class="no-print" style="text-align: center; margin-top: 20px;">
+        <button class="print-button" onclick="window.print()">
+          🍽️ Imprimir Comanda
+        </button>
+        <button class="close-button" onclick="window.close()">
+          ✖️ Cerrar
+        </button>
+      </div>
+    </body>
+    </html>
+  `;
+}
+
+/**
+ * Imprimir comanda (para cocina)
+ */
+export function printComandaHTML(comandaData: ComandaData): void {
+  try {
+    console.log('🍽️ Imprimiendo comanda con HTML...');
+    
+    // Generar HTML de la comanda
+    const comandaHTML = generateComandaHTML(comandaData);
+    
+    // Abrir ventana nueva
+    const printWindow = window.open('', '_blank', 'width=400,height=600,resizable=yes,scrollbars=yes');
+    
+    if (!printWindow) {
+      throw new Error('No se pudo abrir ventana de comanda.');
+    }
+    
+    // Escribir HTML
+    printWindow.document.open();
+    printWindow.document.write(comandaHTML);
+    printWindow.document.close();
+    printWindow.focus();
+    
+    console.log('✅ Ventana de comanda abierta');
+    
+  } catch (error) {
+    console.error('❌ Error al imprimir comanda:', error);
+    throw error;
+  }
+}
+
 export default {
   printTicketHTML,
+  printComandaHTML,
   isHTMLPrintAvailable
 };
