@@ -41,6 +41,13 @@ interface PrintConfig {
   print_comanda_credit: boolean;
   print_ticket_teacher: boolean;
   print_comanda_teacher: boolean;
+  
+  // Cajón de dinero
+  open_cash_drawer?: boolean;
+  cash_drawer_pin?: number;
+  open_drawer_on_general?: boolean;
+  open_drawer_on_credit?: boolean;
+  open_drawer_on_teacher?: boolean;
 }
 
 interface CartItem {
@@ -121,6 +128,24 @@ function shouldPrintComanda(config: PrintConfig, saleType: string): boolean {
 }
 
 /**
+ * Determinar si debe abrir el cajón de dinero según tipo de venta y configuración
+ */
+function shouldOpenCashDrawer(config: PrintConfig, saleType: string): boolean {
+  if (!config.open_cash_drawer) return false;
+  
+  switch (saleType) {
+    case 'general':
+      return config.open_drawer_on_general ?? true;
+    case 'credit':
+      return config.open_drawer_on_credit ?? false;
+    case 'teacher':
+      return config.open_drawer_on_teacher ?? false;
+    default:
+      return false;
+  }
+}
+
+/**
  * Imprimir venta desde POS
  * Se ejecuta automáticamente después de completar una venta
  * Intenta usar QZ Tray primero, si falla usa impresión HTML
@@ -158,10 +183,12 @@ export async function printPOSSale(saleData: SaleData): Promise<void> {
 
     const printTicket = shouldPrintTicket(config, saleData.saleType);
     const printComanda = shouldPrintComanda(config, saleData.saleType);
+    const openDrawer = shouldOpenCashDrawer(config, saleData.saleType);
 
     console.log(`🖨️ Imprimiendo venta ${saleData.saleType}:`, {
       ticket: printTicket,
-      comanda: printComanda
+      comanda: printComanda,
+      drawer: openDrawer
     });
 
     // Preparar items para ticket
@@ -196,10 +223,14 @@ export async function printPOSSale(saleData: SaleData): Promise<void> {
           config.printer_device_name,
           ticketContent,
           config.auto_cut_paper,
-          config.cut_mode
+          config.cut_mode,
+          openDrawer  // 💰 Abrir cajón si está configurado
         );
 
         console.log('✅ Ticket impreso');
+        if (openDrawer) {
+          console.log('💰 Cajón de dinero abierto');
+        }
       } catch (error) {
         console.error('❌ Error imprimiendo ticket:', error);
       }

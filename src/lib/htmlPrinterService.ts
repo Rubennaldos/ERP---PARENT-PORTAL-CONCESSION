@@ -338,28 +338,25 @@ function generateTicketHTML(data: TicketData): string {
  */
 export function printTicketHTML(ticketData: TicketData): void {
   try {
+    const startTime = Date.now();
     console.log('🖨️ Imprimiendo ticket con HTML...');
     
-    // Generar HTML del ticket
-    const ticketHTML = generateTicketHTML(ticketData);
-    
-    // Abrir ventana nueva optimizada (más rápida)
-    const printWindow = window.open('', '_blank', 'width=400,height=600,resizable=yes,scrollbars=yes');
+    // 🚀 OPTIMIZACIÓN: Abrir ventana con about:blank primero (instantáneo)
+    const printWindow = window.open('about:blank', '_blank', 'width=400,height=600');
     
     if (!printWindow) {
       throw new Error('No se pudo abrir ventana de impresión. Verifica que no esté bloqueada por el navegador.');
     }
     
-    // Escribir HTML en la ventana (más rápido con write directo)
-    printWindow.document.open();
+    // 🚀 OPTIMIZACIÓN: Escribir HTML minificado (sin espacios innecesarios)
+    const ticketHTML = generateTicketHTML(ticketData).replace(/\s+/g, ' ').trim();
+    
+    // 🚀 OPTIMIZACIÓN: document.write es más rápido que innerHTML
     printWindow.document.write(ticketHTML);
     printWindow.document.close();
     
-    // Enfocar la ventana inmediatamente
-    printWindow.focus();
-    
-    console.log('✅ Ventana de ticket abierta en', Date.now());
-    console.log('ℹ️  El usuario puede imprimir con Ctrl+P o click en "Imprimir Ticket"');
+    const endTime = Date.now();
+    console.log(`✅ Ventana abierta en ${endTime - startTime}ms`);
     
   } catch (error) {
     console.error('❌ Error al imprimir con HTML:', error);
@@ -587,25 +584,23 @@ function generateComandaHTML(data: ComandaData): string {
  */
 export function printComandaHTML(comandaData: ComandaData): void {
   try {
+    const startTime = Date.now();
     console.log('🍽️ Imprimiendo comanda con HTML...');
     
-    // Generar HTML de la comanda
-    const comandaHTML = generateComandaHTML(comandaData);
-    
-    // Abrir ventana nueva
-    const printWindow = window.open('', '_blank', 'width=400,height=600,resizable=yes,scrollbars=yes');
+    // 🚀 OPTIMIZACIÓN: about:blank + write directo
+    const printWindow = window.open('about:blank', '_blank', 'width=400,height=600');
     
     if (!printWindow) {
       throw new Error('No se pudo abrir ventana de comanda.');
     }
     
-    // Escribir HTML
-    printWindow.document.open();
+    // 🚀 OPTIMIZACIÓN: HTML minificado
+    const comandaHTML = generateComandaHTML(comandaData).replace(/\s+/g, ' ').trim();
     printWindow.document.write(comandaHTML);
     printWindow.document.close();
-    printWindow.focus();
     
-    console.log('✅ Ventana de comanda abierta');
+    const endTime = Date.now();
+    console.log(`✅ Comanda abierta en ${endTime - startTime}ms`);
     
   } catch (error) {
     console.error('❌ Error al imprimir comanda:', error);

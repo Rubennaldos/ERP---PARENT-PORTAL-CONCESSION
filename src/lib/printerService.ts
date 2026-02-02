@@ -38,6 +38,10 @@ export const ESC_POS = {
   FEED_3: '\x1B\x64\x03',
   FEED_5: '\x1B\x64\x05',
   
+  // Cajón de dinero (Cash Drawer)
+  OPEN_DRAWER_1: '\x1B\x70\x00\x19\x19',  // Abrir cajón 1 (conector pin 2)
+  OPEN_DRAWER_2: '\x1B\x70\x01\x19\x19',  // Abrir cajón 2 (conector pin 5)
+  
   // Nueva línea
   LF: '\x0A'
 };
@@ -138,7 +142,8 @@ export const printTicketDirect = async (
   printerName: string | null,
   ticketContent: string[],
   cutPaper: boolean = true,
-  cutMode: 'partial' | 'full' = 'partial'
+  cutMode: 'partial' | 'full' = 'partial',
+  openCashDrawer: boolean = false
 ): Promise<void> => {
   try {
     const isConnected = await connectQZ();
@@ -172,9 +177,18 @@ export const printTicketDirect = async (
       data.push(cutMode === 'full' ? ESC_POS.CUT_FULL : ESC_POS.CUT_PARTIAL);
     }
 
+    // 💰 Abrir cajón de dinero si está activado
+    if (openCashDrawer) {
+      console.log('💰 Abriendo cajón de dinero...');
+      data.push(ESC_POS.OPEN_DRAWER_1);  // Comando para abrir cajón
+    }
+
     // Enviar a imprimir
     await qz.print(config, data);
     console.log('✅ Ticket impreso exitosamente');
+    if (openCashDrawer) {
+      console.log('✅ Cajón de dinero abierto');
+    }
   } catch (error: any) {
     console.error('❌ Error al imprimir:', error);
     throw new Error(error.message || 'Error desconocido al imprimir');
