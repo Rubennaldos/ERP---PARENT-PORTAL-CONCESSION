@@ -220,10 +220,23 @@ export const printTicketHTML = async (
  */
 export const isQZTrayAvailable = async (): Promise<boolean> => {
   try {
-    if (qz.websocket.isActive()) return true;
+    if (qz.websocket.isActive()) {
+      console.log('✅ QZ Tray ya está activo');
+      return true;
+    }
+    
+    console.log('🔍 Verificando disponibilidad de QZ Tray...');
+    
+    // Configurar modo básico ANTES de intentar conectar
+    setupQZBasic();
+    
+    // Intentar conectar
     await qz.websocket.connect();
+    
+    console.log('✅ QZ Tray disponible y conectado');
     return true;
-  } catch {
+  } catch (error) {
+    console.error('❌ QZ Tray no está disponible:', error);
     return false;
   }
 };
