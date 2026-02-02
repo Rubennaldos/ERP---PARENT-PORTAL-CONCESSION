@@ -937,12 +937,8 @@ const POS = () => {
     // Procesar directamente (ya no hay segundo modal)
     await processCheckout();
     
-    // Si debe imprimir, hacerlo
-    if (shouldPrint && ticketData) {
-      setTimeout(() => {
-        window.print();
-      }, 300);
-    }
+    // La impresión ahora la maneja posPrinterService automáticamente
+    // No necesitamos window.print() aquí ya que interfiere con el ticket HTML
       
     // Después de procesar, resetear automáticamente
     setShowConfirmDialog(false);

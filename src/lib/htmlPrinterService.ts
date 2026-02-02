@@ -290,10 +290,8 @@ function generateTicketHTML(data: TicketData): string {
       </div>
       
       <script>
-        // Auto-print después de cargar (opcional)
-        // window.onload = () => {
-        //   setTimeout(() => window.print(), 500);
-        // };
+        // NO auto-print - el usuario debe hacer click en el botón
+        // Esto evita que se abra el diálogo de impresión en la ventana equivocada
       </script>
     </body>
     </html>
