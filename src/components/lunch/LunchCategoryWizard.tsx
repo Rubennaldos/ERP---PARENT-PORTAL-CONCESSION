@@ -123,8 +123,9 @@ export function LunchCategoryWizard({
       categoryName: selectedCategory.name
     });
     
+    // Llamar a onComplete y dejar que el padre cierre el wizard
     onComplete(selectedCategory.id, selectedTargetType, selectedCategory.name);
-    handleClose();
+    // NO llamar handleClose() aquí - el padre lo manejará
   };
 
   const handleClose = () => {
