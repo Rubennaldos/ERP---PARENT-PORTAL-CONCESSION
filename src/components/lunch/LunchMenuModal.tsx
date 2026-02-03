@@ -189,7 +189,7 @@ export const LunchMenuModal = ({
     if (menuId && isOpen) {
       loadMenuData();
     } else if (!menuId && isOpen) {
-      // Modo creación: resetear formulario
+      // Modo creación: resetear formulario con datos del wizard
       setFormData({
         school_id: userSchoolId || '',
         date: initialDate ? initialDate.toISOString().split('T')[0] : '',
@@ -200,6 +200,13 @@ export const LunchMenuModal = ({
         notes: '',
         category_id: preSelectedCategoryId || '',
         target_type: preSelectedTargetType || 'students',
+      });
+      
+      // Debug: verificar que se reciben los datos del wizard
+      console.log('🎨 Wizard data recibido:', {
+        preSelectedCategoryId,
+        preSelectedTargetType,
+        preSelectedCategoryName
       });
     }
   }, [menuId, isOpen, initialDate, userSchoolId, preSelectedCategoryId, preSelectedTargetType]);
