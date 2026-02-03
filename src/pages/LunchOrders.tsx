@@ -234,29 +234,54 @@ export default function LunchOrders() {
   };
 
   const filterOrders = () => {
+    console.log('🔍 FILTRANDO PEDIDOS...');
+    console.log('📦 Total de pedidos:', orders.length);
+    console.log('🏫 Sede seleccionada:', selectedSchool);
+    console.log('📊 Estado seleccionado:', selectedStatus);
+    console.log('🔎 Término de búsqueda:', searchTerm);
+    
     let filtered = [...orders];
+    console.log('📋 Pedidos antes de filtrar:', filtered.map(o => ({
+      id: o.id.substring(0, 8),
+      student: o.student?.full_name,
+      teacher: o.teacher?.full_name,
+      manual_name: o.manual_name,
+      status: o.status
+    })));
 
     // Filtrar por sede
     if (selectedSchool !== 'all') {
+      console.log('⚠️ FILTRANDO POR SEDE:', selectedSchool);
       filtered = filtered.filter(order => {
         // Incluir pedidos de estudiantes de la sede seleccionada
-        if (order.student?.school_id === selectedSchool) return true;
+        if (order.student?.school_id === selectedSchool) {
+          console.log('✅ Incluido por student.school_id:', order.student.full_name);
+          return true;
+        }
         // Incluir pedidos de profesores de la sede seleccionada
-        if (order.teacher?.school_id_1 === selectedSchool) return true;
+        if (order.teacher?.school_id_1 === selectedSchool) {
+          console.log('✅ Incluido por teacher.school_id_1:', order.teacher.full_name);
+          return true;
+        }
         // Incluir pedidos con nombre manual (sin crédito) - no tienen school_id
-        // TODO: En el futuro, podríamos agregar school_id a los pedidos manuales
-        if (order.manual_name) return true;
+        if (order.manual_name) {
+          console.log('✅ Incluido por manual_name:', order.manual_name);
+          return true;
+        }
+        console.log('❌ EXCLUIDO:', order.student?.full_name || order.teacher?.full_name || order.manual_name || 'Sin nombre');
         return false;
       });
     }
 
     // Filtrar por estado
     if (selectedStatus !== 'all') {
+      console.log('⚠️ FILTRANDO POR ESTADO:', selectedStatus);
       filtered = filtered.filter(order => order.status === selectedStatus);
     }
 
     // Filtrar por búsqueda
     if (searchTerm) {
+      console.log('⚠️ FILTRANDO POR BÚSQUEDA:', searchTerm);
       const term = searchTerm.toLowerCase();
       filtered = filtered.filter(order => 
         order.student?.full_name.toLowerCase().includes(term) ||
@@ -265,6 +290,15 @@ export default function LunchOrders() {
         order.student?.temporary_classroom_name?.toLowerCase().includes(term)
       );
     }
+
+    console.log('✅ PEDIDOS FILTRADOS FINAL:', filtered.length);
+    console.log('📋 Pedidos filtrados:', filtered.map(o => ({
+      id: o.id.substring(0, 8),
+      student: o.student?.full_name,
+      teacher: o.teacher?.full_name,
+      manual_name: o.manual_name,
+      status: o.status
+    })));
 
     setFilteredOrders(filtered);
   };
