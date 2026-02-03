@@ -19,7 +19,8 @@ import {
   CalendarDays,
   UtensilsCrossed,
   Eye,
-  Tag
+  Tag,
+  ShoppingCart
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
@@ -43,6 +44,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { LunchMenuModal } from '@/components/lunch/LunchMenuModal';
 import { LunchCategoryWizard } from '@/components/lunch/LunchCategoryWizard';
+import { PhysicalOrderWizard } from '@/components/lunch/PhysicalOrderWizard';
 import { CategoryManager } from '@/components/lunch/CategoryManager';
 import { MassUploadModal } from '@/components/lunch/MassUploadModal';
 import { SpecialDayModal } from '@/components/lunch/SpecialDayModal';
@@ -132,6 +134,7 @@ const LunchCalendar = () => {
   // Modales
   const [isMenuModalOpen, setIsMenuModalOpen] = useState(false);
   const [isWizardOpen, setIsWizardOpen] = useState(false);
+  const [isPhysicalOrderOpen, setIsPhysicalOrderOpen] = useState(false);
   const [isCategoryManagerOpen, setIsCategoryManagerOpen] = useState(false);
   const [isMassUploadModalOpen, setIsMassUploadModalOpen] = useState(false);
   const [isSpecialDayModalOpen, setIsSpecialDayModalOpen] = useState(false);
@@ -509,6 +512,16 @@ const LunchCalendar = () => {
                   >
                     <Tag className="h-3 w-3 sm:h-4 sm:w-4 sm:mr-2" />
                     <span className="hidden lg:inline">Categorías</span>
+                  </Button>
+                  <Button 
+                    size="sm" 
+                    variant="outline"
+                    onClick={() => setIsPhysicalOrderOpen(true)}
+                    className="h-7 sm:h-9 text-xs px-2 sm:px-3 shrink-0 bg-blue-600 hover:bg-blue-700 text-white"
+                  >
+                    <ShoppingCart className="h-3 w-3 sm:h-4 sm:w-4 sm:mr-2" />
+                    <span className="hidden sm:inline">Nuevo Pedido</span>
+                    <span className="sm:hidden">Pedido</span>
                   </Button>
                   <Button 
                     size="sm" 
@@ -1190,6 +1203,20 @@ const LunchCalendar = () => {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Physical Order Wizard */}
+      <PhysicalOrderWizard 
+        isOpen={isPhysicalOrderOpen}
+        onClose={() => setIsPhysicalOrderOpen(false)}
+        schoolId={userSchoolId || ''}
+        onSuccess={() => {
+          fetchData();
+          toast({
+            title: '✅ Pedido registrado',
+            description: 'El pedido se ha guardado correctamente'
+          });
+        }}
+      />
     </div>
   );
 };
