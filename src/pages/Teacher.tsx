@@ -623,11 +623,43 @@ export default function Teacher() {
             {/* TAB: MENÚ */}
             <TabsContent value="menu">
               {teacherProfile.school_1_id && (
-                <OrderLunchMenus 
-                  userType="teacher"
-                  userId={teacherProfile.id}
-                  userSchoolId={teacherProfile.school_1_id}
-                />
+                <Tabs defaultValue="order" className="w-full">
+                  <TabsList className="grid w-full grid-cols-2 mb-6">
+                    <TabsTrigger value="order" className="gap-2">
+                      <UtensilsCrossed className="h-4 w-4" />
+                      Hacer Pedido
+                    </TabsTrigger>
+                    <TabsTrigger value="my-orders" className="gap-2">
+                      <ShoppingBag className="h-4 w-4" />
+                      Mis Pedidos
+                    </TabsTrigger>
+                  </TabsList>
+
+                  <TabsContent value="order">
+                    <OrderLunchMenus 
+                      userType="teacher"
+                      userId={teacherProfile.id}
+                      userSchoolId={teacherProfile.school_1_id}
+                    />
+                  </TabsContent>
+
+                  <TabsContent value="my-orders">
+                    <Card>
+                      <CardHeader>
+                        <CardTitle>Mis Pedidos de Almuerzo</CardTitle>
+                        <CardDescription>
+                          Aquí verás todos los almuerzos que has solicitado
+                        </CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="text-center py-12 text-gray-500">
+                          <UtensilsCrossed className="h-16 w-16 mx-auto mb-4 opacity-30" />
+                          <p>Función en desarrollo</p>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </TabsContent>
+                </Tabs>
               )}
             </TabsContent>
           </Tabs>
