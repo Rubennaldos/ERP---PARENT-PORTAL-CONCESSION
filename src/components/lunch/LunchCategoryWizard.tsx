@@ -117,6 +117,12 @@ export function LunchCategoryWizard({
   const handleComplete = () => {
     if (!selectedCategory || !selectedTargetType) return;
     
+    console.log('🎯 LunchCategoryWizard - handleComplete:', {
+      categoryId: selectedCategory.id,
+      targetType: selectedTargetType,
+      categoryName: selectedCategory.name
+    });
+    
     onComplete(selectedCategory.id, selectedTargetType, selectedCategory.name);
     handleClose();
   };

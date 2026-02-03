@@ -367,6 +367,7 @@ const LunchCalendar = () => {
   };
 
   const handleCreateAnotherMenu = () => {
+    console.log('🔄 handleCreateAnotherMenu: Abriendo wizard para crear menú adicional...');
     setIsCreateAnotherMenuOpen(false);
     setSelectedMenuId(null);
     setIsWizardOpen(true);
