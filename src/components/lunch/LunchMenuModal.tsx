@@ -21,7 +21,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Loader2, Search, Save, Check } from 'lucide-react';
+import { Loader2, Search, Save, Check, Tag } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
 import {
   Command,
   CommandEmpty,
@@ -52,6 +53,9 @@ interface LunchMenuModalProps {
   schools: School[];
   userSchoolId?: string | null;
   onSuccess: () => void;
+  preSelectedCategoryId?: string; // Nueva prop desde wizard
+  preSelectedTargetType?: 'students' | 'teachers'; // Nueva prop desde wizard
+  preSelectedCategoryName?: string; // Nueva prop desde wizard
 }
 
 // Componente Autocomplete interno
@@ -160,6 +164,9 @@ export const LunchMenuModal = ({
   schools,
   userSchoolId,
   onSuccess,
+  preSelectedCategoryId,
+  preSelectedTargetType,
+  preSelectedCategoryName,
 }: LunchMenuModalProps) => {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -173,6 +180,8 @@ export const LunchMenuModal = ({
     beverage: '',
     dessert: '',
     notes: '',
+    category_id: preSelectedCategoryId || '',
+    target_type: preSelectedTargetType || 'students',
   });
 
   // Cargar datos del menú si es edición
@@ -189,9 +198,11 @@ export const LunchMenuModal = ({
         beverage: '',
         dessert: '',
         notes: '',
+        category_id: preSelectedCategoryId || '',
+        target_type: preSelectedTargetType || 'students',
       });
     }
-  }, [menuId, isOpen, initialDate, userSchoolId]);
+  }, [menuId, isOpen, initialDate, userSchoolId, preSelectedCategoryId, preSelectedTargetType]);
 
   const loadMenuData = async () => {
     if (!menuId) return;
@@ -214,6 +225,8 @@ export const LunchMenuModal = ({
         beverage: data.beverage || '',
         dessert: data.dessert || '',
         notes: data.notes || '',
+        category_id: data.category_id || '',
+        target_type: data.target_type || 'students',
       });
     } catch (error) {
       console.error('Error loading menu:', error);
@@ -349,12 +362,17 @@ export const LunchMenuModal = ({
             <Save className="h-5 w-5 text-green-600" />
             {menuId ? 'Editar Menú' : 'Nuevo Menú de Almuerzo'}
           </DialogTitle>
-          <DialogDescription>
-            {formattedDate ? (
-              <span className="font-bold text-green-700 capitalize">{formattedDate}</span>
-            ) : (
-              'Completa los platos del día. Solo el segundo es obligatorio.'
+          <DialogDescription className="space-y-2">
+            {formattedDate && (
+              <span className="font-bold text-green-700 capitalize block">{formattedDate}</span>
             )}
+            {preSelectedCategoryName && (
+              <Badge variant="outline" className="gap-1">
+                <Tag className="h-3 w-3" />
+                {preSelectedCategoryName} - {preSelectedTargetType === 'students' ? 'Alumnos' : 'Profesores'}
+              </Badge>
+            )}
+            <p className="text-sm">Completa los platos del día. Solo el segundo es obligatorio.</p>
           </DialogDescription>
         </DialogHeader>
 

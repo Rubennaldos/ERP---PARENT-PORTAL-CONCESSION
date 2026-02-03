@@ -1,0 +1,599 @@
+import { useState, useEffect } from 'react';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from '@/components/ui/dialog';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import { Badge } from '@/components/ui/badge';
+import { Switch } from '@/components/ui/switch';
+import {
+  Utensils,
+  Salad,
+  Coins,
+  Leaf,
+  Briefcase,
+  Sparkles,
+  Plus,
+  Edit,
+  Trash2,
+  Users,
+  ArrowUp,
+  ArrowDown,
+  Save,
+  X
+} from 'lucide-react';
+import { supabase } from '@/lib/supabase';
+import { useToast } from '@/hooks/use-toast';
+import { cn } from '@/lib/utils';
+
+const AVAILABLE_ICONS = [
+  { value: 'utensils', label: 'Cubiertos', icon: Utensils },
+  { value: 'salad', label: 'Ensalada', icon: Salad },
+  { value: 'coins', label: 'Monedas', icon: Coins },
+  { value: 'leaf', label: 'Hoja', icon: Leaf },
+  { value: 'briefcase', label: 'Maletín', icon: Briefcase },
+  { value: 'sparkles', label: 'Estrellas', icon: Sparkles },
+];
+
+const AVAILABLE_COLORS = [
+  { value: '#3B82F6', label: 'Azul' },
+  { value: '#10B981', label: 'Verde' },
+  { value: '#F59E0B', label: 'Naranja' },
+  { value: '#EF4444', label: 'Rojo' },
+  { value: '#8B5CF6', label: 'Púrpura' },
+  { value: '#EC4899', label: 'Rosa' },
+  { value: '#059669', label: 'Verde Oscuro' },
+  { value: '#DC2626', label: 'Rojo Oscuro' },
+];
+
+interface LunchCategory {
+  id: string;
+  school_id: string;
+  name: string;
+  description: string | null;
+  target_type: 'students' | 'teachers' | 'both';
+  color: string;
+  icon: string;
+  price: number | null;
+  is_active: boolean;
+  display_order: number;
+}
+
+interface CategoryManagerProps {
+  schoolId: string;
+  open: boolean;
+  onClose: () => void;
+}
+
+export function CategoryManager({ schoolId, open, onClose }: CategoryManagerProps) {
+  const { toast } = useToast();
+  const [categories, setCategories] = useState<LunchCategory[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [editingCategory, setEditingCategory] = useState<LunchCategory | null>(null);
+  const [showForm, setShowForm] = useState(false);
+  
+  // Form state
+  const [formData, setFormData] = useState({
+    name: '',
+    description: '',
+    target_type: 'students' as 'students' | 'teachers' | 'both',
+    color: '#3B82F6',
+    icon: 'utensils',
+    price: '',
+    is_active: true,
+  });
+
+  useEffect(() => {
+    if (open) {
+      fetchCategories();
+    }
+  }, [open, schoolId]);
+
+  const fetchCategories = async () => {
+    setLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('lunch_categories')
+        .select('*')
+        .eq('school_id', schoolId)
+        .order('display_order', { ascending: true });
+
+      if (error) throw error;
+      setCategories(data || []);
+    } catch (error: any) {
+      console.error('Error fetching categories:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Error al cargar categorías',
+        description: error.message
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!formData.name.trim()) {
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'El nombre es obligatorio'
+      });
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const categoryData = {
+        school_id: schoolId,
+        name: formData.name.trim(),
+        description: formData.description.trim() || null,
+        target_type: formData.target_type,
+        color: formData.color,
+        icon: formData.icon,
+        price: formData.price ? parseFloat(formData.price) : null,
+        is_active: formData.is_active,
+        display_order: editingCategory ? editingCategory.display_order : categories.length,
+      };
+
+      if (editingCategory) {
+        // Actualizar
+        const { error } = await supabase
+          .from('lunch_categories')
+          .update(categoryData)
+          .eq('id', editingCategory.id);
+
+        if (error) throw error;
+        
+        toast({
+          title: '✅ Categoría actualizada',
+          description: `"${formData.name}" se actualizó correctamente`
+        });
+      } else {
+        // Crear nueva
+        const { error } = await supabase
+          .from('lunch_categories')
+          .insert([categoryData]);
+
+        if (error) throw error;
+        
+        toast({
+          title: '✅ Categoría creada',
+          description: `"${formData.name}" se creó correctamente`
+        });
+      }
+
+      await fetchCategories();
+      resetForm();
+    } catch (error: any) {
+      console.error('Error saving category:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Error al guardar',
+        description: error.message
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleEdit = (category: LunchCategory) => {
+    setEditingCategory(category);
+    setFormData({
+      name: category.name,
+      description: category.description || '',
+      target_type: category.target_type,
+      color: category.color,
+      icon: category.icon,
+      price: category.price?.toString() || '',
+      is_active: category.is_active,
+    });
+    setShowForm(true);
+  };
+
+  const handleDelete = async (category: LunchCategory) => {
+    if (!confirm(`¿Estás seguro de eliminar "${category.name}"?`)) return;
+
+    setLoading(true);
+    try {
+      const { error } = await supabase
+        .from('lunch_categories')
+        .delete()
+        .eq('id', category.id);
+
+      if (error) throw error;
+
+      toast({
+        title: '✅ Categoría eliminada',
+        description: `"${category.name}" se eliminó correctamente`
+      });
+
+      await fetchCategories();
+    } catch (error: any) {
+      console.error('Error deleting category:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Error al eliminar',
+        description: error.message
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleToggleActive = async (category: LunchCategory) => {
+    setLoading(true);
+    try {
+      const { error } = await supabase
+        .from('lunch_categories')
+        .update({ is_active: !category.is_active })
+        .eq('id', category.id);
+
+      if (error) throw error;
+
+      await fetchCategories();
+      toast({
+        title: category.is_active ? 'Categoría desactivada' : 'Categoría activada',
+        description: `"${category.name}" ahora está ${!category.is_active ? 'activa' : 'inactiva'}`
+      });
+    } catch (error: any) {
+      console.error('Error toggling category:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: error.message
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const moveCategory = async (category: LunchCategory, direction: 'up' | 'down') => {
+    const currentIndex = categories.findIndex(c => c.id === category.id);
+    if (
+      (direction === 'up' && currentIndex === 0) ||
+      (direction === 'down' && currentIndex === categories.length - 1)
+    ) {
+      return;
+    }
+
+    const newIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
+    const otherCategory = categories[newIndex];
+
+    setLoading(true);
+    try {
+      await supabase
+        .from('lunch_categories')
+        .update({ display_order: otherCategory.display_order })
+        .eq('id', category.id);
+
+      await supabase
+        .from('lunch_categories')
+        .update({ display_order: category.display_order })
+        .eq('id', otherCategory.id);
+
+      await fetchCategories();
+    } catch (error: any) {
+      console.error('Error moving category:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Error al reordenar',
+        description: error.message
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const resetForm = () => {
+    setFormData({
+      name: '',
+      description: '',
+      target_type: 'students',
+      color: '#3B82F6',
+      icon: 'utensils',
+      price: '',
+      is_active: true,
+    });
+    setEditingCategory(null);
+    setShowForm(false);
+  };
+
+  const getIconComponent = (iconName: string) => {
+    return AVAILABLE_ICONS.find(i => i.value === iconName)?.icon || Utensils;
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onClose}>
+      <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="text-2xl font-bold">Gestionar Categorías de Almuerzos</DialogTitle>
+          <DialogDescription>
+            Crea y administra las diferentes categorías de almuerzos (Clásico, Light, Económico, etc.)
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-6">
+          {/* Botón para crear nueva categoría */}
+          {!showForm && (
+            <Button onClick={() => setShowForm(true)} className="w-full gap-2">
+              <Plus className="h-4 w-4" />
+              Crear Nueva Categoría
+            </Button>
+          )}
+
+          {/* Formulario de crear/editar */}
+          {showForm && (
+            <Card>
+              <CardHeader>
+                <CardTitle>{editingCategory ? 'Editar Categoría' : 'Nueva Categoría'}</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <form onSubmit={handleSubmit} className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="name">Nombre *</Label>
+                      <Input
+                        id="name"
+                        value={formData.name}
+                        onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                        placeholder="Ej: Almuerzo Clásico"
+                        required
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="target_type">Para quién *</Label>
+                      <Select
+                        value={formData.target_type}
+                        onValueChange={(value: any) => setFormData({ ...formData, target_type: value })}
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="students">Alumnos</SelectItem>
+                          <SelectItem value="teachers">Profesores</SelectItem>
+                          <SelectItem value="both">Ambos</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-2 md:col-span-2">
+                      <Label htmlFor="description">Descripción</Label>
+                      <Textarea
+                        id="description"
+                        value={formData.description}
+                        onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                        placeholder="Descripción breve de esta categoría..."
+                        rows={2}
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="color">Color</Label>
+                      <div className="flex gap-2">
+                        {AVAILABLE_COLORS.map((color) => (
+                          <button
+                            key={color.value}
+                            type="button"
+                            onClick={() => setFormData({ ...formData, color: color.value })}
+                            className={cn(
+                              "w-10 h-10 rounded-full border-2 transition-all",
+                              formData.color === color.value ? "border-black scale-110" : "border-gray-300"
+                            )}
+                            style={{ backgroundColor: color.value }}
+                            title={color.label}
+                          />
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="icon">Icono</Label>
+                      <div className="flex gap-2 flex-wrap">
+                        {AVAILABLE_ICONS.map((icon) => {
+                          const IconComponent = icon.icon;
+                          return (
+                            <button
+                              key={icon.value}
+                              type="button"
+                              onClick={() => setFormData({ ...formData, icon: icon.value })}
+                              className={cn(
+                                "w-12 h-12 rounded-lg border-2 transition-all flex items-center justify-center",
+                                formData.icon === icon.value ? "border-black bg-gray-100" : "border-gray-300"
+                              )}
+                              title={icon.label}
+                            >
+                              <IconComponent className="h-6 w-6" />
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="price">Precio (opcional)</Label>
+                      <Input
+                        id="price"
+                        type="number"
+                        step="0.01"
+                        value={formData.price}
+                        onChange={(e) => setFormData({ ...formData, price: e.target.value })}
+                        placeholder="0.00"
+                      />
+                    </div>
+
+                    <div className="flex items-center space-x-2">
+                      <Switch
+                        id="is_active"
+                        checked={formData.is_active}
+                        onCheckedChange={(checked) => setFormData({ ...formData, is_active: checked })}
+                      />
+                      <Label htmlFor="is_active">Categoría activa</Label>
+                    </div>
+                  </div>
+
+                  <div className="flex gap-2">
+                    <Button type="submit" disabled={loading} className="gap-2">
+                      <Save className="h-4 w-4" />
+                      {editingCategory ? 'Actualizar' : 'Crear'}
+                    </Button>
+                    <Button type="button" variant="outline" onClick={resetForm} disabled={loading} className="gap-2">
+                      <X className="h-4 w-4" />
+                      Cancelar
+                    </Button>
+                  </div>
+                </form>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Lista de categorías */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Categorías Existentes</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {loading && categories.length === 0 ? (
+                <div className="text-center py-8">
+                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto" />
+                  <p className="text-gray-600 mt-4">Cargando...</p>
+                </div>
+              ) : categories.length === 0 ? (
+                <div className="text-center py-8 text-gray-500">
+                  <Utensils className="h-12 w-12 mx-auto mb-3 opacity-50" />
+                  <p>No hay categorías creadas aún</p>
+                </div>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="w-[50px]">Orden</TableHead>
+                      <TableHead>Nombre</TableHead>
+                      <TableHead>Para</TableHead>
+                      <TableHead>Color/Icono</TableHead>
+                      <TableHead>Precio</TableHead>
+                      <TableHead>Estado</TableHead>
+                      <TableHead className="text-right">Acciones</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {categories.map((category, index) => {
+                      const IconComponent = getIconComponent(category.icon);
+                      return (
+                        <TableRow key={category.id}>
+                          <TableCell>
+                            <div className="flex gap-1">
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => moveCategory(category, 'up')}
+                                disabled={index === 0 || loading}
+                              >
+                                <ArrowUp className="h-3 w-3" />
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => moveCategory(category, 'down')}
+                                disabled={index === categories.length - 1 || loading}
+                              >
+                                <ArrowDown className="h-3 w-3" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                          <TableCell className="font-medium">{category.name}</TableCell>
+                          <TableCell>
+                            <Badge variant={
+                              category.target_type === 'students' ? 'default' :
+                              category.target_type === 'teachers' ? 'secondary' : 'outline'
+                            }>
+                              {category.target_type === 'students' ? 'Alumnos' :
+                               category.target_type === 'teachers' ? 'Profesores' : 'Ambos'}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-2">
+                              <div
+                                className="w-8 h-8 rounded-full flex items-center justify-center"
+                                style={{ backgroundColor: `${category.color}20` }}
+                              >
+                                <IconComponent className="h-4 w-4" style={{ color: category.color }} />
+                              </div>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            {category.price ? `S/ ${category.price.toFixed(2)}` : '-'}
+                          </TableCell>
+                          <TableCell>
+                            <Switch
+                              checked={category.is_active}
+                              onCheckedChange={() => handleToggleActive(category)}
+                              disabled={loading}
+                            />
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <div className="flex justify-end gap-2">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => handleEdit(category)}
+                                disabled={loading}
+                              >
+                                <Edit className="h-3 w-3" />
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="destructive"
+                                onClick={() => handleDelete(category)}
+                                disabled={loading}
+                              >
+                                <Trash2 className="h-3 w-3" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>
+            Cerrar
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}

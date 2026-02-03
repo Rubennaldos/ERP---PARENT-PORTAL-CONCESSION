@@ -18,7 +18,8 @@ import {
   Ban,
   CalendarDays,
   UtensilsCrossed,
-  Eye
+  Eye,
+  Tag
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
@@ -41,6 +42,8 @@ import {
   DropdownMenuPortal,
 } from '@/components/ui/dropdown-menu';
 import { LunchMenuModal } from '@/components/lunch/LunchMenuModal';
+import { LunchCategoryWizard } from '@/components/lunch/LunchCategoryWizard';
+import { CategoryManager } from '@/components/lunch/CategoryManager';
 import { MassUploadModal } from '@/components/lunch/MassUploadModal';
 import { SpecialDayModal } from '@/components/lunch/SpecialDayModal';
 import { LunchAnalyticsDashboard } from '@/components/lunch/LunchAnalyticsDashboard';
@@ -128,11 +131,18 @@ const LunchCalendar = () => {
 
   // Modales
   const [isMenuModalOpen, setIsMenuModalOpen] = useState(false);
+  const [isWizardOpen, setIsWizardOpen] = useState(false);
+  const [isCategoryManagerOpen, setIsCategoryManagerOpen] = useState(false);
   const [isMassUploadModalOpen, setIsMassUploadModalOpen] = useState(false);
   const [isSpecialDayModalOpen, setIsSpecialDayModalOpen] = useState(false);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [selectedDay, setSelectedDay] = useState<DayData | null>(null);
   const [selectedMenuId, setSelectedMenuId] = useState<string | null>(null);
+  
+  // Estado del wizard
+  const [wizardCategoryId, setWizardCategoryId] = useState<string | null>(null);
+  const [wizardTargetType, setWizardTargetType] = useState<'students' | 'teachers' | null>(null);
+  const [wizardCategoryName, setWizardCategoryName] = useState<string | null>(null);
 
   // Cargar permisos y datos del usuario
   useEffect(() => {
@@ -338,16 +348,24 @@ const LunchCalendar = () => {
       setSelectedMenuId(dayData.menus[0].id);
       setIsMenuModalOpen(true);
     } else if (dayData.menus.length === 0 && canCreate) {
-      // Si no hay menús, abrir modal para crear
+      // Si no hay menús, abrir wizard para seleccionar categoría
       setSelectedMenuId(null);
-      setIsMenuModalOpen(true);
+      setIsWizardOpen(true);
     }
   };
 
   const handleCreateMenu = () => {
     setSelectedDay(null);
     setSelectedMenuId(null);
-    setIsMenuModalOpen(true);
+    setIsWizardOpen(true);  // Abrir wizard en lugar del modal directo
+  };
+
+  const handleWizardComplete = (categoryId: string, targetType: 'students' | 'teachers', categoryName: string) => {
+    setWizardCategoryId(categoryId);
+    setWizardTargetType(targetType);
+    setWizardCategoryName(categoryName);
+    setIsWizardOpen(false);
+    setIsMenuModalOpen(true);  // Ahora sí abrir el modal del menú con los datos del wizard
   };
 
   const handleMarkSpecialDay = () => {
@@ -381,65 +399,112 @@ const LunchCalendar = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-green-50 dark:via-green-950/20 to-background">
       <header className="bg-background/80 backdrop-blur-sm border-b sticky top-0 z-10">
-        <div className="container mx-auto px-4 py-4 flex justify-between items-center">
-          <div className="flex items-center gap-3">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => navigate('/dashboard')}
-            >
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Volver
-            </Button>
-            <div className="w-10 h-10 bg-green-500/10 rounded-xl flex items-center justify-center">
-              <Calendar className="h-5 w-5 text-green-600" />
+        <div className="container mx-auto px-2 sm:px-4 py-2 sm:py-4">
+          {/* Header Mobile/Desktop */}
+          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 sm:gap-0">
+            {/* Título y botón volver */}
+            <div className="flex items-center gap-2 sm:gap-3">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => navigate('/dashboard')}
+                className="h-8 px-2 sm:px-3"
+              >
+                <ArrowLeft className="h-3 w-3 sm:h-4 sm:w-4 sm:mr-2" />
+                <span className="hidden sm:inline">Volver</span>
+              </Button>
+              <div className="w-8 h-8 sm:w-10 sm:h-10 bg-green-500/10 rounded-xl flex items-center justify-center">
+                <Calendar className="h-4 w-4 sm:h-5 sm:w-5 text-green-600" />
+              </div>
+              <div>
+                <h1 className="font-semibold text-sm sm:text-base">Calendario de Almuerzos</h1>
+                <p className="text-[10px] sm:text-xs text-muted-foreground hidden sm:block">
+                  Gestión de menús escolares
+                </p>
+              </div>
             </div>
-            <div>
-              <h1 className="font-semibold">Calendario de Almuerzos</h1>
-              <p className="text-xs text-muted-foreground">
-                Gestión de menús escolares
-              </p>
+
+            {/* Botones de acción - Responsive */}
+            <div className="flex items-center gap-1 sm:gap-2 overflow-x-auto pb-2 sm:pb-0">
+              {canExport && (
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={handleExport}
+                  className="h-7 sm:h-9 text-xs px-2 sm:px-3 shrink-0"
+                >
+                  <Download className="h-3 w-3 sm:h-4 sm:w-4 sm:mr-2" />
+                  <span className="hidden md:inline">Exportar</span>
+                </Button>
+              )}
+              {canMassUpload && (
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={() => setIsMassUploadModalOpen(true)}
+                  className="h-7 sm:h-9 text-xs px-2 sm:px-3 shrink-0"
+                >
+                  <Upload className="h-3 w-3 sm:h-4 sm:w-4 sm:mr-2" />
+                  <span className="hidden md:inline">Carga Masiva</span>
+                </Button>
+              )}
+              {canCreate && (
+                <>
+                  <Button 
+                    size="sm" 
+                    variant="outline" 
+                    onClick={() => setIsCategoryManagerOpen(true)}
+                    className="h-7 sm:h-9 text-xs px-2 sm:px-3 shrink-0"
+                  >
+                    <Tag className="h-3 w-3 sm:h-4 sm:w-4 sm:mr-2" />
+                    <span className="hidden lg:inline">Categorías</span>
+                  </Button>
+                  <Button 
+                    size="sm" 
+                    onClick={handleCreateMenu}
+                    className="h-7 sm:h-9 text-xs px-2 sm:px-3 shrink-0 bg-green-600 hover:bg-green-700"
+                  >
+                    <Plus className="h-3 w-3 sm:h-4 sm:w-4 sm:mr-2" />
+                    <span className="hidden sm:inline">Nuevo Menú</span>
+                    <span className="sm:hidden">Nuevo</span>
+                  </Button>
+                </>
+              )}
             </div>
-          </div>
-          <div className="flex items-center gap-2">
-            {canExport && (
-              <Button variant="outline" size="sm" onClick={handleExport}>
-                <Download className="h-4 w-4 mr-2" />
-                Exportar
-              </Button>
-            )}
-            {canMassUpload && (
-              <Button variant="outline" size="sm" onClick={() => setIsMassUploadModalOpen(true)}>
-                <Upload className="h-4 w-4 mr-2" />
-                Carga Masiva
-              </Button>
-            )}
-            {canCreate && (
-              <Button size="sm" onClick={handleCreateMenu}>
-                <Plus className="h-4 w-4 mr-2" />
-                Nuevo Menú
-              </Button>
-            )}
           </div>
         </div>
       </header>
 
-      <main className="container mx-auto px-4 py-8">
+      <main className="container mx-auto px-2 sm:px-4 py-4 sm:py-8">
         <Tabs defaultValue="calendar" className="w-full">
-          <TabsList className="grid w-full grid-cols-4 mb-6">
-            <TabsTrigger value="calendar">📅 Calendario</TabsTrigger>
-            <TabsTrigger value="orders">🍽️ Pedidos</TabsTrigger>
-            <TabsTrigger value="analytics">📊 Analytics</TabsTrigger>
-            <TabsTrigger value="config">⚙️ Configuración</TabsTrigger>
+          {/* Tabs responsive */}
+          <TabsList className="grid w-full grid-cols-4 mb-4 sm:mb-6 h-auto">
+            <TabsTrigger value="calendar" className="text-[10px] sm:text-sm py-2 sm:py-3 px-1 sm:px-3">
+              <span className="hidden sm:inline">📅 Calendario</span>
+              <span className="sm:hidden">📅</span>
+            </TabsTrigger>
+            <TabsTrigger value="orders" className="text-[10px] sm:text-sm py-2 sm:py-3 px-1 sm:px-3">
+              <span className="hidden sm:inline">🍽️ Pedidos</span>
+              <span className="sm:hidden">🍽️</span>
+            </TabsTrigger>
+            <TabsTrigger value="analytics" className="text-[10px] sm:text-sm py-2 sm:py-3 px-1 sm:px-3">
+              <span className="hidden sm:inline">📊 Analytics</span>
+              <span className="sm:hidden">📊</span>
+            </TabsTrigger>
+            <TabsTrigger value="config" className="text-[10px] sm:text-sm py-2 sm:py-3 px-1 sm:px-3">
+              <span className="hidden sm:inline">⚙️ Config</span>
+              <span className="sm:hidden">⚙️</span>
+            </TabsTrigger>
           </TabsList>
 
           {/* Tab: Calendario */}
           <TabsContent value="calendar">
-            <div className="grid grid-cols-12 gap-6">
-          {/* Panel lateral de filtros */}
-          <aside className="col-span-3">
+            {/* Layout responsive: columna única en móvil, 2 columnas en tablet, 12 columnas en desktop */}
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 lg:gap-6">
+          {/* Panel lateral de filtros - Oculto en móvil, visible en desktop */}
+          <aside className="hidden lg:block lg:col-span-3">
             <Card>
-              <CardHeader>
+              <CardHeader className="pb-3">
                 <CardTitle className="text-sm flex items-center gap-2">
                   <Filter className="h-4 w-4" />
                   Filtros
@@ -502,16 +567,47 @@ const LunchCalendar = () => {
             </Card>
           </aside>
 
-          {/* Calendario principal */}
-          <div className="col-span-9">
+          {/* Calendario principal - Full width en móvil/tablet */}
+          <div className="lg:col-span-9">
+            {/* Filtro de sedes para móvil/tablet */}
+            <Card className="mb-4 lg:hidden">
+              <CardContent className="p-3">
+                <Label className="text-xs font-medium mb-2 block">
+                  Filtrar por sede:
+                </Label>
+                <div className="flex flex-wrap gap-2">
+                  {schools.map((school) => (
+                    <button
+                      key={school.id}
+                      onClick={() => toggleSchool(school.id)}
+                      className={cn(
+                        "px-3 py-1.5 rounded-full text-xs font-medium transition-all border",
+                        selectedSchools.includes(school.id)
+                          ? "bg-green-100 border-green-300 text-green-800"
+                          : "bg-gray-50 border-gray-200 text-gray-600"
+                      )}
+                    >
+                      {school.color && (
+                        <span
+                          className="inline-block w-2 h-2 rounded-full mr-1.5"
+                          style={{ backgroundColor: school.color }}
+                        />
+                      )}
+                      {school.name}
+                    </button>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+
             <Card>
-              <CardHeader>
-                <div className="flex items-center justify-between">
+              <CardHeader className="pb-3 sm:pb-4">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                   <div>
-                    <CardTitle className="text-2xl">
+                    <CardTitle className="text-lg sm:text-2xl">
                       {MONTHS[currentDate.getMonth()]} {currentDate.getFullYear()}
                     </CardTitle>
-                    <CardDescription>
+                    <CardDescription className="text-xs sm:text-sm">
                       {selectedSchools.length} sede(s) seleccionada(s)
                     </CardDescription>
                   </div>
@@ -520,13 +616,15 @@ const LunchCalendar = () => {
                       variant="outline"
                       size="icon"
                       onClick={handlePreviousMonth}
+                      className="h-8 w-8 sm:h-10 sm:w-10"
                     >
-                      <ChevronLeft className="h-4 w-4" />
+                      <ChevronLeft className="h-3 w-3 sm:h-4 sm:w-4" />
                     </Button>
                     <Button
                       variant="outline"
                       size="sm"
                       onClick={() => setCurrentDate(new Date())}
+                      className="h-8 px-2 sm:h-9 sm:px-3 text-xs sm:text-sm"
                     >
                       Hoy
                     </Button>
@@ -534,26 +632,30 @@ const LunchCalendar = () => {
                       variant="outline"
                       size="icon"
                       onClick={handleNextMonth}
+                      className="h-8 w-8 sm:h-10 sm:w-10"
                     >
-                      <ChevronRight className="h-4 w-4" />
+                      <ChevronRight className="h-3 w-3 sm:h-4 sm:w-4" />
                     </Button>
                   </div>
                 </div>
               </CardHeader>
-              <CardContent>
+              <CardContent className="p-2 sm:p-6">
                 {loading ? (
-                  <div className="text-center py-12 text-muted-foreground">
+                  <div className="text-center py-12 text-muted-foreground text-sm">
                     Cargando calendario...
                   </div>
                 ) : (
-                  <div className="grid grid-cols-7 gap-2">
-                    {/* Encabezados de días */}
-                    {['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'].map((day) => (
+                  <div className="grid grid-cols-7 gap-1 sm:gap-2">
+                    {/* Encabezados de días - Texto más pequeño en móvil */}
+                    {['D', 'L', 'M', 'M', 'J', 'V', 'S'].map((day, idx) => (
                       <div
-                        key={day}
-                        className="text-center text-sm font-medium text-muted-foreground py-2"
+                        key={day + idx}
+                        className="text-center text-[10px] sm:text-sm font-medium text-muted-foreground py-1 sm:py-2"
                       >
-                        {day}
+                        <span className="sm:hidden">{day}</span>
+                        <span className="hidden sm:inline">
+                          {['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'][idx]}
+                        </span>
                       </div>
                     ))}
 
@@ -562,7 +664,7 @@ const LunchCalendar = () => {
                       <div key={`empty-${i}`} className="aspect-square" />
                     ))}
 
-                    {/* Días del mes */}
+                    {/* Días del mes - Responsive */}
                     {calendarData.map((dayData, index) => {
                       const isToday =
                         dayData.date.toDateString() === new Date().toDateString();
@@ -590,9 +692,9 @@ const LunchCalendar = () => {
                         <div
                           key={index}
                           className={cn(
-                            'aspect-square border rounded-lg p-2 transition-all relative group',
+                            'aspect-square border rounded-md sm:rounded-lg p-1 sm:p-2 transition-all relative group',
                             bgClass,
-                            isToday && 'ring-2 ring-blue-500',
+                            isToday && 'ring-1 sm:ring-2 ring-blue-500',
                             'shadow-sm hover:shadow-md cursor-pointer'
                           )}
                           onClick={() => handleDayClick(dayData)}
@@ -600,19 +702,24 @@ const LunchCalendar = () => {
                           <div className="h-full flex flex-col">
                             <div className="flex justify-between items-start">
                               <span className={cn(
-                                "text-sm font-bold",
+                                "text-[11px] sm:text-sm font-bold",
                                 isWeekend && "text-gray-600"
                               )}>
                                 {dayData.date.getDate()}
                               </span>
                               
+                              {/* Menú desplegable - Solo visible en hover en desktop, siempre visible en móvil */}
                               <DropdownMenu>
                                 <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-                                  <Button variant="ghost" size="icon" className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity">
-                                    <MoreVertical className="h-4 w-4" />
+                                  <Button 
+                                    variant="ghost" 
+                                    size="icon" 
+                                    className="h-5 w-5 sm:h-6 sm:w-6 opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity"
+                                  >
+                                    <MoreVertical className="h-3 w-3 sm:h-4 sm:w-4" />
                                   </Button>
                                 </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end">
+                                <DropdownMenuContent align="end" className="w-48">
                                   <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleDayClick(dayData); }}>
                                     <Eye className="h-4 w-4 mr-2" />
                                     Ver Detalle
@@ -757,30 +864,31 @@ const LunchCalendar = () => {
                                 </span>
                               </div>
                             ) : hasMenus ? (
-                              <div className="flex-1 flex flex-col gap-1 mt-2 overflow-hidden">
-                                {dayData.menus.slice(0, 4).map((menu) => (
+                              <div className="flex-1 flex flex-col gap-0.5 sm:gap-1 mt-1 sm:mt-2 overflow-hidden">
+                                {dayData.menus.slice(0, 3).map((menu) => (
                                   <div
                                     key={menu.id}
                                     className="w-full flex items-center gap-1"
                                   >
                                     <div 
-                                      className="w-1.5 h-1.5 rounded-full shrink-0"
+                                      className="w-1 h-1 sm:w-1.5 sm:h-1.5 rounded-full shrink-0"
                                       style={{ backgroundColor: menu.school_color || '#10b981' }}
                                     />
-                                    <span className="text-[9px] truncate text-muted-foreground">
+                                    <span className="text-[8px] sm:text-[9px] truncate text-muted-foreground">
                                       {menu.school_name}
                                     </span>
                                   </div>
                                 ))}
-                                {dayData.menus.length > 4 && (
-                                  <div className="text-[9px] text-center font-medium text-muted-foreground bg-gray-100 rounded">
-                                    +{dayData.menus.length - 4} sedes
+                                {dayData.menus.length > 3 && (
+                                  <div className="text-[7px] sm:text-[9px] text-center font-medium text-muted-foreground bg-gray-100 rounded px-0.5">
+                                    +{dayData.menus.length - 3}
                                   </div>
                                 )}
                               </div>
                             ) : (
                               <div className="flex-1 flex items-center justify-center">
-                                <span className="text-[10px] text-muted-foreground">Sin menú</span>
+                                <span className="text-[8px] sm:text-[10px] text-muted-foreground hidden sm:inline">Sin menú</span>
+                                <span className="text-[8px] text-muted-foreground sm:hidden">-</span>
                               </div>
                             )}
                           </div>
@@ -819,19 +927,52 @@ const LunchCalendar = () => {
       </main>
 
       {/* Modales */}
+      {/* Wizard de Categorías - Nuevo flujo intuitivo */}
+      <LunchCategoryWizard
+        open={isWizardOpen}
+        onClose={() => {
+          setIsWizardOpen(false);
+          setWizardCategoryId(null);
+          setWizardTargetType(null);
+          setWizardCategoryName(null);
+        }}
+        schoolId={userSchoolId || ''}
+        selectedDate={selectedDay?.date || new Date()}
+        onComplete={handleWizardComplete}
+      />
+
+      {/* Gestor de Categorías */}
+      {userSchoolId && (
+        <CategoryManager
+          schoolId={userSchoolId}
+          open={isCategoryManagerOpen}
+          onClose={() => setIsCategoryManagerOpen(false)}
+        />
+      )}
+
+      {/* Modal de Menú (ahora con datos del wizard) */}
       <LunchMenuModal
         isOpen={isMenuModalOpen}
         onClose={() => {
           setIsMenuModalOpen(false);
           setSelectedMenuId(null);
           setSelectedDay(null);
+          setWizardCategoryId(null);
+          setWizardTargetType(null);
+          setWizardCategoryName(null);
         }}
         menuId={selectedMenuId}
         initialDate={selectedDay?.date}
         schools={schools}
         userSchoolId={userSchoolId}
+        preSelectedCategoryId={wizardCategoryId || undefined}
+        preSelectedTargetType={wizardTargetType || undefined}
+        preSelectedCategoryName={wizardCategoryName || undefined}
         onSuccess={() => {
           setIsMenuModalOpen(false);
+          setWizardCategoryId(null);
+          setWizardTargetType(null);
+          setWizardCategoryName(null);
           // Recargar datos
           setCurrentDate(new Date(currentDate));
         }}
