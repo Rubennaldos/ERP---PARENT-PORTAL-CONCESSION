@@ -10,6 +10,7 @@ import { useToast } from '@/hooks/use-toast';
 import { TeacherOnboardingModal } from '@/components/teacher/TeacherOnboardingModal';
 import { TeacherMoreMenu } from '@/components/teacher/TeacherMoreMenu';
 import { OrderLunchMenus } from '@/components/lunch/OrderLunchMenus';
+import { MyLunchOrders } from '@/components/teacher/MyLunchOrders';
 
 interface TeacherProfile {
   id: string;
@@ -514,6 +515,26 @@ export default function Teacher() {
 
             {/* TAB: PAGOS */}
             <TabsContent value="payments" className="space-y-6">
+              {/* Banner informativo */}
+              <div className="bg-blue-50 border-2 border-blue-200 rounded-lg p-4">
+                <div className="flex items-start gap-3">
+                  <div className="bg-blue-500 rounded-full p-2 mt-1">
+                    <svg className="h-5 w-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="font-bold text-blue-900 text-lg mb-1">
+                      Información de Pagos
+                    </h3>
+                    <p className="text-blue-800 text-sm leading-relaxed">
+                      Esta sección es <strong>solo informativa</strong>. Los pagos se realizarán directamente con el administrador. 
+                      La pasarela de pagos en línea se habilitará próximamente.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
               {/* Card: Balance Actual */}
               <Card>
                 <CardHeader>
@@ -652,10 +673,7 @@ export default function Teacher() {
                         </CardDescription>
                       </CardHeader>
                       <CardContent>
-                        <div className="text-center py-12 text-gray-500">
-                          <UtensilsCrossed className="h-16 w-16 mx-auto mb-4 opacity-30" />
-                          <p>Función en desarrollo</p>
-                        </div>
+                        <MyLunchOrders teacherId={teacherProfile.id} />
                       </CardContent>
                     </Card>
                   </TabsContent>

@@ -264,6 +264,31 @@ export function OrderLunchMenus({ userType, userId, userSchoolId }: OrderLunchMe
 
       if (error) throw error;
 
+      // Crear transacción (cargo) si hay categoría con precio
+      if (selectedMenu.category && selectedMenu.category.price) {
+        const transactionData: any = {
+          type: 'purchase',
+          amount: -Math.abs(selectedMenu.category.price), // Negativo = cargo/deuda
+          description: `Almuerzo - ${selectedMenu.category.name} - ${format(new Date(selectedMenu.date + 'T00:00:00'), "d 'de' MMMM", { locale: es })}`,
+          created_by: userId,
+        };
+
+        if (userType === 'parent') {
+          transactionData.student_id = studentId;
+        } else {
+          transactionData.teacher_id = teacherId;
+        }
+
+        const { error: transactionError } = await supabase
+          .from('transactions')
+          .insert([transactionData]);
+
+        if (transactionError) {
+          console.error('Error creating transaction:', transactionError);
+          // No lanzar error, el pedido ya se creó
+        }
+      }
+
       toast({
         title: '✅ Pedido realizado',
         description: `Tu almuerzo para el ${format(new Date(selectedMenu.date), "d 'de' MMMM", { locale: es })} ha sido registrado`
