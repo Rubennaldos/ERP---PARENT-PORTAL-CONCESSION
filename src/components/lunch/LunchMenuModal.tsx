@@ -264,14 +264,24 @@ export const LunchMenuModal = ({
       await Promise.all(libraryPromises);
 
       // 2. Guardar el menú
-      const payload = {
-        ...formData,
+      const payload: any = {
+        school_id: formData.school_id,
+        date: formData.date,
         starter: formData.starter.trim() || null,
+        main_course: formData.main_course.trim(),
         beverage: formData.beverage.trim() || null,
         dessert: formData.dessert.trim() || null,
         notes: formData.notes.trim() || null,
         created_by: user?.id,
       };
+
+      // Agregar category_id y target_type solo si existen
+      if (formData.category_id) {
+        payload.category_id = formData.category_id;
+      }
+      if (formData.target_type) {
+        payload.target_type = formData.target_type;
+      }
 
       if (menuId) {
         // Actualizar

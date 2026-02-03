@@ -129,95 +129,90 @@ WHERE NOT EXISTS (
 -- Paso 5: RLS Policies para lunch_categories
 ALTER TABLE lunch_categories ENABLE ROW LEVEL SECURITY;
 
--- Policy: Admin general puede ver todo
-CREATE POLICY "admin_general_view_all_categories" ON lunch_categories
+-- Policy: Usuarios autenticados pueden ver categorías de su escuela
+CREATE POLICY "authenticated_view_categories" ON lunch_categories
   FOR SELECT
   USING (
-    EXISTS (
-      SELECT 1 FROM user_permissions up
-      WHERE up.user_id = auth.uid()
-      AND up.role = 'admin_general'
+    auth.uid() IS NOT NULL AND (
+      -- Admin general ve todo
+      EXISTS (
+        SELECT 1 FROM profiles p
+        WHERE p.id = auth.uid()
+        AND p.role IN ('admin_general', 'super_admin')
+      )
+      OR
+      -- Otros usuarios ven solo de su escuela
+      EXISTS (
+        SELECT 1 FROM profiles p
+        WHERE p.id = auth.uid()
+        AND p.school_id = lunch_categories.school_id
+      )
     )
   );
 
--- Policy: Gestor de unidad puede ver categorías de su escuela
-CREATE POLICY "gestor_view_own_school_categories" ON lunch_categories
-  FOR SELECT
-  USING (
-    EXISTS (
-      SELECT 1 FROM user_permissions up
-      WHERE up.user_id = auth.uid()
-      AND up.role = 'gestor_unidad'
-      AND up.school_id = lunch_categories.school_id
-    )
-  );
-
--- Policy: Admin general puede insertar categorías
-CREATE POLICY "admin_general_insert_categories" ON lunch_categories
+-- Policy: Solo admin_general y gestor_unidad pueden insertar categorías
+CREATE POLICY "admin_gestor_insert_categories" ON lunch_categories
   FOR INSERT
   WITH CHECK (
-    EXISTS (
-      SELECT 1 FROM user_permissions up
-      WHERE up.user_id = auth.uid()
-      AND up.role = 'admin_general'
+    auth.uid() IS NOT NULL AND (
+      -- Admin general puede insertar en cualquier escuela
+      EXISTS (
+        SELECT 1 FROM profiles p
+        WHERE p.id = auth.uid()
+        AND p.role IN ('admin_general', 'super_admin')
+      )
+      OR
+      -- Gestor solo en su escuela
+      EXISTS (
+        SELECT 1 FROM profiles p
+        WHERE p.id = auth.uid()
+        AND p.role = 'gestor_unidad'
+        AND p.school_id = lunch_categories.school_id
+      )
     )
   );
 
--- Policy: Gestor puede insertar categorías para su escuela
-CREATE POLICY "gestor_insert_own_school_categories" ON lunch_categories
-  FOR INSERT
-  WITH CHECK (
-    EXISTS (
-      SELECT 1 FROM user_permissions up
-      WHERE up.user_id = auth.uid()
-      AND up.role = 'gestor_unidad'
-      AND up.school_id = lunch_categories.school_id
-    )
-  );
-
--- Policy: Admin general puede actualizar categorías
-CREATE POLICY "admin_general_update_categories" ON lunch_categories
+-- Policy: Solo admin_general y gestor_unidad pueden actualizar categorías
+CREATE POLICY "admin_gestor_update_categories" ON lunch_categories
   FOR UPDATE
   USING (
-    EXISTS (
-      SELECT 1 FROM user_permissions up
-      WHERE up.user_id = auth.uid()
-      AND up.role = 'admin_general'
+    auth.uid() IS NOT NULL AND (
+      -- Admin general puede actualizar cualquier categoría
+      EXISTS (
+        SELECT 1 FROM profiles p
+        WHERE p.id = auth.uid()
+        AND p.role IN ('admin_general', 'super_admin')
+      )
+      OR
+      -- Gestor solo de su escuela
+      EXISTS (
+        SELECT 1 FROM profiles p
+        WHERE p.id = auth.uid()
+        AND p.role = 'gestor_unidad'
+        AND p.school_id = lunch_categories.school_id
+      )
     )
   );
 
--- Policy: Gestor puede actualizar categorías de su escuela
-CREATE POLICY "gestor_update_own_school_categories" ON lunch_categories
-  FOR UPDATE
-  USING (
-    EXISTS (
-      SELECT 1 FROM user_permissions up
-      WHERE up.user_id = auth.uid()
-      AND up.role = 'gestor_unidad'
-      AND up.school_id = lunch_categories.school_id
-    )
-  );
-
--- Policy: Admin general puede eliminar categorías
-CREATE POLICY "admin_general_delete_categories" ON lunch_categories
+-- Policy: Solo admin_general y gestor_unidad pueden eliminar categorías
+CREATE POLICY "admin_gestor_delete_categories" ON lunch_categories
   FOR DELETE
   USING (
-    EXISTS (
-      SELECT 1 FROM user_permissions up
-      WHERE up.user_id = auth.uid()
-      AND up.role = 'admin_general'
-    )
-  );
-
--- Policy: Gestor puede eliminar categorías de su escuela
-CREATE POLICY "gestor_delete_own_school_categories" ON lunch_categories
-  FOR DELETE
-  USING (
-    EXISTS (
-      SELECT 1 FROM user_permissions up
-      WHERE up.user_id = auth.uid()
-      AND up.role = 'gestor_unidad'
-      AND up.school_id = lunch_categories.school_id
+    auth.uid() IS NOT NULL AND (
+      -- Admin general puede eliminar cualquier categoría
+      EXISTS (
+        SELECT 1 FROM profiles p
+        WHERE p.id = auth.uid()
+        AND p.role IN ('admin_general', 'super_admin')
+      )
+      OR
+      -- Gestor solo de su escuela
+      EXISTS (
+        SELECT 1 FROM profiles p
+        WHERE p.id = auth.uid()
+        AND p.role = 'gestor_unidad'
+        AND p.school_id = lunch_categories.school_id
+      )
     )
   );
 
