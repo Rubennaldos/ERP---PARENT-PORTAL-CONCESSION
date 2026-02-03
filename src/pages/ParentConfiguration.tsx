@@ -142,7 +142,9 @@ const ParentConfiguration = () => {
   }, [user, role]);
 
   useEffect(() => {
-    if (!loading && (canViewAllSchools || userSchoolId)) {
+    // Esperar a que los permisos estén listos
+    if (canViewAllSchools !== null || userSchoolId) {
+      console.log('🚀 Trigger fetchData - canViewAllSchools:', canViewAllSchools, 'userSchoolId:', userSchoolId);
       fetchData();
     }
   }, [canViewAllSchools, userSchoolId]);
@@ -174,15 +176,23 @@ const ParentConfiguration = () => {
       }
 
       // Obtener school_id del usuario actual
-      const { data: profileData } = await supabase
+      console.log('🔍 Buscando school_id para usuario:', user.id);
+      const { data: profileData, error: profileError } = await supabase
         .from('profiles')
-        .select('school_id')
+        .select('school_id, role')
         .eq('id', user.id)
         .single();
 
-      if (profileData?.school_id) {
-        setUserSchoolId(profileData.school_id);
-        console.log('🏫 School ID del usuario:', profileData.school_id);
+      if (profileError) {
+        console.error('❌ Error al obtener perfil:', profileError);
+      } else {
+        console.log('📋 Datos del perfil:', profileData);
+        if (profileData?.school_id) {
+          setUserSchoolId(profileData.school_id);
+          console.log('✅ School ID del usuario establecido:', profileData.school_id);
+        } else {
+          console.warn('⚠️ El usuario NO tiene school_id asignado');
+        }
       }
 
       // Consultar permisos del rol
@@ -295,8 +305,10 @@ const ParentConfiguration = () => {
       
       if (!canViewAllSchools && userSchoolId) {
         console.log('🔒 Filtrando padres por sede (a través de sus hijos):', userSchoolId);
+        console.log('📊 Estado actual:', { canViewAllSchools, userSchoolId });
         
         // PASO 1: Obtener estudiantes de la sede
+        console.log('🔍 PASO 1: Buscando estudiantes en sede:', userSchoolId);
         const { data: studentsInSchool, error: studentsError } = await supabase
           .from('students')
           .select('parent_id')
@@ -304,13 +316,23 @@ const ParentConfiguration = () => {
         
         if (studentsError) {
           console.error('❌ Error al obtener estudiantes:', studentsError);
+          toast({
+            variant: 'destructive',
+            title: 'Error',
+            description: `Error al obtener estudiantes: ${studentsError.message}`,
+          });
         } else {
+          console.log('✅ Estudiantes encontrados:', studentsInSchool?.length || 0);
+          console.log('📋 Datos de estudiantes:', studentsInSchool);
+          
           // PASO 2: Extraer los parent_id únicos
           const parentIds = [...new Set(studentsInSchool?.map(s => s.parent_id).filter(Boolean))];
-          console.log('📋 Parent IDs encontrados:', parentIds.length);
+          console.log('📋 Parent IDs únicos encontrados:', parentIds.length);
+          console.log('📋 Lista de parent_ids:', parentIds);
           
           if (parentIds.length > 0) {
             // PASO 3: Obtener solo los padres de esos estudiantes
+            console.log('🔍 PASO 3: Buscando parent_profiles con user_id en:', parentIds);
             const { data: filteredParents, error: parentsError } = await supabase
               .from('parent_profiles')
               .select(`
@@ -328,14 +350,24 @@ const ParentConfiguration = () => {
             
             if (parentsError) {
               console.error('❌ Error al cargar padres:', parentsError);
+              console.error('❌ Detalles del error:', {
+                message: parentsError.message,
+                details: parentsError.details,
+                hint: parentsError.hint,
+                code: parentsError.code
+              });
               toast({
                 variant: 'destructive',
                 title: 'Error',
                 description: `Error al cargar padres: ${parentsError.message}`,
               });
             } else {
+              console.log('✅ Padres encontrados:', filteredParents?.length || 0);
+              console.log('📋 Datos de padres:', filteredParents);
               parentsData = filteredParents || [];
             }
+          } else {
+            console.warn('⚠️ No se encontraron parent_ids en los estudiantes');
           }
         }
       } else {

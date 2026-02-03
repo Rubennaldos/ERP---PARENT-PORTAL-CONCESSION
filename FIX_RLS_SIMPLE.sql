@@ -1,112 +1,294 @@
 -- =====================================================
--- SOLUCIÓN DEFINITIVA: DESHABILITAR RLS EN PROFILES
+-- 🔧 SOLUCIÓN SIMPLE: RLS para Parent y Teacher Profiles
 -- =====================================================
--- Problema: Recursión infinita porque profiles consulta profiles
--- Solución: Deshabilitar RLS en profiles (seguridad a nivel app)
+-- Este script simplifica las políticas RLS para que funcionen correctamente
+-- con consultas desde el frontend
 
--- PASO 1: Eliminar TODAS las políticas de profiles
-DROP POLICY IF EXISTS "superadmin_all_profiles" ON profiles;
-DROP POLICY IF EXISTS "admin_general_all_profiles" ON profiles;
-DROP POLICY IF EXISTS "users_own_profile" ON profiles;
-DROP POLICY IF EXISTS "supervisor_red_view_all_profiles" ON profiles;
-DROP POLICY IF EXISTS "gestor_unidad_own_school_profiles" ON profiles;
-DROP POLICY IF EXISTS "superadmin_admin_all_profiles" ON profiles;
-DROP POLICY IF EXISTS "supervisor_red_view_profiles" ON profiles;
-DROP POLICY IF EXISTS "users_view_own_profile" ON profiles;
-DROP POLICY IF EXISTS "gestor_unidad_school_profiles" ON profiles;
+BEGIN;
 
--- PASO 2: DESHABILITAR RLS en profiles (sin recursión)
-ALTER TABLE profiles DISABLE ROW LEVEL SECURITY;
+-- ========================================
+-- PASO 1: Limpiar políticas existentes
+-- ========================================
 
--- PASO 3: Habilitar acceso para todos los autenticados
--- (ya no necesitamos políticas porque RLS está deshabilitado)
+-- Eliminar políticas de parent_profiles
+DROP POLICY IF EXISTS "Admin general can view all parents" ON parent_profiles;
+DROP POLICY IF EXISTS "Admins can insert parents" ON parent_profiles;
+DROP POLICY IF EXISTS "Admins can update parents from their school" ON parent_profiles;
+DROP POLICY IF EXISTS "Gestor unidad can view parents from their school" ON parent_profiles;
+DROP POLICY IF EXISTS "Parents can view their own profile" ON parent_profiles;
+DROP POLICY IF EXISTS "Parents can update their own profile" ON parent_profiles;
 
--- =====================================================
--- POLÍTICAS SIMPLIFICADAS PARA OTRAS TABLAS
--- =====================================================
+-- Eliminar políticas de teacher_profiles
+DROP POLICY IF EXISTS "Admin general can view all teachers" ON teacher_profiles;
+DROP POLICY IF EXISTS "Admins can insert teachers" ON teacher_profiles;
+DROP POLICY IF EXISTS "Admins can update teachers" ON teacher_profiles;
+DROP POLICY IF EXISTS "Cashiers can view teachers from their school" ON teacher_profiles;
+DROP POLICY IF EXISTS "Gestor unidad can view teachers from their school" ON teacher_profiles;
+DROP POLICY IF EXISTS "Only admins can delete teachers" ON teacher_profiles;
+DROP POLICY IF EXISTS "Teachers can update their own profile" ON teacher_profiles;
+DROP POLICY IF EXISTS "Teachers can view their own profile" ON teacher_profiles;
 
--- STUDENTS: Simplificar políticas sin consultar profiles recursivamente
-DROP POLICY IF EXISTS "admin_all_students" ON students;
-DROP POLICY IF EXISTS "supervisor_red_view_students" ON students;
-DROP POLICY IF EXISTS "gestor_unidad_students" ON students;
-DROP POLICY IF EXISTS "operador_caja_students" ON students;
-DROP POLICY IF EXISTS "operador_cocina_students" ON students;
-DROP POLICY IF EXISTS "parents_own_students" ON students;
-DROP POLICY IF EXISTS "authenticated_users_students" ON students;
-DROP POLICY IF EXISTS "superadmin_all_students" ON students;
-DROP POLICY IF EXISTS "admin_general_all_students" ON students;
-DROP POLICY IF EXISTS "supervisor_red_view_all_students" ON students;
-DROP POLICY IF EXISTS "gestor_unidad_own_school_students" ON students;
-DROP POLICY IF EXISTS "operador_caja_own_school_students" ON students;
-DROP POLICY IF EXISTS "operador_cocina_own_school_students" ON students;
-DROP POLICY IF EXISTS "parents_own_children" ON students;
+-- ========================================
+-- PASO 2: Crear función auxiliar para obtener school_id del usuario
+-- ========================================
 
--- Política SIMPLE: Todos los usuarios autenticados pueden ver estudiantes
--- (el filtro por sede lo hace la aplicación)
-CREATE POLICY "authenticated_users_students"
-ON students FOR ALL
-TO authenticated
-USING (true)
-WITH CHECK (true);
+CREATE OR REPLACE FUNCTION get_user_school_id()
+RETURNS uuid
+LANGUAGE sql
+SECURITY DEFINER
+STABLE
+AS $$
+  SELECT school_id FROM profiles WHERE id = auth.uid();
+$$;
 
--- TRANSACTIONS: Simplificar políticas
-DROP POLICY IF EXISTS "admin_all_transactions" ON transactions;
-DROP POLICY IF EXISTS "supervisor_red_view_transactions" ON transactions;
-DROP POLICY IF EXISTS "gestor_unidad_transactions" ON transactions;
-DROP POLICY IF EXISTS "operador_caja_transactions" ON transactions;
-DROP POLICY IF EXISTS "operador_cocina_transactions" ON transactions;
-DROP POLICY IF EXISTS "parents_own_transactions" ON transactions;
-DROP POLICY IF EXISTS "authenticated_users_transactions" ON transactions;
-DROP POLICY IF EXISTS "superadmin_all_transactions" ON transactions;
-DROP POLICY IF EXISTS "admin_general_all_transactions" ON transactions;
-DROP POLICY IF EXISTS "supervisor_red_view_all_transactions" ON transactions;
-DROP POLICY IF EXISTS "gestor_unidad_own_school_transactions" ON transactions;
-DROP POLICY IF EXISTS "operador_caja_own_school_transactions" ON transactions;
-DROP POLICY IF EXISTS "operador_cocina_own_school_transactions" ON transactions;
+-- ========================================
+-- PASO 3: Crear función auxiliar para verificar si el usuario puede ver todas las sedes
+-- ========================================
 
--- Política SIMPLE: Todos los usuarios autenticados pueden ver transacciones
-CREATE POLICY "authenticated_users_transactions"
-ON transactions FOR ALL
-TO authenticated
-USING (true)
-WITH CHECK (true);
+CREATE OR REPLACE FUNCTION can_view_all_schools()
+RETURNS boolean
+LANGUAGE sql
+SECURITY DEFINER
+STABLE
+AS $$
+  SELECT EXISTS (
+    SELECT 1
+    FROM profiles p
+    INNER JOIN role_permissions rp ON rp.role = p.role
+    INNER JOIN permissions perm ON perm.id = rp.permission_id
+    WHERE p.id = auth.uid()
+      AND perm.module = 'config_padres'
+      AND perm.action = 'view_all_schools'
+      AND rp.granted = true
+  );
+$$;
 
--- PRODUCTS: Ya están bien (compartidos globalmente)
-DROP POLICY IF EXISTS "authenticated_view_products" ON products;
-DROP POLICY IF EXISTS "admin_manage_products" ON products;
-DROP POLICY IF EXISTS "authenticated_users_products" ON products;
-DROP POLICY IF EXISTS "superadmin_all_products" ON products;
-DROP POLICY IF EXISTS "admin_general_all_products" ON products;
+-- ========================================
+-- PASO 4: Políticas para PARENT_PROFILES
+-- ========================================
 
-CREATE POLICY "authenticated_users_products"
-ON products FOR ALL
-TO authenticated
-USING (true)
-WITH CHECK (true);
+-- Admin general puede ver todos los padres
+CREATE POLICY "Admin general can view all parents"
+  ON parent_profiles
+  FOR SELECT
+  USING (
+    EXISTS (
+      SELECT 1 FROM profiles
+      WHERE profiles.id = auth.uid()
+        AND profiles.role IN ('admin_general', 'superadmin')
+    )
+    OR can_view_all_schools()
+  );
 
--- PARENT_PROFILES: Simplificar
-DROP POLICY IF EXISTS "admin_all_parent_profiles" ON parent_profiles;
-DROP POLICY IF EXISTS "gestor_unidad_parent_profiles" ON parent_profiles;
-DROP POLICY IF EXISTS "parents_own_parent_profile" ON parent_profiles;
-DROP POLICY IF EXISTS "authenticated_users_parent_profiles" ON parent_profiles;
-DROP POLICY IF EXISTS "superadmin_all_parent_profiles" ON parent_profiles;
-DROP POLICY IF EXISTS "admin_general_all_parent_profiles" ON parent_profiles;
-DROP POLICY IF EXISTS "parents_own_profile" ON parent_profiles;
+-- Gestor unidad puede ver padres de su sede (a través de students)
+CREATE POLICY "Gestor unidad can view parents from their school"
+  ON parent_profiles
+  FOR SELECT
+  USING (
+    EXISTS (
+      SELECT 1 FROM profiles
+      WHERE profiles.id = auth.uid()
+        AND profiles.role = 'gestor_unidad'
+        AND profiles.school_id IS NOT NULL
+        AND EXISTS (
+          SELECT 1 FROM students
+          WHERE students.parent_id = parent_profiles.user_id
+            AND students.school_id = profiles.school_id
+        )
+    )
+  );
 
-CREATE POLICY "authenticated_users_parent_profiles"
-ON parent_profiles FOR ALL
-TO authenticated
-USING (true)
-WITH CHECK (true);
+-- Padres pueden ver su propio perfil
+CREATE POLICY "Parents can view their own profile"
+  ON parent_profiles
+  FOR SELECT
+  USING (auth.uid() = user_id);
 
--- =====================================================
+-- Admins pueden insertar padres
+CREATE POLICY "Admins can insert parents"
+  ON parent_profiles
+  FOR INSERT
+  WITH CHECK (
+    EXISTS (
+      SELECT 1 FROM profiles
+      WHERE profiles.id = auth.uid()
+        AND profiles.role IN ('admin_general', 'gestor_unidad', 'admin_sede', 'superadmin')
+    )
+  );
+
+-- Admins pueden actualizar padres de su sede
+CREATE POLICY "Admins can update parents from their school"
+  ON parent_profiles
+  FOR UPDATE
+  USING (
+    EXISTS (
+      SELECT 1 FROM profiles
+      WHERE profiles.id = auth.uid()
+        AND profiles.role IN ('admin_general', 'gestor_unidad', 'admin_sede', 'superadmin')
+        AND (
+          profiles.school_id = parent_profiles.school_id
+          OR profiles.role IN ('admin_general', 'superadmin')
+          OR can_view_all_schools()
+        )
+    )
+  );
+
+-- Padres pueden actualizar su propio perfil
+CREATE POLICY "Parents can update their own profile"
+  ON parent_profiles
+  FOR UPDATE
+  USING (auth.uid() = user_id);
+
+-- ========================================
+-- PASO 5: Políticas para TEACHER_PROFILES
+-- ========================================
+
+-- Admin general puede ver todos los profesores
+CREATE POLICY "Admin general can view all teachers"
+  ON teacher_profiles
+  FOR SELECT
+  USING (
+    EXISTS (
+      SELECT 1 FROM profiles
+      WHERE profiles.id = auth.uid()
+        AND profiles.role IN ('admin_general', 'superadmin')
+    )
+    OR can_view_all_schools()
+  );
+
+-- Gestor unidad puede ver profesores de su sede
+CREATE POLICY "Gestor unidad can view teachers from their school"
+  ON teacher_profiles
+  FOR SELECT
+  USING (
+    EXISTS (
+      SELECT 1 FROM profiles
+      WHERE profiles.id = auth.uid()
+        AND profiles.role IN ('gestor_unidad', 'admin_sede')
+        AND profiles.school_id IS NOT NULL
+        AND (
+          teacher_profiles.school_id_1 = profiles.school_id
+          OR teacher_profiles.school_id_2 = profiles.school_id
+        )
+    )
+  );
+
+-- Cajeros pueden ver profesores de su sede
+CREATE POLICY "Cashiers can view teachers from their school"
+  ON teacher_profiles
+  FOR SELECT
+  USING (
+    EXISTS (
+      SELECT 1 FROM profiles
+      WHERE profiles.id = auth.uid()
+        AND profiles.role = 'cajero'
+        AND profiles.school_id IS NOT NULL
+        AND (
+          teacher_profiles.school_id_1 = profiles.school_id
+          OR teacher_profiles.school_id_2 = profiles.school_id
+        )
+    )
+  );
+
+-- Profesores pueden ver su propio perfil
+CREATE POLICY "Teachers can view their own profile"
+  ON teacher_profiles
+  FOR SELECT
+  USING (
+    EXISTS (
+      SELECT 1 FROM profiles
+      WHERE profiles.id = auth.uid()
+        AND profiles.role = 'profesor'
+        AND (
+          profiles.email = teacher_profiles.corporate_email
+          OR profiles.email = teacher_profiles.personal_email
+        )
+    )
+  );
+
+-- Admins pueden insertar profesores
+CREATE POLICY "Admins can insert teachers"
+  ON teacher_profiles
+  FOR INSERT
+  WITH CHECK (
+    EXISTS (
+      SELECT 1 FROM profiles
+      WHERE profiles.id = auth.uid()
+        AND profiles.role IN ('admin_general', 'gestor_unidad', 'admin_sede', 'superadmin')
+    )
+  );
+
+-- Admins pueden actualizar profesores
+CREATE POLICY "Admins can update teachers"
+  ON teacher_profiles
+  FOR UPDATE
+  USING (
+    EXISTS (
+      SELECT 1 FROM profiles
+      WHERE profiles.id = auth.uid()
+        AND profiles.role IN ('admin_general', 'gestor_unidad', 'admin_sede', 'superadmin')
+    )
+  );
+
+-- Profesores pueden actualizar su propio perfil
+CREATE POLICY "Teachers can update their own profile"
+  ON teacher_profiles
+  FOR UPDATE
+  USING (
+    EXISTS (
+      SELECT 1 FROM profiles
+      WHERE profiles.id = auth.uid()
+        AND profiles.role = 'profesor'
+        AND (
+          profiles.email = teacher_profiles.corporate_email
+          OR profiles.email = teacher_profiles.personal_email
+        )
+    )
+  );
+
+-- Solo admins pueden eliminar profesores
+CREATE POLICY "Only admins can delete teachers"
+  ON teacher_profiles
+  FOR DELETE
+  USING (
+    EXISTS (
+      SELECT 1 FROM profiles
+      WHERE profiles.id = auth.uid()
+        AND profiles.role IN ('admin_general', 'superadmin')
+    )
+  );
+
+COMMIT;
+
+-- ========================================
 -- VERIFICACIÓN
--- =====================================================
+-- ========================================
 
-SELECT 'RLS Deshabilitado en profiles - Sistema funcionando' AS status;
+-- Mostrar las nuevas políticas
+SELECT 
+  tablename,
+  policyname,
+  cmd,
+  LEFT(qual::text, 100) as condition_preview
+FROM pg_policies
+WHERE tablename IN ('parent_profiles', 'teacher_profiles')
+ORDER BY tablename, policyname;
 
--- NOTA IMPORTANTE:
--- El filtrado por sede ahora se hace COMPLETAMENTE en la aplicación
--- mediante queries con WHERE school_id = user_school_id
--- Esto es más simple, más rápido y evita recursión
+-- ========================================
+-- NOTAS
+-- ========================================
 
+/*
+✅ CAMBIOS REALIZADOS:
+
+1. Se simplificaron las políticas RLS para mejorar el rendimiento
+2. Se crearon funciones auxiliares para evitar repetir lógica
+3. Se separaron claramente las políticas por rol y acción
+4. Se aseguró que gestor_unidad pueda ver:
+   - Padres cuyos hijos estudian en su sede
+   - Profesores asignados a su sede (school_id_1 o school_id_2)
+
+🔍 PARA VERIFICAR:
+Ejecuta las consultas de DIAGNOSTICO_ADMIN_NO_VE_PADRES.sql
+para confirmar que los datos son visibles correctamente.
+*/
