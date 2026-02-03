@@ -1736,7 +1736,7 @@ const POS = () => {
                     </button>
                   </div>
                 </div>
-              ) : selectedStudent && (
+              ) : clientMode === 'student' && selectedStudent ? (
                 <div>
                   <div className="flex items-center gap-2 mb-1">
                     {/* Foto del estudiante - más pequeña en móvil */}
@@ -1783,7 +1783,7 @@ const POS = () => {
                     </button>
                   </div>
                 </div>
-              ) : selectedTeacher && (
+              ) : clientMode === 'teacher' && selectedTeacher ? (
                 <div>
                   <div className="flex items-center gap-2 mb-1">
                     <div className="flex-1 min-w-0">
@@ -1813,7 +1813,7 @@ const POS = () => {
                     </button>
                   </div>
                 </div>
-              )}
+              ) : null}
             </div>
 
             {/* Items del Carrito - Más compacto en móvil */}
