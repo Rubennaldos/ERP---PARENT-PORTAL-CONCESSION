@@ -396,12 +396,20 @@ const LunchCalendar = () => {
     setWizardTargetType(targetType);
     setWizardCategoryName(categoryName);
     setIsWizardOpen(false);
-    
-    // Pequeño delay para asegurar que los estados se actualicen
-    setTimeout(() => {
-      setIsMenuModalOpen(true);
-    }, 100);
+    // NO abrir el modal aquí, lo haremos en el useEffect
   };
+
+  // useEffect para abrir el modal DESPUÉS de que los estados del wizard se actualicen
+  useEffect(() => {
+    if (wizardCategoryId && wizardTargetType && !isWizardOpen && !isMenuModalOpen) {
+      console.log('🚀 Estados del wizard actualizados, abriendo modal...', {
+        wizardCategoryId,
+        wizardTargetType,
+        wizardCategoryName
+      });
+      setIsMenuModalOpen(true);
+    }
+  }, [wizardCategoryId, wizardTargetType, isWizardOpen, isMenuModalOpen, wizardCategoryName]);
 
   const handleMarkSpecialDay = () => {
     if (!selectedDay) return;
