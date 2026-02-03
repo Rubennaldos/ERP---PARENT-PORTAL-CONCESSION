@@ -372,9 +372,9 @@ export const LunchMenuModal = ({
             <Save className="h-5 w-5 text-green-600" />
             {menuId ? 'Editar Menú' : 'Nuevo Menú de Almuerzo'}
           </DialogTitle>
-          <DialogDescription className="space-y-2">
+          <div className="space-y-2 pt-1">
             {formattedDate && (
-              <span className="font-bold text-green-700 capitalize block">{formattedDate}</span>
+              <p className="font-bold text-green-700 capitalize text-sm">{formattedDate}</p>
             )}
             {preSelectedCategoryName && (
               <Badge variant="outline" className="gap-1">
@@ -382,8 +382,10 @@ export const LunchMenuModal = ({
                 {preSelectedCategoryName} - {preSelectedTargetType === 'students' ? 'Alumnos' : 'Profesores'}
               </Badge>
             )}
-            <p className="text-sm">Completa los platos del día. Solo el segundo es obligatorio.</p>
-          </DialogDescription>
+            <DialogDescription>
+              Completa los platos del día. Solo el segundo es obligatorio.
+            </DialogDescription>
+          </div>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-6">
