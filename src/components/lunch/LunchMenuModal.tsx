@@ -252,6 +252,8 @@ export const LunchMenuModal = ({
       return;
     }
 
+    console.log('📝 FormData al guardar:', formData);
+
     setLoading(true);
     try {
       // 1. Guardar platos en la librería para futuro autocomplete
@@ -275,12 +277,14 @@ export const LunchMenuModal = ({
         created_by: user?.id,
       };
 
-      // Agregar category_id y target_type solo si existen
-      if (formData.category_id) {
+      // Agregar category_id y target_type (convertir string vacío a null)
+      if (formData.category_id && formData.category_id.trim() !== '') {
         payload.category_id = formData.category_id;
-      }
-      if (formData.target_type) {
-        payload.target_type = formData.target_type;
+        payload.target_type = formData.target_type || 'students';
+      } else {
+        // Si no hay categoría, asegurarse de que sean null explícitamente
+        payload.category_id = null;
+        payload.target_type = 'students';
       }
 
       if (menuId) {
