@@ -191,7 +191,7 @@ export function PhysicalOrderWizard({ isOpen, onClose, schoolId, onSuccess }: Ph
       if (orderError) throw orderError;
 
       // Crear transacción si es con crédito
-      if (paymentType === 'credit' && selectedPerson && selectedCategory.price) {
+      if (paymentType === 'credit' && selectedPerson && selectedCategory.price && selectedCategory.price > 0) {
         const transactionData: any = {
           type: 'purchase',
           amount: -Math.abs(selectedCategory.price),
@@ -402,9 +402,11 @@ export function PhysicalOrderWizard({ isOpen, onClose, schoolId, onSuccess }: Ph
                     onClick={() => setSelectedCategory(category)}
                   >
                     <h3 className="font-bold">{category.name}</h3>
-                    <p className="text-lg font-bold mt-2" style={{ color: category.color }}>
-                      S/ {category.price.toFixed(2)}
-                    </p>
+                    {category.price && (
+                      <p className="text-lg font-bold mt-2" style={{ color: category.color }}>
+                        S/ {category.price.toFixed(2)}
+                      </p>
+                    )}
                   </Card>
                 ))}
               </div>
