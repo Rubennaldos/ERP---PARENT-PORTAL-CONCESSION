@@ -401,6 +401,14 @@ const LunchCalendar = () => {
 
   // useEffect para abrir el modal DESPUÉS de que los estados del wizard se actualicen
   useEffect(() => {
+    console.log('🔍 useEffect wizard ejecutado:', {
+      wizardCategoryId,
+      wizardTargetType,
+      isWizardOpen,
+      isMenuModalOpen,
+      condicion: wizardCategoryId && wizardTargetType && !isWizardOpen && !isMenuModalOpen
+    });
+    
     if (wizardCategoryId && wizardTargetType && !isWizardOpen && !isMenuModalOpen) {
       console.log('🚀 Estados del wizard actualizados, abriendo modal...', {
         wizardCategoryId,
