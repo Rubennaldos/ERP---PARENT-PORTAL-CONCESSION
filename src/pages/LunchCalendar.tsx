@@ -341,12 +341,40 @@ const LunchCalendar = () => {
       return;
     }
     
-    // Si hay menús de varias sedes, abrir vista detallada
+    // Si hay menús de varias sedes, mostrar opciones
     if (dayData.menus.length > 1) {
-      setIsDetailModalOpen(true);
-    } else if (dayData.menus.length === 1 && canEdit) {
-      setSelectedMenuId(dayData.menus[0].id);
-      setIsMenuModalOpen(true);
+      // Preguntar si quiere ver los menús existentes o crear uno nuevo
+      if (canCreate) {
+        const response = window.confirm(
+          `Este día ya tiene ${dayData.menus.length} menús.\n\n¿Deseas crear un nuevo menú adicional?\n\nPresiona "Aceptar" para crear uno nuevo o "Cancelar" para ver los existentes.`
+        );
+        if (response) {
+          setSelectedMenuId(null);
+          setIsWizardOpen(true);
+        } else {
+          setIsDetailModalOpen(true);
+        }
+      } else {
+        setIsDetailModalOpen(true);
+      }
+    } else if (dayData.menus.length === 1) {
+      // Si hay 1 menú, preguntar si quiere crear otro o editar el existente
+      if (canCreate) {
+        const response = window.confirm(
+          `Este día ya tiene un menú creado.\n\n¿Deseas crear un nuevo menú adicional?\n\nPresiona "Aceptar" para crear uno nuevo o "Cancelar" para editar el existente.`
+        );
+        if (response) {
+          setSelectedMenuId(null);
+          setIsWizardOpen(true);
+        } else if (canEdit) {
+          setSelectedMenuId(dayData.menus[0].id);
+          setIsMenuModalOpen(true);
+        }
+      } else if (canEdit) {
+        // Si solo puede editar, abrir el menú existente
+        setSelectedMenuId(dayData.menus[0].id);
+        setIsMenuModalOpen(true);
+      }
     } else if (dayData.menus.length === 0 && canCreate) {
       // Si no hay menús, abrir wizard para seleccionar categoría
       setSelectedMenuId(null);
