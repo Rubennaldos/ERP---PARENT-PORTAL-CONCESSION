@@ -389,11 +389,16 @@ const LunchCalendar = () => {
   };
 
   const handleWizardComplete = (categoryId: string, targetType: 'students' | 'teachers', categoryName: string) => {
+    console.log('✅ Wizard completado con:', { categoryId, targetType, categoryName });
     setWizardCategoryId(categoryId);
     setWizardTargetType(targetType);
     setWizardCategoryName(categoryName);
     setIsWizardOpen(false);
-    setIsMenuModalOpen(true);  // Ahora sí abrir el modal del menú con los datos del wizard
+    
+    // Pequeño delay para asegurar que los estados se actualicen
+    setTimeout(() => {
+      setIsMenuModalOpen(true);
+    }, 100);
   };
 
   const handleMarkSpecialDay = () => {
