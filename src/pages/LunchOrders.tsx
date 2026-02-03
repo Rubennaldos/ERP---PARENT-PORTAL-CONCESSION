@@ -44,6 +44,10 @@ interface LunchOrder {
   manual_name: string | null;
   payment_method: string | null;
   payment_details: any;
+  school?: {
+    name: string;
+    code: string;
+  };
   student?: {
     full_name: string;
     photo_url: string | null;
@@ -197,6 +201,10 @@ export default function LunchOrders() {
         .from('lunch_orders')
         .select(`
           *,
+          school:schools!lunch_orders_school_id_fkey (
+            name,
+            code
+          ),
           student:students (
             full_name,
             photo_url,
@@ -540,10 +548,15 @@ export default function LunchOrders() {
 
                     {/* Info */}
                     <div className="flex-1">
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 flex-wrap">
                         <p className="font-bold text-lg text-gray-900">
                           {order.student?.full_name || order.teacher?.full_name || order.manual_name || 'Desconocido'}
                         </p>
+                        {order.school && (
+                          <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-300 text-xs">
+                            🏫 {order.school.name}
+                          </Badge>
+                        )}
                         {order.teacher && (
                           <Badge variant="outline" className="bg-green-50 text-green-700 border-green-300 text-xs">
                             Profesor

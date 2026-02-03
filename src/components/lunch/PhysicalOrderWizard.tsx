@@ -225,6 +225,7 @@ export function PhysicalOrderWizard({ isOpen, onClose, schoolId, onSuccess }: Ph
         order_date: selectedMenu.date,
         status: 'confirmed',
         category_id: selectedCategory.id,
+        school_id: schoolId, // Agregar school_id del admin que crea el pedido
       };
 
       if (paymentType === 'credit') {
