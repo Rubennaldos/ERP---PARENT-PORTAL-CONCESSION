@@ -21,21 +21,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Loader2, Search, Save, Check, Tag } from 'lucide-react';
+import { Loader2, Save, Tag } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
-import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-} from '@/components/ui/command';
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from '@/components/ui/popover';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 
@@ -57,104 +44,6 @@ interface LunchMenuModalProps {
   preSelectedTargetType?: 'students' | 'teachers'; // Nueva prop desde wizard
   preSelectedCategoryName?: string; // Nueva prop desde wizard
 }
-
-// Componente Autocomplete interno
-const AutocompleteInput = ({ 
-  label, 
-  value, 
-  onChange, 
-  type, 
-  placeholder,
-  icon: Icon
-}: { 
-  label: string, 
-  value: string, 
-  onChange: (val: string) => void, 
-  type: string,
-  placeholder: string,
-  icon: any
-}) => {
-  const [open, setOpen] = useState(false);
-  const [suggestions, setSuggestions] = useState<string[]>([]);
-  const [loading, setLoading] = useState(false);
-
-  useEffect(() => {
-    const fetchSuggestions = async () => {
-      if (value.length < 2) {
-        setSuggestions([]);
-        return;
-      }
-      
-      setLoading(true);
-      try {
-        const { data, error } = await supabase.rpc('search_lunch_items', {
-          p_type: type,
-          p_query: value
-        });
-        if (!error && data) {
-          setSuggestions(data.map((item: any) => item.name));
-        }
-      } catch (err) {
-        console.error(err);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    const timer = setTimeout(fetchSuggestions, 300);
-    return () => clearTimeout(timer);
-  }, [value, type]);
-
-  return (
-    <div className="space-y-2">
-      <Label className="flex items-center gap-2">
-        <Icon className="h-4 w-4 text-muted-foreground" />
-        {label}
-      </Label>
-      <div className="relative">
-        <Popover open={open && suggestions.length > 0} onOpenChange={setOpen}>
-          <PopoverTrigger asChild>
-            <div className="relative">
-              <Input
-                placeholder={placeholder}
-                value={value}
-                onChange={(e) => {
-                  onChange(e.target.value);
-                  setOpen(true);
-                }}
-                className="pr-10"
-              />
-              <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                {loading ? <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" /> : <Search className="h-4 w-4 text-muted-foreground" />}
-              </div>
-            </div>
-          </PopoverTrigger>
-          <PopoverContent className="p-0 w-[var(--radix-popover-trigger-width)]" align="start">
-            <Command>
-              <CommandList>
-                <CommandGroup>
-                  {suggestions.map((s) => (
-                    <CommandItem
-                      key={s}
-                      value={s}
-                      onSelect={(currentValue) => {
-                        onChange(currentValue);
-                        setOpen(false);
-                      }}
-                    >
-                      <Check className="mr-2 h-4 w-4" />
-                      {s}
-                    </CommandItem>
-                  ))}
-                </CommandGroup>
-              </CommandList>
-            </Command>
-          </PopoverContent>
-        </Popover>
-      </div>
-    </div>
-  );
-};
 
 export const LunchMenuModal = ({
   isOpen,
@@ -451,41 +340,53 @@ export const LunchMenuModal = ({
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <AutocompleteInput 
-              label="🥗 Entrada"
-              value={formData.starter}
-              onChange={(v) => setFormData(p => ({ ...p, starter: v }))}
-              type="entrada"
-              placeholder="Ej: Ensalada de verduras frescas"
-              icon={Search}
-            />
+            <div>
+              <Label htmlFor="starter">🥗 Entrada</Label>
+              <Input
+                id="starter"
+                value={formData.starter}
+                onChange={(e) => setFormData(p => ({ ...p, starter: e.target.value }))}
+                placeholder="Ej: Ensalada de verduras frescas"
+                disabled={loading}
+                className="mt-2"
+              />
+            </div>
 
-            <AutocompleteInput 
-              label="🍲 Segundo Plato *"
-              value={formData.main_course}
-              onChange={(v) => setFormData(p => ({ ...p, main_course: v }))}
-              type="segundo"
-              placeholder="Ej: Arroz con pollo"
-              icon={UtensilsCrossed}
-            />
+            <div>
+              <Label htmlFor="main_course">🍲 Segundo Plato *</Label>
+              <Input
+                id="main_course"
+                value={formData.main_course}
+                onChange={(e) => setFormData(p => ({ ...p, main_course: e.target.value }))}
+                placeholder="Ej: Arroz con pollo"
+                disabled={loading}
+                className="mt-2"
+              />
+            </div>
 
-            <AutocompleteInput 
-              label="🥤 Bebida"
-              value={formData.beverage}
-              onChange={(v) => setFormData(p => ({ ...p, beverage: v }))}
-              type="bebida"
-              placeholder="Ej: Refresco de maracuyá"
-              icon={Search}
-            />
+            <div>
+              <Label htmlFor="beverage">🥤 Bebida</Label>
+              <Input
+                id="beverage"
+                value={formData.beverage}
+                onChange={(e) => setFormData(p => ({ ...p, beverage: e.target.value }))}
+                placeholder="Ej: Refresco de maracuyá"
+                disabled={loading}
+                className="mt-2"
+              />
+            </div>
 
-            <AutocompleteInput 
-              label="🍰 Postre"
-              value={formData.dessert}
-              onChange={(v) => setFormData(p => ({ ...p, dessert: v }))}
-              type="postre"
-              placeholder="Ej: Gelatina de fresa"
-              icon={Search}
-            />
+            <div>
+              <Label htmlFor="dessert">🍰 Postre</Label>
+              <Input
+                id="dessert"
+                value={formData.dessert}
+                onChange={(e) => setFormData(p => ({ ...p, dessert: e.target.value }))}
+                placeholder="Ej: Gelatina de fresa"
+                disabled={loading}
+                className="mt-2"
+              />
+            </div>
           </div>
 
           <div>
@@ -539,6 +440,3 @@ export const LunchMenuModal = ({
     </Dialog>
   );
 };
-
-// Necesario para que UtensilsCrossed esté disponible en AutocompleteInput
-import { UtensilsCrossed } from 'lucide-react';
