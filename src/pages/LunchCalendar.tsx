@@ -87,7 +87,8 @@ interface LunchMenu {
 }
 
 interface DayData {
-  date: Date;
+  date: string; // Fecha como string 'YYYY-MM-DD' para evitar problemas UTC
+  displayDate: Date; // Date para mostrar en UI
   menus: LunchMenu[];
   isSpecialDay: boolean;
   specialDayInfo?: {
@@ -264,8 +265,9 @@ const LunchCalendar = () => {
         const calendarDays: DayData[] = [];
 
         for (let day = 1; day <= daysInMonth; day++) {
-          const date = new Date(year, month - 1, day);
-          const dateStr = date.toISOString().split('T')[0];
+          // Construir fecha como string directamente (sin conversión UTC)
+          const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+          const date = new Date(year, month - 1, day); // Solo para mostrar en UI
 
           const menusForDay = (data || []).filter(
             (m: LunchMenu) => m.date === dateStr
@@ -274,7 +276,8 @@ const LunchCalendar = () => {
           const specialDay = menusForDay.find((m) => m.is_special_day);
 
           calendarDays.push({
-            date,
+            date: dateStr,
+            displayDate: date,
             menus: menusForDay,
             isSpecialDay: !!specialDay,
             specialDayInfo: specialDay
@@ -707,9 +710,9 @@ const LunchCalendar = () => {
                     {/* Días del mes - Responsive */}
                     {calendarData.map((dayData, index) => {
                       const isToday =
-                        dayData.date.toDateString() === new Date().toDateString();
+                        dayData.displayDate.toDateString() === new Date().toDateString();
                       const hasMenus = dayData.menus.length > 0;
-                      const dayOfWeek = dayData.date.getDay();
+                      const dayOfWeek = dayData.displayDate.getDay();
                       const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
                       const isSpecialDay = dayData.isSpecialDay && dayData.specialDayInfo;
 
@@ -745,7 +748,7 @@ const LunchCalendar = () => {
                                 "text-[11px] sm:text-sm font-bold",
                                 isWeekend && "text-gray-600"
                               )}>
-                                {dayData.date.getDate()}
+                                {dayData.displayDate.getDate()}
                               </span>
                               
                               {/* Menú desplegable - Solo visible en hover en desktop, siempre visible en móvil */}
@@ -776,14 +779,14 @@ const LunchCalendar = () => {
                                       <DropdownMenuSubContent>
                                         <DropdownMenuItem onClick={(e) => { 
                                           e.stopPropagation(); 
-                                          handleSetDayState(dayData.date, 'con_menu', null); 
+                                          handleSetDayState(dayData.displayDate, 'con_menu', null); 
                                         }}>
                                           <UtensilsCrossed className="h-4 w-4 mr-2 text-green-600" />
                                           Con menú (Default)
                                         </DropdownMenuItem>
                                         <DropdownMenuItem onClick={(e) => { 
                                           e.stopPropagation(); 
-                                          handleSetDayState(dayData.date, 'sin_menu', null); 
+                                          handleSetDayState(dayData.displayDate, 'sin_menu', null); 
                                         }}>
                                           <Ban className="h-4 w-4 mr-2 text-gray-400" />
                                           Sin menú
@@ -800,7 +803,7 @@ const LunchCalendar = () => {
                                             <DropdownMenuSubContent>
                                               <DropdownMenuItem onClick={(e) => { 
                                                 e.stopPropagation(); 
-                                                handleSetDayState(dayData.date, 'feriado', null); 
+                                                handleSetDayState(dayData.displayDate, 'feriado', null); 
                                               }}>
                                                 Todas las sedes
                                               </DropdownMenuItem>
@@ -815,7 +818,7 @@ const LunchCalendar = () => {
                                                       key={school.id}
                                                       onClick={(e) => { 
                                                         e.stopPropagation(); 
-                                                        handleSetDayState(dayData.date, 'feriado', [school.id]); 
+                                                        handleSetDayState(dayData.displayDate, 'feriado', [school.id]); 
                                                       }}
                                                     >
                                                       <div className="flex items-center gap-2">
@@ -832,7 +835,7 @@ const LunchCalendar = () => {
                                               {!canViewAllSchools && userSchoolId && (
                                                 <DropdownMenuItem onClick={(e) => { 
                                                   e.stopPropagation(); 
-                                                  handleSetDayState(dayData.date, 'feriado', [userSchoolId]); 
+                                                  handleSetDayState(dayData.displayDate, 'feriado', [userSchoolId]); 
                                                 }}>
                                                   Solo mi sede
                                                 </DropdownMenuItem>
@@ -849,7 +852,7 @@ const LunchCalendar = () => {
                                             <DropdownMenuSubContent>
                                               <DropdownMenuItem onClick={(e) => { 
                                                 e.stopPropagation(); 
-                                                handleSetDayState(dayData.date, 'no_laborable', null); 
+                                                handleSetDayState(dayData.displayDate, 'no_laborable', null); 
                                               }}>
                                                 Todas las sedes
                                               </DropdownMenuItem>
@@ -864,7 +867,7 @@ const LunchCalendar = () => {
                                                       key={school.id}
                                                       onClick={(e) => { 
                                                         e.stopPropagation(); 
-                                                        handleSetDayState(dayData.date, 'no_laborable', [school.id]); 
+                                                        handleSetDayState(dayData.displayDate, 'no_laborable', [school.id]); 
                                                       }}
                                                     >
                                                       <div className="flex items-center gap-2">
@@ -881,7 +884,7 @@ const LunchCalendar = () => {
                                               {!canViewAllSchools && userSchoolId && (
                                                 <DropdownMenuItem onClick={(e) => { 
                                                   e.stopPropagation(); 
-                                                  handleSetDayState(dayData.date, 'no_laborable', [userSchoolId]); 
+                                                  handleSetDayState(dayData.displayDate, 'no_laborable', [userSchoolId]); 
                                                 }}>
                                                   Solo mi sede
                                                 </DropdownMenuItem>
@@ -977,7 +980,7 @@ const LunchCalendar = () => {
           setWizardCategoryName(null);
         }}
         schoolId={userSchoolId || ''}
-        selectedDate={selectedDay?.date || new Date()}
+        selectedDate={selectedDay?.displayDate || new Date()}
         onComplete={handleWizardComplete}
       />
 
@@ -1002,7 +1005,7 @@ const LunchCalendar = () => {
           setWizardCategoryName(null);
         }}
         menuId={selectedMenuId}
-        initialDate={selectedDay?.date}
+        initialDate={selectedDay?.displayDate}
         schools={schools}
         userSchoolId={userSchoolId}
         preSelectedCategoryId={wizardCategoryId || undefined}
@@ -1034,7 +1037,7 @@ const LunchCalendar = () => {
           setIsSpecialDayModalOpen(false);
           setSelectedDay(null);
         }}
-        date={selectedDay?.date}
+        date={selectedDay?.displayDate}
         schools={schools}
         onSuccess={() => {
           setIsSpecialDayModalOpen(false);
@@ -1119,7 +1122,7 @@ const LunchCalendar = () => {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-2xl">
               <UtensilsCrossed className="h-6 w-6 text-green-600" />
-              Menús del {selectedDay && format(selectedDay.date, "EEEE d 'de' MMMM", { locale: es })}
+              Menús del {selectedDay && format(selectedDay.displayDate, "EEEE d 'de' MMMM", { locale: es })}
             </DialogTitle>
           </DialogHeader>
           
@@ -1243,7 +1246,7 @@ const LunchCalendar = () => {
         isOpen={isPhysicalOrderOpen}
         onClose={() => setIsPhysicalOrderOpen(false)}
         schoolId={userSchoolId || ''}
-        selectedDate={selectedDay?.date ? format(selectedDay.date, 'yyyy-MM-dd') : undefined}
+        selectedDate={selectedDay?.date || undefined}
         onSuccess={() => {
           // Recargar los menús del mes actual
           loadMonthlyMenus();
