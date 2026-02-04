@@ -1243,7 +1243,7 @@ const LunchCalendar = () => {
         isOpen={isPhysicalOrderOpen}
         onClose={() => setIsPhysicalOrderOpen(false)}
         schoolId={userSchoolId || ''}
-        selectedDate={selectedDay?.date && typeof selectedDay.date === 'string' ? selectedDay.date : undefined}
+        selectedDate={selectedDay?.date ? format(selectedDay.date, 'yyyy-MM-dd') : undefined}
         onSuccess={() => {
           // Recargar los menús del mes actual
           loadMonthlyMenus();
