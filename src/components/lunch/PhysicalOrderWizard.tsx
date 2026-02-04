@@ -303,13 +303,15 @@ export function PhysicalOrderWizard({ isOpen, onClose, schoolId, selectedDate, o
         targetDate = format(new Date(selectedDate), 'yyyy-MM-dd');
       }
       
-      console.log('🔍 Buscando menús para fecha:', targetDate);
-      console.log('🔍 Categoría seleccionada:', selectedCategory?.id);
-      console.log('🔍 School ID:', schoolId);
-      console.log('🔍 Target type:', targetType);
+      console.log('🔍 [fetchMenus] Inicio');
+      console.log('📅 [fetchMenus] Fecha objetivo:', targetDate);
+      console.log('📂 [fetchMenus] Categoría seleccionada:', selectedCategory?.id, selectedCategory?.name);
+      console.log('🏫 [fetchMenus] School ID:', schoolId);
+      console.log('👥 [fetchMenus] Target type:', targetType);
       
-      // Buscar menús por escuela, categoría, fecha y tipo
-      const { data, error } = await supabase
+      // OPCIÓN 1: Intentar con la foreign key explícita
+      console.log('🔧 [fetchMenus] Intentando query con FK explícita...');
+      let { data, error } = await supabase
         .from('lunch_menus')
         .select(`
           *,
@@ -326,14 +328,54 @@ export function PhysicalOrderWizard({ isOpen, onClose, schoolId, selectedDate, o
         .eq('date', targetDate)
         .eq('target_type', targetType);
 
-      if (error) throw error;
+      // Si hay error con FK, intentar sin FK
+      if (error) {
+        console.log('❌ [fetchMenus] Error con FK explícita:', error);
+        console.log('🔧 [fetchMenus] Intentando query sin FK (solo menús)...');
+        
+        const result = await supabase
+          .from('lunch_menus')
+          .select('*')
+          .eq('school_id', schoolId)
+          .eq('category_id', selectedCategory?.id)
+          .eq('date', targetDate)
+          .eq('target_type', targetType);
+          
+        data = result.data;
+        error = result.error;
+        
+        if (error) {
+          console.log('❌ [fetchMenus] Error sin FK:', error);
+          throw error;
+        }
+        
+        console.log('✅ [fetchMenus] Menús encontrados (sin FK):', data?.length || 0);
+        
+        // Agregar la categoría manualmente a cada menú
+        if (data && data.length > 0) {
+          data = data.map((menu: any) => ({
+            ...menu,
+            lunch_categories: selectedCategory
+          }));
+          console.log('✅ [fetchMenus] Categoría agregada manualmente a los menús');
+        }
+      } else {
+        console.log('✅ [fetchMenus] Query con FK exitosa');
+        console.log('📊 [fetchMenus] Menús encontrados:', data?.length || 0);
+      }
       
-      console.log('📋 Menús encontrados:', data?.length || 0);
+      console.log('📝 [fetchMenus] Menús finales:', data);
       setMenus(data || []);
     } catch (error) {
-      console.error('Error fetching menus:', error);
+      console.error('💥 [fetchMenus] Error fatal:', error);
+      toast({
+        title: 'Error',
+        description: 'No se pudieron cargar los menús disponibles',
+        variant: 'destructive',
+      });
     } finally {
       setLoading(false);
+      console.log('🏁 [fetchMenus] Fin');
     }
   };
 
