@@ -62,7 +62,7 @@ interface LunchOrder {
     full_name: string;
     school_id_1: string;
   };
-  menu?: {
+  lunch_menus?: {
     starter: string | null;
     main_course: string | null;
     beverage: string | null;
@@ -244,7 +244,7 @@ export default function LunchOrders() {
             full_name,
             school_id_1
           ),
-          menu:lunch_menus!lunch_orders_menu_id_fkey (
+          lunch_menus (
             starter,
             main_course,
             beverage,
@@ -265,10 +265,23 @@ export default function LunchOrders() {
       
       console.log('✅ Pedidos cargados:', data?.length || 0);
       
+      // DEBUG: Ver qué pedidos tienen menú
+      data?.forEach((order, index) => {
+        console.log(`Pedido ${index + 1}:`, {
+          id: order.id,
+          student: order.student?.full_name,
+          teacher: order.teacher?.full_name,
+          manual_name: order.manual_name,
+          menu_id: order.menu_id,
+          tiene_menu: !!order.lunch_menus,
+          menu: order.lunch_menus
+        });
+      });
+      
       // Cargar categorías para los menús que tengan category_id
       if (data && data.length > 0) {
         const categoryIds = data
-          .map(order => order.menu?.category_id)
+          .map(order => order.lunch_menus?.category_id)
           .filter((id): id is string => id !== null && id !== undefined);
         
         if (categoryIds.length > 0) {
@@ -281,10 +294,10 @@ export default function LunchOrders() {
           const categoriesMap = new Map(categories?.map(c => [c.id, c]) || []);
           
           data.forEach(order => {
-            if (order.menu && order.menu.category_id) {
-              const category = categoriesMap.get(order.menu.category_id);
+            if (order.lunch_menus && order.lunch_menus.category_id) {
+              const category = categoriesMap.get(order.lunch_menus.category_id);
               if (category) {
-                order.menu.lunch_categories = category;
+                order.lunch_menus.lunch_categories = category;
               }
             }
           });
@@ -578,10 +591,10 @@ export default function LunchOrders() {
               {filteredOrders.map((order) => (
                 <div
                   key={order.id}
-                  onClick={() => order.menu && handleViewMenu(order)}
+                  onClick={() => order.lunch_menus && handleViewMenu(order)}
                   className={cn(
                     "flex items-center justify-between p-4 border rounded-lg transition-colors",
-                    order.menu && "cursor-pointer hover:bg-blue-50 hover:border-blue-300"
+                    order.lunch_menus && "cursor-pointer hover:bg-blue-50 hover:border-blue-300"
                   )}
                 >
                   <div className="flex items-center gap-4 flex-1">
@@ -709,7 +722,7 @@ export default function LunchOrders() {
       )}
 
       {/* Modal de Detalles del Menú */}
-      {selectedMenuOrder && selectedMenuOrder.menu && (
+      {selectedMenuOrder && selectedMenuOrder.lunch_menus && (
         <Dialog open={showMenuDetails} onOpenChange={setShowMenuDetails}>
           <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
@@ -854,16 +867,16 @@ export default function LunchOrders() {
               </Card>
 
               {/* CATEGORÍA DEL MENÚ */}
-              {selectedMenuOrder.menu.lunch_categories && (
+              {selectedMenuOrder.lunch_menus.lunch_categories && (
                 <Card className="bg-gradient-to-r from-purple-50 to-pink-50 border-purple-200">
                   <CardContent className="pt-6">
                     <div className="flex items-center gap-4">
-                      {selectedMenuOrder.menu.lunch_categories.icon && (
-                        <span className="text-5xl">{selectedMenuOrder.menu.lunch_categories.icon}</span>
+                      {selectedMenuOrder.lunch_menus.lunch_categories.icon && (
+                        <span className="text-5xl">{selectedMenuOrder.lunch_menus.lunch_categories.icon}</span>
                       )}
                       <div>
                         <p className="text-xs text-gray-600 uppercase tracking-wide font-semibold">Categoría</p>
-                        <p className="text-2xl font-bold text-gray-900">{selectedMenuOrder.menu.lunch_categories.name}</p>
+                        <p className="text-2xl font-bold text-gray-900">{selectedMenuOrder.lunch_menus.lunch_categories.name}</p>
                       </div>
                     </div>
                   </CardContent>
@@ -880,53 +893,53 @@ export default function LunchOrders() {
                 <CardContent>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {/* Entrada */}
-                    {selectedMenuOrder.menu.starter && (
+                    {selectedMenuOrder.lunch_menus.starter && (
                       <div className="bg-gradient-to-br from-green-50 to-green-100 p-4 rounded-lg border border-green-200">
                         <p className="text-xs font-semibold text-green-700 uppercase tracking-wide mb-2 flex items-center gap-1">
                           🥗 Entrada
                         </p>
-                        <p className="text-base text-gray-900 font-medium">{selectedMenuOrder.menu.starter}</p>
+                        <p className="text-base text-gray-900 font-medium">{selectedMenuOrder.lunch_menus.starter}</p>
                       </div>
                     )}
 
                     {/* Plato Principal */}
-                    {selectedMenuOrder.menu.main_course && (
+                    {selectedMenuOrder.lunch_menus.main_course && (
                       <div className="bg-gradient-to-br from-orange-50 to-orange-100 p-4 rounded-lg border border-orange-200">
                         <p className="text-xs font-semibold text-orange-700 uppercase tracking-wide mb-2 flex items-center gap-1">
                           🍽️ Plato Principal
                         </p>
-                        <p className="text-base text-gray-900 font-medium">{selectedMenuOrder.menu.main_course}</p>
+                        <p className="text-base text-gray-900 font-medium">{selectedMenuOrder.lunch_menus.main_course}</p>
                       </div>
                     )}
 
                     {/* Bebida */}
-                    {selectedMenuOrder.menu.beverage && (
+                    {selectedMenuOrder.lunch_menus.beverage && (
                       <div className="bg-gradient-to-br from-blue-50 to-blue-100 p-4 rounded-lg border border-blue-200">
                         <p className="text-xs font-semibold text-blue-700 uppercase tracking-wide mb-2 flex items-center gap-1">
                           🥤 Bebida
                         </p>
-                        <p className="text-base text-gray-900 font-medium">{selectedMenuOrder.menu.beverage}</p>
+                        <p className="text-base text-gray-900 font-medium">{selectedMenuOrder.lunch_menus.beverage}</p>
                       </div>
                     )}
 
                     {/* Postre */}
-                    {selectedMenuOrder.menu.dessert && (
+                    {selectedMenuOrder.lunch_menus.dessert && (
                       <div className="bg-gradient-to-br from-pink-50 to-pink-100 p-4 rounded-lg border border-pink-200">
                         <p className="text-xs font-semibold text-pink-700 uppercase tracking-wide mb-2 flex items-center gap-1">
                           🍰 Postre
                         </p>
-                        <p className="text-base text-gray-900 font-medium">{selectedMenuOrder.menu.dessert}</p>
+                        <p className="text-base text-gray-900 font-medium">{selectedMenuOrder.lunch_menus.dessert}</p>
                       </div>
                     )}
                   </div>
 
                   {/* Notas */}
-                  {selectedMenuOrder.menu.notes && (
+                  {selectedMenuOrder.lunch_menus.notes && (
                     <div className="mt-4 bg-yellow-50 border border-yellow-200 rounded-lg p-4">
                       <p className="text-xs font-semibold text-yellow-700 uppercase tracking-wide mb-2 flex items-center gap-1">
                         📝 Notas Especiales
                       </p>
-                      <p className="text-sm text-gray-700">{selectedMenuOrder.menu.notes}</p>
+                      <p className="text-sm text-gray-700">{selectedMenuOrder.lunch_menus.notes}</p>
                     </div>
                   )}
                 </CardContent>
