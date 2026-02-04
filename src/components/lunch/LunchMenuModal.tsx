@@ -184,12 +184,21 @@ export const LunchMenuModal = ({
     target_type: preSelectedTargetType || 'students',
   });
 
-  // Cargar datos del menú si es edición
+  // Cargar datos del menú si es edición o inicializar formulario para creación
   useEffect(() => {
-    if (menuId && isOpen) {
+    if (!isOpen) return;
+    
+    if (menuId) {
+      // Modo edición: cargar datos del menú
       loadMenuData();
-    } else if (!menuId && isOpen) {
+    } else {
       // Modo creación: resetear formulario con datos del wizard
+      console.log('🎨 Inicializando nuevo menú con datos del wizard:', {
+        preSelectedCategoryId,
+        preSelectedTargetType,
+        preSelectedCategoryName
+      });
+      
       setFormData({
         school_id: userSchoolId || '',
         date: initialDate ? initialDate.toISOString().split('T')[0] : '',
@@ -201,27 +210,8 @@ export const LunchMenuModal = ({
         category_id: preSelectedCategoryId || '',
         target_type: preSelectedTargetType || 'students',
       });
-      
-      // Debug: verificar que se reciben los datos del wizard
-      console.log('🎨 Wizard data recibido:', {
-        preSelectedCategoryId,
-        preSelectedTargetType,
-        preSelectedCategoryName
-      });
     }
-  }, [menuId, isOpen, initialDate, userSchoolId, preSelectedCategoryId, preSelectedTargetType]);
-
-  // Actualizar category_id cuando llegue del wizard (después de que el modal ya esté abierto)
-  useEffect(() => {
-    if (!menuId && isOpen && preSelectedCategoryId) {
-      console.log('🔄 Actualizando category_id desde wizard:', preSelectedCategoryId);
-      setFormData(prev => ({
-        ...prev,
-        category_id: preSelectedCategoryId,
-        target_type: preSelectedTargetType || 'students',
-      }));
-    }
-  }, [preSelectedCategoryId, preSelectedTargetType, isOpen, menuId]);
+  }, [menuId, isOpen]);
 
   const loadMenuData = async () => {
     if (!menuId) return;
