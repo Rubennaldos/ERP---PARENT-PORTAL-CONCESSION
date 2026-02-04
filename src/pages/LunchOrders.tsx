@@ -331,6 +331,9 @@ export default function LunchOrders() {
   const filterOrders = () => {
     let filtered = [...orders];
 
+    // 🚫 EXCLUIR pedidos anulados (is_cancelled = true)
+    filtered = filtered.filter(order => !order.is_cancelled);
+
     // Filtrar por sede
     if (selectedSchool !== 'all') {
       filtered = filtered.filter(order => {
@@ -527,8 +530,10 @@ export default function LunchOrders() {
     try {
       setCancelling(true);
       
+      console.log('🚫 Anulando pedido:', pendingCancelOrder.id);
+      
       // Anular el pedido
-      const { error } = await supabase
+      const { error: updateError } = await supabase
         .from('lunch_orders')
         .update({
           is_cancelled: true,
@@ -538,11 +543,47 @@ export default function LunchOrders() {
         })
         .eq('id', pendingCancelOrder.id);
       
-      if (error) throw error;
+      if (updateError) throw updateError;
+      
+      // 💰 Si el pedido fue con crédito (tiene student_id o teacher_id), devolver el crédito
+      if (pendingCancelOrder.student_id || pendingCancelOrder.teacher_id) {
+        console.log('💰 Buscando transacción asociada para devolver crédito...');
+        
+        // Buscar la transacción de compra asociada
+        const { data: transactions, error: transError } = await supabase
+          .from('transactions')
+          .select('id, amount, student_id, teacher_id')
+          .eq('type', 'purchase')
+          .or(`description.ilike.%${pendingCancelOrder.id}%`)
+          .eq('payment_status', 'pending');
+        
+        if (transError) {
+          console.error('❌ Error buscando transacción:', transError);
+        } else if (transactions && transactions.length > 0) {
+          const transaction = transactions[0];
+          console.log('✅ Transacción encontrada:', transaction);
+          
+          // Anular la transacción (cambiar estado a 'cancelled' o eliminar)
+          const { error: deleteTransError } = await supabase
+            .from('transactions')
+            .delete()
+            .eq('id', transaction.id);
+          
+          if (deleteTransError) {
+            console.error('❌ Error anulando transacción:', deleteTransError);
+          } else {
+            console.log('✅ Transacción eliminada, crédito devuelto automáticamente');
+          }
+        } else {
+          console.log('⚠️ No se encontró transacción asociada');
+        }
+      }
       
       toast({
         title: '✅ Pedido anulado',
-        description: 'El pedido ha sido anulado correctamente',
+        description: pendingCancelOrder.student_id || pendingCancelOrder.teacher_id 
+          ? 'El pedido ha sido anulado y el crédito devuelto' 
+          : 'El pedido ha sido anulado correctamente',
       });
       
       // Cerrar modales y limpiar estados
