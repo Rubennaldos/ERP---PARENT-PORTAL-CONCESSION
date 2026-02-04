@@ -1219,9 +1219,11 @@ const LunchCalendar = () => {
         isOpen={isPhysicalOrderOpen}
         onClose={() => setIsPhysicalOrderOpen(false)}
         schoolId={userSchoolId || ''}
+        selectedDate={selectedDay?.date}
         onSuccess={() => {
           // Recargar los menús del mes actual
-          window.location.reload();
+          loadMonthlyMenus();
+          setIsPhysicalOrderOpen(false);
         }}
       />
     </div>

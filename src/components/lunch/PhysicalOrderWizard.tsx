@@ -14,6 +14,7 @@ interface PhysicalOrderWizardProps {
   isOpen: boolean;
   onClose: () => void;
   schoolId: string;
+  selectedDate?: string; // Fecha seleccionada desde el calendario
   onSuccess: () => void;
 }
 
@@ -41,7 +42,7 @@ interface Person {
   full_name: string;
 }
 
-export function PhysicalOrderWizard({ isOpen, onClose, schoolId, onSuccess }: PhysicalOrderWizardProps) {
+export function PhysicalOrderWizard({ isOpen, onClose, schoolId, selectedDate, onSuccess }: PhysicalOrderWizardProps) {
   const { toast } = useToast();
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
@@ -154,9 +155,19 @@ export function PhysicalOrderWizard({ isOpen, onClose, schoolId, onSuccess }: Ph
       setLoading(true);
       const table = targetType === 'students' ? 'students' : 'teacher_profiles';
       
-      const { data, error } = await supabase
+      let query = supabase
         .from(table)
-        .select('id, full_name')
+        .select('id, full_name');
+      
+      // Filtrar por escuela
+      if (targetType === 'students') {
+        query = query.eq('school_id', schoolId);
+      } else {
+        // Para profesores, usar school_id_1
+        query = query.eq('school_id_1', schoolId);
+      }
+      
+      const { data, error } = await query.order('full_name');
         .eq('school_id', schoolId)
         .eq('is_active', true)
         .order('full_name');
@@ -193,18 +204,21 @@ export function PhysicalOrderWizard({ isOpen, onClose, schoolId, onSuccess }: Ph
   const fetchMenus = async () => {
     try {
       setLoading(true);
-      const today = format(new Date(), 'yyyy-MM-dd');
+      // Usar la fecha seleccionada o la fecha de hoy
+      const targetDate = selectedDate || format(new Date(), 'yyyy-MM-dd');
+      
+      console.log('🔍 Buscando menús para fecha:', targetDate);
       
       const { data, error } = await supabase
         .from('lunch_menus')
         .select('*')
         .eq('school_id', schoolId)
         .eq('category_id', selectedCategory?.id)
-        .gte('date', today)
-        .order('date')
-        .limit(7);
+        .eq('date', targetDate); // Buscar solo la fecha específica
 
       if (error) throw error;
+      
+      console.log('📋 Menús encontrados:', data?.length || 0);
       setMenus(data || []);
     } catch (error) {
       console.error('Error fetching menus:', error);
@@ -292,6 +306,11 @@ export function PhysicalOrderWizard({ isOpen, onClose, schoolId, onSuccess }: Ph
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-2xl">Nuevo Pedido de Almuerzo</DialogTitle>
+          {selectedDate && (
+            <p className="text-sm text-gray-600 mt-2">
+              📅 Pedido para el día: <span className="font-semibold">{format(new Date(selectedDate), "dd 'de' MMMM, yyyy", { locale: es })}</span>
+            </p>
+          )}
         </DialogHeader>
 
         {/* PASO 1: ¿Para quién? */}
@@ -482,13 +501,23 @@ export function PhysicalOrderWizard({ isOpen, onClose, schoolId, onSuccess }: Ph
         {/* PASO 5: Seleccionar menú */}
         {step === 5 && (
           <div className="space-y-4 py-4">
-            <p className="text-center text-gray-600">Selecciona el día</p>
+            <p className="text-center text-gray-600">
+              Selecciona el menú 
+              {selectedDate && ` del ${format(new Date(selectedDate), "dd 'de' MMMM", { locale: es })}`}
+            </p>
             {loading ? (
               <div className="text-center py-8">
                 <Loader2 className="h-8 w-8 animate-spin mx-auto text-gray-400" />
               </div>
             ) : menus.length === 0 ? (
-              <p className="text-center text-gray-500 py-8">No hay menús disponibles</p>
+              <div className="text-center py-8">
+                <p className="text-gray-500 mb-2">❌ No hay menús disponibles</p>
+                {selectedDate && (
+                  <p className="text-sm text-gray-400">
+                    Para el día {format(new Date(selectedDate), "dd 'de' MMMM, yyyy", { locale: es })}
+                  </p>
+                )}
+              </div>
             ) : (
               <div className="space-y-3 max-h-96 overflow-y-auto">
                 {menus.map((menu) => (
