@@ -330,7 +330,8 @@ export const SalesList = () => {
         date: format(selectedDate, 'dd/MM/yyyy'),
         activeTab,
         selectedSchool,
-        canViewAllSchools
+        canViewAllSchools,
+        userRole: role
       });
 
       let query = supabase
@@ -373,6 +374,8 @@ export const SalesList = () => {
       }
       
       console.log('✅ Ventas obtenidas:', data?.length || 0);
+      console.log('📊 Primera venta (ejemplo):', data?.[0]);
+      console.log('🏢 School data:', data?.[0]?.school);
       setTransactions(data || []);
     } catch (error: any) {
       console.error('Error fetching transactions:', error);
@@ -471,12 +474,20 @@ export const SalesList = () => {
 
   // ========== ANULAR VENTA ==========
   const handleOpenAnnul = (transaction: Transaction) => {
+    console.log('🗑️ Intentando anular venta:', {
+      ticket: transaction.ticket_code,
+      userRole: role,
+      isCajero: role === 'cajero'
+    });
+    
     // Si es cajero, requiere contraseña de admin primero
     if (role === 'cajero') {
+      console.log('✅ Es cajero, pidiendo contraseña');
       setPendingAnnulTransaction(transaction);
       setAdminPassword('');
       setShowPasswordValidation(true);
     } else {
+      console.log('✅ Es admin/gestor, anulación directa');
       // Admin o gestor pueden anular directamente
       setSelectedTransaction(transaction);
       setAnnulReason('');
