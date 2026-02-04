@@ -338,7 +338,7 @@ export function CategoryManager({ schoolId, open, onClose }: CategoryManagerProp
   };
 
   return (
-    <Dialog key={editingCategory?.id || 'new'} open={open} onOpenChange={onClose}>
+    <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-2xl font-bold">Gestionar Categorías de Almuerzos</DialogTitle>
@@ -380,15 +380,29 @@ export function CategoryManager({ schoolId, open, onClose }: CategoryManagerProp
                       <Label htmlFor="target_type">Para quién *</Label>
                       <Select
                         value={formData.target_type}
-                        onValueChange={(value: any) => setFormData({ ...formData, target_type: value })}
+                        onValueChange={(value: 'students' | 'teachers' | 'both') => {
+                          setFormData(prev => ({ ...prev, target_type: value }));
+                        }}
                       >
-                        <SelectTrigger>
-                          <SelectValue />
+                        <SelectTrigger id="target_type">
+                          <SelectValue placeholder="Selecciona..." />
                         </SelectTrigger>
-                        <SelectContent position="popper" sideOffset={5}>
-                          <SelectItem value="students">Alumnos</SelectItem>
-                          <SelectItem value="teachers">Profesores</SelectItem>
-                          <SelectItem value="both">Ambos</SelectItem>
+                        <SelectContent>
+                          <SelectItem value="students">
+                            <span className="flex items-center gap-2">
+                              👨‍🎓 Antiguos alumnos
+                            </span>
+                          </SelectItem>
+                          <SelectItem value="teachers">
+                            <span className="flex items-center gap-2">
+                              👨‍🏫 Profesores
+                            </span>
+                          </SelectItem>
+                          <SelectItem value="both">
+                            <span className="flex items-center gap-2">
+                              👥 Ambos
+                            </span>
+                          </SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
