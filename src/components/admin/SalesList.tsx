@@ -150,6 +150,11 @@ export const SalesList = () => {
   const [annulReason, setAnnulReason] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   
+  // Validación de contraseña para cajeros
+  const [showPasswordValidation, setShowPasswordValidation] = useState(false);
+  const [adminPassword, setAdminPassword] = useState('');
+  const [pendingAnnulTransaction, setPendingAnnulTransaction] = useState<Transaction | null>(null);
+  
   // Modal de impresión
   const [showPrintOptions, setShowPrintOptions] = useState(false);
   const [printType, setPrintType] = useState<'individual' | 'consolidated'>('individual');
@@ -466,9 +471,69 @@ export const SalesList = () => {
 
   // ========== ANULAR VENTA ==========
   const handleOpenAnnul = (transaction: Transaction) => {
-    setSelectedTransaction(transaction);
-    setAnnulReason('');
-    setShowAnnul(true);
+    // Si es cajero, requiere contraseña de admin primero
+    if (role === 'cajero') {
+      setPendingAnnulTransaction(transaction);
+      setAdminPassword('');
+      setShowPasswordValidation(true);
+    } else {
+      // Admin o gestor pueden anular directamente
+      setSelectedTransaction(transaction);
+      setAnnulReason('');
+      setShowAnnul(true);
+    }
+  };
+
+  // Validar contraseña de admin para cajeros
+  const handleValidatePassword = async () => {
+    if (!adminPassword.trim()) {
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'Ingresa la contraseña del administrador',
+      });
+      return;
+    }
+
+    setIsProcessing(true);
+    try {
+      // Buscar un admin con esa contraseña
+      const { data: adminUser, error } = await supabase.rpc('validate_admin_password', {
+        p_password: adminPassword
+      });
+
+      if (error || !adminUser) {
+        toast({
+          variant: 'destructive',
+          title: 'Contraseña Incorrecta',
+          description: 'La contraseña del administrador no es válida',
+        });
+        return;
+      }
+
+      // Contraseña correcta, abrir modal de anulación
+      toast({
+        title: '✅ Autorizado',
+        description: 'Contraseña verificada correctamente',
+      });
+      
+      setShowPasswordValidation(false);
+      setSelectedTransaction(pendingAnnulTransaction);
+      setAnnulReason('');
+      setShowAnnul(true);
+      setAdminPassword('');
+      setPendingAnnulTransaction(null);
+
+    } catch (error: any) {
+      console.error('Error validating password:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'No se pudo validar la contraseña',
+      });
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   const handleAnnulSale = async () => {
@@ -874,11 +939,14 @@ export const SalesList = () => {
                               )}
                             </div>
 
-                            {/* Segunda línea: Sede y Tipo de Documento */}
+                            {/* Segunda línea: Sede (MÁS VISIBLE) y Tipo de Documento */}
                             <div className="flex items-center gap-2 mb-2">
                               {t.school && (
-                                <Badge variant="secondary" className="text-xs flex items-center gap-1">
-                                  <Building2 className="h-3 w-3" />
+                                <Badge 
+                                  variant="default" 
+                                  className="text-xs font-semibold flex items-center gap-1 bg-gradient-to-r from-blue-500 to-purple-500"
+                                >
+                                  <Building2 className="h-3.5 w-3.5" />
                                   {t.school.name}
                                 </Badge>
                               )}
@@ -964,6 +1032,63 @@ export const SalesList = () => {
           </Tabs>
         </CardContent>
       </Card>
+
+      {/* MODAL: Validación de Contraseña para Cajeros */}
+      <Dialog open={showPasswordValidation} onOpenChange={setShowPasswordValidation}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-amber-600">
+              <AlertTriangle className="h-5 w-5" />
+              Autorización Requerida
+            </DialogTitle>
+            <DialogDescription>
+              Como cajero, necesitas la contraseña de un administrador para anular ventas.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
+              <p className="text-sm text-amber-800">
+                <strong>Ticket:</strong> {pendingAnnulTransaction?.ticket_code}
+              </p>
+              <p className="text-sm text-amber-800">
+                <strong>Monto:</strong> S/ {pendingAnnulTransaction ? Math.abs(pendingAnnulTransaction.amount).toFixed(2) : '0.00'}
+              </p>
+            </div>
+
+            <div>
+              <Label htmlFor="adminPassword">Contraseña del Administrador</Label>
+              <Input
+                id="adminPassword"
+                type="password"
+                value={adminPassword}
+                onChange={(e) => setAdminPassword(e.target.value)}
+                placeholder="Ingresa la contraseña"
+                onKeyDown={(e) => e.key === 'Enter' && handleValidatePassword()}
+              />
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button 
+              variant="outline" 
+              onClick={() => {
+                setShowPasswordValidation(false);
+                setAdminPassword('');
+                setPendingAnnulTransaction(null);
+              }}
+            >
+              Cancelar
+            </Button>
+            <Button 
+              onClick={handleValidatePassword} 
+              disabled={isProcessing || !adminPassword.trim()}
+            >
+              {isProcessing ? 'Validando...' : 'Validar'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* MODAL: Editar Datos del Cliente */}
       <Dialog open={showEditClient} onOpenChange={setShowEditClient}>
