@@ -206,40 +206,6 @@ export function LunchConfiguration({ schoolId, canEdit }: LunchConfigurationProp
         </CardHeader>
       </Card>
 
-      {/* Precio del Almuerzo */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <DollarSign className="h-5 w-5 text-green-600" />
-            Precio del Almuerzo
-          </CardTitle>
-          <CardDescription>
-            Define el precio que pagarán los padres por cada almuerzo
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-2">
-            <Label htmlFor="lunch_price">Precio (S/)</Label>
-            <Input
-              id="lunch_price"
-              type="number"
-              step="0.50"
-              min="0"
-              value={config.lunch_price}
-              onChange={(e) =>
-                setConfig({ ...config, lunch_price: parseFloat(e.target.value) || 0 })
-              }
-              disabled={!canEdit}
-              className="text-lg font-bold"
-            />
-            <p className="text-sm text-gray-500">
-              Ejemplo: Con S/ {config.lunch_price.toFixed(2)}, si un padre pide 5 almuerzos para 2 hijos, pagará{' '}
-              <span className="font-bold">S/ {(config.lunch_price * 5 * 2).toFixed(2)}</span>
-            </p>
-          </div>
-        </CardContent>
-      </Card>
-
       {/* Límites para Pedidos */}
       <Card>
         <CardHeader>

@@ -5,7 +5,7 @@
 -- 1. ELIMINAR FUNCIÓN EXISTENTE
 DROP FUNCTION IF EXISTS public.get_monthly_lunch_menus(INTEGER, INTEGER, UUID[]);
 
--- 2. RECREAR FUNCIÓN CON CATEGORÍA
+-- 2. RECREAR FUNCIÓN CON CATEGORÍA (tipos con CAST)
 CREATE OR REPLACE FUNCTION public.get_monthly_lunch_menus(
   target_month INTEGER,
   target_year INTEGER,
@@ -14,21 +14,21 @@ CREATE OR REPLACE FUNCTION public.get_monthly_lunch_menus(
 RETURNS TABLE (
   id UUID,
   school_id UUID,
-  school_name TEXT,
-  school_color TEXT,
+  school_name VARCHAR,
+  school_color VARCHAR,
   category_id UUID,
-  category_name TEXT,
-  category_icon TEXT,
-  category_color TEXT,
+  category_name VARCHAR,
+  category_icon VARCHAR,
+  category_color VARCHAR,
   date DATE,
-  starter TEXT,
-  main_course TEXT,
-  beverage TEXT,
-  dessert TEXT,
+  starter VARCHAR,
+  main_course VARCHAR,
+  beverage VARCHAR,
+  dessert VARCHAR,
   notes TEXT,
   is_special_day BOOLEAN,
-  special_day_type TEXT,
-  special_day_title TEXT
+  special_day_type VARCHAR,
+  special_day_title VARCHAR
 ) 
 LANGUAGE plpgsql
 SECURITY DEFINER
@@ -38,21 +38,21 @@ BEGIN
   SELECT 
     lm.id,
     lm.school_id,
-    s.name AS school_name,
-    COALESCE(s.color, '#10b981') AS school_color,
+    CAST(s.name AS VARCHAR) AS school_name,
+    CAST(COALESCE(s.color, '#10b981') AS VARCHAR) AS school_color,
     lm.category_id,
-    COALESCE(lc.name, 'Sin categoría') AS category_name,
-    COALESCE(lc.icon, '🍽️') AS category_icon,
-    COALESCE(lc.color, '#10b981') AS category_color,
+    CAST(COALESCE(lc.name, 'Sin categoría') AS VARCHAR) AS category_name,
+    CAST(COALESCE(lc.icon, '🍽️') AS VARCHAR) AS category_icon,
+    CAST(COALESCE(lc.color, '#10b981') AS VARCHAR) AS category_color,
     lm.date,
-    COALESCE(lm.starter, '') AS starter,
-    COALESCE(lm.main_course, 'Sin especificar') AS main_course,
-    COALESCE(lm.beverage, '') AS beverage,
-    COALESCE(lm.dessert, '') AS dessert,
+    CAST(COALESCE(lm.starter, '') AS VARCHAR) AS starter,
+    CAST(COALESCE(lm.main_course, 'Sin especificar') AS VARCHAR) AS main_course,
+    CAST(COALESCE(lm.beverage, '') AS VARCHAR) AS beverage,
+    CAST(COALESCE(lm.dessert, '') AS VARCHAR) AS dessert,
     COALESCE(lm.notes, '') AS notes,
     CASE WHEN sd.id IS NOT NULL THEN true ELSE false END AS is_special_day,
-    COALESCE(sd.type, '') AS special_day_type,
-    COALESCE(sd.title, '') AS special_day_title
+    CAST(COALESCE(sd.type, '') AS VARCHAR) AS special_day_type,
+    CAST(COALESCE(sd.title, '') AS VARCHAR) AS special_day_title
   FROM public.lunch_menus lm
   INNER JOIN public.schools s ON lm.school_id = s.id
   LEFT JOIN public.lunch_categories lc ON lm.category_id = lc.id
@@ -70,4 +70,4 @@ $$;
 GRANT EXECUTE ON FUNCTION public.get_monthly_lunch_menus(INTEGER, INTEGER, UUID[]) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.get_monthly_lunch_menus(INTEGER, INTEGER, UUID[]) TO anon;
 
--- ✅ Ahora los menús incluirán el nombre de la categoría
+-- ✅ Tipos forzados con CAST para evitar conflictos

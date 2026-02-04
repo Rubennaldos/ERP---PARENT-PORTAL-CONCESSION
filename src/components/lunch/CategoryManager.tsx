@@ -147,6 +147,15 @@ export function CategoryManager({ schoolId, open, onClose }: CategoryManagerProp
       return;
     }
 
+    if (!formData.price || parseFloat(formData.price) <= 0) {
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'El precio es obligatorio y debe ser mayor a 0'
+      });
+      return;
+    }
+
     setLoading(true);
     try {
       const categoryData = {
@@ -156,7 +165,7 @@ export function CategoryManager({ schoolId, open, onClose }: CategoryManagerProp
         target_type: formData.target_type,
         color: formData.color,
         icon: formData.icon,
-        price: formData.price ? parseFloat(formData.price) : null,
+        price: parseFloat(formData.price),
         is_active: formData.is_active,
         display_order: editingCategory ? editingCategory.display_order : categories.length,
       };
@@ -438,15 +447,18 @@ export function CategoryManager({ schoolId, open, onClose }: CategoryManagerProp
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor="price">Precio (opcional)</Label>
+                      <Label htmlFor="price">Precio (S/) <span className="text-red-500">*</span></Label>
                       <Input
                         id="price"
                         type="number"
                         step="0.01"
+                        min="0"
                         value={formData.price}
                         onChange={(e) => setFormData({ ...formData, price: e.target.value })}
-                        placeholder="0.00"
+                        placeholder="15.00"
+                        required
                       />
+                      <p className="text-xs text-muted-foreground">El precio es obligatorio para cada categoría</p>
                     </div>
 
                     <div className="flex items-center space-x-2">
