@@ -136,19 +136,12 @@ export function PhysicalOrderWizard({ isOpen, onClose, schoolId, selectedDate, o
     }
   }, [step, paymentType, targetType]);
 
-  // Paso 4: Cargar categorías
+  // Paso 5: Cargar menús (ahora desde el paso 3)
   useEffect(() => {
-    if (step === 4 && targetType) {
-      fetchCategories();
-    }
-  }, [step, targetType]);
-
-  // Paso 5: Cargar menús
-  useEffect(() => {
-    if (step === 5 && selectedCategory) {
+    if (step === 5) {
       fetchMenus();
     }
-  }, [step, selectedCategory]);
+  }, [step]);
 
   const fetchPeople = async () => {
     try {
@@ -211,12 +204,23 @@ export function PhysicalOrderWizard({ isOpen, onClose, schoolId, selectedDate, o
       
       console.log('🔍 Buscando menús para fecha:', targetDate);
       
+      // Buscar TODOS los menús del día (sin filtrar por categoría)
+      // Solo filtrar por escuela, fecha y tipo (estudiante/profesor)
       const { data, error } = await supabase
         .from('lunch_menus')
-        .select('*')
+        .select(`
+          *,
+          lunch_categories (
+            id,
+            name,
+            icon,
+            color,
+            price
+          )
+        `)
         .eq('school_id', schoolId)
-        .eq('category_id', selectedCategory?.id)
-        .eq('date', targetDate); // Buscar solo la fecha específica
+        .eq('date', targetDate)
+        .eq('target_type', targetType);
 
       if (error) throw error;
       
@@ -454,7 +458,7 @@ export function PhysicalOrderWizard({ isOpen, onClose, schoolId, selectedDate, o
                 <ArrowLeft className="mr-2 h-4 w-4" /> Atrás
               </Button>
               <Button
-                onClick={() => setStep(4)}
+                onClick={() => setStep(5)}
                 disabled={paymentType === 'credit' ? !selectedPerson : !manualName.trim()}
               >
                 Siguiente <ArrowRight className="ml-2 h-4 w-4" />
@@ -463,48 +467,8 @@ export function PhysicalOrderWizard({ isOpen, onClose, schoolId, selectedDate, o
           </div>
         )}
 
-        {/* PASO 4: Seleccionar categoría */}
-        {step === 4 && (
-          <div className="space-y-4 py-4">
-            <p className="text-center text-gray-600">Selecciona el tipo de almuerzo</p>
-            {loading ? (
-              <div className="text-center py-8">
-                <Loader2 className="h-8 w-8 animate-spin mx-auto text-gray-400" />
-              </div>
-            ) : categories.length === 0 ? (
-              <p className="text-center text-gray-500 py-8">No hay categorías disponibles</p>
-            ) : (
-              <div className="grid grid-cols-2 gap-4">
-                {categories.map((category) => (
-                  <Card
-                    key={category.id}
-                    className={`p-4 cursor-pointer hover:shadow-lg transition-all ${
-                      selectedCategory?.id === category.id ? 'ring-2 ring-green-500' : ''
-                    }`}
-                    style={{ backgroundColor: `${category.color}15` }}
-                    onClick={() => setSelectedCategory(category)}
-                  >
-                    <h3 className="font-bold">{category.name}</h3>
-                    {category.price && (
-                      <p className="text-lg font-bold mt-2" style={{ color: category.color }}>
-                        S/ {category.price.toFixed(2)}
-                      </p>
-                    )}
-                  </Card>
-                ))}
-              </div>
-            )}
-            <div className="flex justify-between gap-2 pt-4">
-              <Button variant="outline" onClick={() => setStep(3)}>
-                <ArrowLeft className="mr-2 h-4 w-4" /> Atrás
-              </Button>
-              <Button onClick={() => setStep(5)} disabled={!selectedCategory}>
-                Siguiente <ArrowRight className="ml-2 h-4 w-4" />
-              </Button>
-            </div>
-          </div>
-        )}
-
+        {/* PASO 4: Eliminado - Ya no se selecciona categoría, se elige directamente el menú */}
+        
         {/* PASO 5: Seleccionar menú */}
         {step === 5 && (
           <div className="space-y-4 py-4">
@@ -527,17 +491,41 @@ export function PhysicalOrderWizard({ isOpen, onClose, schoolId, selectedDate, o
               </div>
             ) : (
               <div className="space-y-3 max-h-96 overflow-y-auto">
-                {menus.map((menu) => (
+                {menus.map((menu: any) => (
                   <Card
                     key={menu.id}
                     className={`p-4 cursor-pointer hover:shadow-lg transition-all ${
                       selectedMenu?.id === menu.id ? 'ring-2 ring-green-500' : ''
                     }`}
-                    onClick={() => setSelectedMenu(menu)}
+                    onClick={() => {
+                      setSelectedMenu(menu);
+                      // Actualizar la categoría seleccionada con los datos del menú
+                      if (menu.lunch_categories) {
+                        setSelectedCategory(menu.lunch_categories);
+                      }
+                    }}
                   >
-                    <p className="font-bold mb-2">
-                      {format(new Date(menu.date + 'T00:00:00'), "EEEE d 'de' MMMM", { locale: es })}
-                    </p>
+                    {/* Categoría y Precio */}
+                    {menu.lunch_categories && (
+                      <div className="flex items-center justify-between mb-3 pb-2 border-b">
+                        <div className="flex items-center gap-2">
+                          <span className="text-2xl">{menu.lunch_categories.icon || '🍽️'}</span>
+                          <div>
+                            <p className="font-bold text-gray-900">{menu.lunch_categories.name}</p>
+                            <p className="text-xs text-gray-500">
+                              {format(new Date(menu.date + 'T00:00:00'), "EEEE d 'de' MMMM", { locale: es })}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-lg font-bold text-green-600">
+                            S/ {menu.lunch_categories.price?.toFixed(2) || '0.00'}
+                          </p>
+                        </div>
+                      </div>
+                    )}
+                    
+                    {/* Contenido del menú */}
                     <div className="text-sm space-y-1">
                       {menu.starter && <p>• Entrada: {menu.starter}</p>}
                       <p className="font-medium text-green-700">• Segundo: {menu.main_course}</p>
@@ -549,7 +537,7 @@ export function PhysicalOrderWizard({ isOpen, onClose, schoolId, selectedDate, o
               </div>
             )}
             <div className="flex justify-between gap-2 pt-4">
-              <Button variant="outline" onClick={() => setStep(4)}>
+              <Button variant="outline" onClick={() => setStep(3)}>
                 <ArrowLeft className="mr-2 h-4 w-4" /> Atrás
               </Button>
               <Button
