@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { 
@@ -20,7 +21,8 @@ import {
   PackagePlus,
   Search,
   Filter,
-  Loader2
+  Loader2,
+  Eye
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -44,6 +46,7 @@ interface LunchOrder {
   manual_name: string | null;
   payment_method: string | null;
   payment_details: any;
+  menu_id: string | null;
   school?: {
     name: string;
     code: string;
@@ -58,6 +61,17 @@ interface LunchOrder {
   teacher?: {
     full_name: string;
     school_id_1: string;
+  };
+  menu?: {
+    starter: string | null;
+    main_course: string | null;
+    beverage: string | null;
+    dessert: string | null;
+    notes: string | null;
+    category?: {
+      name: string;
+      icon: string | null;
+    };
   };
 }
 
@@ -89,6 +103,8 @@ export default function LunchOrders() {
   const [showDeliverWithoutOrder, setShowDeliverWithoutOrder] = useState(false);
   const [selectedOrderForAction, setSelectedOrderForAction] = useState<LunchOrder | null>(null);
   const [showActionsModal, setShowActionsModal] = useState(false);
+  const [showMenuDetails, setShowMenuDetails] = useState(false);
+  const [selectedMenuOrder, setSelectedMenuOrder] = useState<LunchOrder | null>(null);
 
   useEffect(() => {
     if (!roleLoading && role && user) {
@@ -122,7 +138,7 @@ export default function LunchOrders() {
       if (schoolId) {
         const { data: config, error: configError } = await supabase
           .from('lunch_configuration')
-          .select('delivery_start_time, delivery_end_time')
+          .select('delivery_end_time')
           .eq('school_id', schoolId)
           .maybeSingle();
 
@@ -132,25 +148,36 @@ export default function LunchOrders() {
 
         console.log('🕐 Configuración de entrega:', config);
 
-        // Calcular fecha por defecto basada en la hora de entrega
+        // Calcular fecha por defecto basada en la hora de CORTE (delivery_end_time)
         const now = new Date();
         const peruTime = new Date(now.toLocaleString('en-US', { timeZone: 'America/Lima' }));
         const currentHour = peruTime.getHours();
+        const currentMinute = peruTime.getMinutes();
         
-        // Convertir delivery_start_time a horas (ej: "11:00:00" -> 11)
-        const deliveryStartHour = config?.delivery_start_time 
-          ? parseInt(config.delivery_start_time.split(':')[0]) 
-          : 11; // Default 11 AM
+        // Convertir delivery_end_time a horas y minutos (ej: "17:00:00" -> 17:00)
+        const deliveryEndHour = config?.delivery_end_time 
+          ? parseInt(config.delivery_end_time.split(':')[0]) 
+          : 17; // Default 5 PM
+        const deliveryEndMinute = config?.delivery_end_time 
+          ? parseInt(config.delivery_end_time.split(':')[1]) 
+          : 0;
 
-        // Si ya pasó la hora de entrega, mostrar pedidos de mañana
+        // Si ya pasó la hora de corte, mostrar pedidos de mañana
         // Si no ha pasado, mostrar pedidos de hoy
         let defaultDate = new Date(peruTime);
-        if (currentHour >= deliveryStartHour) {
+        const currentTotalMinutes = currentHour * 60 + currentMinute;
+        const cutoffTotalMinutes = deliveryEndHour * 60 + deliveryEndMinute;
+        
+        if (currentTotalMinutes >= cutoffTotalMinutes) {
           defaultDate.setDate(defaultDate.getDate() + 1);
+          console.log('⏰ Ya pasó la hora de corte, mostrando pedidos del día siguiente');
+        } else {
+          console.log('⏰ Aún no es hora de corte, mostrando pedidos de hoy');
         }
 
         const formattedDate = format(defaultDate, 'yyyy-MM-dd');
         console.log('📅 Fecha por defecto calculada:', formattedDate);
+        console.log('⏰ Hora de corte configurada:', `${deliveryEndHour}:${String(deliveryEndMinute).padStart(2, '0')}`);
         
         setDefaultDeliveryDate(formattedDate);
         setSelectedDate(formattedDate);
@@ -215,6 +242,17 @@ export default function LunchOrders() {
           teacher:teacher_profiles (
             full_name,
             school_id_1
+          ),
+          menu:lunch_menus (
+            starter,
+            main_course,
+            beverage,
+            dessert,
+            notes,
+            category:lunch_categories (
+              name,
+              icon
+            )
           )
         `)
         .eq('order_date', selectedDate)
@@ -346,6 +384,11 @@ export default function LunchOrders() {
     setShowActionsModal(false);
     setSelectedOrderForAction(null);
     fetchOrders(); // Recargar los pedidos
+  };
+
+  const handleViewMenu = (order: LunchOrder) => {
+    setSelectedMenuOrder(order);
+    setShowMenuDetails(true);
   };
 
   if (loading || roleLoading) {
@@ -591,6 +634,17 @@ export default function LunchOrders() {
 
                   {/* Acciones */}
                   <div className="flex gap-2">
+                    {order.menu && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleViewMenu(order)}
+                        className="gap-2"
+                      >
+                        <Eye className="h-4 w-4" />
+                        Ver Menú
+                      </Button>
+                    )}
                     <Button
                       size="sm"
                       onClick={() => handleOrderAction(order)}
@@ -634,6 +688,139 @@ export default function LunchOrders() {
           onSuccess={handleActionComplete}
           canModify={canModifyOrder()}
         />
+      )}
+
+      {/* Modal de Detalles del Menú */}
+      {selectedMenuOrder && selectedMenuOrder.menu && (
+        <Dialog open={showMenuDetails} onOpenChange={setShowMenuDetails}>
+          <DialogContent className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <UtensilsCrossed className="h-5 w-5 text-blue-600" />
+                Detalles del Menú
+              </DialogTitle>
+              <DialogDescription>
+                Menú ordenado por {selectedMenuOrder.student?.full_name || selectedMenuOrder.teacher?.full_name || selectedMenuOrder.manual_name}
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-4">
+              {/* Categoría */}
+              {selectedMenuOrder.menu.category && (
+                <div className="flex items-center gap-3 p-4 bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg border border-blue-200">
+                  {selectedMenuOrder.menu.category.icon && (
+                    <span className="text-3xl">{selectedMenuOrder.menu.category.icon}</span>
+                  )}
+                  <div>
+                    <p className="text-xs text-gray-600 uppercase tracking-wide font-semibold">Categoría</p>
+                    <p className="text-lg font-bold text-gray-900">{selectedMenuOrder.menu.category.name}</p>
+                  </div>
+                </div>
+              )}
+
+              {/* Platos */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Entrada */}
+                {selectedMenuOrder.menu.starter && (
+                  <Card>
+                    <CardHeader className="pb-3">
+                      <CardTitle className="text-sm font-semibold text-gray-600 uppercase tracking-wide flex items-center gap-2">
+                        🥗 Entrada
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <p className="text-base text-gray-900">{selectedMenuOrder.menu.starter}</p>
+                    </CardContent>
+                  </Card>
+                )}
+
+                {/* Plato Principal */}
+                {selectedMenuOrder.menu.main_course && (
+                  <Card>
+                    <CardHeader className="pb-3">
+                      <CardTitle className="text-sm font-semibold text-gray-600 uppercase tracking-wide flex items-center gap-2">
+                        🍽️ Plato Principal
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <p className="text-base text-gray-900">{selectedMenuOrder.menu.main_course}</p>
+                    </CardContent>
+                  </Card>
+                )}
+
+                {/* Bebida */}
+                {selectedMenuOrder.menu.beverage && (
+                  <Card>
+                    <CardHeader className="pb-3">
+                      <CardTitle className="text-sm font-semibold text-gray-600 uppercase tracking-wide flex items-center gap-2">
+                        🥤 Bebida
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <p className="text-base text-gray-900">{selectedMenuOrder.menu.beverage}</p>
+                    </CardContent>
+                  </Card>
+                )}
+
+                {/* Postre */}
+                {selectedMenuOrder.menu.dessert && (
+                  <Card>
+                    <CardHeader className="pb-3">
+                      <CardTitle className="text-sm font-semibold text-gray-600 uppercase tracking-wide flex items-center gap-2">
+                        🍰 Postre
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <p className="text-base text-gray-900">{selectedMenuOrder.menu.dessert}</p>
+                    </CardContent>
+                  </Card>
+                )}
+              </div>
+
+              {/* Notas */}
+              {selectedMenuOrder.menu.notes && (
+                <Card className="bg-yellow-50 border-yellow-200">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-sm font-semibold text-gray-600 uppercase tracking-wide flex items-center gap-2">
+                      📝 Notas
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-sm text-gray-700">{selectedMenuOrder.menu.notes}</p>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Información del Pedido */}
+              <div className="pt-4 border-t space-y-2">
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-600">Fecha del pedido:</span>
+                  <span className="font-semibold text-gray-900">
+                    {format(new Date(selectedMenuOrder.order_date), "dd 'de' MMMM, yyyy", { locale: es })}
+                  </span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-600">Hora de registro:</span>
+                  <span className="font-semibold text-gray-900">
+                    {format(new Date(selectedMenuOrder.created_at), "HH:mm", { locale: es })}
+                  </span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-600">Estado:</span>
+                  <div>
+                    {getStatusBadge(selectedMenuOrder.status, selectedMenuOrder.is_no_order_delivery)}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex justify-end pt-4 border-t">
+              <Button onClick={() => setShowMenuDetails(false)}>
+                Cerrar
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
       )}
     </div>
   );
