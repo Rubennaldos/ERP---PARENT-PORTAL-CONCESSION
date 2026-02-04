@@ -278,63 +278,31 @@ export function PhysicalOrderWizard({ isOpen, onClose, schoolId, selectedDate, o
       console.log('🏫 [fetchMenus] School ID:', schoolId);
       console.log('👥 [fetchMenus] Target type:', targetType);
       
-      // OPCIÓN 1: Intentar con la foreign key explícita
-      console.log('🔧 [fetchMenus] Intentando query con FK explícita...');
-      let { data, error } = await supabase
+      // Buscar menús sin FK (método más confiable)
+      console.log('🔧 [fetchMenus] Buscando menús...');
+      const { data, error } = await supabase
         .from('lunch_menus')
-        .select(`
-          *,
-          lunch_categories!lunch_menus_category_id_fkey (
-            id,
-            name,
-            icon,
-            color,
-            price
-          )
-        `)
+        .select('*')
         .eq('school_id', schoolId)
         .eq('category_id', selectedCategory?.id)
         .eq('date', targetDate)
         .eq('target_type', targetType);
-
-      // Si hay error con FK, intentar sin FK
+        
       if (error) {
-        console.log('❌ [fetchMenus] Error con FK explícita:', error);
-        console.log('🔧 [fetchMenus] Intentando query sin FK (solo menús)...');
-        
-        const result = await supabase
-          .from('lunch_menus')
-          .select('*')
-          .eq('school_id', schoolId)
-          .eq('category_id', selectedCategory?.id)
-          .eq('date', targetDate)
-          .eq('target_type', targetType);
-          
-        data = result.data;
-        error = result.error;
-        
-        if (error) {
-          console.log('❌ [fetchMenus] Error sin FK:', error);
-          throw error;
-        }
-        
-        console.log('✅ [fetchMenus] Menús encontrados (sin FK):', data?.length || 0);
-        
-        // Agregar la categoría manualmente a cada menú
-        if (data && data.length > 0) {
-          data = data.map((menu: any) => ({
-            ...menu,
-            lunch_categories: selectedCategory
-          }));
-          console.log('✅ [fetchMenus] Categoría agregada manualmente a los menús');
-        }
-      } else {
-        console.log('✅ [fetchMenus] Query con FK exitosa');
-        console.log('📊 [fetchMenus] Menús encontrados:', data?.length || 0);
+        console.log('❌ [fetchMenus] Error buscando menús:', error);
+        throw error;
       }
       
-      console.log('📝 [fetchMenus] Menús finales:', data);
-      setMenus(data || []);
+      console.log('✅ [fetchMenus] Menús encontrados:', data?.length || 0);
+      
+      // Agregar la categoría manualmente a cada menú
+      const menusWithCategory = (data || []).map((menu: any) => ({
+        ...menu,
+        lunch_categories: selectedCategory
+      }));
+      
+      console.log('📝 [fetchMenus] Menús finales:', menusWithCategory);
+      setMenus(menusWithCategory);
     } catch (error) {
       console.error('💥 [fetchMenus] Error fatal:', error);
       toast({
