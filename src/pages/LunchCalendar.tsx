@@ -345,25 +345,11 @@ const LunchCalendar = () => {
       return;
     }
     
-    // Si hay menús de varias sedes, mostrar opciones
-    if (dayData.menus.length > 1) {
-      // Preguntar si quiere ver los menús existentes o crear uno nuevo
-      if (canCreate) {
-        setIsCreateAnotherMenuOpen(true);
-      } else {
-        setIsDetailModalOpen(true);
-      }
-    } else if (dayData.menus.length === 1) {
-      // Si hay 1 menú, preguntar si quiere crear otro o editar el existente
-      if (canCreate) {
-        setIsCreateAnotherMenuOpen(true);
-      } else if (canEdit) {
-        // Si solo puede editar, abrir el menú existente
-        setSelectedMenuId(dayData.menus[0].id);
-        setIsMenuModalOpen(true);
-      }
+    // Si hay menús (uno o varios), abrir el modal de opciones
+    if (dayData.menus.length >= 1) {
+      setIsCreateAnotherMenuOpen(true);
     } else if (dayData.menus.length === 0 && canCreate) {
-      // Si no hay menús, abrir wizard para seleccionar categoría
+      // Si no hay menús, abrir wizard para crear
       setSelectedMenuId(null);
       setIsWizardOpen(true);
     }
@@ -1080,6 +1066,19 @@ const LunchCalendar = () => {
             </div>
 
             <div className="space-y-2">
+              {/* BOTÓN NUEVO PEDIDO - GRANDE Y DESTACADO */}
+              <Button 
+                onClick={() => {
+                  setIsCreateAnotherMenuOpen(false);
+                  setIsPhysicalOrderOpen(true);
+                }}
+                className="w-full gap-2 bg-blue-600 hover:bg-blue-700"
+                size="lg"
+              >
+                <ShoppingCart className="h-5 w-5" />
+                Nuevo Pedido
+              </Button>
+              
               <Button 
                 onClick={handleCreateAnotherMenu}
                 className="w-full gap-2 bg-green-600 hover:bg-green-700"
@@ -1196,10 +1195,11 @@ const LunchCalendar = () => {
             )}
             
             {/* Botones de acción */}
-            <div className="flex justify-between items-center pt-4 border-t">
+            <div className="flex gap-2 pt-4 border-t">
+              {/* Botón Nuevo Pedido - Siempre visible */}
               <Button 
                 size="lg"
-                className="bg-blue-600 hover:bg-blue-700 text-white gap-2 flex-1 mr-3"
+                className="bg-blue-600 hover:bg-blue-700 text-white gap-2 flex-1"
                 onClick={() => {
                   setIsDetailModalOpen(false);
                   setIsPhysicalOrderOpen(true);
@@ -1208,8 +1208,27 @@ const LunchCalendar = () => {
                 <ShoppingCart className="h-5 w-5" />
                 Nuevo Pedido
               </Button>
+              
+              {/* Botón Crear Menú - Solo si puede crear */}
+              {canCreate && (
+                <Button 
+                  size="lg"
+                  variant="outline"
+                  className="gap-2"
+                  onClick={() => {
+                    setIsDetailModalOpen(false);
+                    setSelectedMenuId(null);
+                    setIsWizardOpen(true);
+                  }}
+                >
+                  <Plus className="h-5 w-5" />
+                  Crear Menú
+                </Button>
+              )}
+              
+              {/* Botón Cerrar */}
               <Button 
-                variant="outline"
+                variant="ghost"
                 onClick={() => setIsDetailModalOpen(false)}
               >
                 Cerrar
