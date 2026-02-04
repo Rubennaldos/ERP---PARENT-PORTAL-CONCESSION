@@ -81,6 +81,7 @@ const Index = () => {
   const [studentDebts, setStudentDebts] = useState<Record<string, number>>({}); // 💰 Deudas por estudiante
   const [loading, setLoading] = useState(true);
   const [parentName, setParentName] = useState<string>('');
+  const [parentProfileData, setParentProfileData] = useState<any>(null); // 👤 Datos del perfil del padre
   const [showAddStudent, setShowAddStudent] = useState(false);
   // Estado para la navegación por pestañas
   const [activeTab, setActiveTab] = useState(() => {
@@ -138,6 +139,7 @@ const Index = () => {
       // Si existe el nombre en parent_profiles, usarlo (prioridad)
       if (parentProfileData && parentProfileData.full_name) {
         setParentName(parentProfileData.full_name);
+        setParentProfileData(parentProfileData); // Guardar datos completos en el estado
         
         // Verificar consentimiento de fotos
         if (parentProfileData.photo_consent === true) {
@@ -150,12 +152,15 @@ const Index = () => {
         // Fallback: obtener nombre del perfil básico
         const { data: profileData, error: profileError } = await supabase
           .from('profiles')
-          .select('full_name')
+          .select('full_name, school_id')
           .eq('id', user.id)
           .single();
         
-        if (profileData && profileData.full_name) {
-          setParentName(profileData.full_name);
+        if (profileData) {
+          if (profileData.full_name) {
+            setParentName(profileData.full_name);
+          }
+          setParentProfileData(profileData); // Guardar datos del perfil básico
         }
       }
     } catch (e) {
@@ -766,11 +771,11 @@ const Index = () => {
                 
                 <TabsContent value="hacer-pedido" className="mt-4 sm:mt-6">
                   {/* Nuevo componente para pedir almuerzos con categorías */}
-                  {user && profileData && (
+                  {user && parentProfileData && (
                     <OrderLunchMenus 
                       userType="parent"
                       userId={user.id}
-                      userSchoolId={profileData.school_id || ''}
+                      userSchoolId={parentProfileData.school_id || ''}
                     />
                   )}
                 </TabsContent>
