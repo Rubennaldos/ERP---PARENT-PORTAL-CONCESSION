@@ -68,7 +68,8 @@ interface LunchOrder {
     beverage: string | null;
     dessert: string | null;
     notes: string | null;
-    category?: {
+    category_id: string | null;
+    lunch_categories?: {
       name: string;
       icon: string | null;
     };
@@ -243,13 +244,14 @@ export default function LunchOrders() {
             full_name,
             school_id_1
           ),
-          menu:lunch_menus (
+          menu:lunch_menus!lunch_orders_menu_id_fkey (
             starter,
             main_course,
             beverage,
             dessert,
             notes,
-            category:lunch_categories (
+            category_id,
+            lunch_categories!lunch_menus_category_id_fkey (
               name,
               icon
             )
@@ -706,14 +708,14 @@ export default function LunchOrders() {
 
             <div className="space-y-4">
               {/* Categoría */}
-              {selectedMenuOrder.menu.category && (
+              {selectedMenuOrder.menu.lunch_categories && (
                 <div className="flex items-center gap-3 p-4 bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg border border-blue-200">
-                  {selectedMenuOrder.menu.category.icon && (
-                    <span className="text-3xl">{selectedMenuOrder.menu.category.icon}</span>
+                  {selectedMenuOrder.menu.lunch_categories.icon && (
+                    <span className="text-3xl">{selectedMenuOrder.menu.lunch_categories.icon}</span>
                   )}
                   <div>
                     <p className="text-xs text-gray-600 uppercase tracking-wide font-semibold">Categoría</p>
-                    <p className="text-lg font-bold text-gray-900">{selectedMenuOrder.menu.category.name}</p>
+                    <p className="text-lg font-bold text-gray-900">{selectedMenuOrder.menu.lunch_categories.name}</p>
                   </div>
                 </div>
               )}
