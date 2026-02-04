@@ -250,11 +250,7 @@ export default function LunchOrders() {
             beverage,
             dessert,
             notes,
-            category_id,
-            lunch_categories!lunch_menus_category_id_fkey (
-              name,
-              icon
-            )
+            category_id
           )
         `)
         .eq('order_date', selectedDate)
@@ -268,6 +264,33 @@ export default function LunchOrders() {
       }
       
       console.log('✅ Pedidos cargados:', data?.length || 0);
+      
+      // Cargar categorías para los menús que tengan category_id
+      if (data && data.length > 0) {
+        const categoryIds = data
+          .map(order => order.menu?.category_id)
+          .filter((id): id is string => id !== null && id !== undefined);
+        
+        if (categoryIds.length > 0) {
+          const { data: categories } = await supabase
+            .from('lunch_categories')
+            .select('id, name, icon')
+            .in('id', categoryIds);
+          
+          // Mapear categorías a los menús
+          const categoriesMap = new Map(categories?.map(c => [c.id, c]) || []);
+          
+          data.forEach(order => {
+            if (order.menu && order.menu.category_id) {
+              const category = categoriesMap.get(order.menu.category_id);
+              if (category) {
+                order.menu.lunch_categories = category;
+              }
+            }
+          });
+        }
+      }
+      
       setOrders(data || []);
     } catch (error: any) {
       console.error('❌ Error cargando pedidos:', error);
