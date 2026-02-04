@@ -66,6 +66,8 @@ const Products = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [schools, setSchools] = useState<School[]>([]);
   const [categories, setCategories] = useState<string[]>([]);
+  const [userSchoolId, setUserSchoolId] = useState<string | null>(null);
+  const [productSchoolPrices, setProductSchoolPrices] = useState<Record<string, { price_sale: number }>>({});
   const [showProductModal, setShowProductModal] = useState(false);
   const [formMode, setFormMode] = useState<'wizard' | 'form'>('wizard');
   const [wizardStep, setWizardStep] = useState(1);
@@ -116,6 +118,7 @@ const Products = () => {
   useEffect(() => {
     fetchProducts();
     fetchSchools();
+    fetchUserSchool();
   }, []);
 
   // Filtrar productos cuando cambia la búsqueda
@@ -133,6 +136,13 @@ const Products = () => {
       setFilteredProducts(filtered);
     }
   }, [searchQuery, products]);
+
+  // Cargar precios personalizados cuando el userSchoolId esté disponible
+  useEffect(() => {
+    if (userSchoolId) {
+      fetchProductSchoolPrices();
+    }
+  }, [userSchoolId]);
 
   useEffect(() => {
     calculateDashStats();
@@ -212,6 +222,55 @@ const Products = () => {
   const fetchSchools = async () => {
     const { data } = await supabase.from('schools').select('id, name').order('name');
     setSchools(data || []);
+  };
+
+  const fetchUserSchool = async () => {
+    if (!user) return;
+    
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('school_id')
+        .eq('id', user.id)
+        .single();
+      
+      if (error) {
+        console.error('❌ Error al obtener school_id del usuario:', error);
+        return;
+      }
+      
+      console.log('✅ School ID del usuario:', data?.school_id);
+      setUserSchoolId(data?.school_id || null);
+    } catch (err) {
+      console.error('❌ Error en fetchUserSchool:', err);
+    }
+  };
+
+  const fetchProductSchoolPrices = async () => {
+    if (!userSchoolId) return;
+    
+    try {
+      const { data, error } = await supabase
+        .from('product_school_prices')
+        .select('product_id, price_sale')
+        .eq('school_id', userSchoolId);
+      
+      if (error) {
+        console.error('❌ Error al obtener precios por sede:', error);
+        return;
+      }
+      
+      // Crear un mapa: product_id -> { price_sale }
+      const pricesMap: Record<string, { price_sale: number }> = {};
+      data?.forEach(item => {
+        pricesMap[item.product_id] = { price_sale: item.price_sale };
+      });
+      
+      console.log('✅ Precios personalizados por sede:', pricesMap);
+      setProductSchoolPrices(pricesMap);
+    } catch (err) {
+      console.error('❌ Error en fetchProductSchoolPrices:', err);
+    }
   };
 
   const calculateDashStats = async () => {
@@ -1131,8 +1190,26 @@ const Products = () => {
                         <CardDescription>Código: {product.code}</CardDescription>
                       </CardHeader>
                       <CardContent>
-                        <div className="text-2xl font-bold text-green-600 mb-2">
-                          S/ {product.price_sale?.toFixed(2)}
+                        <div className="space-y-1 mb-2">
+                          {(() => {
+                            const customPrice = productSchoolPrices[product.id];
+                            const hasCustomPrice = customPrice && customPrice.price_sale !== product.price_sale;
+                            const displayPrice = hasCustomPrice ? customPrice.price_sale : product.price_sale;
+                            
+                            return (
+                              <>
+                                <div className="text-2xl font-bold text-green-600">
+                                  S/ {displayPrice?.toFixed(2)}
+                                </div>
+                                {hasCustomPrice && (
+                                  <div className="text-xs text-gray-500 flex items-center gap-1">
+                                    <Badge variant="outline" className="text-[10px] px-1 py-0 h-4">Tu Sede</Badge>
+                                    <span>Precio base: S/ {product.price_sale?.toFixed(2)}</span>
+                                  </div>
+                                )}
+                              </>
+                            );
+                          })()}
                         </div>
                         {product.has_stock && (
                           <div className="text-sm text-gray-500 mb-2">
@@ -1262,6 +1339,7 @@ const Products = () => {
           setShowPriceMatrix(false);
           setSelectedProduct(null);
           fetchProducts(); // Refrescar productos después de cambios
+          fetchProductSchoolPrices(); // 🆕 Refrescar precios personalizados
         }}
         product={selectedProduct}
       />
