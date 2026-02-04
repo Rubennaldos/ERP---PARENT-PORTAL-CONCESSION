@@ -578,7 +578,11 @@ export default function LunchOrders() {
               {filteredOrders.map((order) => (
                 <div
                   key={order.id}
-                  className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50 transition-colors"
+                  onClick={() => order.menu && handleViewMenu(order)}
+                  className={cn(
+                    "flex items-center justify-between p-4 border rounded-lg transition-colors",
+                    order.menu && "cursor-pointer hover:bg-blue-50 hover:border-blue-300"
+                  )}
                 >
                   <div className="flex items-center gap-4 flex-1">
                     {/* Foto o inicial */}
@@ -658,18 +662,7 @@ export default function LunchOrders() {
                   </div>
 
                   {/* Acciones */}
-                  <div className="flex gap-2">
-                    {order.menu && (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => handleViewMenu(order)}
-                        className="gap-2"
-                      >
-                        <Eye className="h-4 w-4" />
-                        Ver Menú
-                      </Button>
-                    )}
+                  <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
                     <Button
                       size="sm"
                       onClick={() => handleOrderAction(order)}
@@ -718,129 +711,269 @@ export default function LunchOrders() {
       {/* Modal de Detalles del Menú */}
       {selectedMenuOrder && selectedMenuOrder.menu && (
         <Dialog open={showMenuDetails} onOpenChange={setShowMenuDetails}>
-          <DialogContent className="max-w-2xl">
+          <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle className="flex items-center gap-2">
-                <UtensilsCrossed className="h-5 w-5 text-blue-600" />
-                Detalles del Menú
+              <DialogTitle className="flex items-center gap-2 text-xl">
+                <UtensilsCrossed className="h-6 w-6 text-blue-600" />
+                Detalles del Pedido
               </DialogTitle>
-              <DialogDescription>
-                Menú ordenado por {selectedMenuOrder.student?.full_name || selectedMenuOrder.teacher?.full_name || selectedMenuOrder.manual_name}
-              </DialogDescription>
             </DialogHeader>
 
-            <div className="space-y-4">
-              {/* Categoría */}
-              {selectedMenuOrder.menu.lunch_categories && (
-                <div className="flex items-center gap-3 p-4 bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg border border-blue-200">
-                  {selectedMenuOrder.menu.lunch_categories.icon && (
-                    <span className="text-3xl">{selectedMenuOrder.menu.lunch_categories.icon}</span>
-                  )}
-                  <div>
-                    <p className="text-xs text-gray-600 uppercase tracking-wide font-semibold">Categoría</p>
-                    <p className="text-lg font-bold text-gray-900">{selectedMenuOrder.menu.lunch_categories.name}</p>
+            <div className="space-y-6">
+              {/* DATOS DE QUIÉN HIZO EL PEDIDO */}
+              <Card className="bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base font-semibold text-gray-700 uppercase tracking-wide flex items-center gap-2">
+                    👤 Información del Cliente
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <div className="flex items-center gap-4">
+                    {/* Foto o inicial */}
+                    {selectedMenuOrder.student?.photo_url ? (
+                      <img
+                        src={selectedMenuOrder.student.photo_url}
+                        alt={selectedMenuOrder.student.full_name}
+                        className="h-16 w-16 rounded-full object-cover border-2 border-blue-300"
+                      />
+                    ) : (
+                      <div className={cn(
+                        "h-16 w-16 rounded-full flex items-center justify-center border-2",
+                        selectedMenuOrder.teacher ? "bg-green-100 border-green-300" : "bg-blue-100 border-blue-300"
+                      )}>
+                        <span className={cn(
+                          "font-bold text-2xl",
+                          selectedMenuOrder.teacher ? "text-green-700" : "text-blue-600"
+                        )}>
+                          {selectedMenuOrder.student?.full_name[0] || selectedMenuOrder.teacher?.full_name[0] || selectedMenuOrder.manual_name?.[0] || '?'}
+                        </span>
+                      </div>
+                    )}
+                    
+                    <div className="flex-1">
+                      <p className="text-xl font-bold text-gray-900">
+                        {selectedMenuOrder.student?.full_name || selectedMenuOrder.teacher?.full_name || selectedMenuOrder.manual_name || 'Desconocido'}
+                      </p>
+                      <div className="flex items-center gap-2 mt-1">
+                        {selectedMenuOrder.teacher && (
+                          <Badge className="bg-green-600">👨‍🏫 Profesor</Badge>
+                        )}
+                        {selectedMenuOrder.student && !selectedMenuOrder.student.is_temporary && (
+                          <Badge className="bg-blue-600">👨‍🎓 Alumno</Badge>
+                        )}
+                        {selectedMenuOrder.student?.is_temporary && (
+                          <Badge className="bg-purple-600">🎫 Puente Temporal</Badge>
+                        )}
+                        {selectedMenuOrder.manual_name && (
+                          <Badge className="bg-orange-600">💵 Pago Físico</Badge>
+                        )}
+                        {selectedMenuOrder.school && (
+                          <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-300">
+                            🏫 {selectedMenuOrder.school.name}
+                          </Badge>
+                        )}
+                      </div>
+                      {selectedMenuOrder.student?.is_temporary && selectedMenuOrder.student.temporary_classroom_name && (
+                        <p className="text-sm text-purple-600 mt-1">
+                          Salón: {selectedMenuOrder.student.temporary_classroom_name}
+                        </p>
+                      )}
+                    </div>
                   </div>
-                </div>
-              )}
+                </CardContent>
+              </Card>
 
-              {/* Platos */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {/* Entrada */}
-                {selectedMenuOrder.menu.starter && (
-                  <Card>
-                    <CardHeader className="pb-3">
-                      <CardTitle className="text-sm font-semibold text-gray-600 uppercase tracking-wide flex items-center gap-2">
-                        🥗 Entrada
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <p className="text-base text-gray-900">{selectedMenuOrder.menu.starter}</p>
-                    </CardContent>
-                  </Card>
-                )}
+              {/* ESTADO DE PAGO */}
+              <Card className="bg-gradient-to-r from-green-50 to-emerald-50 border-green-200">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base font-semibold text-gray-700 uppercase tracking-wide flex items-center gap-2">
+                    💰 Información de Pago
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <p className="text-sm text-gray-600">Estado de Pago:</p>
+                      {selectedMenuOrder.manual_name ? (
+                        <Badge className="bg-green-600 text-white mt-1">✅ Pagado (Físico)</Badge>
+                      ) : (
+                        <Badge className="bg-blue-600 text-white mt-1">💳 Pagado (Crédito)</Badge>
+                      )}
+                    </div>
+                    
+                    {selectedMenuOrder.payment_method && (
+                      <div>
+                        <p className="text-sm text-gray-600">Método de Pago:</p>
+                        <p className="font-bold text-gray-900 mt-1">
+                          {selectedMenuOrder.payment_method === 'cash' && '💵 Efectivo'}
+                          {selectedMenuOrder.payment_method === 'card' && '💳 Tarjeta'}
+                          {selectedMenuOrder.payment_method === 'yape' && '📱 Yape'}
+                          {selectedMenuOrder.payment_method === 'plin' && '📱 Plin'}
+                          {selectedMenuOrder.payment_method === 'transfer' && '🏦 Transferencia'}
+                          {!['cash', 'card', 'yape', 'plin', 'transfer'].includes(selectedMenuOrder.payment_method) && selectedMenuOrder.payment_method}
+                        </p>
+                      </div>
+                    )}
+                  </div>
 
-                {/* Plato Principal */}
-                {selectedMenuOrder.menu.main_course && (
-                  <Card>
-                    <CardHeader className="pb-3">
-                      <CardTitle className="text-sm font-semibold text-gray-600 uppercase tracking-wide flex items-center gap-2">
-                        🍽️ Plato Principal
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <p className="text-base text-gray-900">{selectedMenuOrder.menu.main_course}</p>
-                    </CardContent>
-                  </Card>
-                )}
+                  {/* Detalles de Pago */}
+                  {selectedMenuOrder.payment_details && (
+                    <div className="pt-3 border-t border-green-200">
+                      <p className="text-sm text-gray-600 mb-2">Detalles:</p>
+                      <div className="bg-white rounded-lg p-3 text-sm">
+                        {selectedMenuOrder.payment_method === 'cash' && (
+                          <div className="space-y-1">
+                            <p><span className="font-semibold">Moneda:</span> {selectedMenuOrder.payment_details.currency || 'Soles'}</p>
+                            <p><span className="font-semibold">Monto recibido:</span> S/ {selectedMenuOrder.payment_details.amount_received?.toFixed(2)}</p>
+                            {selectedMenuOrder.payment_details.change && (
+                              <p><span className="font-semibold">Vuelto:</span> S/ {selectedMenuOrder.payment_details.change?.toFixed(2)}</p>
+                            )}
+                          </div>
+                        )}
+                        {selectedMenuOrder.payment_method === 'card' && (
+                          <div className="space-y-1">
+                            <p><span className="font-semibold">Tipo:</span> {selectedMenuOrder.payment_details.card_type}</p>
+                            <p><span className="font-semibold">N° Operación:</span> {selectedMenuOrder.payment_details.operation_number}</p>
+                          </div>
+                        )}
+                        {(selectedMenuOrder.payment_method === 'yape' || selectedMenuOrder.payment_method === 'plin') && (
+                          <div className="space-y-1">
+                            <p><span className="font-semibold">N° Operación:</span> {selectedMenuOrder.payment_details.operation_number}</p>
+                          </div>
+                        )}
+                        {selectedMenuOrder.payment_method === 'transfer' && (
+                          <div className="space-y-1">
+                            <p><span className="font-semibold">Banco:</span> {selectedMenuOrder.payment_details.bank_name}</p>
+                            <p><span className="font-semibold">N° Operación:</span> {selectedMenuOrder.payment_details.operation_number}</p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
 
-                {/* Bebida */}
-                {selectedMenuOrder.menu.beverage && (
-                  <Card>
-                    <CardHeader className="pb-3">
-                      <CardTitle className="text-sm font-semibold text-gray-600 uppercase tracking-wide flex items-center gap-2">
-                        🥤 Bebida
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <p className="text-base text-gray-900">{selectedMenuOrder.menu.beverage}</p>
-                    </CardContent>
-                  </Card>
-                )}
-
-                {/* Postre */}
-                {selectedMenuOrder.menu.dessert && (
-                  <Card>
-                    <CardHeader className="pb-3">
-                      <CardTitle className="text-sm font-semibold text-gray-600 uppercase tracking-wide flex items-center gap-2">
-                        🍰 Postre
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <p className="text-base text-gray-900">{selectedMenuOrder.menu.dessert}</p>
-                    </CardContent>
-                  </Card>
-                )}
-              </div>
-
-              {/* Notas */}
-              {selectedMenuOrder.menu.notes && (
-                <Card className="bg-yellow-50 border-yellow-200">
-                  <CardHeader className="pb-3">
-                    <CardTitle className="text-sm font-semibold text-gray-600 uppercase tracking-wide flex items-center gap-2">
-                      📝 Notas
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <p className="text-sm text-gray-700">{selectedMenuOrder.menu.notes}</p>
+              {/* CATEGORÍA DEL MENÚ */}
+              {selectedMenuOrder.menu.lunch_categories && (
+                <Card className="bg-gradient-to-r from-purple-50 to-pink-50 border-purple-200">
+                  <CardContent className="pt-6">
+                    <div className="flex items-center gap-4">
+                      {selectedMenuOrder.menu.lunch_categories.icon && (
+                        <span className="text-5xl">{selectedMenuOrder.menu.lunch_categories.icon}</span>
+                      )}
+                      <div>
+                        <p className="text-xs text-gray-600 uppercase tracking-wide font-semibold">Categoría</p>
+                        <p className="text-2xl font-bold text-gray-900">{selectedMenuOrder.menu.lunch_categories.name}</p>
+                      </div>
+                    </div>
                   </CardContent>
                 </Card>
               )}
 
-              {/* Información del Pedido */}
-              <div className="pt-4 border-t space-y-2">
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">Fecha del pedido:</span>
-                  <span className="font-semibold text-gray-900">
-                    {format(new Date(selectedMenuOrder.order_date), "dd 'de' MMMM, yyyy", { locale: es })}
-                  </span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">Hora de registro:</span>
-                  <span className="font-semibold text-gray-900">
-                    {format(new Date(selectedMenuOrder.created_at), "HH:mm", { locale: es })}
-                  </span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">Estado:</span>
-                  <div>
-                    {getStatusBadge(selectedMenuOrder.status, selectedMenuOrder.is_no_order_delivery)}
+              {/* MENÚ DETALLADO */}
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base font-semibold text-gray-700 uppercase tracking-wide flex items-center gap-2">
+                    🍽️ Menú del Día
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* Entrada */}
+                    {selectedMenuOrder.menu.starter && (
+                      <div className="bg-gradient-to-br from-green-50 to-green-100 p-4 rounded-lg border border-green-200">
+                        <p className="text-xs font-semibold text-green-700 uppercase tracking-wide mb-2 flex items-center gap-1">
+                          🥗 Entrada
+                        </p>
+                        <p className="text-base text-gray-900 font-medium">{selectedMenuOrder.menu.starter}</p>
+                      </div>
+                    )}
+
+                    {/* Plato Principal */}
+                    {selectedMenuOrder.menu.main_course && (
+                      <div className="bg-gradient-to-br from-orange-50 to-orange-100 p-4 rounded-lg border border-orange-200">
+                        <p className="text-xs font-semibold text-orange-700 uppercase tracking-wide mb-2 flex items-center gap-1">
+                          🍽️ Plato Principal
+                        </p>
+                        <p className="text-base text-gray-900 font-medium">{selectedMenuOrder.menu.main_course}</p>
+                      </div>
+                    )}
+
+                    {/* Bebida */}
+                    {selectedMenuOrder.menu.beverage && (
+                      <div className="bg-gradient-to-br from-blue-50 to-blue-100 p-4 rounded-lg border border-blue-200">
+                        <p className="text-xs font-semibold text-blue-700 uppercase tracking-wide mb-2 flex items-center gap-1">
+                          🥤 Bebida
+                        </p>
+                        <p className="text-base text-gray-900 font-medium">{selectedMenuOrder.menu.beverage}</p>
+                      </div>
+                    )}
+
+                    {/* Postre */}
+                    {selectedMenuOrder.menu.dessert && (
+                      <div className="bg-gradient-to-br from-pink-50 to-pink-100 p-4 rounded-lg border border-pink-200">
+                        <p className="text-xs font-semibold text-pink-700 uppercase tracking-wide mb-2 flex items-center gap-1">
+                          🍰 Postre
+                        </p>
+                        <p className="text-base text-gray-900 font-medium">{selectedMenuOrder.menu.dessert}</p>
+                      </div>
+                    )}
                   </div>
-                </div>
-              </div>
+
+                  {/* Notas */}
+                  {selectedMenuOrder.menu.notes && (
+                    <div className="mt-4 bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                      <p className="text-xs font-semibold text-yellow-700 uppercase tracking-wide mb-2 flex items-center gap-1">
+                        📝 Notas Especiales
+                      </p>
+                      <p className="text-sm text-gray-700">{selectedMenuOrder.menu.notes}</p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* INFORMACIÓN DEL PEDIDO */}
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base font-semibold text-gray-700 uppercase tracking-wide flex items-center gap-2">
+                    📋 Información del Pedido
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    <div className="flex justify-between items-center py-2 border-b">
+                      <span className="text-sm text-gray-600">Fecha del pedido:</span>
+                      <span className="font-semibold text-gray-900">
+                        {format(new Date(selectedMenuOrder.order_date), "dd 'de' MMMM, yyyy", { locale: es })}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center py-2 border-b">
+                      <span className="text-sm text-gray-600">Hora de registro:</span>
+                      <span className="font-semibold text-gray-900">
+                        {format(new Date(selectedMenuOrder.created_at), "HH:mm", { locale: es })}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center py-2">
+                      <span className="text-sm text-gray-600">Estado actual:</span>
+                      <div>
+                        {getStatusBadge(selectedMenuOrder.status, selectedMenuOrder.is_no_order_delivery)}
+                      </div>
+                    </div>
+                    {selectedMenuOrder.delivered_at && (
+                      <div className="flex justify-between items-center py-2 border-t">
+                        <span className="text-sm text-gray-600">Entregado a las:</span>
+                        <span className="font-semibold text-green-700">
+                          {format(new Date(selectedMenuOrder.delivered_at), "HH:mm", { locale: es })}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
             </div>
 
             <div className="flex justify-end pt-4 border-t">
-              <Button onClick={() => setShowMenuDetails(false)}>
+              <Button onClick={() => setShowMenuDetails(false)} size="lg">
                 Cerrar
               </Button>
             </div>
