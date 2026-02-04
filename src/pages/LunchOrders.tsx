@@ -548,14 +548,33 @@ export default function LunchOrders() {
       // 💰 Si el pedido fue con crédito (tiene student_id o teacher_id), devolver el crédito
       if (pendingCancelOrder.student_id || pendingCancelOrder.teacher_id) {
         console.log('💰 Buscando transacción asociada para devolver crédito...');
+        console.log('📋 Datos del pedido:', {
+          id: pendingCancelOrder.id,
+          student_id: pendingCancelOrder.student_id,
+          teacher_id: pendingCancelOrder.teacher_id,
+          order_date: pendingCancelOrder.order_date
+        });
         
-        // Buscar la transacción de compra asociada
-        const { data: transactions, error: transError } = await supabase
+        // Buscar la transacción de compra asociada por student_id o teacher_id
+        let query = supabase
           .from('transactions')
-          .select('id, amount, student_id, teacher_id')
+          .select('id, amount, student_id, teacher_id, description, created_at')
           .eq('type', 'purchase')
-          .or(`description.ilike.%${pendingCancelOrder.id}%`)
           .eq('payment_status', 'pending');
+        
+        // Filtrar por student_id o teacher_id según corresponda
+        if (pendingCancelOrder.student_id) {
+          query = query.eq('student_id', pendingCancelOrder.student_id);
+        } else if (pendingCancelOrder.teacher_id) {
+          query = query.eq('teacher_id', pendingCancelOrder.teacher_id);
+        }
+        
+        // Filtrar por fecha del pedido en la descripción
+        query = query.ilike('description', `%${pendingCancelOrder.order_date}%`);
+        
+        const { data: transactions, error: transError } = await query;
+        
+        console.log('🔍 Transacciones encontradas:', transactions);
         
         if (transError) {
           console.error('❌ Error buscando transacción:', transError);
@@ -563,7 +582,7 @@ export default function LunchOrders() {
           const transaction = transactions[0];
           console.log('✅ Transacción encontrada:', transaction);
           
-          // Anular la transacción (cambiar estado a 'cancelled' o eliminar)
+          // Anular la transacción (eliminarla para devolver el crédito)
           const { error: deleteTransError } = await supabase
             .from('transactions')
             .delete()
@@ -575,7 +594,7 @@ export default function LunchOrders() {
             console.log('✅ Transacción eliminada, crédito devuelto automáticamente');
           }
         } else {
-          console.log('⚠️ No se encontró transacción asociada');
+          console.log('⚠️ No se encontró transacción asociada (puede ser un pago físico o ya fue pagado)');
         }
       }
       
