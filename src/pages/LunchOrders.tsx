@@ -22,7 +22,8 @@ import {
   Search,
   Filter,
   Loader2,
-  Eye
+  Eye,
+  Trash2
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -41,6 +42,8 @@ interface LunchOrder {
   cancellation_reason: string | null;
   postponement_reason: string | null;
   is_no_order_delivery: boolean;
+  is_cancelled: boolean;
+  cancelled_by: string | null;
   student_id: string | null;
   teacher_id: string | null;
   manual_name: string | null;
@@ -106,6 +109,14 @@ export default function LunchOrders() {
   const [showActionsModal, setShowActionsModal] = useState(false);
   const [showMenuDetails, setShowMenuDetails] = useState(false);
   const [selectedMenuOrder, setSelectedMenuOrder] = useState<LunchOrder | null>(null);
+  
+  // Estados para anulación de pedidos
+  const [showCancelModal, setShowCancelModal] = useState(false);
+  const [showPasswordValidation, setShowPasswordValidation] = useState(false);
+  const [adminPassword, setAdminPassword] = useState('');
+  const [cancelReason, setCancelReason] = useState('');
+  const [pendingCancelOrder, setPendingCancelOrder] = useState<LunchOrder | null>(null);
+  const [cancelling, setCancelling] = useState(false);
 
   useEffect(() => {
     if (!roleLoading && role && user) {
@@ -429,6 +440,131 @@ export default function LunchOrders() {
     setShowMenuDetails(true);
   };
 
+  // ========================================
+  // FUNCIONES DE ANULACIÓN DE PEDIDOS
+  // ========================================
+  
+  const handleOpenCancel = (order: LunchOrder) => {
+    console.log('🗑️ [handleOpenCancel] Intentando anular pedido');
+    console.log('👤 [handleOpenCancel] Rol del usuario:', role);
+    
+    const isCajero = role === 'operador_caja' || role === 'cajero';
+    console.log('💼 [handleOpenCancel] ¿Es cajero?:', isCajero);
+    
+    if (isCajero) {
+      // Si es cajero, primero pedir contraseña
+      setPendingCancelOrder(order);
+      setAdminPassword('');
+      setShowPasswordValidation(true);
+    } else {
+      // Si es admin, ir directo al motivo
+      setPendingCancelOrder(order);
+      setCancelReason('');
+      setShowCancelModal(true);
+    }
+  };
+  
+  const handlePasswordValidated = async () => {
+    if (!adminPassword.trim()) {
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'Debes ingresar tu contraseña',
+      });
+      return;
+    }
+    
+    try {
+      setCancelling(true);
+      
+      // Validar contraseña del admin
+      const { data, error } = await supabase.rpc('validate_admin_password', {
+        p_admin_id: user?.id,
+        p_password: adminPassword
+      });
+      
+      if (error) throw error;
+      
+      if (!data) {
+        toast({
+          variant: 'destructive',
+          title: 'Contraseña incorrecta',
+          description: 'La contraseña del administrador no es válida',
+        });
+        return;
+      }
+      
+      // Si la contraseña es correcta, mostrar modal de motivo
+      setShowPasswordValidation(false);
+      setAdminPassword('');
+      setCancelReason('');
+      setShowCancelModal(true);
+      
+    } catch (error: any) {
+      console.error('Error validando contraseña:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'No se pudo validar la contraseña',
+      });
+    } finally {
+      setCancelling(false);
+    }
+  };
+  
+  const handleConfirmCancel = async () => {
+    if (!cancelReason.trim()) {
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'Debes ingresar un motivo de anulación',
+      });
+      return;
+    }
+    
+    if (!pendingCancelOrder) return;
+    
+    try {
+      setCancelling(true);
+      
+      // Anular el pedido
+      const { error } = await supabase
+        .from('lunch_orders')
+        .update({
+          is_cancelled: true,
+          cancellation_reason: cancelReason.trim(),
+          cancelled_by: user?.id,
+          cancelled_at: new Date().toISOString(),
+        })
+        .eq('id', pendingCancelOrder.id);
+      
+      if (error) throw error;
+      
+      toast({
+        title: '✅ Pedido anulado',
+        description: 'El pedido ha sido anulado correctamente',
+      });
+      
+      // Cerrar modales y limpiar estados
+      setShowCancelModal(false);
+      setCancelReason('');
+      setPendingCancelOrder(null);
+      
+      // Recargar pedidos
+      fetchOrders();
+      
+    } catch (error: any) {
+      console.error('Error anulando pedido:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'No se pudo anular el pedido',
+      });
+    } finally {
+      setCancelling(false);
+    }
+  };
+
   if (loading || roleLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-purple-50">
@@ -683,6 +819,26 @@ export default function LunchOrders() {
                     >
                       Acciones
                     </Button>
+                    
+                    {/* Botón Anular (siempre visible) */}
+                    {!order.is_cancelled && (
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        onClick={() => handleOpenCancel(order)}
+                        className="gap-1"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                        Anular
+                      </Button>
+                    )}
+                    
+                    {/* Badge de "Anulado" si está cancelado */}
+                    {order.is_cancelled && (
+                      <Badge variant="destructive" className="text-xs">
+                        ❌ ANULADO
+                      </Badge>
+                    )}
                   </div>
                 </div>
               ))}
@@ -993,6 +1149,138 @@ export default function LunchOrders() {
           </DialogContent>
         </Dialog>
       )}
+      
+      {/* MODAL: VALIDACIÓN DE CONTRASEÑA (solo para cajeros) */}
+      <Dialog open={showPasswordValidation} onOpenChange={setShowPasswordValidation}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>🔐 Autorización Requerida</DialogTitle>
+            <DialogDescription>
+              Para anular este pedido, necesitas la autorización de un administrador
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4 py-4">
+            <div>
+              <label className="text-sm font-medium">Contraseña del Administrador</label>
+              <Input
+                type="password"
+                value={adminPassword}
+                onChange={(e) => setAdminPassword(e.target.value)}
+                placeholder="Ingresa la contraseña"
+                disabled={cancelling}
+                className="mt-2"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !cancelling) {
+                    handlePasswordValidated();
+                  }
+                }}
+              />
+            </div>
+          </div>
+          
+          <div className="flex justify-end gap-2">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowPasswordValidation(false);
+                setAdminPassword('');
+                setPendingCancelOrder(null);
+              }}
+              disabled={cancelling}
+            >
+              Cancelar
+            </Button>
+            <Button
+              onClick={handlePasswordValidated}
+              disabled={!adminPassword.trim() || cancelling}
+            >
+              {cancelling ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Validando...
+                </>
+              ) : (
+                'Validar'
+              )}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+      
+      {/* MODAL: MOTIVO DE ANULACIÓN */}
+      <Dialog open={showCancelModal} onOpenChange={setShowCancelModal}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>❌ Anular Pedido</DialogTitle>
+            <DialogDescription>
+              Ingresa el motivo por el cual se está anulando este pedido
+            </DialogDescription>
+          </DialogHeader>
+          
+          {pendingCancelOrder && (
+            <div className="bg-gray-50 p-3 rounded-lg mb-4">
+              <p className="text-sm font-semibold">
+                {pendingCancelOrder.student?.full_name || 
+                 pendingCancelOrder.teacher?.full_name || 
+                 pendingCancelOrder.manual_name || 
+                 'Desconocido'}
+              </p>
+              <p className="text-xs text-gray-500">
+                Pedido del {format(new Date(pendingCancelOrder.order_date + 'T00:00:00'), "dd 'de' MMMM", { locale: es })}
+              </p>
+            </div>
+          )}
+          
+          <div className="space-y-4 py-4">
+            <div>
+              <label className="text-sm font-medium">Motivo de Anulación *</label>
+              <Input
+                value={cancelReason}
+                onChange={(e) => setCancelReason(e.target.value)}
+                placeholder="Ej: Pedido duplicado, error en el registro, etc."
+                disabled={cancelling}
+                className="mt-2"
+                maxLength={200}
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                {cancelReason.length}/200 caracteres
+              </p>
+            </div>
+          </div>
+          
+          <div className="flex justify-end gap-2">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowCancelModal(false);
+                setCancelReason('');
+                setPendingCancelOrder(null);
+              }}
+              disabled={cancelling}
+            >
+              Cancelar
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleConfirmCancel}
+              disabled={!cancelReason.trim() || cancelling}
+            >
+              {cancelling ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Anulando...
+                </>
+              ) : (
+                <>
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  Confirmar Anulación
+                </>
+              )}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
