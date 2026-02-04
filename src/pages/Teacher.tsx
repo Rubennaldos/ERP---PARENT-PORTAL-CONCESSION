@@ -173,7 +173,8 @@ export default function Teacher() {
           )
         `)
         .eq('teacher_id', teacherProfile.id)
-        .eq('type', 'purchase');
+        .eq('type', 'purchase')
+        .order('created_at', { ascending: false });
 
       // Aplicar filtro de delay solo si es mayor a 0
       if (configuredDelayDays > 0) {
@@ -187,7 +188,7 @@ export default function Teacher() {
         console.log('⚡ Modo EN VIVO: Mostrando todas las compras sin delay');
       }
 
-      const { data: transactions, error } = await query.order('created_at', { ascending: false });
+      const { data: transactions, error } = await query;
 
       if (error) throw error;
 
