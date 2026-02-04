@@ -168,9 +168,6 @@ export function PhysicalOrderWizard({ isOpen, onClose, schoolId, selectedDate, o
       }
       
       const { data, error } = await query.order('full_name');
-        .eq('school_id', schoolId)
-        .eq('is_active', true)
-        .order('full_name');
 
       if (error) throw error;
       setPeople(data || []);
