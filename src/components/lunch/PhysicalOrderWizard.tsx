@@ -202,7 +202,7 @@ export function PhysicalOrderWizard({ isOpen, onClose, schoolId, selectedDate, o
       console.log('🔧 [fetchCategories] Buscando menús...');
       const { data: menusData, error: menusError } = await supabase
         .from('lunch_menus')
-        .select('id, category_id, date, starter, main_course, beverage, dessert, price')
+        .select('id, category_id, date, starter, main_course, beverage, dessert')
         .eq('school_id', schoolId)
         .eq('date', targetDate)
         .eq('target_type', targetType);
