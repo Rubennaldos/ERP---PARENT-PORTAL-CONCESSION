@@ -515,16 +515,6 @@ const LunchCalendar = () => {
                   </Button>
                   <Button 
                     size="sm" 
-                    variant="outline"
-                    onClick={() => setIsPhysicalOrderOpen(true)}
-                    className="h-7 sm:h-9 text-xs px-2 sm:px-3 shrink-0 bg-blue-600 hover:bg-blue-700 text-white"
-                  >
-                    <ShoppingCart className="h-3 w-3 sm:h-4 sm:w-4 sm:mr-2" />
-                    <span className="hidden sm:inline">Nuevo Pedido</span>
-                    <span className="sm:hidden">Pedido</span>
-                  </Button>
-                  <Button 
-                    size="sm" 
                     onClick={handleCreateMenu}
                     className="h-7 sm:h-9 text-xs px-2 sm:px-3 shrink-0 bg-green-600 hover:bg-green-700"
                   >
@@ -1205,8 +1195,23 @@ const LunchCalendar = () => {
               </div>
             )}
             
-            <div className="flex justify-end pt-4">
-              <Button onClick={() => setIsDetailModalOpen(false)}>
+            {/* Botones de acción */}
+            <div className="flex justify-between items-center pt-4 border-t">
+              <Button 
+                size="lg"
+                className="bg-blue-600 hover:bg-blue-700 text-white gap-2 flex-1 mr-3"
+                onClick={() => {
+                  setIsDetailModalOpen(false);
+                  setIsPhysicalOrderOpen(true);
+                }}
+              >
+                <ShoppingCart className="h-5 w-5" />
+                Nuevo Pedido
+              </Button>
+              <Button 
+                variant="outline"
+                onClick={() => setIsDetailModalOpen(false)}
+              >
                 Cerrar
               </Button>
             </div>
