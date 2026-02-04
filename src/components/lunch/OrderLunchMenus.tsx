@@ -291,7 +291,7 @@ export function OrderLunchMenus({ userType, userId, userSchoolId }: OrderLunchMe
 
       toast({
         title: '✅ Pedido realizado',
-        description: `Tu almuerzo para el ${format(new Date(selectedMenu.date), "d 'de' MMMM", { locale: es })} ha sido registrado`
+        description: `Tu almuerzo para el ${format(new Date(selectedMenu.date + 'T00:00:00'), "d 'de' MMMM", { locale: es })} ha sido registrado`
       });
 
       setOrderDialogOpen(false);
