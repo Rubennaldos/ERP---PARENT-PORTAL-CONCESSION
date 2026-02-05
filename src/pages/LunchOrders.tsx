@@ -60,6 +60,7 @@ interface LunchOrder {
     is_temporary: boolean;
     temporary_classroom_name: string | null;
     school_id: string;
+    free_account: boolean | null;
   };
   teacher?: {
     full_name: string;
@@ -249,7 +250,8 @@ export default function LunchOrders() {
             photo_url,
             is_temporary,
             temporary_classroom_name,
-            school_id
+            school_id,
+            free_account
           ),
           teacher:teacher_profiles (
             full_name,
@@ -442,6 +444,186 @@ export default function LunchOrders() {
     setShowActionsModal(false);
     setSelectedOrderForAction(null);
     fetchOrders(); // Recargar los pedidos
+  };
+
+  // ========================================
+  // FUNCIONES DE CONFIRMACIÓN Y ENTREGA
+  // ========================================
+
+  const handleConfirmOrder = async (order: LunchOrder) => {
+    try {
+      setLoading(true);
+      console.log('✅ Confirmando pedido:', order.id);
+
+      // Actualizar status a confirmed
+      const { error: updateError } = await supabase
+        .from('lunch_orders')
+        .update({ status: 'confirmed' })
+        .eq('id', order.id);
+
+      if (updateError) throw updateError;
+
+      // Crear transacción si es necesario (crédito o pagar luego)
+      let needsTransaction = false;
+      let transactionData: any = {
+        type: 'purchase',
+        payment_status: 'pending',
+        school_id: order.school_id || order.student?.school_id || order.teacher?.school_id_1,
+      };
+
+      // Determinar si necesita transacción y el monto
+      if (order.student_id) {
+        // Es estudiante - verificar si tiene cuenta libre
+        const { data: studentData } = await supabase
+          .from('students')
+          .select('free_account, school_id')
+          .eq('id', order.student_id)
+          .single();
+
+        if (studentData?.free_account === true) {
+          needsTransaction = true;
+          transactionData.student_id = order.student_id;
+          
+          // Obtener precio desde categoría o configuración
+          const { data: category } = await supabase
+            .from('lunch_categories')
+            .select('price')
+            .eq('id', order.category_id || '')
+            .single();
+          
+          const { data: config } = await supabase
+            .from('lunch_configuration')
+            .select('lunch_price')
+            .eq('school_id', studentData.school_id)
+            .single();
+
+          const price = category?.price || config?.lunch_price || 7.50;
+          transactionData.amount = -Math.abs(price);
+          transactionData.description = `Almuerzo - ${format(new Date(order.order_date), "d 'de' MMMM", { locale: es })}`;
+        }
+      } else if (order.teacher_id) {
+        // Es profesor - siempre crear transacción
+        needsTransaction = true;
+        transactionData.teacher_id = order.teacher_id;
+        
+        const { data: config } = await supabase
+          .from('lunch_configuration')
+          .select('lunch_price')
+          .eq('school_id', order.teacher?.school_id_1 || '')
+          .single();
+
+        const price = config?.lunch_price || 7.50;
+        transactionData.amount = -Math.abs(price);
+        transactionData.description = `Almuerzo - ${format(new Date(order.order_date), "d 'de' MMMM", { locale: es })}`;
+      } else if (order.manual_name && order.payment_method === 'pagar_luego') {
+        // Cliente manual con "pagar luego"
+        needsTransaction = true;
+        transactionData.manual_client_name = order.manual_name;
+        
+        const { data: category } = await supabase
+          .from('lunch_categories')
+          .select('price')
+          .eq('id', order.category_id || '')
+          .single();
+
+        const price = category?.price || 7.50;
+        transactionData.amount = -Math.abs(price);
+        transactionData.description = `Almuerzo - ${format(new Date(order.order_date), "d 'de' MMMM", { locale: es })} - ${order.manual_name}`;
+      }
+
+      // Crear transacción si es necesario
+      if (needsTransaction) {
+        const { error: transactionError } = await supabase
+          .from('transactions')
+          .insert([transactionData]);
+
+        if (transactionError) {
+          console.error('⚠️ Error creando transacción:', transactionError);
+          // No lanzar error, el pedido ya se confirmó
+        } else {
+          console.log('✅ Transacción creada para pedido confirmado');
+        }
+      }
+
+      toast({
+        title: '✅ Pedido confirmado',
+        description: 'El pedido ha sido confirmado y aparecerá en cobranzas si aplica',
+      });
+
+      fetchOrders();
+    } catch (error: any) {
+      console.error('❌ Error confirmando pedido:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: error.message || 'No se pudo confirmar el pedido',
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeliverOrder = async (order: LunchOrder) => {
+    try {
+      setLoading(true);
+      console.log('📦 Marcando pedido como entregado:', order.id);
+
+      const { error } = await supabase
+        .from('lunch_orders')
+        .update({
+          status: 'delivered',
+          delivered_at: new Date().toISOString(),
+          delivered_by: user?.id
+        })
+        .eq('id', order.id);
+
+      if (error) throw error;
+
+      toast({
+        title: '✅ Pedido entregado',
+        description: 'El pedido ha sido marcado como entregado',
+      });
+
+      fetchOrders();
+    } catch (error: any) {
+      console.error('❌ Error entregando pedido:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: error.message || 'No se pudo marcar como entregado',
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Función para obtener el estado de deuda
+  const getDebtStatus = (order: LunchOrder): { label: string; color: string } => {
+    // Si es cliente manual con "pagar luego"
+    if (order.manual_name && order.payment_method === 'pagar_luego') {
+      return { label: '💰 Pagar luego', color: 'bg-yellow-50 text-yellow-700 border-yellow-300' };
+    }
+    
+    // Si es cliente manual con pago inmediato
+    if (order.manual_name && order.payment_method && order.payment_method !== 'pagar_luego') {
+      return { label: '✅ Pagado', color: 'bg-green-50 text-green-700 border-green-300' };
+    }
+    
+    // Si es estudiante, verificar tipo de cuenta
+    if (order.student_id && order.student) {
+      if (order.student.free_account === true) {
+        return { label: '💳 Crédito', color: 'bg-blue-50 text-blue-700 border-blue-300' };
+      } else {
+        return { label: '✅ Pagado', color: 'bg-green-50 text-green-700 border-green-300' };
+      }
+    }
+    
+    // Si es profesor, siempre es crédito
+    if (order.teacher_id) {
+      return { label: '💳 Crédito', color: 'bg-blue-50 text-blue-700 border-blue-300' };
+    }
+    
+    return { label: '⏳ Pendiente', color: 'bg-gray-50 text-gray-700 border-gray-300' };
   };
 
   const handleViewMenu = (order: LunchOrder) => {
@@ -881,23 +1063,59 @@ export default function LunchOrders() {
                       </p>
                     </div>
 
-                    {/* Estado */}
-                    <div>
+                    {/* Estado y Estado de Deuda */}
+                    <div className="flex flex-col gap-2 items-end">
                       {getStatusBadge(order.status, order.is_no_order_delivery)}
+                      {(() => {
+                        const debtStatus = getDebtStatus(order);
+                        return (
+                          <Badge variant="outline" className={cn("text-xs", debtStatus.color)}>
+                            {debtStatus.label}
+                          </Badge>
+                        );
+                      })()}
                     </div>
                   </div>
 
                   {/* Acciones */}
                   <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
-                    <Button
-                      size="sm"
-                      onClick={() => handleOrderAction(order)}
-                      disabled={!canModifyOrder() && order.status === 'confirmed'}
-                    >
-                      Acciones
-                    </Button>
+                    {/* Botón Confirmar - Solo para pedidos pendientes */}
+                    {order.status === 'pending' && !order.is_cancelled && (
+                      <Button
+                        size="sm"
+                        variant="default"
+                        onClick={() => handleConfirmOrder(order)}
+                        className="bg-green-600 hover:bg-green-700"
+                      >
+                        <CheckCircle2 className="h-4 w-4 mr-1" />
+                        Confirmar
+                      </Button>
+                    )}
+
+                    {/* Botón Entregado - Solo para pedidos confirmados */}
+                    {order.status === 'confirmed' && !order.is_cancelled && (
+                      <Button
+                        size="sm"
+                        variant="default"
+                        onClick={() => handleDeliverOrder(order)}
+                        className="bg-blue-600 hover:bg-blue-700"
+                      >
+                        <PackagePlus className="h-4 w-4 mr-1" />
+                        Entregado
+                      </Button>
+                    )}
+
+                    {/* Botón Acciones - Solo para pedidos entregados o para acciones adicionales */}
+                    {(order.status === 'delivered' || order.status === 'postponed') && (
+                      <Button
+                        size="sm"
+                        onClick={() => handleOrderAction(order)}
+                      >
+                        Acciones
+                      </Button>
+                    )}
                     
-                    {/* Botón Anular (siempre visible) */}
+                    {/* Botón Anular (siempre visible excepto si está cancelado) */}
                     {!order.is_cancelled && (
                       <Button
                         size="sm"

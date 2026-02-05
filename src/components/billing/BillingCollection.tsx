@@ -344,7 +344,7 @@ export const BillingCollection = () => {
           schools(id, name),
           lunch_categories(id, name, price)
         `)
-        .eq('status', 'confirmed')
+        .eq('status', 'confirmed') // SOLO pedidos confirmados aparecen en cobranzas
         .eq('is_cancelled', false);
 
       // Filtrar por fecha límite si está definida
