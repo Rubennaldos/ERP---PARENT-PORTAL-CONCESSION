@@ -355,10 +355,8 @@ export const BillingCollection = () => {
         lunchOrdersQuery = lunchOrdersQuery.lte('order_date', dateStr);
       }
 
-      if (schoolIdFilter) {
-        lunchOrdersQuery = lunchOrdersQuery.eq('school_id', schoolIdFilter);
-      }
-
+      // NO filtrar por school_id aquí porque los pedidos pueden no tenerlo
+      // El filtro se hará después de obtener los datos
       const { data: lunchOrders, error: lunchOrdersError } = await lunchOrdersQuery;
 
       if (lunchOrdersError) {
@@ -395,12 +393,18 @@ export const BillingCollection = () => {
       const virtualTransactions: any[] = [];
       
       if (lunchOrders && lunchOrders.length > 0) {
-        // Obtener configuraciones de precio por sede
-        const schoolIds = [...new Set(lunchOrders.map((o: any) => o.school_id).filter(Boolean))];
+        // Obtener todos los school_ids posibles (del pedido, estudiante o profesor)
+        const allSchoolIds = new Set<string>();
+        lunchOrders.forEach((o: any) => {
+          if (o.school_id) allSchoolIds.add(o.school_id);
+          if (o.students?.school_id) allSchoolIds.add(o.students.school_id);
+          if (o.teacher_profiles?.school_id_1) allSchoolIds.add(o.teacher_profiles.school_id_1);
+        });
+        
         const { data: lunchConfigs } = await supabase
           .from('lunch_configuration')
           .select('school_id, lunch_price')
-          .in('school_id', schoolIds);
+          .in('school_id', Array.from(allSchoolIds));
 
         const configMap = new Map();
         lunchConfigs?.forEach((c: any) => {
@@ -433,6 +437,12 @@ export const BillingCollection = () => {
             } else if (order.teacher_profiles?.school_id_1) {
               schoolId = order.teacher_profiles.school_id_1;
             }
+          }
+
+          // Aplicar filtro de school_id si está configurado (después de determinar el school_id correcto)
+          if (schoolIdFilter && schoolId !== schoolIdFilter) {
+            console.log(`⏭️ [BillingCollection] Pedido ${order.id} no coincide con filtro de sede (${schoolId} vs ${schoolIdFilter}), omitiendo`);
+            return; // Saltar este pedido
           }
 
           // Crear transacción virtual solo si el pedido tiene un cliente identificado
