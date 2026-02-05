@@ -403,13 +403,34 @@ export const BillingCollection = () => {
       
       console.log('✅ [BillingCollection] Transacciones válidas (no canceladas):', validTransactions.length);
       
-      // Obtener IDs de pedidos que ya tienen transacciones asociadas
+      // 🔥 BUSCAR TAMBIÉN TRANSACCIONES PAID PARA EVITAR DUPLICADOS
+      console.log('💰 [BillingCollection] Buscando transacciones PAID de lunch_orders...');
+      const { data: paidLunchTransactions } = await supabase
+        .from('transactions')
+        .select('id, metadata')
+        .eq('type', 'purchase')
+        .eq('payment_status', 'paid')
+        .not('metadata', 'is', null);
+      
+      console.log('💰 [BillingCollection] Transacciones PAID encontradas:', paidLunchTransactions?.length || 0);
+      
+      // Obtener IDs de pedidos que ya tienen transacciones asociadas (PENDING O PAID)
       const existingOrderKeys = new Set<string>();
       validTransactions.forEach((t: any) => {
         if (t.metadata?.lunch_order_id) {
           existingOrderKeys.add(t.metadata.lunch_order_id);
         }
       });
+      
+      // Agregar también los IDs de transacciones PAID
+      paidLunchTransactions?.forEach((t: any) => {
+        if (t.metadata?.lunch_order_id) {
+          existingOrderKeys.add(t.metadata.lunch_order_id);
+          console.log(`✅ [BillingCollection] Pedido ${t.metadata.lunch_order_id} ya tiene transacción PAID, omitiendo`);
+        }
+      });
+      
+      console.log('📋 [BillingCollection] Total de pedidos con transacción (pending o paid):', existingOrderKeys.size);
 
       // Crear transacciones virtuales para pedidos sin transacciones
       const virtualTransactions: any[] = [];
