@@ -42,8 +42,10 @@ import {
   Loader2,
   FileText,
   MessageSquare,
-  AlertTriangle
+  AlertTriangle,
+  History
 } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { generateBillingPDF } from '@/utils/pdfGenerator';
@@ -87,6 +89,9 @@ export const BillingCollection = () => {
   const [schools, setSchools] = useState<School[]>([]);
   const [periods, setPeriods] = useState<BillingPeriod[]>([]);
   const [debtors, setDebtors] = useState<Debtor[]>([]);
+  const [paidTransactions, setPaidTransactions] = useState<any[]>([]);
+  const [loadingPaid, setLoadingPaid] = useState(false);
+  const [activeTab, setActiveTab] = useState<'cobrar' | 'pagos'>('cobrar');
   const [userSchoolId, setUserSchoolId] = useState<string | null>(null);
   
   // Filtros
@@ -969,6 +974,81 @@ Gracias.`;
 
   const currentPeriod = selectedPeriod !== 'all' ? periods.find(p => p.id === selectedPeriod) : null;
 
+  // Función para obtener pagos realizados
+  const fetchPaidTransactions = async () => {
+    try {
+      setLoadingPaid(true);
+      
+      const schoolIdFilter = !canViewAllSchools || selectedSchool !== 'all' 
+        ? (selectedSchool !== 'all' ? selectedSchool : userSchoolId)
+        : null;
+
+      let query = supabase
+        .from('transactions')
+        .select(`
+          *,
+          students(id, full_name, parent_id),
+          teacher_profiles(id, full_name),
+          schools(id, name)
+        `)
+        .eq('type', 'purchase')
+        .eq('payment_status', 'paid')
+        .order('created_at', { ascending: false });
+
+      if (schoolIdFilter) {
+        query = query.eq('school_id', schoolIdFilter);
+      }
+
+      // Filtrar por fecha si está definida
+      if (untilDate) {
+        const localDate = new Date(untilDate);
+        localDate.setHours(23, 59, 59, 999);
+        const isoDate = localDate.toISOString();
+        query = query.lte('created_at', isoDate);
+      }
+
+      const { data, error } = await query;
+
+      if (error) throw error;
+
+      // Filtrar transacciones de pedidos cancelados
+      const validTransactions = [];
+      for (const transaction of data || []) {
+        // Si tiene metadata con lunch_order_id, verificar que el pedido no esté cancelado
+        if (transaction.metadata?.lunch_order_id) {
+          const { data: order } = await supabase
+            .from('lunch_orders')
+            .select('is_cancelled')
+            .eq('id', transaction.metadata.lunch_order_id)
+            .single();
+          
+          if (order?.is_cancelled === true) {
+            continue; // Saltar transacciones de pedidos cancelados
+          }
+        }
+        validTransactions.push(transaction);
+      }
+
+      setPaidTransactions(validTransactions);
+    } catch (error) {
+      console.error('Error fetching paid transactions:', error);
+      toast({
+        title: 'Error',
+        description: 'No se pudieron cargar los pagos realizados',
+        variant: 'destructive',
+      });
+    } finally {
+      setLoadingPaid(false);
+    }
+  };
+
+  // Cargar pagos realizados cuando cambia la pestaña
+  useEffect(() => {
+    if (activeTab === 'pagos' && (canViewAllSchools || userSchoolId)) {
+      fetchPaidTransactions();
+    }
+  }, [activeTab, selectedSchool, untilDate, canViewAllSchools, userSchoolId]);
+
   return (
     <div className="space-y-6">
       {/* Alerta de API SUNAT no conectado */}
@@ -1135,8 +1215,22 @@ Gracias.`;
             </Card>
           )}
 
-          {/* Lista de deudores */}
-          {filteredDebtors.length === 0 ? (
+          {/* Pestañas: Cobrar / Pagos Realizados */}
+          <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'cobrar' | 'pagos')} className="w-full">
+            <TabsList className="grid w-full grid-cols-2 mb-6">
+              <TabsTrigger value="cobrar" className="flex items-center gap-2">
+                <DollarSign className="h-4 w-4" />
+                ¡Cobrar!
+              </TabsTrigger>
+              <TabsTrigger value="pagos" className="flex items-center gap-2">
+                <History className="h-4 w-4" />
+                Pagos Realizados
+              </TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="cobrar" className="mt-0">
+              {/* Lista de deudores */}
+              {filteredDebtors.length === 0 ? (
             <Card>
               <CardContent className="py-12 text-center">
                 <CheckCircle2 className="h-16 w-16 mx-auto mb-4 text-green-500" />
@@ -1286,6 +1380,130 @@ Gracias.`;
               })}
             </div>
           )}
+            </TabsContent>
+
+            <TabsContent value="pagos" className="mt-0">
+              {/* Lista de pagos realizados */}
+              {loadingPaid ? (
+                <Card>
+                  <CardContent className="py-12 text-center">
+                    <Loader2 className="h-8 w-8 mx-auto mb-4 animate-spin text-blue-600" />
+                    <p className="text-gray-500">Cargando pagos realizados...</p>
+                  </CardContent>
+                </Card>
+              ) : paidTransactions.length === 0 ? (
+                <Card>
+                  <CardContent className="py-12 text-center">
+                    <CheckCircle2 className="h-16 w-16 mx-auto mb-4 text-gray-400" />
+                    <h3 className="text-lg font-semibold text-gray-700 mb-2">
+                      No hay pagos registrados
+                    </h3>
+                    <p className="text-gray-500">
+                      Los pagos realizados aparecerán aquí
+                    </p>
+                  </CardContent>
+                </Card>
+              ) : (
+                <div className="grid grid-cols-1 gap-4">
+                  {paidTransactions.map((transaction) => {
+                    const clientName = transaction.students?.full_name || 
+                                     transaction.teacher_profiles?.full_name || 
+                                     transaction.manual_client_name || 
+                                     'Cliente desconocido';
+                    const clientType = transaction.student_id ? 'student' : 
+                                      transaction.teacher_id ? 'teacher' : 
+                                      'manual';
+                    const schoolName = transaction.schools?.name || 'Sin sede';
+
+                    return (
+                      <Card key={transaction.id} className="hover:shadow-lg transition-shadow border-l-4 border-l-green-500">
+                        <CardContent className="p-5">
+                          <div className="flex items-start justify-between">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 mb-2">
+                                <h3 className="font-bold text-xl text-gray-900">{clientName}</h3>
+                                {clientType === 'teacher' && (
+                                  <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200">
+                                    👨‍🏫 Profesor
+                                  </Badge>
+                                )}
+                                {clientType === 'manual' && (
+                                  <Badge variant="outline" className="bg-orange-50 text-orange-700 border-orange-200">
+                                    📝 Sin Cuenta
+                                  </Badge>
+                                )}
+                                <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
+                                  ✅ Pagado
+                                </Badge>
+                              </div>
+                              
+                              <div className="flex items-center gap-2 text-sm font-semibold text-blue-700 mt-1 bg-blue-50 px-2 py-1 rounded-md inline-flex mb-3">
+                                <Building2 className="h-4 w-4" />
+                                {schoolName}
+                              </div>
+
+                              <div className="bg-gray-50 rounded-lg p-3 space-y-2">
+                                <div className="grid grid-cols-2 gap-3 text-sm">
+                                  <div>
+                                    <p className="text-gray-500">📅 Fecha de pago:</p>
+                                    <p className="font-semibold text-gray-900">
+                                      {format(new Date(transaction.created_at), "dd/MM/yyyy 'a las' HH:mm", { locale: es })}
+                                    </p>
+                                  </div>
+                                  <div>
+                                    <p className="text-gray-500">💳 Método de pago:</p>
+                                    <p className="font-semibold text-gray-900 capitalize">
+                                      {transaction.payment_method || 'No especificado'}
+                                    </p>
+                                  </div>
+                                </div>
+                                
+                                <div>
+                                  <p className="text-gray-500 text-sm">📝 Descripción:</p>
+                                  <p className="font-semibold text-gray-900">
+                                    {transaction.description || 'Sin descripción'}
+                                  </p>
+                                </div>
+
+                                {transaction.operation_number && (
+                                  <div>
+                                    <p className="text-gray-500 text-sm">🔢 Número de operación:</p>
+                                    <p className="font-semibold text-gray-900">
+                                      {transaction.operation_number}
+                                    </p>
+                                  </div>
+                                )}
+
+                                {transaction.document_type && (
+                                  <div>
+                                    <p className="text-gray-500 text-sm">📄 Tipo de documento:</p>
+                                    <p className="font-semibold text-gray-900 capitalize">
+                                      {transaction.document_type}
+                                    </p>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                            
+                            <div className="text-right ml-4">
+                              <p className="text-3xl font-bold text-green-600">
+                                S/ {Math.abs(transaction.amount).toFixed(2)}
+                              </p>
+                              {transaction.ticket_number && (
+                                <Badge variant="secondary" className="mt-2">
+                                  Ticket: {transaction.ticket_number}
+                                </Badge>
+                              )}
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
+                </div>
+              )}
+            </TabsContent>
+          </Tabs>
         </>
       )}
 
