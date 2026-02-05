@@ -641,19 +641,27 @@ export const BillingCollection = () => {
       if (virtualTransactions.length > 0) {
         console.log('💰 [BillingCollection] Creando transacciones reales para pedidos de almuerzo...');
         
-        const transactionsToCreate = virtualTransactions.map((vt: any) => ({
-          type: 'purchase',
-          amount: vt.amount,
-          payment_status: 'paid', // Ya se está pagando
-          payment_method: paymentData.payment_method,
-          description: vt.description,
-          student_id: vt.student_id || null,
-          teacher_id: vt.teacher_id || null,
-          manual_client_name: vt.manual_client_name || null,
-          school_id: vt.school_id,
-          created_at: vt.created_at,
-          metadata: vt.metadata
-        }));
+        const transactionsToCreate = virtualTransactions.map((vt: any) => {
+          const transaction: any = {
+            type: 'purchase',
+            amount: vt.amount,
+            payment_status: 'paid', // Ya se está pagando
+            payment_method: paymentData.payment_method,
+            description: vt.description,
+            student_id: vt.student_id || null,
+            teacher_id: vt.teacher_id || null,
+            manual_client_name: vt.manual_client_name || null,
+            school_id: vt.school_id,
+            created_at: vt.created_at,
+          };
+          
+          // Solo agregar metadata si existe y no es null
+          if (vt.metadata) {
+            transaction.metadata = vt.metadata;
+          }
+          
+          return transaction;
+        });
 
         const { data: createdTransactions, error: createError } = await supabase
           .from('transactions')
