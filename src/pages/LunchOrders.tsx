@@ -118,6 +118,7 @@ export default function LunchOrders() {
   const [cancelReason, setCancelReason] = useState('');
   const [pendingCancelOrder, setPendingCancelOrder] = useState<LunchOrder | null>(null);
   const [cancelling, setCancelling] = useState(false);
+  const [lunchConfig, setLunchConfig] = useState<{ cancellation_deadline_time?: string; cancellation_deadline_days?: number } | null>(null);
 
   useEffect(() => {
     if (!roleLoading && role && user) {
@@ -151,12 +152,20 @@ export default function LunchOrders() {
       if (schoolId) {
         const { data: config, error: configError } = await supabase
           .from('lunch_configuration')
-          .select('delivery_end_time')
+          .select('delivery_end_time, cancellation_deadline_time, cancellation_deadline_days')
           .eq('school_id', schoolId)
           .maybeSingle();
 
         if (configError) {
           console.error('Error cargando configuración:', configError);
+        }
+
+        // Guardar configuración para usar en canModifyOrder
+        if (config) {
+          setLunchConfig({
+            cancellation_deadline_time: config.cancellation_deadline_time,
+            cancellation_deadline_days: config.cancellation_deadline_days
+          });
         }
 
         console.log('🕐 Configuración de entrega:', config);
@@ -376,12 +385,36 @@ export default function LunchOrders() {
   };
 
   const canModifyOrder = () => {
+    // Si no hay configuración, usar 9 AM por defecto
+    if (!lunchConfig || !lunchConfig.cancellation_deadline_time) {
+      const now = new Date();
+      const peruTime = new Date(now.toLocaleString('en-US', { timeZone: 'America/Lima' }));
+      const currentHour = peruTime.getHours();
+      return currentHour < 9;
+    }
+
+    // Usar la configuración de cancellation_deadline_time
     const now = new Date();
     const peruTime = new Date(now.toLocaleString('en-US', { timeZone: 'America/Lima' }));
-    const currentHour = peruTime.getHours();
+    const currentTime = peruTime.getHours() * 60 + peruTime.getMinutes(); // Minutos desde medianoche
     
-    // Solo se puede modificar antes de las 9 AM
-    return currentHour < 9;
+    // Parsear la hora de la configuración (ej: "09:00:00" -> 540 minutos)
+    const [deadlineHour, deadlineMinute] = lunchConfig.cancellation_deadline_time.split(':').map(Number);
+    const deadlineTime = deadlineHour * 60 + deadlineMinute;
+    
+    // Verificar si ya pasó la hora límite
+    return currentTime < deadlineTime;
+  };
+
+  const getDeadlineTime = () => {
+    if (!lunchConfig || !lunchConfig.cancellation_deadline_time) {
+      return '9:00 AM';
+    }
+    const [hour, minute] = lunchConfig.cancellation_deadline_time.split(':');
+    const hourNum = parseInt(hour);
+    const ampm = hourNum >= 12 ? 'PM' : 'AM';
+    const displayHour = hourNum > 12 ? hourNum - 12 : hourNum === 0 ? 12 : hourNum;
+    return `${displayHour}:${minute.padStart(2, '0')} ${ampm}`;
   };
 
   const getStatusBadge = (status: string, isNoOrderDelivery: boolean) => {
@@ -503,16 +536,33 @@ export default function LunchOrders() {
         }
       } else if (order.teacher_id) {
         // Es profesor - siempre crear transacción
+        // Primero obtener el school_id del profesor
+        const { data: teacherData } = await supabase
+          .from('teacher_profiles')
+          .select('school_id_1')
+          .eq('id', order.teacher_id)
+          .single();
+
+        const teacherSchoolId = teacherData?.school_id_1 || order.teacher?.school_id_1 || order.school_id;
+        
         needsTransaction = true;
         transactionData.teacher_id = order.teacher_id;
+        transactionData.school_id = teacherSchoolId;
+        
+        // Obtener precio desde categoría o configuración
+        const { data: category } = await supabase
+          .from('lunch_categories')
+          .select('price')
+          .eq('id', order.category_id || '')
+          .single();
         
         const { data: config } = await supabase
           .from('lunch_configuration')
           .select('lunch_price')
-          .eq('school_id', order.teacher?.school_id_1 || '')
+          .eq('school_id', teacherSchoolId || '')
           .single();
 
-        const price = config?.lunch_price || 7.50;
+        const price = category?.price || config?.lunch_price || 7.50;
         transactionData.amount = -Math.abs(price);
         transactionData.description = `Almuerzo - ${format(new Date(order.order_date), "d 'de' MMMM", { locale: es })}`;
       } else if (order.manual_name && order.payment_method === 'pagar_luego') {
@@ -967,7 +1017,7 @@ export default function LunchOrders() {
             {!canModifyOrder() && (
               <Badge variant="outline" className="bg-red-50 text-red-700 border-red-300">
                 <AlertCircle className="h-3 w-3 mr-1" />
-                Después de las 9:00 AM - Solo lectura
+                Después de las {getDeadlineTime()} - Solo lectura
               </Badge>
             )}
           </div>
@@ -1105,16 +1155,6 @@ export default function LunchOrders() {
                       </Button>
                     )}
 
-                    {/* Botón Acciones - Solo para pedidos entregados o para acciones adicionales */}
-                    {(order.status === 'delivered' || order.status === 'postponed') && (
-                      <Button
-                        size="sm"
-                        onClick={() => handleOrderAction(order)}
-                      >
-                        Acciones
-                      </Button>
-                    )}
-                    
                     {/* Botón Anular (siempre visible excepto si está cancelado) */}
                     {!order.is_cancelled && (
                       <Button
