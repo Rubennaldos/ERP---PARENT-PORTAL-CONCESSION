@@ -344,7 +344,7 @@ export const BillingCollection = () => {
           schools(id, name),
           lunch_categories(id, name, price)
         `)
-        .eq('status', 'confirmed') // SOLO pedidos confirmados aparecen en cobranzas
+        .in('status', ['confirmed', 'delivered']) // Pedidos confirmados Y entregados aparecen en cobranzas (si no están pagados)
         .eq('is_cancelled', false);
 
       // Filtrar por fecha límite si está definida
@@ -1044,7 +1044,15 @@ Gracias.`;
               </div>
               {untilDate && (
                 <p className="text-xs text-gray-500">
-                  Filtrando hasta el {format(new Date(untilDate + 'T00:00:00'), 'dd/MM/yyyy', { locale: es })}
+                  Filtrando hasta el {format(new Date(untilDate + 'T00:00:00'), 'dd/MM/yyyy', { locale: es })} 
+                  {(() => {
+                    const today = new Date();
+                    const filterDate = new Date(untilDate + 'T00:00:00');
+                    if (filterDate < today) {
+                      return ' ⚠️ (Puede que falten pedidos de fechas posteriores)';
+                    }
+                    return '';
+                  })()}
                 </p>
               )}
             </div>
