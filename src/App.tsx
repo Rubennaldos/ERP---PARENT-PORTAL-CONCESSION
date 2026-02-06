@@ -27,6 +27,7 @@ import Logistics from "./pages/Logistics";
 import SchoolAdmin from "./pages/SchoolAdmin";
 import AccessControl from "./pages/AccessControl";
 import CombosPromotions from "./pages/CombosPromotions";
+import { CashRegisterClosure } from "./pages/CashRegisterClosure";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -223,13 +224,23 @@ const App = () => (
               }
             />
             
-            {/* Combos y Promociones - Basado en permisos dinámicos */}
+            {            /* Combos y Promociones - Basado en permisos dinámicos */}
             <Route
               path="/combos-promotions"
               element={
                 <PermissionProtectedRoute moduleCode="promociones">
                   <CombosPromotions />
                 </PermissionProtectedRoute>
+              }
+            />
+            
+            {/* Cierre de Caja - Operadores de caja y Admins */}
+            <Route
+              path="/cash-register"
+              element={
+                <ProtectedRoute allowedRoles={['admin', 'operador_caja']}>
+                  <CashRegisterClosure />
+                </ProtectedRoute>
               }
             />
             
