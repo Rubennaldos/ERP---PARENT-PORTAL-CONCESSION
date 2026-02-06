@@ -206,7 +206,20 @@ const MODULE_CONFIG = {
     color: 'green',
     description: 'Gestión de caja, ingresos, egresos y cierre diario',
     permissions: [
-      { action: 'access', label: 'Acceder al módulo', description: 'Permite ver y usar el módulo de cierre de caja' }
+      { action: 'access', label: 'Acceder al módulo', description: 'Permite ver y usar el módulo de cierre de caja' },
+      { action: 'ver_modulo', label: 'Ver módulo', description: 'Acceder al módulo de cierre de caja' },
+      { action: 'ver_dashboard', label: 'Ver dashboard', description: 'Ver resumen ejecutivo y estadísticas' },
+      { action: 'abrir_caja', label: 'Abrir caja', description: 'Iniciar turno con monto inicial' },
+      { action: 'cerrar_caja', label: 'Cerrar caja', description: 'Finalizar turno y generar cierre' },
+      { action: 'registrar_ingreso', label: 'Registrar ingreso', description: 'Agregar ingresos de efectivo' },
+      { action: 'registrar_egreso', label: 'Registrar egreso', description: 'Registrar salidas de efectivo' },
+      { action: 'ver_historial', label: 'Ver historial', description: 'Consultar cierres anteriores' },
+      { action: 'imprimir_reporte', label: 'Imprimir reportes', description: 'Imprimir tickets de cierre' },
+      { action: 'exportar_datos', label: 'Exportar datos', description: 'Exportar a Excel/PDF' },
+      { action: 'enviar_whatsapp', label: 'Enviar por WhatsApp', description: 'Compartir reportes por WhatsApp' },
+      { action: 'configurar_modulo', label: 'Configuración', description: 'Ajustar hora de cierre automático y WhatsApp' },
+      { action: 'ver_su_sede', label: 'Solo su sede', description: 'Ver únicamente caja de su sede asignada', group: 'scope' },
+      { action: 'ver_todas_sedes', label: 'Todas las sedes', description: 'Ver cajas de todas las sedes del sistema', group: 'scope' }
     ]
   }
 };
