@@ -44,8 +44,7 @@ export function PermissionProtectedRoute({ children, moduleCode }: PermissionPro
         .select(`
           granted,
           permissions (
-            module,
-            action
+            name
           )
         `)
         .eq('role', role)
@@ -58,13 +57,15 @@ export function PermissionProtectedRoute({ children, moduleCode }: PermissionPro
         return;
       }
 
-      // Verificar si tiene el permiso ver_modulo
+      // Verificar si tiene el permiso del módulo
+      // El nombre del permiso puede ser: moduleCode o 'cash_register' para el módulo de caja
+      const permissionName = moduleCode === 'cierre_caja' ? 'cash_register' : moduleCode;
+      
       const hasModuleAccess = data?.some((perm: any) => {
-        return perm.permissions?.module === moduleCode && 
-               perm.permissions?.action === 'ver_modulo';
+        return perm.permissions?.name === permissionName;
       });
 
-      console.log(`${hasModuleAccess ? '✅' : '❌'} Permiso para ${moduleCode}:`, hasModuleAccess);
+      console.log(`${hasModuleAccess ? '✅' : '❌'} Permiso para ${moduleCode} (${permissionName}):`, hasModuleAccess);
       setHasPermission(hasModuleAccess || false);
       setChecking(false);
 
