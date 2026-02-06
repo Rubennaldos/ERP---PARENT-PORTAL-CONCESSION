@@ -95,8 +95,9 @@ export function PermissionProtectedRoute({ children, moduleCode }: PermissionPro
   };
 
   // Mostrar loader mientras se autentica o verifica permisos
-  if (authLoading || roleLoading || checking) {
-    console.log('⏳ Cargando...', { authLoading, roleLoading, checking });
+  // IMPORTANTE: También mostrar loader si hasPermission es null (aún no se ha verificado)
+  if (authLoading || roleLoading || checking || hasPermission === null) {
+    console.log('⏳ Cargando...', { authLoading, roleLoading, checking, hasPermission });
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -111,8 +112,8 @@ export function PermissionProtectedRoute({ children, moduleCode }: PermissionPro
   }
 
   // Mostrar mensaje de acceso denegado si no tiene permiso
-  // Solo permitir acceso si hasPermission es explícitamente true
-  if (hasPermission !== true) {
+  // hasPermission será true o false aquí (nunca null porque el loader lo maneja)
+  if (hasPermission === false) {
     console.log('🚫 Mostrando pantalla de acceso denegado. hasPermission:', hasPermission);
     return (
       <div className="min-h-screen bg-gradient-to-br from-red-50 via-orange-50 to-yellow-50 p-6 flex items-center justify-center">
