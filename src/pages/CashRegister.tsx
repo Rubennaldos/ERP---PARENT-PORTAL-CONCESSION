@@ -22,11 +22,11 @@ import {
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { CashRegister, CashClosure, CashMovement, CashRegisterConfig } from '@/types/cashRegister';
-import CashDashboard from './CashDashboard';
-import CashMovements from './CashMovements';
-import CashClosureDialog from './CashClosureDialog';
-import CashHistoryDialog from './CashHistoryDialog';
-import CashConfigDialog from './CashConfigDialog';
+import CashDashboard from './CashRegister/CashDashboard';
+import CashMovements from './CashRegister/CashMovements';
+import CashClosureDialog from './CashRegister/CashClosureDialog';
+import CashHistoryDialog from './CashRegister/CashHistoryDialog';
+import CashConfigDialog from './CashRegister/CashConfigDialog';
 import { toast } from 'sonner';
 
 export default function CashRegisterPage() {
