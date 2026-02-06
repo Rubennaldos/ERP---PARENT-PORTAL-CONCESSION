@@ -234,13 +234,13 @@ const App = () => (
               }
             />
             
-            {/* Cierre de Caja - Operadores de caja y Admins */}
+            {/* Cierre de Caja - Basado en permisos dinámicos */}
             <Route
               path="/cash-register"
               element={
-                <ProtectedRoute allowedRoles={['admin', 'admin_general', 'operador_caja']}>
+                <PermissionProtectedRoute moduleCode="cierre_caja">
                   <CashRegisterPage />
-                </ProtectedRoute>
+                </PermissionProtectedRoute>
               }
             />
             
