@@ -124,6 +124,9 @@ export const SalesList = () => {
   const [activeTab, setActiveTab] = useState('today');
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   
+  // Filtro de tipo de venta (POS, Almuerzos, Todas)
+  const [salesFilter, setSalesFilter] = useState<'all' | 'pos' | 'lunch'>('all');
+  
   // Filtro de sedes
   const [schools, setSchools] = useState<School[]>([]);
   const [selectedSchool, setSelectedSchool] = useState<string>('all');
@@ -176,7 +179,7 @@ export const SalesList = () => {
     if (!permissions.loading && permissions.canView) {
       fetchTransactions();
     }
-  }, [activeTab, selectedDate, selectedSchool, permissions.loading, permissions.canView]);
+  }, [activeTab, selectedDate, selectedSchool, salesFilter, permissions.loading, permissions.canView]);
 
   const checkPermissions = async () => {
     if (!user || !role) {
@@ -330,6 +333,7 @@ export const SalesList = () => {
         date: format(selectedDate, 'dd/MM/yyyy'),
         activeTab,
         selectedSchool,
+        salesFilter,
         canViewAllSchools,
         userRole: role
       });
@@ -345,6 +349,16 @@ export const SalesList = () => {
         .gte('created_at', startDate)
         .lte('created_at', endDate)
         .order('created_at', { ascending: false });
+
+      // Filtrar por tipo de venta (POS o Almuerzos)
+      if (salesFilter === 'pos') {
+        // Solo ventas con ticket_code (punto de venta)
+        query = query.not('ticket_code', 'is', null);
+      } else if (salesFilter === 'lunch') {
+        // Solo ventas sin ticket_code (almuerzos)
+        query = query.is('ticket_code', null);
+      }
+      // Si es 'all', no se filtra y muestra ambos tipos
 
       // Filtrar por sede si corresponde
       if (canViewAllSchools) {
@@ -862,6 +876,48 @@ export const SalesList = () => {
               </div>
             )}
           </div>
+
+          {/* Filtro de Tipo de Venta */}
+          <Card className="mb-6 bg-gradient-to-r from-emerald-50 to-teal-50 border-emerald-200">
+            <CardContent className="p-4">
+              <div className="flex items-center gap-4">
+                <div className="flex items-center gap-2">
+                  <Filter className="h-5 w-5 text-emerald-600" />
+                  <Label className="font-semibold text-emerald-900">Tipo de Venta:</Label>
+                </div>
+                <Select value={salesFilter} onValueChange={(value: 'all' | 'pos' | 'lunch') => setSalesFilter(value)}>
+                  <SelectTrigger className="w-[280px] bg-white">
+                    <SelectValue placeholder="Selecciona tipo" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">
+                      <div className="flex items-center gap-2">
+                        <ShoppingCart className="h-4 w-4 text-purple-600" />
+                        <span className="font-semibold">📊 Todas las Ventas</span>
+                      </div>
+                    </SelectItem>
+                    <SelectItem value="pos">
+                      <div className="flex items-center gap-2">
+                        <ShoppingCart className="h-4 w-4 text-blue-600" />
+                        <span>🛒 Punto de Venta (Cafetería)</span>
+                      </div>
+                    </SelectItem>
+                    <SelectItem value="lunch">
+                      <div className="flex items-center gap-2">
+                        <ShoppingCart className="h-4 w-4 text-orange-600" />
+                        <span>🍽️ Almuerzos</span>
+                      </div>
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+                <Badge variant="default" className="ml-2">
+                  {salesFilter === 'all' && '📊 Mostrando todo'}
+                  {salesFilter === 'pos' && '🛒 Solo Cafetería'}
+                  {salesFilter === 'lunch' && '🍽️ Solo Almuerzos'}
+                </Badge>
+              </div>
+            </CardContent>
+          </Card>
 
           {/* Filtro de Sedes (solo si tiene permiso) */}
           {canViewAllSchools && schools.length > 1 && (
