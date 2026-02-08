@@ -325,6 +325,9 @@ export const SalesList = () => {
   const fetchTransactions = async () => {
     try {
       setLoading(true);
+      setTransactions([]); // ✅ Limpiar transacciones antes de cargar
+      
+      console.log('🚀 fetchTransactions INICIADO con salesFilter:', salesFilter);
       
       // Ajustar fechas para timezone de Perú (UTC-5)
       // Buscar todo el día en hora local + margen para timezone
