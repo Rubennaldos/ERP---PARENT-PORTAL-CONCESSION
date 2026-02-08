@@ -179,7 +179,7 @@ export const SalesList = () => {
     if (!permissions.loading && permissions.canView) {
       fetchTransactions();
     }
-  }, [activeTab, selectedDate, selectedSchool, salesFilter, permissions.loading, permissions.canView]);
+  }, [activeTab, selectedDate, selectedSchool, permissions.loading, permissions.canView]); // ❌ Quitar salesFilter de las dependencias
 
   const checkPermissions = async () => {
     if (!user || !role) {
@@ -325,7 +325,6 @@ export const SalesList = () => {
   const fetchTransactions = async () => {
     try {
       setLoading(true);
-      setTransactions([]); // ✅ Limpiar transacciones antes de cargar
       
       console.log('🚀 fetchTransactions INICIADO con salesFilter:', salesFilter);
       
@@ -393,21 +392,9 @@ export const SalesList = () => {
       console.log('📅 Rango de fechas:', { startDate, endDate });
       console.log('🔍 Primeras 3 transacciones:', data?.slice(0, 3));
 
-      // Aplicar filtro de tipo de venta en memoria si es necesario
-      let filteredData = data || [];
-      if (salesFilter === 'pos') {
-        // Solo ventas con ticket_code (punto de venta)
-        filteredData = filteredData.filter((t: any) => t.ticket_code !== null);
-        console.log('🛒 Ventas POS filtradas:', filteredData.length);
-      } else if (salesFilter === 'lunch') {
-        // Solo ventas sin ticket_code (almuerzos)
-        filteredData = filteredData.filter((t: any) => t.ticket_code === null);
-        console.log('🍽️ Almuerzos filtrados:', filteredData.length);
-      }
-      
       // Cargar información de los cajeros (profiles) por separado
-      if (filteredData && filteredData.length > 0) {
-        const createdByIds = [...new Set(filteredData.map((t: any) => t.created_by).filter(Boolean))];
+      if (data && data.length > 0) {
+        const createdByIds = [...new Set(data.map((t: any) => t.created_by).filter(Boolean))];
         
         if (createdByIds.length > 0) {
           const { data: profilesData, error: profilesError } = await supabase
@@ -418,7 +405,7 @@ export const SalesList = () => {
           if (!profilesError && profilesData) {
             // Mapear los perfiles a las transacciones
             const profilesMap = new Map(profilesData.map(p => [p.id, p]));
-            filteredData.forEach((transaction: any) => {
+            data.forEach((transaction: any) => {
               if (transaction.created_by) {
                 transaction.profiles = profilesMap.get(transaction.created_by);
               }
@@ -427,10 +414,10 @@ export const SalesList = () => {
         }
       }
       
-      console.log('✅ Ventas obtenidas:', filteredData?.length || 0);
-      console.log('📊 Primera venta (ejemplo):', filteredData?.[0]);
-      console.log('🏢 School data:', filteredData?.[0]?.school);
-      setTransactions(filteredData || []);
+      console.log('✅ Ventas obtenidas:', data?.length || 0);
+      console.log('📊 Primera venta (ejemplo):', data?.[0]);
+      console.log('🏢 School data:', data?.[0]?.school);
+      setTransactions(data || []);
     } catch (error: any) {
       console.error('Error fetching transactions:', error);
       toast({
@@ -724,6 +711,11 @@ export const SalesList = () => {
 
   // Búsqueda inteligente
   const filteredTransactions = transactions.filter(t => {
+    // Primero filtrar por tipo de venta
+    if (salesFilter === 'pos' && !t.ticket_code) return false;
+    if (salesFilter === 'lunch' && t.ticket_code) return false;
+    
+    // Luego filtrar por búsqueda
     if (!searchTerm.trim()) return true;
     
     const search = searchTerm.toLowerCase();
