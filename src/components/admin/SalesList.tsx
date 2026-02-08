@@ -1057,11 +1057,11 @@ export const SalesList = () => {
                               )}
                             </div>
                             
-                            {/* Tercera línea: Cliente */}
-                            <div className="flex items-center gap-2 mb-1">
-                              <User className="h-4 w-4 text-muted-foreground" />
-                              <span className="font-semibold text-sm">
-                                {t.client_name || t.student?.full_name || t.teacher?.full_name || 'CLIENTE GENÉRICO'}
+                            {/* Tercera línea: Cliente - MÁS GRANDE */}
+                            <div className="flex items-center gap-2 mb-2">
+                              <User className="h-5 w-5 text-emerald-600" />
+                              <span className="text-base font-bold text-slate-900">
+                                CLIENTE: {t.client_name || t.student?.full_name || t.teacher?.full_name || 'GENÉRICO'}
                               </span>
                             </div>
                             
