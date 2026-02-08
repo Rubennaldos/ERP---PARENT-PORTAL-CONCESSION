@@ -379,14 +379,20 @@ export const SalesList = () => {
         throw error;
       }
 
+      console.log('📦 Total transacciones desde BD:', data?.length || 0);
+      console.log('📅 Rango de fechas:', { startDate, endDate });
+      console.log('🔍 Primeras 3 transacciones:', data?.slice(0, 3));
+
       // Aplicar filtro de tipo de venta en memoria si es necesario
       let filteredData = data || [];
       if (salesFilter === 'pos') {
         // Solo ventas con ticket_code (punto de venta)
         filteredData = filteredData.filter((t: any) => t.ticket_code !== null);
+        console.log('🛒 Ventas POS filtradas:', filteredData.length);
       } else if (salesFilter === 'lunch') {
         // Solo ventas sin ticket_code (almuerzos)
         filteredData = filteredData.filter((t: any) => t.ticket_code === null);
+        console.log('🍽️ Almuerzos filtrados:', filteredData.length);
       }
       
       // Cargar información de los cajeros (profiles) por separado
