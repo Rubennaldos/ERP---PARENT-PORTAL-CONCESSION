@@ -352,6 +352,7 @@ export const SalesList = () => {
         .select(`
           *,
           student:students(id, full_name, balance),
+          teacher:teacher_profiles(id, full_name),
           school:schools(id, name, code)
         `)
         .eq('type', 'purchase') // ✅ VENTAS DEL POS (registradas como 'purchase' en BD)
@@ -470,7 +471,7 @@ export const SalesList = () => {
   // ========== EDITAR DATOS DEL CLIENTE ==========
   const handleOpenEditClient = (transaction: Transaction) => {
     setSelectedTransaction(transaction);
-    setEditClientName(transaction.client_name || transaction.student?.full_name || 'CLIENTE GENÉRICO');
+    setEditClientName(transaction.client_name || transaction.student?.full_name || transaction.teacher?.full_name || 'CLIENTE GENÉRICO');
     setEditClientDNI(transaction.client_dni || '');
     setEditClientRUC(transaction.client_ruc || '');
     setEditDocumentType(transaction.document_type || 'ticket');
@@ -1060,7 +1061,7 @@ export const SalesList = () => {
                             <div className="flex items-center gap-2 mb-1">
                               <User className="h-4 w-4 text-muted-foreground" />
                               <span className="font-semibold text-sm">
-                                {t.client_name || t.student?.full_name || 'CLIENTE GENÉRICO'}
+                                {t.client_name || t.student?.full_name || t.teacher?.full_name || 'CLIENTE GENÉRICO'}
                               </span>
                             </div>
                             
@@ -1332,7 +1333,7 @@ export const SalesList = () => {
                 ticketCode={selectedTransaction.ticket_code}
                 date={new Date(selectedTransaction.created_at)}
                 cashierEmail={selectedTransaction.profiles?.full_name || selectedTransaction.profiles?.email || 'Sistema'}
-                clientName={selectedTransaction.client_name || selectedTransaction.student?.full_name || 'CLIENTE GENÉRICO'}
+                clientName={selectedTransaction.client_name || selectedTransaction.student?.full_name || selectedTransaction.teacher?.full_name || 'CLIENTE GENÉRICO'}
                 documentType={selectedTransaction.document_type || 'ticket'}
                 items={transactionItems}
                 total={Math.abs(selectedTransaction.amount)}
@@ -1362,7 +1363,7 @@ export const SalesList = () => {
           ticketCode={selectedTransaction.ticket_code}
           date={new Date(selectedTransaction.created_at)}
           cashierEmail={selectedTransaction.profiles?.full_name || selectedTransaction.profiles?.email || 'Sistema'}
-          clientName={selectedTransaction.client_name || selectedTransaction.student?.full_name || 'CLIENTE GENÉRICO'}
+          clientName={selectedTransaction.client_name || selectedTransaction.student?.full_name || selectedTransaction.teacher?.full_name || 'CLIENTE GENÉRICO'}
           documentType={selectedTransaction.document_type || 'ticket'}
           items={transactionItems}
           total={Math.abs(selectedTransaction.amount)}
