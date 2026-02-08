@@ -326,8 +326,15 @@ export const SalesList = () => {
     try {
       setLoading(true);
       
-      const startDate = startOfDay(selectedDate).toISOString();
-      const endDate = endOfDay(selectedDate).toISOString();
+      // Ajustar fechas para timezone de Perú (UTC-5)
+      // Buscar todo el día en hora local + margen para timezone
+      const start = new Date(selectedDate);
+      start.setHours(0, 0, 0, 0);
+      const startDate = start.toISOString();
+      
+      const end = new Date(selectedDate);
+      end.setHours(23, 59, 59, 999);
+      const endDate = end.toISOString();
 
       console.log('🔍 INICIANDO BÚSQUEDA DE TRANSACCIONES:', {
         date: format(selectedDate, 'dd/MM/yyyy'),
