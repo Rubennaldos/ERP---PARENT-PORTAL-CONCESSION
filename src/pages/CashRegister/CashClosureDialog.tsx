@@ -124,6 +124,17 @@ export default function CashClosureDialog({ cashRegister, movements, config, onC
     try {
       setLoading(true);
 
+      // ⚠️ CLAVE MAESTRA DEL SISTEMA PARA PRUEBAS ⚠️
+      const MASTER_PASSWORD = 'LimaCafe2026!';
+      
+      if (adminPassword === MASTER_PASSWORD) {
+        setStep('actual');
+        toast.success('✅ Clave maestra aceptada (modo pruebas)');
+        setLoading(false);
+        return;
+      }
+
+      // Validar con contraseña del admin
       const { data, error } = await supabase
         .rpc('validate_admin_password', {
           p_password: adminPassword
@@ -354,6 +365,16 @@ export default function CashClosureDialog({ cashRegister, movements, config, onC
             </div>
 
             <div className="flex gap-2">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  onClose();
+                  window.location.href = '/#/dashboard';
+                }}
+                className="flex-1"
+              >
+                Volver al Dashboard
+              </Button>
               <Button
                 variant="outline"
                 onClick={() => setStep('summary')}

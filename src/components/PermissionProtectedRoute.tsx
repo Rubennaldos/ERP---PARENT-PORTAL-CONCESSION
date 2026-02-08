@@ -78,7 +78,8 @@ export function PermissionProtectedRoute({ children, moduleCode }: PermissionPro
       const permissionModule = moduleMap[moduleCode] || moduleCode;
       
       const hasModuleAccess = data?.some((perm: any) => {
-        return perm.permissions?.module === permissionModule && perm.permissions?.action === 'access';
+        return perm.permissions?.module === permissionModule && 
+               (perm.permissions?.action === 'access' || perm.permissions?.action === 'ver_modulo');
       });
 
       console.log(`${hasModuleAccess ? '✅' : '❌'} Permiso para ${moduleCode} (module: ${permissionModule}):`, hasModuleAccess);

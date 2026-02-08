@@ -339,7 +339,8 @@ export const SalesList = () => {
         .select(`
           *,
           student:students(id, full_name, balance),
-          school:schools(id, name, code)
+          school:schools(id, name, code),
+          profiles:profiles!transactions_created_by_fkey(id, email, full_name)
         `)
         .eq('type', 'sale') // ✅ VENTAS DEL POS (no compras/almuerzos)
         .gte('created_at', startDate)
@@ -975,6 +976,13 @@ export const SalesList = () => {
                                 {t.client_name || t.student?.full_name || 'CLIENTE GENÉRICO'}
                               </span>
                             </div>
+                            
+                            {/* Cuarta línea: Cajero Responsable */}
+                            <div className="flex items-center gap-2">
+                              <Badge variant="outline" className="text-[10px] bg-amber-50 border-amber-300 text-amber-700">
+                                👤 Cajero: {t.profiles?.full_name || t.profiles?.email || 'Sistema'}
+                              </Badge>
+                            </div>
                           </div>
                           
                           <div className="text-right">
@@ -1236,7 +1244,7 @@ export const SalesList = () => {
               <ThermalTicket
                 ticketCode={selectedTransaction.ticket_code}
                 date={new Date(selectedTransaction.created_at)}
-                cashierEmail={selectedTransaction.profiles?.email || 'sistema'}
+                cashierEmail={selectedTransaction.profiles?.full_name || selectedTransaction.profiles?.email || 'Sistema'}
                 clientName={selectedTransaction.client_name || selectedTransaction.student?.full_name || 'CLIENTE GENÉRICO'}
                 documentType={selectedTransaction.document_type || 'ticket'}
                 items={transactionItems}
@@ -1266,7 +1274,7 @@ export const SalesList = () => {
         <ThermalTicket
           ticketCode={selectedTransaction.ticket_code}
           date={new Date(selectedTransaction.created_at)}
-          cashierEmail="sistema" // TODO: obtener del created_by
+          cashierEmail={selectedTransaction.profiles?.full_name || selectedTransaction.profiles?.email || 'Sistema'}
           clientName={selectedTransaction.client_name || selectedTransaction.student?.full_name || 'CLIENTE GENÉRICO'}
           documentType={selectedTransaction.document_type || 'ticket'}
           items={transactionItems}

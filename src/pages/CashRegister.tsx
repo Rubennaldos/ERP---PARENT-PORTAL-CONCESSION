@@ -30,7 +30,8 @@ import CashConfigDialog from './CashRegister/CashConfigDialog';
 import { toast } from 'sonner';
 
 export default function CashRegisterPage() {
-  const { user, profile } = useAuth();
+  const { user } = useAuth();
+  const [profile, setProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [currentRegister, setCurrentRegister] = useState<CashRegister | null>(null);
   const [movements, setMovements] = useState<CashMovement[]>([]);
@@ -38,6 +39,33 @@ export default function CashRegisterPage() {
   const [showCloseDialog, setShowCloseDialog] = useState(false);
   const [showHistoryDialog, setShowHistoryDialog] = useState(false);
   const [showConfigDialog, setShowConfigDialog] = useState(false);
+
+  // Cargar perfil del usuario
+  useEffect(() => {
+    const loadProfile = async () => {
+      if (!user?.id) return;
+      
+      try {
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('id, email, full_name, role, school_id')
+          .eq('id', user.id)
+          .single();
+
+        if (error) {
+          console.error('Error cargando perfil:', error);
+          return;
+        }
+
+        console.log('✅ Perfil cargado:', data);
+        setProfile(data);
+      } catch (error) {
+        console.error('Error en loadProfile:', error);
+      }
+    };
+
+    loadProfile();
+  }, [user?.id]);
 
   // Cargar caja actual
   const loadCurrentRegister = async () => {
@@ -51,9 +79,9 @@ export default function CashRegisterPage() {
         .eq('status', 'open')
         .order('opened_at', { ascending: false })
         .limit(1)
-        .single();
+        .maybeSingle();
 
-      if (error && error.code !== 'PGRST116') {
+      if (error) {
         throw error;
       }
 
@@ -92,9 +120,9 @@ export default function CashRegisterPage() {
         .from('cash_register_config')
         .select('*')
         .eq('school_id', profile.school_id)
-        .single();
+        .maybeSingle();
 
-      if (error && error.code !== 'PGRST116') {
+      if (error) {
         throw error;
       }
 
@@ -184,7 +212,7 @@ export default function CashRegisterPage() {
   // No necesitamos verificar permisos aquí porque PermissionProtectedRoute ya lo hace
   // Si el usuario llegó hasta aquí, es porque tiene permisos
 
-  if (loading) {
+  if (loading || !profile) {
     return (
       <div className="flex items-center justify-center h-screen">
         <div className="text-center">
@@ -197,8 +225,29 @@ export default function CashRegisterPage() {
 
   return (
     <div className="container mx-auto p-6 space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
+      {/* Validación: Si no hay school_id, mostrar error */}
+      {!profile?.school_id ? (
+        <Card className="border-red-200">
+          <CardContent className="p-12 text-center">
+            <AlertCircle className="h-16 w-16 text-red-500 mx-auto mb-4" />
+            <h2 className="text-2xl font-bold text-gray-900 mb-2">Error: No tienes una sede asignada</h2>
+            <p className="text-gray-600 mb-6">
+              Contacta al administrador del sistema para que te asigne una sede.
+              <br />
+              Luego cierra sesión y vuelve a entrar.
+            </p>
+            <Button
+              onClick={() => window.location.href = '/#/dashboard'}
+              className="px-4 py-2"
+            >
+              Volver al Dashboard
+            </Button>
+          </CardContent>
+        </Card>
+      ) : (
+        <>
+          {/* Header */}
+          <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold">💰 Cierre de Caja</h1>
           <p className="text-muted-foreground">
@@ -336,6 +385,8 @@ export default function CashRegisterPage() {
             toast.success('Configuración actualizada');
           }}
         />
+      )}
+        </>
       )}
     </div>
   );
