@@ -339,8 +339,7 @@ export const SalesList = () => {
         .select(`
           *,
           student:students(id, full_name, balance),
-          school:schools(id, name, code),
-          profiles!created_by(id, email, full_name)
+          school:schools(id, name, code)
         `)
         .eq('type', 'sale') // ✅ VENTAS DEL POS (no compras/almuerzos)
         .gte('created_at', startDate)
@@ -372,6 +371,28 @@ export const SalesList = () => {
       if (error) {
         console.error('❌ Error:', error);
         throw error;
+      }
+      
+      // Cargar información de los cajeros (profiles) por separado
+      if (data && data.length > 0) {
+        const createdByIds = [...new Set(data.map((t: any) => t.created_by).filter(Boolean))];
+        
+        if (createdByIds.length > 0) {
+          const { data: profilesData, error: profilesError } = await supabase
+            .from('profiles')
+            .select('id, email, full_name')
+            .in('id', createdByIds);
+          
+          if (!profilesError && profilesData) {
+            // Mapear los perfiles a las transacciones
+            const profilesMap = new Map(profilesData.map(p => [p.id, p]));
+            data.forEach((transaction: any) => {
+              if (transaction.created_by) {
+                transaction.profiles = profilesMap.get(transaction.created_by);
+              }
+            });
+          }
+        }
       }
       
       console.log('✅ Ventas obtenidas:', data?.length || 0);
