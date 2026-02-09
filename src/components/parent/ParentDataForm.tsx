@@ -8,7 +8,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, UserCheck, Users, Scale, ShieldCheck } from 'lucide-react';
+import { Loader2, UserCheck, Users, Scale, ShieldCheck, LogOut } from 'lucide-react';
 
 interface ParentDataFormProps {
   onSuccess: () => void;
@@ -17,7 +17,7 @@ interface ParentDataFormProps {
 }
 
 export function ParentDataForm({ onSuccess, isLoading: externalLoading, setIsLoading: setExternalLoading }: ParentDataFormProps) {
-  const { user } = useAuth();
+  const { user, signOut } = useAuth();
   const { toast } = useToast();
   
   // Recuperar el paso guardado o iniciar en 1
@@ -391,6 +391,26 @@ export function ParentDataForm({ onSuccess, isLoading: externalLoading, setIsLoa
   return (
     <Card className="w-full shadow-xl border border-stone-200/50 bg-white">
       <CardHeader className="text-center space-y-2 sm:space-y-3 pb-4 sm:pb-6 pt-6 sm:pt-8 px-4 sm:px-6">
+        {/* Botón de Cerrar Sesión en la esquina superior derecha */}
+        <div className="absolute top-4 right-4">
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={async () => {
+              await signOut();
+              toast({
+                title: 'Sesión cerrada',
+                description: 'Has cerrado sesión exitosamente',
+              });
+            }}
+            className="text-stone-500 hover:text-red-600 hover:bg-red-50"
+          >
+            <LogOut className="h-4 w-4 mr-2" />
+            <span className="hidden sm:inline">Cerrar Sesión</span>
+          </Button>
+        </div>
+
         <div className="flex justify-center mb-1 sm:mb-2">
           <div className="bg-gradient-to-br from-emerald-50/50 to-[#8B7355]/5 p-3 sm:p-4 rounded-xl sm:rounded-2xl">
             {step === 1 && <UserCheck className="h-7 w-7 sm:h-8 sm:w-8 text-emerald-600/80" />}

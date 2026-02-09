@@ -19,7 +19,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { CheckCircle2, Loader2 } from 'lucide-react';
+import { CheckCircle2, Loader2, LogOut } from 'lucide-react';
 
 interface School {
   id: string;
@@ -33,7 +33,7 @@ interface TeacherOnboardingModalProps {
 }
 
 export function TeacherOnboardingModal({ open, onComplete }: TeacherOnboardingModalProps) {
-  const { user } = useAuth();
+  const { user, signOut } = useAuth();
   const { toast } = useToast();
 
   const [loading, setLoading] = useState(false);
@@ -174,10 +174,30 @@ export function TeacherOnboardingModal({ open, onComplete }: TeacherOnboardingMo
     <Dialog open={open} onOpenChange={() => {}}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="text-2xl">Hola Profesor 👋</DialogTitle>
-          <DialogDescription>
-            Por favor completa tu información para comenzar a usar el portal.
-          </DialogDescription>
+          <div className="flex items-start justify-between">
+            <div>
+              <DialogTitle className="text-2xl">Hola Profesor 👋</DialogTitle>
+              <DialogDescription>
+                Por favor completa tu información para comenzar a usar el portal.
+              </DialogDescription>
+            </div>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={async () => {
+                await signOut();
+                toast({
+                  title: 'Sesión cerrada',
+                  description: 'Has cerrado sesión exitosamente',
+                });
+              }}
+              className="text-stone-500 hover:text-red-600 hover:bg-red-50 ml-2"
+            >
+              <LogOut className="h-4 w-4 mr-2" />
+              Cerrar Sesión
+            </Button>
+          </div>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
