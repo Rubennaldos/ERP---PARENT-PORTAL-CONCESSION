@@ -10,10 +10,12 @@ import { es } from 'date-fns/locale';
 interface LunchOrder {
   id: string;
   order_date: string;
-  status: 'pending' | 'confirmed' | 'cancelled';
+  status: 'pending' | 'confirmed' | 'cancelled' | 'delivered';
   created_at: string;
   menu_id: string;
   category_id: string | null;
+  delivered_by?: string | null;
+  delivered_at?: string | null;
   lunch_menus: {
     starter: string | null;
     main_course: string;
@@ -25,6 +27,10 @@ interface LunchOrder {
     color: string;
     price: number | null;
   } | null;
+  profiles?: {
+    full_name: string;
+    role: string;
+  } | null;
 }
 
 interface MyLunchOrdersProps {
@@ -34,6 +40,7 @@ interface MyLunchOrdersProps {
 const STATUS_CONFIG = {
   pending: { label: 'Pendiente', icon: Clock, color: 'bg-yellow-100 text-yellow-800' },
   confirmed: { label: 'Confirmado', icon: CheckCircle2, color: 'bg-green-100 text-green-800' },
+  delivered: { label: 'Entregado', icon: CheckCircle2, color: 'bg-blue-100 text-blue-800' },
   cancelled: { label: 'Cancelado', icon: XCircle, color: 'bg-red-100 text-red-800' },
 };
 
@@ -59,6 +66,8 @@ export function MyLunchOrders({ teacherId }: MyLunchOrdersProps) {
           created_at,
           menu_id,
           category_id,
+          delivered_by,
+          delivered_at,
           lunch_menus (
             starter,
             main_course,
@@ -69,6 +78,10 @@ export function MyLunchOrders({ teacherId }: MyLunchOrdersProps) {
             name,
             color,
             price
+          ),
+          profiles:profiles!lunch_orders_delivered_by_fkey (
+            full_name,
+            role
           )
         `)
         .eq('teacher_id', teacherId)
@@ -178,6 +191,20 @@ export function MyLunchOrders({ teacherId }: MyLunchOrdersProps) {
               <p className="text-xs text-gray-400 pt-2 border-t">
                 Pedido el {format(new Date(order.created_at), "d 'de' MMMM 'a las' HH:mm", { locale: es })}
               </p>
+              
+              {/* Información de entrega */}
+              {order.status === 'delivered' && order.delivered_by && order.profiles && (
+                <div className="mt-2 pt-2 border-t bg-blue-50 -mx-4 -mb-4 px-4 py-3 rounded-b-lg">
+                  <p className="text-xs text-blue-700">
+                    <span className="font-semibold">Entregado por:</span> {order.profiles.full_name}
+                  </p>
+                  {order.delivered_at && (
+                    <p className="text-xs text-blue-600 mt-1">
+                      {format(new Date(order.delivered_at), "d 'de' MMMM 'a las' HH:mm", { locale: es })}
+                    </p>
+                  )}
+                </div>
+              )}
             </CardContent>
           </Card>
         );
