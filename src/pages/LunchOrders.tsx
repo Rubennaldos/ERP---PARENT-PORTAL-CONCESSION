@@ -50,6 +50,9 @@ interface LunchOrder {
   payment_method: string | null;
   payment_details: any;
   menu_id: string | null;
+  base_price: number | null;
+  addons_total: number | null;
+  final_price: number | null;
   school?: {
     name: string;
     code: string;
@@ -78,6 +81,12 @@ interface LunchOrder {
       icon: string | null;
     };
   };
+  lunch_order_addons?: Array<{
+    id: string;
+    name: string;
+    price: number;
+    quantity: number;
+  }>;
 }
 
 interface School {
@@ -290,6 +299,12 @@ export default function LunchOrders() {
               dessert,
               notes,
               category_id
+            ),
+            lunch_order_addons (
+              id,
+              name,
+              price,
+              quantity
             )
           `)
           .gte('order_date', startDate)
@@ -367,6 +382,12 @@ export default function LunchOrders() {
             dessert,
             notes,
             category_id
+          ),
+          lunch_order_addons (
+            id,
+            name,
+            price,
+            quantity
           )
         `)
         .eq('order_date', selectedDate)
@@ -1032,6 +1053,16 @@ export default function LunchOrders() {
         
         const menuCategory = order.lunch_menus?.category_name || 'Menú del día';
         
+        // Agregados
+        const addons = order.lunch_order_addons && order.lunch_order_addons.length > 0
+          ? order.lunch_order_addons.map((a: any) => a.name).join(', ')
+          : '-';
+        
+        // Precio total
+        const totalPrice = order.final_price !== null && order.final_price !== undefined
+          ? `S/ ${order.final_price.toFixed(2)}`
+          : '-';
+        
         return [
           clientName,
           schoolName,
@@ -1039,18 +1070,20 @@ export default function LunchOrders() {
           orderTime,
           status,
           paymentStatus,
-          menuCategory
+          menuCategory,
+          addons,
+          totalPrice
         ];
       });
       
       // Crear tabla con autoTable
       autoTable(doc, {
-        head: [['Cliente', 'Sede', 'Fecha Pedido', 'Hora', 'Estado', 'Pago', 'Categoría Menú']],
+        head: [['Cliente', 'Sede', 'Fecha Pedido', 'Hora', 'Estado', 'Pago', 'Categoría Menú', 'Agregados', 'Total']],
         body: tableData,
         startY: 35,
         styles: {
-          fontSize: 8,
-          cellPadding: 2,
+          fontSize: 7,
+          cellPadding: 1.5,
         },
         headStyles: {
           fillColor: [59, 130, 246], // Blue-600
@@ -1062,13 +1095,15 @@ export default function LunchOrders() {
           fillColor: [249, 250, 251] // Gray-50
         },
         columnStyles: {
-          0: { cellWidth: 45 }, // Cliente
-          1: { cellWidth: 40 }, // Sede
-          2: { cellWidth: 25 }, // Fecha
-          3: { cellWidth: 20 }, // Hora
-          4: { cellWidth: 25 }, // Estado
-          5: { cellWidth: 25 }, // Pago
-          6: { cellWidth: 40 }  // Categoría
+          0: { cellWidth: 35 }, // Cliente
+          1: { cellWidth: 30 }, // Sede
+          2: { cellWidth: 22 }, // Fecha
+          3: { cellWidth: 15 }, // Hora
+          4: { cellWidth: 22 }, // Estado
+          5: { cellWidth: 20 }, // Pago
+          6: { cellWidth: 35 }, // Categoría
+          7: { cellWidth: 45 }, // Agregados
+          8: { cellWidth: 18, halign: 'right' }  // Total
         },
         margin: { left: 15, right: 15 },
       });
@@ -1401,6 +1436,31 @@ export default function LunchOrders() {
                           timeZone: 'America/Lima'
                         })}
                       </p>
+                      {/* Mostrar agregados si existen */}
+                      {order.lunch_order_addons && order.lunch_order_addons.length > 0 && (
+                        <div className="mt-1">
+                          <p className="text-xs text-gray-500">
+                            <span className="font-semibold text-green-600">Agregados:</span>{' '}
+                            {order.lunch_order_addons.map((addon: any, idx: number) => (
+                              <span key={addon.id}>
+                                {addon.name}
+                                {idx < order.lunch_order_addons.length - 1 ? ', ' : ''}
+                              </span>
+                            ))}
+                          </p>
+                        </div>
+                      )}
+                      {/* Mostrar precio total si está disponible */}
+                      {order.final_price !== null && order.final_price !== undefined && (
+                        <p className="text-sm font-semibold text-green-700 mt-1">
+                          Total: S/ {order.final_price.toFixed(2)}
+                          {order.addons_total && order.addons_total > 0 && (
+                            <span className="text-xs font-normal text-gray-500 ml-1">
+                              (Base: S/ {order.base_price?.toFixed(2)} + Agregados: S/ {order.addons_total.toFixed(2)})
+                            </span>
+                          )}
+                        </p>
+                      )}
                     </div>
 
                     {/* Estado y Estado de Deuda */}

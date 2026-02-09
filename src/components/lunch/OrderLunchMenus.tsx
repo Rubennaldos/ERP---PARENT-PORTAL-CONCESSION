@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Checkbox } from '@/components/ui/checkbox';
 import { supabase } from '@/lib/supabase';
 import { useToast } from '@/hooks/use-toast';
 import { 
@@ -14,7 +15,8 @@ import {
   Clock,
   ShoppingCart,
   AlertCircle,
-  Sparkles
+  Sparkles,
+  Package
 } from 'lucide-react';
 import { format, addDays, startOfWeek, endOfWeek } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -56,6 +58,15 @@ interface Student {
   school_id: string;
 }
 
+interface CategoryAddon {
+  id: string;
+  category_id: string;
+  name: string;
+  description: string | null;
+  price: number;
+  is_active: boolean;
+}
+
 interface OrderLunchMenusProps {
   userType: 'parent' | 'teacher';
   userId: string;
@@ -82,6 +93,11 @@ export function OrderLunchMenus({ userType, userId, userSchoolId }: OrderLunchMe
   const [orderDialogOpen, setOrderDialogOpen] = useState(false);
   const [ordering, setOrdering] = useState(false);
   const [currentWeekStart, setCurrentWeekStart] = useState(startOfWeek(new Date(), { weekStartsOn: 1 }));
+  
+  // Estados para agregados
+  const [availableAddons, setAvailableAddons] = useState<CategoryAddon[]>([]);
+  const [selectedAddons, setSelectedAddons] = useState<Set<string>>(new Set());
+  const [loadingAddons, setLoadingAddons] = useState(false);
 
   // Cargar estudiantes (solo para padres)
   useEffect(() => {
@@ -98,6 +114,16 @@ export function OrderLunchMenus({ userType, userId, userSchoolId }: OrderLunchMe
       fetchWeekMenus();
     }
   }, [selectedStudent, currentWeekStart, userType]);
+
+  // Cargar agregados cuando se selecciona un menú
+  useEffect(() => {
+    if (selectedMenu && selectedMenu.category_id && orderDialogOpen) {
+      fetchAddons(selectedMenu.category_id);
+    } else {
+      setAvailableAddons([]);
+      setSelectedAddons(new Set());
+    }
+  }, [selectedMenu, orderDialogOpen]);
 
   const fetchStudents = async () => {
     try {
@@ -123,6 +149,47 @@ export function OrderLunchMenus({ userType, userId, userSchoolId }: OrderLunchMe
     } finally {
       setLoading(false);
     }
+  };
+
+  const fetchAddons = async (categoryId: string) => {
+    try {
+      setLoadingAddons(true);
+      const { data, error } = await supabase
+        .from('lunch_category_addons')
+        .select('*')
+        .eq('category_id', categoryId)
+        .eq('is_active', true)
+        .order('display_order', { ascending: true });
+
+      if (error) throw error;
+      setAvailableAddons(data || []);
+    } catch (error: any) {
+      console.error('Error fetching addons:', error);
+      // No mostrar toast de error, simplemente no cargar agregados
+      setAvailableAddons([]);
+    } finally {
+      setLoadingAddons(false);
+    }
+  };
+
+  const toggleAddon = (addonId: string) => {
+    setSelectedAddons(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(addonId)) {
+        newSet.delete(addonId);
+      } else {
+        newSet.add(addonId);
+      }
+      return newSet;
+    });
+  };
+
+  const calculateTotalPrice = () => {
+    const basePrice = selectedMenu?.category?.price || 0;
+    const addonsPrice = availableAddons
+      .filter(addon => selectedAddons.has(addon.id))
+      .reduce((sum, addon) => sum + addon.price, 0);
+    return basePrice + addonsPrice;
   };
 
   const fetchWeekMenus = async () => {
@@ -258,12 +325,21 @@ export function OrderLunchMenus({ userType, userId, userSchoolId }: OrderLunchMe
       }
 
       // Crear el pedido
+      const basePrice = selectedMenu.category?.price || 0;
+      const addonsPrice = availableAddons
+        .filter(addon => selectedAddons.has(addon.id))
+        .reduce((sum, addon) => sum + addon.price, 0);
+      const totalPrice = basePrice + addonsPrice;
+
       const orderData: any = {
         menu_id: selectedMenu.id,
         order_date: selectedMenu.date,
         status: 'pending',
         category_id: selectedMenu.category_id,
-        school_id: userSchoolId || selectedMenu.school_id, // 🔥 Agregar school_id del usuario o del menú
+        school_id: userSchoolId || selectedMenu.school_id,
+        base_price: basePrice,
+        addons_total: addonsPrice,
+        final_price: totalPrice,
       };
 
       if (userType === 'parent') {
@@ -272,22 +348,57 @@ export function OrderLunchMenus({ userType, userId, userSchoolId }: OrderLunchMe
         orderData.teacher_id = teacherId;
       }
 
-      const { error } = await supabase
+      const { data: insertedOrder, error } = await supabase
         .from('lunch_orders')
-        .insert([orderData]);
+        .insert([orderData])
+        .select()
+        .single();
 
       if (error) throw error;
 
+      // Guardar agregados seleccionados
+      if (selectedAddons.size > 0 && insertedOrder) {
+        const addonsToInsert = availableAddons
+          .filter(addon => selectedAddons.has(addon.id))
+          .map(addon => ({
+            order_id: insertedOrder.id,
+            addon_id: addon.id,
+            name: addon.name,
+            price: addon.price,
+            quantity: 1
+          }));
+
+        const { error: addonsError } = await supabase
+          .from('lunch_order_addons')
+          .insert(addonsToInsert);
+
+        if (addonsError) {
+          console.error('Error inserting addons:', addonsError);
+          // No lanzar error, el pedido ya se creó
+        }
+      }
+
       // Crear transacción (cargo) si hay categoría con precio
-      if (selectedMenu.category && selectedMenu.category.price) {
+      if (totalPrice > 0) {
+        let description = `Almuerzo - ${selectedMenu.category?.name || 'Menú'} - ${format(new Date(selectedMenu.date + 'T00:00:00'), "d 'de' MMMM", { locale: es })}`;
+        
+        // Agregar detalles de agregados a la descripción
+        if (selectedAddons.size > 0) {
+          const addonNames = availableAddons
+            .filter(addon => selectedAddons.has(addon.id))
+            .map(addon => addon.name)
+            .join(', ');
+          description += ` + Agregados: ${addonNames}`;
+        }
+
         const transactionData: any = {
           type: 'purchase',
-          amount: -Math.abs(selectedMenu.category.price), // Negativo = cargo/deuda
-          description: `Almuerzo - ${selectedMenu.category.name} - ${format(new Date(selectedMenu.date + 'T00:00:00'), "d 'de' MMMM", { locale: es })}`,
+          amount: -Math.abs(totalPrice), // Negativo = cargo/deuda
+          description,
           created_by: userId,
-          school_id: userSchoolId || selectedMenu.school_id, // 🔥 Agregar school_id
-          payment_status: 'pending', // 🔥 IMPORTANTE: Iniciar como pending, no paid
-          payment_method: null, // Sin método de pago inicial
+          school_id: userSchoolId || selectedMenu.school_id,
+          payment_status: 'pending',
+          payment_method: null,
         };
 
         if (userType === 'parent') {
@@ -313,6 +424,7 @@ export function OrderLunchMenus({ userType, userId, userSchoolId }: OrderLunchMe
 
       setOrderDialogOpen(false);
       setSelectedMenu(null);
+      setSelectedAddons(new Set());
       fetchWeekMenus();
     } catch (error: any) {
       console.error('Error ordering menu:', error);
@@ -517,7 +629,7 @@ export function OrderLunchMenus({ userType, userId, userSchoolId }: OrderLunchMe
           </DialogHeader>
 
           {selectedMenu && (
-            <div className="space-y-3 py-4">
+            <div className="space-y-4 py-4">
               <div className="flex items-center gap-2 text-sm">
                 <Calendar className="h-4 w-4" />
                 <span className="font-medium">
@@ -543,6 +655,65 @@ export function OrderLunchMenus({ userType, userId, userSchoolId }: OrderLunchMe
                 {selectedMenu.beverage && <p>• Bebida: {selectedMenu.beverage}</p>}
                 {selectedMenu.dessert && <p>• Postre: {selectedMenu.dessert}</p>}
               </div>
+
+              {/* Sección de agregados */}
+              {loadingAddons ? (
+                <div className="flex items-center justify-center py-4">
+                  <Loader2 className="h-5 w-5 animate-spin text-green-600" />
+                </div>
+              ) : availableAddons.length > 0 ? (
+                <div className="space-y-3 border-t pt-4">
+                  <div className="flex items-center gap-2">
+                    <Package className="h-4 w-4 text-green-600" />
+                    <h4 className="font-semibold text-sm">Agregados disponibles</h4>
+                  </div>
+                  
+                  <div className="space-y-2 max-h-[200px] overflow-y-auto">
+                    {availableAddons.map(addon => (
+                      <label
+                        key={addon.id}
+                        className="flex items-center gap-3 p-3 rounded-lg border hover:bg-gray-50 cursor-pointer transition-colors"
+                      >
+                        <Checkbox
+                          checked={selectedAddons.has(addon.id)}
+                          onCheckedChange={() => toggleAddon(addon.id)}
+                        />
+                        <div className="flex-1">
+                          <p className="font-medium text-sm">{addon.name}</p>
+                          {addon.description && (
+                            <p className="text-xs text-gray-500">{addon.description}</p>
+                          )}
+                        </div>
+                        <span className="font-bold text-green-600">
+                          + S/ {addon.price.toFixed(2)}
+                        </span>
+                      </label>
+                    ))}
+                  </div>
+
+                  {/* Total con agregados */}
+                  {selectedAddons.size > 0 && (
+                    <div className="pt-3 border-t space-y-2">
+                      <div className="flex justify-between text-sm">
+                        <span>Precio base:</span>
+                        <span>S/ {(selectedMenu.category?.price || 0).toFixed(2)}</span>
+                      </div>
+                      <div className="flex justify-between text-sm text-green-600">
+                        <span>Agregados:</span>
+                        <span>+ S/ {availableAddons
+                          .filter(addon => selectedAddons.has(addon.id))
+                          .reduce((sum, addon) => sum + addon.price, 0)
+                          .toFixed(2)}
+                        </span>
+                      </div>
+                      <div className="flex justify-between font-bold text-base pt-2 border-t">
+                        <span>Total:</span>
+                        <span className="text-green-600">S/ {calculateTotalPrice().toFixed(2)}</span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ) : null}
             </div>
           )}
 

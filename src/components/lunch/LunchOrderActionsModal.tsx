@@ -241,19 +241,58 @@ export function LunchOrderActionsModal({
 
         <div className="space-y-4">
           {/* Estado actual */}
-          <div className="bg-gray-50 p-3 rounded-lg">
-            <p className="text-sm text-gray-600 mb-1">Estado actual:</p>
-            <p className="font-semibold text-gray-900">
-              {order.status === 'confirmed' && '✅ Confirmado'}
-              {order.status === 'delivered' && '📦 Entregado'}
-              {order.status === 'cancelled' && '❌ Anulado'}
-              {order.status === 'postponed' && '⏰ Postergado'}
-              {order.status === 'pending_payment' && '💳 Pendiente de pago'}
-            </p>
-            {order.is_no_order_delivery && (
-              <p className="text-sm text-orange-600 mt-1">
-                ⚠️ Entrega sin pedido previo (con deuda)
+          <div className="bg-gray-50 p-3 rounded-lg space-y-3">
+            <div>
+              <p className="text-sm text-gray-600 mb-1">Estado actual:</p>
+              <p className="font-semibold text-gray-900">
+                {order.status === 'confirmed' && '✅ Confirmado'}
+                {order.status === 'delivered' && '📦 Entregado'}
+                {order.status === 'cancelled' && '❌ Anulado'}
+                {order.status === 'postponed' && '⏰ Postergado'}
+                {order.status === 'pending_payment' && '💳 Pendiente de pago'}
               </p>
+              {order.is_no_order_delivery && (
+                <p className="text-sm text-orange-600 mt-1">
+                  ⚠️ Entrega sin pedido previo (con deuda)
+                </p>
+              )}
+            </div>
+
+            {/* Mostrar agregados si existen */}
+            {order.lunch_order_addons && order.lunch_order_addons.length > 0 && (
+              <div className="pt-2 border-t">
+                <p className="text-sm text-gray-600 mb-1">Agregados:</p>
+                <ul className="space-y-1">
+                  {order.lunch_order_addons.map((addon: any) => (
+                    <li key={addon.id} className="text-sm flex justify-between">
+                      <span>• {addon.name} {addon.quantity > 1 ? `x${addon.quantity}` : ''}</span>
+                      <span className="font-semibold text-green-600">S/ {addon.price.toFixed(2)}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {/* Mostrar precios si están disponibles */}
+            {order.final_price !== null && order.final_price !== undefined && (
+              <div className="pt-2 border-t space-y-1">
+                {order.base_price !== null && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-600">Precio base:</span>
+                    <span>S/ {order.base_price.toFixed(2)}</span>
+                  </div>
+                )}
+                {order.addons_total !== null && order.addons_total > 0 && (
+                  <div className="flex justify-between text-sm text-green-600">
+                    <span>Agregados:</span>
+                    <span>+ S/ {order.addons_total.toFixed(2)}</span>
+                  </div>
+                )}
+                <div className="flex justify-between font-semibold pt-1 border-t">
+                  <span>Total:</span>
+                  <span className="text-green-600">S/ {order.final_price.toFixed(2)}</span>
+                </div>
+              </div>
             )}
           </div>
 
