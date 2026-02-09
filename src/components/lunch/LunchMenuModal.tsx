@@ -168,39 +168,72 @@ export const LunchMenuModal = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!formData.school_id || !formData.date || !formData.main_course.trim()) {
-      toast({
-        title: 'Campos incompletos',
-        description: 'Por favor completa la sede, fecha y segundo plato',
-        variant: 'destructive',
-      });
-      return;
+    // Validación diferente según el tipo
+    if (isKitchenProduct) {
+      // Para productos de cocina: nombre y precio obligatorios
+      if (!formData.school_id || !formData.date || !formData.product_name.trim() || !formData.product_price) {
+        toast({
+          title: 'Campos incompletos',
+          description: 'Por favor completa la sede, fecha, nombre del producto y precio',
+          variant: 'destructive',
+        });
+        return;
+      }
+    } else {
+      // Para menús normales: segundo plato obligatorio
+      if (!formData.school_id || !formData.date || !formData.main_course.trim()) {
+        toast({
+          title: 'Campos incompletos',
+          description: 'Por favor completa la sede, fecha y segundo plato',
+          variant: 'destructive',
+        });
+        return;
+      }
     }
 
     console.log('📝 FormData al guardar:', formData);
 
     setLoading(true);
     try {
-      // 1. Guardar platos en la librería para futuro autocomplete
-      const libraryPromises = [
-        supabase.rpc('upsert_lunch_item', { p_type: 'entrada', p_name: formData.starter.trim() }),
-        supabase.rpc('upsert_lunch_item', { p_type: 'segundo', p_name: formData.main_course.trim() }),
-        supabase.rpc('upsert_lunch_item', { p_type: 'bebida', p_name: formData.beverage.trim() }),
-        supabase.rpc('upsert_lunch_item', { p_type: 'postre', p_name: formData.dessert.trim() }),
-      ];
-      await Promise.all(libraryPromises);
+      // 1. Guardar platos en la librería para futuro autocomplete (solo si NO es producto de cocina)
+      if (!isKitchenProduct) {
+        const libraryPromises = [
+          supabase.rpc('upsert_lunch_item', { p_type: 'entrada', p_name: formData.starter.trim() }),
+          supabase.rpc('upsert_lunch_item', { p_type: 'segundo', p_name: formData.main_course.trim() }),
+          supabase.rpc('upsert_lunch_item', { p_type: 'bebida', p_name: formData.beverage.trim() }),
+          supabase.rpc('upsert_lunch_item', { p_type: 'postre', p_name: formData.dessert.trim() }),
+        ];
+        await Promise.all(libraryPromises);
+      }
 
-      // 2. Guardar el menú
+      // 2. Guardar el menú/producto
       const payload: any = {
         school_id: formData.school_id,
         date: formData.date,
-        starter: formData.starter.trim() || null,
-        main_course: formData.main_course.trim(),
-        beverage: formData.beverage.trim() || null,
-        dessert: formData.dessert.trim() || null,
-        notes: formData.notes.trim() || null,
         created_by: user?.id,
       };
+
+      if (isKitchenProduct) {
+        // Es un producto de cocina
+        payload.is_kitchen_product = true;
+        payload.product_name = formData.product_name.trim();
+        payload.product_price = parseFloat(formData.product_price);
+        payload.main_course = formData.product_name.trim(); // Por compatibilidad
+        payload.starter = null;
+        payload.beverage = null;
+        payload.dessert = null;
+        payload.notes = formData.notes.trim() || null;
+      } else {
+        // Es un menú normal
+        payload.is_kitchen_product = false;
+        payload.starter = formData.starter.trim() || null;
+        payload.main_course = formData.main_course.trim();
+        payload.beverage = formData.beverage.trim() || null;
+        payload.dessert = formData.dessert.trim() || null;
+        payload.notes = formData.notes.trim() || null;
+        payload.product_name = null;
+        payload.product_price = null;
+      }
 
       // Agregar category_id y target_type (convertir string vacío a null)
       if (formData.category_id && formData.category_id.trim() !== '') {
@@ -222,8 +255,8 @@ export const LunchMenuModal = ({
         if (error) throw error;
 
         toast({
-          title: 'Menú actualizado',
-          description: 'El menú se actualizó correctamente',
+          title: isKitchenProduct ? 'Producto actualizado' : 'Menú actualizado',
+          description: isKitchenProduct ? 'El producto se actualizó correctamente' : 'El menú se actualizó correctamente',
         });
       } else {
         // Crear
@@ -234,8 +267,8 @@ export const LunchMenuModal = ({
         if (error) throw error;
 
         toast({
-          title: 'Menú creado',
-          description: 'El menú se creó correctamente',
+          title: isKitchenProduct ? 'Producto creado' : 'Menú creado',
+          description: isKitchenProduct ? 'El producto se creó correctamente' : 'El menú se creó correctamente',
         });
       }
 
@@ -243,9 +276,9 @@ export const LunchMenuModal = ({
     } catch (error: any) {
       console.error('Error saving menu:', error);
       
-      let errorMessage = 'No se pudo guardar el menú';
+      let errorMessage = isKitchenProduct ? 'No se pudo guardar el producto' : 'No se pudo guardar el menú';
       if (error.code === '23505') {
-        errorMessage = 'Ya existe un menú para esta sede en esta fecha';
+        errorMessage = 'Ya existe un menú/producto para esta sede en esta fecha';
       }
 
       toast({
@@ -299,7 +332,7 @@ export const LunchMenuModal = ({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Save className="h-5 w-5 text-green-600" />
-            {menuId ? 'Editar Menú' : 'Nuevo Menú de Almuerzo'}
+            {menuId ? (isKitchenProduct ? 'Editar Producto de Cocina' : 'Editar Menú') : (isKitchenProduct ? 'Nuevo Producto de Cocina' : 'Nuevo Menú de Almuerzo')}
           </DialogTitle>
           <div className="space-y-2 pt-1">
             {formattedDate && (
@@ -312,7 +345,10 @@ export const LunchMenuModal = ({
               </Badge>
             )}
             <DialogDescription>
-              Completa los platos del día. Solo el segundo es obligatorio.
+              {isKitchenProduct 
+                ? 'Configura el producto individual disponible en cocina (arroz, bebida, ensalada, etc.)'
+                : 'Completa los platos del día. Solo el segundo es obligatorio.'
+              }
             </DialogDescription>
           </div>
         </DialogHeader>
@@ -367,53 +403,90 @@ export const LunchMenuModal = ({
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-              <Label htmlFor="starter">🥗 Entrada</Label>
-              <Input
-                id="starter"
-                value={formData.starter}
-                onChange={(e) => setFormData(p => ({ ...p, starter: e.target.value }))}
-                placeholder="Ej: Ensalada de verduras frescas"
-                disabled={loading}
-                className="mt-2"
-              />
-            </div>
+            {isKitchenProduct ? (
+              // Formulario para productos de cocina
+              <>
+                <div>
+                  <Label htmlFor="product_name">🍽️ Nombre del Producto *</Label>
+                  <Input
+                    id="product_name"
+                    value={formData.product_name}
+                    onChange={(e) => setFormData(p => ({ ...p, product_name: e.target.value }))}
+                    placeholder="Ej: Arroz blanco, Ensalada verde, Refresco"
+                    disabled={loading}
+                    className="mt-2"
+                    required
+                  />
+                </div>
 
-            <div>
-              <Label htmlFor="main_course">🍲 Segundo Plato *</Label>
-              <Input
-                id="main_course"
-                value={formData.main_course}
-                onChange={(e) => setFormData(p => ({ ...p, main_course: e.target.value }))}
-                placeholder="Ej: Arroz con pollo"
-                disabled={loading}
-                className="mt-2"
-              />
-            </div>
+                <div>
+                  <Label htmlFor="product_price">💰 Precio (S/) *</Label>
+                  <Input
+                    id="product_price"
+                    type="number"
+                    step="0.01"
+                    min="0.01"
+                    value={formData.product_price}
+                    onChange={(e) => setFormData(p => ({ ...p, product_price: e.target.value }))}
+                    placeholder="0.00"
+                    disabled={loading}
+                    className="mt-2"
+                    required
+                  />
+                </div>
+              </>
+            ) : (
+              // Formulario para menús normales
+              <>
+                <div>
+                  <Label htmlFor="starter">🥗 Entrada</Label>
+                  <Input
+                    id="starter"
+                    value={formData.starter}
+                    onChange={(e) => setFormData(p => ({ ...p, starter: e.target.value }))}
+                    placeholder="Ej: Ensalada de verduras frescas"
+                    disabled={loading}
+                    className="mt-2"
+                  />
+                </div>
 
-            <div>
-              <Label htmlFor="beverage">🥤 Bebida</Label>
-              <Input
-                id="beverage"
-                value={formData.beverage}
-                onChange={(e) => setFormData(p => ({ ...p, beverage: e.target.value }))}
-                placeholder="Ej: Refresco de maracuyá"
-                disabled={loading}
-                className="mt-2"
-              />
-            </div>
+                <div>
+                  <Label htmlFor="main_course">🍲 Segundo Plato *</Label>
+                  <Input
+                    id="main_course"
+                    value={formData.main_course}
+                    onChange={(e) => setFormData(p => ({ ...p, main_course: e.target.value }))}
+                    placeholder="Ej: Arroz con pollo"
+                    disabled={loading}
+                    className="mt-2"
+                  />
+                </div>
 
-            <div>
-              <Label htmlFor="dessert">🍰 Postre</Label>
-              <Input
-                id="dessert"
-                value={formData.dessert}
-                onChange={(e) => setFormData(p => ({ ...p, dessert: e.target.value }))}
-                placeholder="Ej: Gelatina de fresa"
-                disabled={loading}
-                className="mt-2"
-              />
-            </div>
+                <div>
+                  <Label htmlFor="beverage">🥤 Bebida</Label>
+                  <Input
+                    id="beverage"
+                    value={formData.beverage}
+                    onChange={(e) => setFormData(p => ({ ...p, beverage: e.target.value }))}
+                    placeholder="Ej: Refresco de maracuyá"
+                    disabled={loading}
+                    className="mt-2"
+                  />
+                </div>
+
+                <div>
+                  <Label htmlFor="dessert">🍰 Postre</Label>
+                  <Input
+                    id="dessert"
+                    value={formData.dessert}
+                    onChange={(e) => setFormData(p => ({ ...p, dessert: e.target.value }))}
+                    placeholder="Ej: Gelatina de fresa"
+                    disabled={loading}
+                    className="mt-2"
+                  />
+                </div>
+              </>
+            )}
           </div>
 
           <div>
@@ -458,7 +531,7 @@ export const LunchMenuModal = ({
               ) : menuId ? (
                 'Actualizar'
               ) : (
-                'Crear Menú'
+                isKitchenProduct ? 'Crear Producto' : 'Crear Menú'
               )}
             </Button>
           </DialogFooter>
