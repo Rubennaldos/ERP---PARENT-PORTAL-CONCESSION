@@ -225,6 +225,19 @@ export function OrderLunchMenus({ userType, userId, userSchoolId }: OrderLunchMe
       return;
     }
 
+    // 🔔 ADVERTENCIA 1: Confirmar fecha del pedido
+    const orderDate = new Date(selectedMenu.date);
+    const dayOfWeek = orderDate.toLocaleDateString('es-PE', { weekday: 'long' });
+    const formattedDate = orderDate.toLocaleDateString('es-PE', { day: '2-digit', month: 'long', year: 'numeric' });
+    
+    const confirmOrder = window.confirm(
+      `¿Desea confirmar el pedido de almuerzo para el ${dayOfWeek}, ${formattedDate}?`
+    );
+
+    if (!confirmOrder) {
+      return; // Usuario canceló
+    }
+
     setOrdering(true);
     try {
       // Verificar si ya existe un pedido para esta fecha

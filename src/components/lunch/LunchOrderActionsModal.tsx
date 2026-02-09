@@ -45,6 +45,39 @@ export function LunchOrderActionsModal({
       return;
     }
 
+    // 🔔 ADVERTENCIA 2: Si se marca como entregado fuera de la fecha del pedido
+    if (selectedAction === 'deliver') {
+      const orderDate = new Date(order.order_date);
+      const today = new Date();
+      
+      // Normalizar fechas (solo comparar día/mes/año, sin hora)
+      orderDate.setHours(0, 0, 0, 0);
+      today.setHours(0, 0, 0, 0);
+      
+      if (orderDate.getTime() !== today.getTime()) {
+        const orderFormatted = orderDate.toLocaleDateString('es-PE', { 
+          weekday: 'long', 
+          day: '2-digit', 
+          month: 'long', 
+          year: 'numeric' 
+        });
+        const todayFormatted = today.toLocaleDateString('es-PE', { 
+          weekday: 'long', 
+          day: '2-digit', 
+          month: 'long', 
+          year: 'numeric' 
+        });
+        
+        const confirmDeliver = window.confirm(
+          `⚠️ ADVERTENCIA: El pedido es para el ${orderFormatted}, pero hoy es ${todayFormatted}.\n\n¿Está seguro que desea entregar este pedido fuera de su fecha?`
+        );
+        
+        if (!confirmDeliver) {
+          return; // Usuario canceló
+        }
+      }
+    }
+
     setLoading(true);
 
     try {
