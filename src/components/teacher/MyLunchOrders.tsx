@@ -78,10 +78,6 @@ export function MyLunchOrders({ teacherId }: MyLunchOrdersProps) {
             name,
             color,
             price
-          ),
-          profiles:profiles!lunch_orders_delivered_by_fkey (
-            full_name,
-            role
           )
         `)
         .eq('teacher_id', teacherId)
@@ -89,7 +85,23 @@ export function MyLunchOrders({ teacherId }: MyLunchOrdersProps) {
 
       if (error) throw error;
 
-      setOrders(data || []);
+      // Obtener información de quien entregó cada pedido
+      const ordersWithProfiles = await Promise.all(
+        (data || []).map(async (order) => {
+          if (order.delivered_by) {
+            const { data: profile } = await supabase
+              .from('profiles')
+              .select('full_name, role')
+              .eq('id', order.delivered_by)
+              .single();
+            
+            return { ...order, profiles: profile };
+          }
+          return order;
+        })
+      );
+
+      setOrders(ordersWithProfiles);
     } catch (error: any) {
       console.error('Error fetching lunch orders:', error);
       toast({
