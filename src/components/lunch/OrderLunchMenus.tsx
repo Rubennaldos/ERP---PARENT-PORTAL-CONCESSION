@@ -120,12 +120,19 @@ export function OrderLunchMenus({ userType, userId, userSchoolId }: OrderLunchMe
     console.log('🔍 Verificando agregados:', {
       selectedMenu: selectedMenu?.id,
       category_id: selectedMenu?.category_id,
+      category: selectedMenu?.category,
       orderDialogOpen
     });
     
     if (selectedMenu && selectedMenu.category_id && orderDialogOpen) {
+      console.log('✅ Condiciones cumplidas, cargando agregados...');
       fetchAddons(selectedMenu.category_id);
     } else {
+      console.log('❌ No se cumplen condiciones para cargar agregados:', {
+        hasSelectedMenu: !!selectedMenu,
+        hasCategoryId: !!selectedMenu?.category_id,
+        isDialogOpen: orderDialogOpen
+      });
       setAvailableAddons([]);
       setSelectedAddons(new Set());
     }
@@ -615,6 +622,9 @@ export function OrderLunchMenus({ userType, userId, userSchoolId }: OrderLunchMe
                     size="sm"
                     disabled={isPast}
                     onClick={() => {
+                      console.log('🎯 Menú seleccionado:', menu);
+                      console.log('📋 Category ID:', menu.category_id);
+                      console.log('📦 Category object:', menu.category);
                       setSelectedMenu(menu);
                       setOrderDialogOpen(true);
                     }}
