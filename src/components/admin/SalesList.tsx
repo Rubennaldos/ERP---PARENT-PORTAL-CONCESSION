@@ -175,11 +175,19 @@ export const SalesList = () => {
     }
   }, [permissions.loading, permissions.canView]);
 
+  // ✅ Setear automáticamente la sede del usuario si NO puede ver todas las sedes
+  useEffect(() => {
+    if (!canViewAllSchools && userSchoolId) {
+      console.log('🔒 Admin de sede detectado - Estableciendo filtro automático a su sede:', userSchoolId);
+      setSelectedSchool(userSchoolId);
+    }
+  }, [canViewAllSchools, userSchoolId]);
+
   useEffect(() => {
     if (!permissions.loading && permissions.canView) {
       fetchTransactions();
     }
-  }, [activeTab, selectedDate, selectedSchool, permissions.loading, permissions.canView]); // ❌ Quitar salesFilter de las dependencias
+  }, [activeTab, selectedDate, selectedSchool, userSchoolId, permissions.loading, permissions.canView]); // ✅ Agregar userSchoolId
 
   const checkPermissions = async () => {
     if (!user || !role) {
@@ -344,6 +352,7 @@ export const SalesList = () => {
         selectedSchool,
         salesFilter,
         canViewAllSchools,
+        userSchoolId,
         userRole: role
       });
 
@@ -363,15 +372,27 @@ export const SalesList = () => {
       console.log('🎯 Filtro aplicado:', salesFilter);
 
       // Filtrar por sede si corresponde
+      console.log('🏫 Evaluando filtro de sedes:', {
+        canViewAllSchools,
+        userSchoolId,
+        selectedSchool
+      });
+
       if (canViewAllSchools) {
         // Si tiene permiso para ver todas las sedes
         if (selectedSchool !== 'all') {
+          console.log('✅ Admin con acceso total - Filtrando por sede seleccionada:', selectedSchool);
           query = query.eq('school_id', selectedSchool);
+        } else {
+          console.log('✅ Admin con acceso total - Mostrando TODAS las sedes');
         }
       } else {
         // Si NO tiene permiso, solo ve su propia sede
         if (userSchoolId) {
+          console.log('🔒 Admin de sede - FORZANDO filtro por su sede:', userSchoolId);
           query = query.eq('school_id', userSchoolId);
+        } else {
+          console.log('⚠️ Admin de sede - NO SE ENCONTRÓ userSchoolId');
         }
       }
 
@@ -966,6 +987,28 @@ export const SalesList = () => {
                       Filtrando
                     </Badge>
                   )}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* 🔒 Indicador para Admin de Sede (cuando NO puede ver todas las sedes) */}
+          {!canViewAllSchools && userSchoolId && (
+            <Card className="mb-6 bg-gradient-to-r from-orange-50 to-amber-50 border-orange-300">
+              <CardContent className="p-4">
+                <div className="flex items-center gap-3">
+                  <Building2 className="h-5 w-5 text-orange-600" />
+                  <div>
+                    <p className="font-semibold text-orange-900">
+                      Mostrando solo ventas de tu sede
+                    </p>
+                    <p className="text-sm text-orange-700">
+                      {schools.find(s => s.id === userSchoolId)?.name || 'Tu sede'}
+                    </p>
+                  </div>
+                  <Badge variant="secondary" className="ml-auto bg-orange-100 text-orange-800 border-orange-300">
+                    🔒 Vista limitada
+                  </Badge>
                 </div>
               </CardContent>
             </Card>
