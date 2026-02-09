@@ -60,6 +60,7 @@ interface ParentProfile {
   // Otros
   school_id: string;
   school: School | null;
+  profile?: { email: string } | null;
   children?: Student[];
   created_at: string;
 }
@@ -338,6 +339,7 @@ const ParentConfiguration = () => {
               .select(`
                 *,
                 school:schools(id, name, code),
+                profile:profiles!parent_profiles_user_id_fkey(email),
                 responsible_2_full_name,
                 responsible_2_dni,
                 responsible_2_document_type,
@@ -378,6 +380,7 @@ const ParentConfiguration = () => {
           .select(`
             *,
             school:schools(id, name, code),
+            profile:profiles!parent_profiles_user_id_fkey(email),
             responsible_2_full_name,
             responsible_2_dni,
             responsible_2_document_type,
@@ -976,12 +979,12 @@ const ParentConfiguration = () => {
                                 </div>
                               </div>
                             )}
-                            {parent.email && (
+                            {(parent.email || parent.profile?.email) && (
                               <div className="flex items-start gap-2 col-span-2">
                                 <Mail className="h-4 w-4 text-emerald-600 mt-0.5 flex-shrink-0" />
-                                <div>
+                                <div className="flex-1">
                                   <p className="text-emerald-600 text-xs font-medium">Email</p>
-                                  <p className="text-gray-800 font-semibold break-all">{parent.email}</p>
+                                  <p className="text-gray-800 font-semibold break-all">{parent.email || parent.profile?.email}</p>
                                 </div>
                               </div>
                             )}
