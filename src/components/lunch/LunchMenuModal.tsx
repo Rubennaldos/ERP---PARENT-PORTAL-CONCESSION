@@ -62,6 +62,7 @@ export const LunchMenuModal = ({
 
   const [loading, setLoading] = useState(false);
   const [isKitchenProduct, setIsKitchenProduct] = useState(false);
+  const [categoryToppings, setCategoryToppings] = useState<Array<{name: string, price: number}>>([]);
   const [formData, setFormData] = useState({
     school_id: userSchoolId || '',
     date: initialDate ? initialDate.toISOString().split('T')[0] : '',
@@ -123,9 +124,34 @@ export const LunchMenuModal = ({
 
       if (error) throw error;
       setIsKitchenProduct(data?.is_kitchen_sale === true);
+      
+      // Cargar toppings de la categoría
+      if (!data?.is_kitchen_sale) {
+        loadCategoryToppings(categoryId);
+      } else {
+        setCategoryToppings([]);
+      }
     } catch (error) {
       console.error('Error checking category type:', error);
       setIsKitchenProduct(false);
+      setCategoryToppings([]);
+    }
+  };
+
+  const loadCategoryToppings = async (categoryId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('lunch_category_addons')
+        .select('name, price')
+        .eq('category_id', categoryId)
+        .eq('is_active', true)
+        .order('display_order', { ascending: true });
+
+      if (error) throw error;
+      setCategoryToppings(data || []);
+    } catch (error) {
+      console.error('Error loading category toppings:', error);
+      setCategoryToppings([]);
     }
   };
 
@@ -339,10 +365,27 @@ export const LunchMenuModal = ({
               <p className="font-bold text-green-700 capitalize text-sm">{formattedDate}</p>
             )}
             {preSelectedCategoryName && (
-              <Badge variant="outline" className="gap-1">
-                <Tag className="h-3 w-3" />
-                {preSelectedCategoryName} - {preSelectedTargetType === 'students' ? 'Alumnos' : 'Profesores'}
-              </Badge>
+              <div className="space-y-2">
+                <Badge variant="outline" className="gap-1">
+                  <Tag className="h-3 w-3" />
+                  {preSelectedCategoryName} - {preSelectedTargetType === 'students' ? 'Alumnos' : 'Profesores'}
+                </Badge>
+                
+                {/* Mostrar toppings disponibles */}
+                {categoryToppings.length > 0 && (
+                  <div className="bg-green-50 border border-green-200 rounded-md p-3">
+                    <p className="text-xs font-semibold text-green-800 mb-2">✨ Toppings disponibles para esta categoría:</p>
+                    <div className="flex flex-wrap gap-2">
+                      {categoryToppings.map((topping, idx) => (
+                        <Badge key={idx} variant="secondary" className="text-xs bg-green-100 text-green-700">
+                          {topping.name} - S/ {topping.price.toFixed(2)}
+                        </Badge>
+                      ))}
+                    </div>
+                    <p className="text-xs text-green-600 mt-2">Los usuarios podrán seleccionar estos toppings al hacer su pedido</p>
+                  </div>
+                )}
+              </div>
             )}
             <DialogDescription>
               {isKitchenProduct 
