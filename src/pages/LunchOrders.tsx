@@ -23,10 +23,13 @@ import {
   Filter,
   Loader2,
   Eye,
-  Trash2
+  Trash2,
+  Download
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
+import jsPDF from 'jspdf';
+import 'jspdf-autotable';
 import { CreateTemporaryStudentModal } from '@/components/lunch/CreateTemporaryStudentModal';
 import { DeliverWithoutOrderModal } from '@/components/lunch/DeliverWithoutOrderModal';
 import { LunchOrderActionsModal } from '@/components/lunch/LunchOrderActionsModal';
@@ -101,6 +104,11 @@ export default function LunchOrders() {
   const [selectedDate, setSelectedDate] = useState<string>('');
   const [defaultDeliveryDate, setDefaultDeliveryDate] = useState<string>('');
   
+  // Filtros de rango de fechas para auditoría
+  const [startDate, setStartDate] = useState<string>('');
+  const [endDate, setEndDate] = useState<string>('');
+  const [isDateRangeMode, setIsDateRangeMode] = useState(false);
+  
   const [selectedStatus, setSelectedStatus] = useState<string>('all');
   const [searchTerm, setSearchTerm] = useState('');
   
@@ -127,10 +135,16 @@ export default function LunchOrders() {
   }, [role, roleLoading, user]);
 
   useEffect(() => {
-    if (selectedDate) {
+    if (selectedDate && !isDateRangeMode) {
       fetchOrders();
     }
   }, [selectedDate]);
+
+  useEffect(() => {
+    if (isDateRangeMode && startDate && endDate) {
+      fetchOrders();
+    }
+  }, [isDateRangeMode, startDate, endDate]);
 
   useEffect(() => {
     filterOrders();
@@ -150,6 +164,13 @@ export default function LunchOrders() {
       const schoolId = profileData?.school_id;
 
       if (schoolId) {
+        // Si el usuario tiene una sede asignada y NO puede ver todas las sedes, 
+        // configurar automáticamente el filtro a su sede
+        if (!canViewAllSchools) {
+          setSelectedSchool(schoolId);
+          console.log('🏫 Admin de sede: filtrando automáticamente por su sede:', schoolId);
+        }
+
         const { data: config, error: configError } = await supabase
           .from('lunch_configuration')
           .select('delivery_end_time, cancellation_deadline_time, cancellation_deadline_days')
@@ -242,6 +263,84 @@ export default function LunchOrders() {
   const fetchOrders = async () => {
     try {
       setLoading(true);
+      
+      // Si está en modo de rango de fechas, obtener pedidos en ese rango
+      if (isDateRangeMode && startDate && endDate) {
+        console.log('📅 Cargando pedidos de almuerzo desde:', startDate, 'hasta:', endDate);
+        
+        let query = supabase
+          .from('lunch_orders')
+          .select(`
+            *,
+            school:schools!lunch_orders_school_id_fkey (
+              name,
+              code
+            ),
+            student:students (
+              full_name,
+              photo_url,
+              is_temporary,
+              temporary_classroom_name,
+              school_id,
+              free_account
+            ),
+            teacher:teacher_profiles (
+              full_name,
+              school_id_1
+            ),
+            lunch_menus (
+              starter,
+              main_course,
+              beverage,
+              dessert,
+              notes,
+              category_id
+            )
+          `)
+          .gte('order_date', startDate)
+          .lte('order_date', endDate)
+          .eq('is_cancelled', false)
+          .order('order_date', { ascending: false })
+          .order('created_at', { ascending: false });
+
+        const { data, error } = await query;
+        
+        if (error) {
+          console.error('❌ ERROR EN QUERY:', error);
+          throw error;
+        }
+        
+        console.log('✅ Pedidos cargados (rango):', data?.length || 0);
+        
+        // Cargar categorías para los menús que tengan category_id
+        if (data && data.length > 0) {
+          const categoryIds = data
+            .map(order => order.lunch_menus?.category_id)
+            .filter((id): id is string => id !== null && id !== undefined);
+          
+          if (categoryIds.length > 0) {
+            const { data: categories, error: catError } = await supabase
+              .from('lunch_categories')
+              .select('id, name')
+              .in('id', categoryIds);
+            
+            if (!catError && categories) {
+              const categoryMap = new Map(categories.map(cat => [cat.id, cat.name]));
+              data.forEach(order => {
+                if (order.lunch_menus?.category_id) {
+                  order.lunch_menus.category_name = categoryMap.get(order.lunch_menus.category_id);
+                }
+              });
+            }
+          }
+        }
+        
+        setOrders(data || []);
+        setLoading(false);
+        return;
+      }
+      
+      // Modo normal: una sola fecha
       console.log('📅 Cargando pedidos de almuerzo para:', selectedDate);
       console.log('👤 Usuario:', user?.id);
       console.log('🎭 Rol:', role);
@@ -358,9 +457,8 @@ export default function LunchOrders() {
         if (order.student?.school_id === selectedSchool) return true;
         // Incluir pedidos de profesores de la sede seleccionada
         if (order.teacher?.school_id_1 === selectedSchool) return true;
-        // Incluir pedidos con nombre manual (sin crédito) - no tienen school_id
-        // TODO: En el futuro, podríamos agregar school_id a los pedidos manuales
-        if (order.manual_name) return true;
+        // EXCLUIR pedidos manuales cuando se ha seleccionado una sede específica
+        // Los pedidos manuales no tienen school_id asociado, por lo que no pertenecen a ninguna sede
         return false;
       });
     }
@@ -874,6 +972,154 @@ export default function LunchOrders() {
     }
   };
 
+  // ========================================
+  // FUNCIÓN DE EXPORTACIÓN A PDF
+  // ========================================
+  
+  const exportToPDF = () => {
+    try {
+      const doc = new jsPDF('l', 'mm', 'a4'); // Landscape para más espacio
+      
+      // Título del documento
+      doc.setFontSize(18);
+      doc.setFont('helvetica', 'bold');
+      doc.text('REPORTE DE PEDIDOS DE ALMUERZO', doc.internal.pageSize.width / 2, 15, { align: 'center' });
+      
+      // Información de filtros
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'normal');
+      
+      let filterText = '';
+      if (isDateRangeMode && startDate && endDate) {
+        filterText = `Período: ${format(new Date(startDate), 'dd/MM/yyyy', { locale: es })} - ${format(new Date(endDate), 'dd/MM/yyyy', { locale: es })}`;
+      } else {
+        filterText = `Fecha: ${format(new Date(selectedDate), 'dd/MM/yyyy', { locale: es })}`;
+      }
+      
+      if (selectedSchool !== 'all') {
+        const school = schools.find(s => s.id === selectedSchool);
+        filterText += ` | Sede: ${school?.name || 'N/A'}`;
+      }
+      
+      if (selectedStatus !== 'all') {
+        const statusLabels: Record<string, string> = {
+          confirmed: 'Confirmado',
+          delivered: 'Entregado',
+          cancelled: 'Anulado',
+          postponed: 'Postergado',
+          pending_payment: 'Pendiente de pago'
+        };
+        filterText += ` | Estado: ${statusLabels[selectedStatus] || selectedStatus}`;
+      }
+      
+      doc.text(filterText, 15, 25);
+      doc.text(`Generado: ${new Date().toLocaleString('es-PE', { timeZone: 'America/Lima', dateStyle: 'short', timeStyle: 'short' })}`, 15, 30);
+      
+      // Preparar datos para la tabla
+      const tableData = filteredOrders.map(order => {
+        const clientName = order.student?.full_name || order.teacher?.full_name || order.manual_name || 'N/A';
+        const schoolName = order.school?.name || (order.student?.school_id ? schools.find(s => s.id === order.student?.school_id)?.name : null) || 'N/A';
+        const orderDate = format(new Date(order.order_date), 'dd/MM/yyyy', { locale: es });
+        const orderTime = new Date(order.created_at).toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Lima' });
+        
+        const statusLabels: Record<string, string> = {
+          pending: 'Pendiente',
+          confirmed: 'Confirmado',
+          delivered: 'Entregado',
+          cancelled: 'Anulado',
+          postponed: 'Postergado',
+          pending_payment: 'Pend. Pago'
+        };
+        const status = statusLabels[order.status] || order.status;
+        
+        const debtInfo = getDebtStatus(order);
+        const paymentStatus = debtInfo.label.replace(/[💰✅💳⏳]/g, '').trim();
+        
+        const menuCategory = order.lunch_menus?.category_name || 'Menú del día';
+        
+        return [
+          clientName,
+          schoolName,
+          orderDate,
+          orderTime,
+          status,
+          paymentStatus,
+          menuCategory
+        ];
+      });
+      
+      // Crear tabla con autoTable
+      (doc as any).autoTable({
+        head: [['Cliente', 'Sede', 'Fecha Pedido', 'Hora', 'Estado', 'Pago', 'Categoría Menú']],
+        body: tableData,
+        startY: 35,
+        styles: {
+          fontSize: 8,
+          cellPadding: 2,
+        },
+        headStyles: {
+          fillColor: [59, 130, 246], // Blue-600
+          textColor: 255,
+          fontStyle: 'bold',
+          halign: 'center'
+        },
+        alternateRowStyles: {
+          fillColor: [249, 250, 251] // Gray-50
+        },
+        columnStyles: {
+          0: { cellWidth: 45 }, // Cliente
+          1: { cellWidth: 40 }, // Sede
+          2: { cellWidth: 25 }, // Fecha
+          3: { cellWidth: 20 }, // Hora
+          4: { cellWidth: 25 }, // Estado
+          5: { cellWidth: 25 }, // Pago
+          6: { cellWidth: 40 }  // Categoría
+        },
+        margin: { left: 15, right: 15 },
+      });
+      
+      // Footer con branding
+      const pageCount = (doc as any).internal.getNumberOfPages();
+      for (let i = 1; i <= pageCount; i++) {
+        doc.setPage(i);
+        doc.setFontSize(8);
+        doc.setFont('helvetica', 'italic');
+        doc.setTextColor(128, 128, 128);
+        doc.text(
+          'Este es un reporte interno generado • © 2026 ERP Profesional diseñado por ARQUISIA Soluciones para Lima Café 28',
+          doc.internal.pageSize.width / 2,
+          doc.internal.pageSize.height - 10,
+          { align: 'center' }
+        );
+        doc.text(
+          `Página ${i} de ${pageCount}`,
+          doc.internal.pageSize.width - 15,
+          doc.internal.pageSize.height - 10,
+          { align: 'right' }
+        );
+      }
+      
+      // Descargar el PDF
+      const fileName = isDateRangeMode 
+        ? `Pedidos_Almuerzo_${format(new Date(startDate), 'ddMMyyyy')}_${format(new Date(endDate), 'ddMMyyyy')}.pdf`
+        : `Pedidos_Almuerzo_${format(new Date(selectedDate), 'ddMMyyyy')}.pdf`;
+      
+      doc.save(fileName);
+      
+      toast({
+        title: '✅ PDF generado',
+        description: 'El reporte ha sido descargado exitosamente',
+      });
+    } catch (error: any) {
+      console.error('Error generando PDF:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'No se pudo generar el PDF',
+      });
+    }
+  };
+
   if (loading || roleLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-purple-50">
@@ -898,6 +1144,17 @@ export default function LunchOrders() {
         </div>
 
         <div className="flex gap-2">
+          {/* Botón de Exportar PDF */}
+          <Button
+            variant="outline"
+            onClick={exportToPDF}
+            disabled={filteredOrders.length === 0}
+            className="gap-2"
+          >
+            <Download className="h-4 w-4" />
+            Exportar PDF
+          </Button>
+          
           <Button
             onClick={() => setShowDeliverWithoutOrder(true)}
             className="bg-orange-600 hover:bg-orange-700 gap-2"
@@ -924,34 +1181,83 @@ export default function LunchOrders() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            {/* Fecha */}
-            <div>
-              <label className="text-sm font-medium mb-2 block">Fecha</label>
-              <div className="flex gap-2">
-                <Input
-                  type="date"
-                  value={selectedDate}
-                  onChange={(e) => setSelectedDate(e.target.value)}
-                  className="w-full"
-                />
-                {selectedDate !== defaultDeliveryDate && (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => setSelectedDate(defaultDeliveryDate)}
-                    className="whitespace-nowrap"
-                    title="Volver a fecha de entrega configurada"
-                  >
-                    <Calendar className="h-4 w-4" />
-                  </Button>
-                )}
+          <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
+            {/* Filtro de Fecha/Rango - ocupa 2 columnas */}
+            <div className="md:col-span-2">
+              <label className="text-sm font-medium mb-2 block">
+                Filtro de Fecha
+              </label>
+              
+              {/* Toggle para cambiar entre fecha única y rango */}
+              <div className="flex gap-2 mb-2">
+                <Button
+                  size="sm"
+                  variant={!isDateRangeMode ? 'default' : 'outline'}
+                  onClick={() => setIsDateRangeMode(false)}
+                  className="flex-1"
+                >
+                  <Calendar className="h-4 w-4 mr-2" />
+                  Fecha Única
+                </Button>
+                <Button
+                  size="sm"
+                  variant={isDateRangeMode ? 'default' : 'outline'}
+                  onClick={() => setIsDateRangeMode(true)}
+                  className="flex-1"
+                >
+                  <Filter className="h-4 w-4 mr-2" />
+                  Rango de Fechas
+                </Button>
               </div>
+              
+              {/* Inputs según el modo */}
+              {!isDateRangeMode ? (
+                <div className="flex gap-2">
+                  <Input
+                    type="date"
+                    value={selectedDate}
+                    onChange={(e) => setSelectedDate(e.target.value)}
+                    className="w-full"
+                  />
+                  {selectedDate !== defaultDeliveryDate && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setSelectedDate(defaultDeliveryDate)}
+                      className="whitespace-nowrap"
+                      title="Volver a fecha de entrega configurada"
+                    >
+                      <Calendar className="h-4 w-4" />
+                    </Button>
+                  )}
+                </div>
+              ) : (
+                <div className="flex gap-2">
+                  <div className="flex-1">
+                    <label className="text-xs text-gray-500 mb-1 block">Desde</label>
+                    <Input
+                      type="date"
+                      value={startDate}
+                      onChange={(e) => setStartDate(e.target.value)}
+                      className="w-full"
+                    />
+                  </div>
+                  <div className="flex-1">
+                    <label className="text-xs text-gray-500 mb-1 block">Hasta</label>
+                    <Input
+                      type="date"
+                      value={endDate}
+                      onChange={(e) => setEndDate(e.target.value)}
+                      className="w-full"
+                    />
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Sede */}
             {canViewAllSchools && (
-              <div>
+              <div className="md:col-span-1">
                 <label className="text-sm font-medium mb-2 block">Sede</label>
                 <Select value={selectedSchool} onValueChange={setSelectedSchool}>
                   <SelectTrigger>
@@ -970,7 +1276,7 @@ export default function LunchOrders() {
             )}
 
             {/* Estado */}
-            <div>
+            <div className="md:col-span-1">
               <label className="text-sm font-medium mb-2 block">Estado</label>
               <Select value={selectedStatus} onValueChange={setSelectedStatus}>
                 <SelectTrigger>
@@ -988,7 +1294,7 @@ export default function LunchOrders() {
             </div>
 
             {/* Búsqueda */}
-            <div>
+            <div className="md:col-span-2">
               <label className="text-sm font-medium mb-2 block">Buscar</label>
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
@@ -1109,7 +1415,11 @@ export default function LunchOrders() {
                         </p>
                       )}
                       <p className="text-sm text-gray-500">
-                        Pedido a las {format(new Date(order.created_at), "HH:mm", { locale: es })}
+                        Pedido a las {new Date(order.created_at).toLocaleTimeString('es-PE', {
+                          hour: '2-digit',
+                          minute: '2-digit',
+                          timeZone: 'America/Lima'
+                        })}
                       </p>
                     </div>
 
@@ -1454,7 +1764,11 @@ export default function LunchOrders() {
                     <div className="flex justify-between items-center py-2 border-b">
                       <span className="text-sm text-gray-600">Hora de registro:</span>
                       <span className="font-semibold text-gray-900">
-                        {format(new Date(selectedMenuOrder.created_at), "HH:mm", { locale: es })}
+                        {new Date(selectedMenuOrder.created_at).toLocaleTimeString('es-PE', {
+                          hour: '2-digit',
+                          minute: '2-digit',
+                          timeZone: 'America/Lima'
+                        })}
                       </span>
                     </div>
                     <div className="flex justify-between items-center py-2">

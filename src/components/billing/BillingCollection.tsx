@@ -48,6 +48,8 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
+import jsPDF from 'jspdf';
+import 'jspdf-autotable';
 import { generateBillingPDF } from '@/utils/pdfGenerator';
 import limaCafeLogo from '@/assets/lima-cafe-logo.png';
 
@@ -1126,6 +1128,183 @@ Gracias.`;
     }
   }, [activeTab, selectedSchool, untilDate, canViewAllSchools, userSchoolId]);
 
+  // Generar comprobante de pago en PDF
+  const generatePaymentReceipt = async (transaction: any) => {
+    try {
+      const doc = new jsPDF();
+      
+      // Cargar logo
+      let logoBase64 = '';
+      try {
+        const response = await fetch(limaCafeLogo);
+        const blob = await response.blob();
+        logoBase64 = await new Promise((resolve) => {
+          const reader = new FileReader();
+          reader.onloadend = () => resolve(reader.result as string);
+          reader.readAsDataURL(blob);
+        });
+      } catch (error) {
+        console.error('Error cargando logo:', error);
+      }
+
+      const pageWidth = doc.internal.pageSize.width;
+      const pageHeight = doc.internal.pageSize.height;
+
+      // Logo y header
+      if (logoBase64) {
+        doc.addImage(logoBase64, 'PNG', 15, 15, 30, 30);
+      }
+
+      // Título
+      doc.setFontSize(20);
+      doc.setTextColor(34, 139, 34); // Verde
+      doc.text('COMPROBANTE DE PAGO', pageWidth / 2, 25, { align: 'center' });
+
+      // Subtítulo
+      doc.setFontSize(12);
+      doc.setTextColor(100, 100, 100);
+      doc.text('Lima Café - Sistema de Cobranzas', pageWidth / 2, 32, { align: 'center' });
+
+      // Línea separadora
+      doc.setDrawColor(34, 139, 34);
+      doc.setLineWidth(0.5);
+      doc.line(15, 50, pageWidth - 15, 50);
+
+      // Información del pago
+      doc.setFontSize(10);
+      doc.setTextColor(0, 0, 0);
+      
+      let yPos = 60;
+      
+      // Fecha de pago
+      doc.setFont('helvetica', 'bold');
+      doc.text('FECHA DE PAGO:', 15, yPos);
+      doc.setFont('helvetica', 'normal');
+      doc.text(format(new Date(transaction.created_at), "dd/MM/yyyy 'a las' HH:mm", { locale: es }), 70, yPos);
+      yPos += 7;
+
+      // Cliente
+      const clientName = transaction.students?.full_name || 
+                        transaction.teacher_profiles?.full_name || 
+                        transaction.manual_client_name || 
+                        'Cliente desconocido';
+      doc.setFont('helvetica', 'bold');
+      doc.text('CLIENTE:', 15, yPos);
+      doc.setFont('helvetica', 'normal');
+      doc.text(clientName, 70, yPos);
+      yPos += 7;
+
+      // Tipo de cliente
+      const clientType = transaction.student_id ? 'Estudiante' : 
+                        transaction.teacher_id ? 'Profesor' : 
+                        'Sin Cuenta';
+      doc.setFont('helvetica', 'bold');
+      doc.text('TIPO:', 15, yPos);
+      doc.setFont('helvetica', 'normal');
+      doc.text(clientType, 70, yPos);
+      yPos += 7;
+
+      // Sede
+      const schoolName = transaction.schools?.name || 'Sin sede';
+      doc.setFont('helvetica', 'bold');
+      doc.text('SEDE:', 15, yPos);
+      doc.setFont('helvetica', 'normal');
+      doc.text(schoolName, 70, yPos);
+      yPos += 7;
+
+      // Método de pago
+      doc.setFont('helvetica', 'bold');
+      doc.text('MÉTODO DE PAGO:', 15, yPos);
+      doc.setFont('helvetica', 'normal');
+      doc.text((transaction.payment_method || 'No especificado').toUpperCase(), 70, yPos);
+      yPos += 7;
+
+      // Número de operación (si existe)
+      if (transaction.operation_number) {
+        doc.setFont('helvetica', 'bold');
+        doc.text('Nº OPERACIÓN:', 15, yPos);
+        doc.setFont('helvetica', 'normal');
+        doc.text(transaction.operation_number, 70, yPos);
+        yPos += 7;
+      }
+
+      // Ticket number (si existe)
+      if (transaction.ticket_number) {
+        doc.setFont('helvetica', 'bold');
+        doc.text('Nº TICKET:', 15, yPos);
+        doc.setFont('helvetica', 'normal');
+        doc.text(transaction.ticket_number, 70, yPos);
+        yPos += 7;
+      }
+
+      // Tipo de documento (si existe)
+      if (transaction.document_type) {
+        doc.setFont('helvetica', 'bold');
+        doc.text('TIPO DOCUMENTO:', 15, yPos);
+        doc.setFont('helvetica', 'normal');
+        doc.text(transaction.document_type.toUpperCase(), 70, yPos);
+        yPos += 7;
+      }
+
+      yPos += 3;
+
+      // Descripción
+      doc.setFont('helvetica', 'bold');
+      doc.text('DESCRIPCIÓN:', 15, yPos);
+      yPos += 6;
+      doc.setFont('helvetica', 'normal');
+      const description = transaction.description || 'Sin descripción';
+      const descriptionLines = doc.splitTextToSize(description, pageWidth - 30);
+      doc.text(descriptionLines, 15, yPos);
+      yPos += descriptionLines.length * 5 + 5;
+
+      // Línea separadora
+      doc.setDrawColor(200, 200, 200);
+      doc.setLineWidth(0.3);
+      doc.line(15, yPos, pageWidth - 15, yPos);
+      yPos += 10;
+
+      // Monto pagado (destacado)
+      doc.setFillColor(34, 139, 34);
+      doc.rect(15, yPos - 5, pageWidth - 30, 15, 'F');
+      
+      doc.setFontSize(14);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(255, 255, 255);
+      doc.text('MONTO PAGADO:', 20, yPos + 5);
+      doc.setFontSize(18);
+      doc.text(`S/ ${Math.abs(transaction.amount).toFixed(2)}`, pageWidth - 20, yPos + 5, { align: 'right' });
+      
+      yPos += 25;
+
+      // Footer
+      doc.setFontSize(8);
+      doc.setTextColor(100, 100, 100);
+      doc.setFont('helvetica', 'italic');
+      
+      const footerY = pageHeight - 30;
+      doc.text('Este es un comprobante interno generado por el sistema Lima Café', pageWidth / 2, footerY, { align: 'center' });
+      doc.text(`Generado el: ${format(new Date(), "dd/MM/yyyy 'a las' HH:mm", { locale: es })}`, pageWidth / 2, footerY + 5, { align: 'center' });
+      doc.text('Para consultas: contacto@limacafe.pe', pageWidth / 2, footerY + 10, { align: 'center' });
+
+      // Guardar PDF
+      const fileName = `Comprobante_Pago_${clientName.replace(/\s+/g, '_')}_${format(new Date(transaction.created_at), 'ddMMyyyy_HHmm')}.pdf`;
+      doc.save(fileName);
+
+      toast({
+        title: '✅ Comprobante generado',
+        description: `Se descargó el comprobante de pago exitosamente`,
+      });
+    } catch (error) {
+      console.error('Error generando comprobante:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'No se pudo generar el comprobante de pago',
+      });
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Alerta de API SUNAT no conectado */}
@@ -1630,6 +1809,15 @@ Gracias.`;
                                   Ticket: {transaction.ticket_number}
                                 </Badge>
                               )}
+                              <Button
+                                onClick={() => generatePaymentReceipt(transaction)}
+                                variant="outline"
+                                size="sm"
+                                className="mt-3 w-full border-green-600 text-green-600 hover:bg-green-50"
+                              >
+                                <Download className="h-4 w-4 mr-2" />
+                                Descargar Comprobante
+                              </Button>
                             </div>
                           </div>
                         </CardContent>

@@ -1,16 +1,21 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { LogOut, User, ShoppingBag, UtensilsCrossed, Home, MoreHorizontal, Loader2, DollarSign } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { LogOut, User, ShoppingBag, UtensilsCrossed, Home, MoreHorizontal, Loader2, DollarSign, CheckCircle2, Download, Filter, ArrowUpDown } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { TeacherOnboardingModal } from '@/components/teacher/TeacherOnboardingModal';
 import { TeacherMoreMenu } from '@/components/teacher/TeacherMoreMenu';
 import { OrderLunchMenus } from '@/components/lunch/OrderLunchMenus';
 import { MyLunchOrders } from '@/components/teacher/MyLunchOrders';
+import jsPDF from 'jspdf';
+import limaCafeLogo from '@/assets/lima-cafe-logo.png';
 
 interface TeacherProfile {
   id: string;
@@ -41,6 +46,12 @@ export default function Teacher() {
   const [totalSpent, setTotalSpent] = useState(0);
   const [delayDays, setDelayDays] = useState<number>(0);
   const [currentBalance, setCurrentBalance] = useState<number>(0);
+  const [pendingTransactions, setPendingTransactions] = useState<any[]>([]);
+  const [paidTransactions, setPaidTransactions] = useState<any[]>([]);
+  const [paymentSubTab, setPaymentSubTab] = useState('pending');
+  const [sortOrder, setSortOrder] = useState<'desc' | 'asc'>('desc'); // Más reciente primero
+  const [dateFrom, setDateFrom] = useState<string>('');
+  const [dateTo, setDateTo] = useState<string>('');
 
   useEffect(() => {
     if (user) {
@@ -55,6 +66,7 @@ export default function Teacher() {
         fetchPurchaseHistory();
       } else if (activeTab === 'payments') {
         fetchCurrentBalance();
+        fetchPendingAndPaidTransactions();
       }
     }
   }, [activeTab, teacherProfile]);
@@ -65,25 +77,403 @@ export default function Teacher() {
     try {
       console.log('💰 Calculando balance actual del profesor');
 
-      // Obtener todas las transacciones del profesor
+      // Obtener todas las transacciones PENDIENTES del profesor (excluyendo pagadas y eliminadas)
       const { data: transactions, error } = await supabase
         .from('transactions')
-        .select('amount')
-        .eq('teacher_id', teacherProfile.id);
+        .select('amount, payment_status')
+        .eq('teacher_id', teacherProfile.id)
+        .eq('is_deleted', false)
+        .or('payment_status.eq.pending,payment_status.is.null');
 
       if (error) throw error;
 
-      // Calcular balance
+      // Calcular balance solo de transacciones pendientes
       const balance = transactions?.reduce((sum, t) => sum + t.amount, 0) || 0;
       setCurrentBalance(balance);
 
-      console.log('✅ Balance actual:', balance);
+      console.log('✅ Balance actual (solo pendientes):', balance);
+      console.log('📊 Transacciones pendientes:', transactions?.length);
     } catch (error: any) {
       console.error('❌ Error calculando balance:', error);
       toast({
         variant: 'destructive',
         title: 'Error',
         description: 'No se pudo calcular el balance.',
+      });
+    }
+  };
+
+  const fetchPendingAndPaidTransactions = async () => {
+    if (!teacherProfile) return;
+
+    try {
+      console.log('📋 Cargando transacciones pendientes y pagadas...');
+
+      // Transacciones PENDIENTES
+      const { data: pending, error: pendingError } = await supabase
+        .from('transactions')
+        .select(`
+          id,
+          type,
+          amount,
+          description,
+          created_at,
+          ticket_code,
+          payment_status,
+          transaction_items (
+            product_name,
+            quantity,
+            unit_price,
+            subtotal
+          )
+        `)
+        .eq('teacher_id', teacherProfile.id)
+        .eq('type', 'purchase')
+        .eq('is_deleted', false)
+        .or('payment_status.eq.pending,payment_status.is.null')
+        .order('created_at', { ascending: false });
+
+      if (pendingError) throw pendingError;
+
+      setPendingTransactions(pending || []);
+      console.log('✅ Transacciones pendientes:', pending?.length);
+
+      // Transacciones PAGADAS (compras que ya fueron pagadas)
+      const { data: paid, error: paidError } = await supabase
+        .from('transactions')
+        .select(`
+          id,
+          type,
+          amount,
+          description,
+          created_at,
+          ticket_code,
+          payment_status,
+          payment_method,
+          operation_number,
+          created_by,
+          school_id,
+          transaction_items (
+            product_name,
+            quantity,
+            unit_price,
+            subtotal
+          )
+        `)
+        .eq('teacher_id', teacherProfile.id)
+        .eq('type', 'purchase')
+        .eq('is_deleted', false)
+        .eq('payment_status', 'paid')
+        .order('created_at', { ascending: false });
+
+      if (paidError) throw paidError;
+
+      console.log('✅ Transacciones pagadas:', paid?.length);
+
+      // Obtener información de cajeros y sedes por separado
+      if (paid && paid.length > 0) {
+        // IDs únicos de cajeros
+        const cashierIds = [...new Set(paid.map((t: any) => t.created_by).filter(Boolean))];
+        
+        // IDs únicos de sedes
+        const schoolIds = [...new Set(paid.map((t: any) => t.school_id).filter(Boolean))];
+
+        // Fetch cajeros
+        let cashiersMap = new Map();
+        if (cashierIds.length > 0) {
+          const { data: cashiers } = await supabase
+            .from('profiles')
+            .select('id, full_name, email')
+            .in('id', cashierIds);
+
+          if (cashiers) {
+            cashiers.forEach((c: any) => {
+              cashiersMap.set(c.id, c);
+            });
+          }
+        }
+
+        // Fetch sedes
+        let schoolsMap = new Map();
+        if (schoolIds.length > 0) {
+          const { data: schools } = await supabase
+            .from('schools')
+            .select('id, name')
+            .in('id', schoolIds);
+
+          if (schools) {
+            schools.forEach((s: any) => {
+              schoolsMap.set(s.id, s);
+            });
+          }
+        }
+
+        // Mapear información a las transacciones
+        const enrichedPaid = paid.map((t: any) => ({
+          ...t,
+          profiles: t.created_by ? cashiersMap.get(t.created_by) : null,
+          schools: t.school_id ? schoolsMap.get(t.school_id) : null,
+        }));
+
+        setPaidTransactions(enrichedPaid);
+      } else {
+        setPaidTransactions([]);
+      }
+
+    } catch (error: any) {
+      console.error('❌ Error cargando transacciones:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'No se pudieron cargar las transacciones.',
+      });
+    }
+  };
+
+  // Filtrar y ordenar transacciones pendientes
+  const filteredPendingTransactions = useMemo(() => {
+    let filtered = [...pendingTransactions];
+
+    // Filtrar por fechas
+    if (dateFrom) {
+      filtered = filtered.filter(t => new Date(t.created_at) >= new Date(dateFrom));
+    }
+    if (dateTo) {
+      const endDate = new Date(dateTo);
+      endDate.setHours(23, 59, 59, 999);
+      filtered = filtered.filter(t => new Date(t.created_at) <= endDate);
+    }
+
+    // Ordenar
+    filtered.sort((a, b) => {
+      const dateA = new Date(a.created_at).getTime();
+      const dateB = new Date(b.created_at).getTime();
+      return sortOrder === 'desc' ? dateB - dateA : dateA - dateB;
+    });
+
+    return filtered;
+  }, [pendingTransactions, dateFrom, dateTo, sortOrder]);
+
+  // Filtrar y ordenar transacciones pagadas
+  const filteredPaidTransactions = useMemo(() => {
+    let filtered = [...paidTransactions];
+
+    // Filtrar por fechas
+    if (dateFrom) {
+      filtered = filtered.filter(t => new Date(t.created_at) >= new Date(dateFrom));
+    }
+    if (dateTo) {
+      const endDate = new Date(dateTo);
+      endDate.setHours(23, 59, 59, 999);
+      filtered = filtered.filter(t => new Date(t.created_at) <= endDate);
+    }
+
+    // Ordenar
+    filtered.sort((a, b) => {
+      const dateA = new Date(a.created_at).getTime();
+      const dateB = new Date(b.created_at).getTime();
+      return sortOrder === 'desc' ? dateB - dateA : dateA - dateB;
+    });
+
+    return filtered;
+  }, [paidTransactions, dateFrom, dateTo, sortOrder]);
+
+  // Función para generar comprobante de pago
+  const generatePaymentReceipt = async (transaction: any) => {
+    try {
+      const doc = new jsPDF();
+      
+      // Cargar logo
+      let logoBase64 = '';
+      try {
+        const response = await fetch(limaCafeLogo);
+        const blob = await response.blob();
+        logoBase64 = await new Promise((resolve) => {
+          const reader = new FileReader();
+          reader.onloadend = () => resolve(reader.result as string);
+          reader.readAsDataURL(blob);
+        });
+      } catch (error) {
+        console.error('Error cargando logo:', error);
+      }
+
+      const pageWidth = doc.internal.pageSize.width;
+      const pageHeight = doc.internal.pageSize.height;
+
+      // Logo y header
+      if (logoBase64) {
+        doc.addImage(logoBase64, 'PNG', 15, 15, 30, 30);
+      }
+
+      // Título
+      doc.setFontSize(20);
+      doc.setTextColor(34, 139, 34); // Verde
+      doc.text('COMPROBANTE DE PAGO', pageWidth / 2, 25, { align: 'center' });
+
+      // Subtítulo
+      doc.setFontSize(12);
+      doc.setTextColor(100, 100, 100);
+      doc.text('Lima Café - Profesor', pageWidth / 2, 32, { align: 'center' });
+
+      // Línea separadora
+      doc.setDrawColor(34, 139, 34);
+      doc.setLineWidth(0.5);
+      doc.line(15, 50, pageWidth - 15, 50);
+
+      // Información del pago
+      doc.setFontSize(10);
+      doc.setTextColor(0, 0, 0);
+      
+      let yPos = 60;
+      
+      // Fecha de pago
+      doc.setFont('helvetica', 'bold');
+      doc.text('FECHA DE PAGO:', 15, yPos);
+      doc.setFont('helvetica', 'normal');
+      const paymentDate = new Date(transaction.created_at);
+      const formattedDate = paymentDate.toLocaleDateString('es-PE', {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        timeZone: 'America/Lima'
+      });
+      doc.text(formattedDate, 70, yPos);
+      yPos += 7;
+
+      // Profesor
+      doc.setFont('helvetica', 'bold');
+      doc.text('PROFESOR:', 15, yPos);
+      doc.setFont('helvetica', 'normal');
+      doc.text(teacherProfile?.full_name || 'Sin nombre', 70, yPos);
+      yPos += 7;
+
+      // Sede
+      if (transaction.schools?.name) {
+        doc.setFont('helvetica', 'bold');
+        doc.text('SEDE:', 15, yPos);
+        doc.setFont('helvetica', 'normal');
+        doc.text(transaction.schools.name, 70, yPos);
+        yPos += 7;
+      }
+
+      // Cajero que cobró
+      if (transaction.profiles?.full_name) {
+        doc.setFont('helvetica', 'bold');
+        doc.text('COBRADO POR:', 15, yPos);
+        doc.setFont('helvetica', 'normal');
+        doc.text(transaction.profiles.full_name, 70, yPos);
+        yPos += 7;
+      }
+
+      if (transaction.profiles?.email) {
+        doc.setFont('helvetica', 'bold');
+        doc.text('EMAIL CAJERO:', 15, yPos);
+        doc.setFont('helvetica', 'normal');
+        doc.text(transaction.profiles.email, 70, yPos);
+        yPos += 7;
+      }
+
+      // Método de pago
+      if (transaction.payment_method) {
+        doc.setFont('helvetica', 'bold');
+        doc.text('MÉTODO DE PAGO:', 15, yPos);
+        doc.setFont('helvetica', 'normal');
+        doc.text(transaction.payment_method.toUpperCase(), 70, yPos);
+        yPos += 7;
+      }
+
+      // Número de operación
+      if (transaction.operation_number) {
+        doc.setFont('helvetica', 'bold');
+        doc.text('Nº OPERACIÓN:', 15, yPos);
+        doc.setFont('helvetica', 'normal');
+        doc.text(transaction.operation_number, 70, yPos);
+        yPos += 7;
+      }
+
+      // Ticket code
+      if (transaction.ticket_code) {
+        doc.setFont('helvetica', 'bold');
+        doc.text('Nº TICKET:', 15, yPos);
+        doc.setFont('helvetica', 'normal');
+        doc.text(transaction.ticket_code, 70, yPos);
+        yPos += 7;
+      }
+
+      yPos += 3;
+
+      // Descripción
+      doc.setFont('helvetica', 'bold');
+      doc.text('DESCRIPCIÓN:', 15, yPos);
+      yPos += 6;
+      doc.setFont('helvetica', 'normal');
+      const description = transaction.description || 'Sin descripción';
+      const descriptionLines = doc.splitTextToSize(description, pageWidth - 30);
+      doc.text(descriptionLines, 15, yPos);
+      yPos += descriptionLines.length * 5 + 5;
+
+      // Detalle de items
+      if (transaction.transaction_items && transaction.transaction_items.length > 0) {
+        doc.setFont('helvetica', 'bold');
+        doc.text('PRODUCTOS:', 15, yPos);
+        yPos += 6;
+        doc.setFont('helvetica', 'normal');
+        
+        transaction.transaction_items.forEach((item: any) => {
+          doc.text(`${item.quantity}x ${item.product_name}`, 20, yPos);
+          doc.text(`S/ ${item.subtotal.toFixed(2)}`, pageWidth - 20, yPos, { align: 'right' });
+          yPos += 5;
+        });
+        yPos += 5;
+      }
+
+      // Línea separadora
+      doc.setDrawColor(200, 200, 200);
+      doc.setLineWidth(0.3);
+      doc.line(15, yPos, pageWidth - 15, yPos);
+      yPos += 10;
+
+      // Monto pagado (destacado)
+      doc.setFillColor(34, 139, 34);
+      doc.rect(15, yPos - 5, pageWidth - 30, 15, 'F');
+      
+      doc.setFontSize(14);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(255, 255, 255);
+      doc.text('MONTO PAGADO:', 20, yPos + 5);
+      doc.setFontSize(18);
+      doc.text(`S/ ${Math.abs(transaction.amount).toFixed(2)}`, pageWidth - 20, yPos + 5, { align: 'right' });
+      
+      yPos += 25;
+
+      // Footer
+      doc.setFontSize(8);
+      doc.setTextColor(100, 100, 100);
+      doc.setFont('helvetica', 'normal');
+      
+      const footerY = pageHeight - 30;
+      doc.text('Este es un comprobante interno generado', pageWidth / 2, footerY, { align: 'center' });
+      doc.text('© 2026 ERP Profesional diseñado por ARQUISIA Soluciones para Lima Café 28', pageWidth / 2, footerY + 5, { align: 'center' });
+      doc.text(`Versión 1.16.3 • PRODUCTION`, pageWidth / 2, footerY + 10, { align: 'center' });
+      doc.text(`Generado: ${new Date().toLocaleDateString('es-PE', { dateStyle: 'full', timeZone: 'America/Lima' })}`, pageWidth / 2, footerY + 15, { align: 'center' });
+
+      // Guardar PDF
+      const fileName = `Comprobante_${teacherProfile?.full_name.replace(/\s+/g, '_')}_${new Date(transaction.created_at).toLocaleDateString('es-PE').replace(/\//g, '-')}.pdf`;
+      doc.save(fileName);
+
+      toast({
+        title: '✅ Comprobante generado',
+        description: 'Se descargó el comprobante de pago exitosamente',
+      });
+    } catch (error) {
+      console.error('Error generando comprobante:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'No se pudo generar el comprobante de pago',
       });
     }
   };
@@ -165,6 +555,7 @@ export default function Teacher() {
           description,
           created_at,
           ticket_code,
+          payment_status,
           transaction_items (
             product_name,
             quantity,
@@ -174,6 +565,7 @@ export default function Teacher() {
         `)
         .eq('teacher_id', teacherProfile.id)
         .eq('type', 'purchase')
+        .eq('is_deleted', false)
         .order('created_at', { ascending: false });
 
       // Aplicar filtro de delay solo si es mayor a 0
@@ -583,82 +975,322 @@ export default function Teacher() {
                 </CardContent>
               </Card>
 
-              {/* Card: Historial de Transacciones */}
-              <Card>
-                <CardHeader>
-                  <CardTitle>Todas las Transacciones</CardTitle>
-                  <CardDescription>
-                    Historial completo de compras y pagos
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  {purchaseHistory.length === 0 ? (
-                    <div className="text-center py-12 text-gray-500">
-                      <DollarSign className="h-16 w-16 mx-auto mb-4 opacity-30" />
-                      <p className="text-lg font-semibold mb-2">Sin transacciones</p>
-                      <p className="text-sm">
-                        Aún no has realizado ninguna compra.
-                      </p>
+              {/* Sub-pestañas: Tickets por Pagar y Tickets Pagados */}
+              <Tabs value={paymentSubTab} onValueChange={setPaymentSubTab} className="w-full">
+                <TabsList className="grid w-full grid-cols-2 mb-6">
+                  <TabsTrigger value="pending" className="gap-2">
+                    <DollarSign className="h-4 w-4" />
+                    Tickets por Pagar
+                  </TabsTrigger>
+                  <TabsTrigger value="paid" className="gap-2">
+                    <CheckCircle2 className="h-4 w-4" />
+                    Tickets Pagados
+                  </TabsTrigger>
+                </TabsList>
+
+                {/* Filtros Compartidos */}
+                <Card className="mb-6">
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Filter className="h-5 w-5" />
+                      Filtros
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      {/* Fecha Desde */}
+                      <div>
+                        <Label htmlFor="dateFrom">Desde</Label>
+                        <Input
+                          id="dateFrom"
+                          type="date"
+                          value={dateFrom}
+                          onChange={(e) => setDateFrom(e.target.value)}
+                        />
+                      </div>
+
+                      {/* Fecha Hasta */}
+                      <div>
+                        <Label htmlFor="dateTo">Hasta</Label>
+                        <Input
+                          id="dateTo"
+                          type="date"
+                          value={dateTo}
+                          onChange={(e) => setDateTo(e.target.value)}
+                        />
+                      </div>
+
+                      {/* Ordenamiento */}
+                      <div>
+                        <Label htmlFor="sortOrder">Ordenar por fecha</Label>
+                        <Select value={sortOrder} onValueChange={(val: 'desc' | 'asc') => setSortOrder(val)}>
+                          <SelectTrigger id="sortOrder">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="desc">Más reciente primero</SelectItem>
+                            <SelectItem value="asc">Más antiguo primero</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
                     </div>
-                  ) : (
-                    <div className="space-y-3">
-                      {purchaseHistory.map((transaction) => (
-                        <div key={transaction.id} className="border rounded-lg p-4">
-                          <div className="flex justify-between items-start">
-                            <div className="flex-1">
-                              <p className="font-semibold text-gray-900">
-                                {transaction.description}
-                              </p>
-                              <p className="text-sm text-gray-500">
-                                {new Date(transaction.created_at).toLocaleDateString('es-PE', {
-                                  weekday: 'long',
-                                  year: 'numeric',
-                                  month: 'long',
-                                  day: 'numeric',
-                                  hour: '2-digit',
-                                  minute: '2-digit',
-                                })}
-                              </p>
-                              {transaction.ticket_code && (
-                                <p className="text-xs text-gray-400 mt-1">
-                                  Ticket: {transaction.ticket_code}
-                                </p>
+
+                    {/* Botones de acción */}
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setDateFrom('');
+                          setDateTo('');
+                          setSortOrder('desc');
+                        }}
+                      >
+                        Limpiar Filtros
+                      </Button>
+                      <div className="flex-1"></div>
+                      <div className="text-sm text-gray-600">
+                        {paymentSubTab === 'pending' 
+                          ? `${filteredPendingTransactions.length} ticket(s) pendiente(s)`
+                          : `${filteredPaidTransactions.length} ticket(s) pagado(s)`
+                        }
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Tickets por Pagar */}
+                <TabsContent value="pending">
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Tickets por Pagar</CardTitle>
+                      <CardDescription>
+                        Deudas pendientes de pago
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      {filteredPendingTransactions.length === 0 ? (
+                        <div className="text-center py-12 text-gray-500">
+                          <CheckCircle2 className="h-16 w-16 mx-auto mb-4 opacity-30 text-green-500" />
+                          <p className="text-lg font-semibold mb-2">
+                            {pendingTransactions.length === 0 ? '¡Sin deudas!' : 'No hay resultados'}
+                          </p>
+                          <p className="text-sm">
+                            {pendingTransactions.length === 0 
+                              ? 'No tienes tickets pendientes de pago.'
+                              : 'Intenta ajustar los filtros de fecha.'
+                            }
+                          </p>
+                        </div>
+                      ) : (
+                        <div className="space-y-3">
+                          {filteredPendingTransactions.map((transaction) => (
+                            <div key={transaction.id} className="border border-red-200 bg-red-50 rounded-lg p-4">
+                              <div className="flex justify-between items-start">
+                                <div className="flex-1">
+                                  <p className="font-semibold text-gray-900">
+                                    {transaction.description}
+                                  </p>
+                                  <p className="text-sm text-gray-500">
+                                    {new Date(transaction.created_at).toLocaleDateString('es-PE', {
+                                      weekday: 'long',
+                                      year: 'numeric',
+                                      month: 'long',
+                                      day: 'numeric',
+                                      hour: '2-digit',
+                                      minute: '2-digit',
+                                      timeZone: 'America/Lima'
+                                    })}
+                                  </p>
+                                  {transaction.ticket_code && (
+                                    <p className="text-xs text-gray-400 mt-1">
+                                      Ticket: {transaction.ticket_code}
+                                    </p>
+                                  )}
+                                </div>
+                                <div className="text-right">
+                                  <p className="text-2xl font-bold text-red-600">
+                                    - S/ {Math.abs(transaction.amount).toFixed(2)}
+                                  </p>
+                                  <p className="text-xs text-red-600 mt-1 font-semibold">
+                                    PENDIENTE
+                                  </p>
+                                </div>
+                              </div>
+
+                              {/* Detalle de items */}
+                              {transaction.transaction_items && transaction.transaction_items.length > 0 && (
+                                <div className="mt-3 pt-3 border-t border-red-200">
+                                  <p className="text-xs font-semibold text-gray-600 mb-2">Productos:</p>
+                                  <div className="space-y-1">
+                                    {transaction.transaction_items.map((item: any, idx: number) => (
+                                      <div key={idx} className="flex justify-between text-sm">
+                                        <span className="text-gray-700">
+                                          {item.quantity}x {item.product_name}
+                                        </span>
+                                        <span className="text-gray-900 font-medium">
+                                          S/ {item.subtotal.toFixed(2)}
+                                        </span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
                               )}
                             </div>
-                            <div className="text-right">
-                              <p className={`text-2xl font-bold ${transaction.amount < 0 ? 'text-red-600' : 'text-green-600'}`}>
-                                {transaction.amount < 0 ? '-' : '+'} S/ {Math.abs(transaction.amount).toFixed(2)}
-                              </p>
-                              <p className="text-xs text-gray-500 mt-1">
-                                {transaction.amount < 0 ? 'Compra' : 'Pago'}
-                              </p>
-                            </div>
-                          </div>
+                          ))}
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                </TabsContent>
 
-                          {/* Detalle de items */}
-                          {transaction.transaction_items && transaction.transaction_items.length > 0 && (
-                            <div className="mt-3 pt-3 border-t">
-                              <p className="text-xs font-semibold text-gray-600 mb-2">Productos:</p>
-                              <div className="space-y-1">
-                                {transaction.transaction_items.map((item: any, idx: number) => (
-                                  <div key={idx} className="flex justify-between text-sm">
-                                    <span className="text-gray-700">
-                                      {item.quantity}x {item.product_name}
-                                    </span>
-                                    <span className="text-gray-900 font-medium">
-                                      S/ {item.subtotal.toFixed(2)}
-                                    </span>
+                {/* Tickets Pagados */}
+                <TabsContent value="paid">
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Tickets Pagados</CardTitle>
+                      <CardDescription>
+                        Historial de pagos realizados
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      {filteredPaidTransactions.length === 0 ? (
+                        <div className="text-center py-12 text-gray-500">
+                          <DollarSign className="h-16 w-16 mx-auto mb-4 opacity-30" />
+                          <p className="text-lg font-semibold mb-2">
+                            {paidTransactions.length === 0 ? 'Sin pagos registrados' : 'No hay resultados'}
+                          </p>
+                          <p className="text-sm">
+                            {paidTransactions.length === 0
+                              ? 'Aún no has realizado ningún pago.'
+                              : 'Intenta ajustar los filtros de fecha.'
+                            }
+                          </p>
+                        </div>
+                      ) : (
+                        <div className="space-y-3">
+                          {filteredPaidTransactions.map((transaction) => (
+                            <div key={transaction.id} className="border border-green-200 bg-green-50 rounded-lg p-4">
+                              <div className="flex justify-between items-start gap-4">
+                                <div className="flex-1">
+                                  <p className="font-semibold text-gray-900 text-lg">
+                                    {transaction.description}
+                                  </p>
+                                  
+                                  {/* Fecha y hora - Zona Horaria Peruana */}
+                                  <div className="mt-2 space-y-1">
+                                    <p className="text-sm text-gray-600">
+                                      📅 <span className="font-medium">Fecha:</span> {new Date(transaction.created_at).toLocaleDateString('es-PE', {
+                                        weekday: 'long',
+                                        year: 'numeric',
+                                        month: 'long',
+                                        day: 'numeric',
+                                        timeZone: 'America/Lima'
+                                      })}
+                                    </p>
+                                    <p className="text-sm text-gray-600">
+                                      🕐 <span className="font-medium">Hora:</span> {new Date(transaction.created_at).toLocaleTimeString('es-PE', {
+                                        hour: '2-digit',
+                                        minute: '2-digit',
+                                        second: '2-digit',
+                                        timeZone: 'America/Lima'
+                                      })}
+                                    </p>
                                   </div>
-                                ))}
+
+                                  {/* Información del cajero */}
+                                  {transaction.profiles && (
+                                    <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded">
+                                      <p className="text-xs font-semibold text-blue-900">Cobrado por:</p>
+                                      <p className="text-sm text-blue-800">{transaction.profiles.full_name}</p>
+                                      {transaction.profiles.email && (
+                                        <p className="text-xs text-blue-600">{transaction.profiles.email}</p>
+                                      )}
+                                    </div>
+                                  )}
+
+                                  {/* Sede */}
+                                  {transaction.schools?.name && (
+                                    <p className="text-xs text-gray-600 mt-2">
+                                      🏫 <span className="font-medium">Sede:</span> {transaction.schools.name}
+                                    </p>
+                                  )}
+
+                                  {/* Método de pago */}
+                                  {transaction.payment_method && (
+                                    <p className="text-xs text-gray-600 mt-1">
+                                      💳 <span className="font-medium">Método:</span> {transaction.payment_method.toUpperCase()}
+                                    </p>
+                                  )}
+
+                                  {/* Número de operación */}
+                                  {transaction.operation_number && (
+                                    <p className="text-xs text-gray-600 mt-1">
+                                      🔢 <span className="font-medium">Nº Operación:</span> {transaction.operation_number}
+                                    </p>
+                                  )}
+
+                                  {/* Ticket code */}
+                                  {transaction.ticket_code && (
+                                    <p className="text-xs text-gray-400 mt-1">
+                                      🎫 Ticket: {transaction.ticket_code}
+                                    </p>
+                                  )}
+
+                                  {/* Detalle de items */}
+                                  {transaction.transaction_items && transaction.transaction_items.length > 0 && (
+                                    <div className="mt-3 pt-3 border-t border-green-200">
+                                      <p className="text-xs font-semibold text-gray-600 mb-2">Productos:</p>
+                                      <div className="space-y-1">
+                                        {transaction.transaction_items.map((item: any, idx: number) => (
+                                          <div key={idx} className="flex justify-between text-sm">
+                                            <span className="text-gray-700">
+                                              {item.quantity}x {item.product_name}
+                                            </span>
+                                            <span className="text-gray-900 font-medium">
+                                              S/ {item.subtotal.toFixed(2)}
+                                            </span>
+                                          </div>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
+
+                                {/* Monto y Botón */}
+                                <div className="text-right flex flex-col items-end">
+                                  <p className="text-2xl font-bold text-green-600 mb-2">
+                                    + S/ {Math.abs(transaction.amount).toFixed(2)}
+                                  </p>
+                                  <p className="text-xs text-green-600 font-semibold mb-3">
+                                    ✅ PAGADO
+                                  </p>
+                                  <Button
+                                    onClick={() => generatePaymentReceipt(transaction)}
+                                    variant="outline"
+                                    size="sm"
+                                    className="border-green-600 text-green-600 hover:bg-green-50"
+                                  >
+                                    <Download className="h-4 w-4 mr-1" />
+                                    Comprobante
+                                  </Button>
+                                </div>
+                              </div>
+
+                              {/* Footer con branding */}
+                              <div className="mt-3 pt-3 border-t border-green-200">
+                                <p className="text-[10px] text-gray-500 text-center">
+                                  Este es un comprobante interno generado • © 2026 ERP Profesional diseñado por ARQUISIA Soluciones para Lima Café 28
+                                </p>
                               </div>
                             </div>
-                          )}
+                          ))}
                         </div>
-                      ))}
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
+                      )}
+                    </CardContent>
+                  </Card>
+                </TabsContent>
+              </Tabs>
             </TabsContent>
 
             {/* TAB: MENÚ */}

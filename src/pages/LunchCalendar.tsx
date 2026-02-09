@@ -908,7 +908,10 @@ const LunchCalendar = () => {
                               </div>
                             ) : hasMenus ? (
                               <div className="flex-1 flex flex-col gap-0.5 sm:gap-1 mt-1 sm:mt-2 overflow-hidden">
-                                {dayData.menus.slice(0, 3).map((menu) => (
+                                {dayData.menus
+                                  .filter((menu) => selectedSchools.includes(menu.school_id)) // Filtrar por sedes seleccionadas
+                                  .slice(0, 3)
+                                  .map((menu) => (
                                   <div
                                     key={menu.id}
                                     className="w-full flex items-center gap-1"
@@ -922,9 +925,9 @@ const LunchCalendar = () => {
                                     </span>
                                   </div>
                                 ))}
-                                {dayData.menus.length > 3 && (
+                                {dayData.menus.filter((menu) => selectedSchools.includes(menu.school_id)).length > 3 && (
                                   <div className="text-[7px] sm:text-[9px] text-center font-medium text-muted-foreground bg-gray-100 rounded px-0.5">
-                                    +{dayData.menus.length - 3}
+                                    +{dayData.menus.filter((menu) => selectedSchools.includes(menu.school_id)).length - 3}
                                   </div>
                                 )}
                               </div>
