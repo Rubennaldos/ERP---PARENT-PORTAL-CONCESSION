@@ -779,7 +779,11 @@ const ParentConfiguration = () => {
     const matchesSearch = parent.full_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          parent.dni.includes(searchTerm) ||
                          (parent.nickname && parent.nickname.toLowerCase().includes(searchTerm.toLowerCase()));
-    const matchesSchool = selectedSchool === 'all' || parent.school_id === selectedSchool;
+    
+    // Filtrar por colegio: buscar si al menos uno de los hijos está en ese colegio
+    const matchesSchool = selectedSchool === 'all' || 
+                         (parent.children && parent.children.some((child: any) => child.school_id === selectedSchool));
+    
     return matchesSearch && matchesSchool;
   });
 
