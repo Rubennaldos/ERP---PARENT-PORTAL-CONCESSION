@@ -1221,6 +1221,9 @@ Gracias.`;
         created_by_profile: createdByMap.get(t.created_by) || null
       }));
 
+      console.log('[BillingCollection] 📊 Transacciones cargadas:', transactionsWithCreator.length);
+      console.log('[BillingCollection] 🔍 Ejemplo de transacción:', transactionsWithCreator[0]);
+
       setPaidTransactions(transactionsWithCreator);
     } catch (error) {
       console.error('Error fetching paid transactions:', error);
@@ -1319,7 +1322,7 @@ Gracias.`;
                         transaction.teacher_id ? 'Profesor' : 
                         transaction.manual_client_name ? 'Cliente Sin Cuenta' : 'Cliente Generico Sin Cuenta';
       doc.setFont('helvetica', 'bold');
-      doc.text('TIPO:', 15, yPos);
+      doc.text('CATEGORIA:', 15, yPos);
       doc.setFont('helvetica', 'normal');
       doc.text(clientType, 70, yPos);
       yPos += 7;
@@ -2267,7 +2270,7 @@ Gracias.`;
                       <span className="font-semibold text-gray-900">{clientName}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-gray-600">Tipo:</span>
+                      <span className="text-gray-600">Categoría:</span>
                       <span className="font-semibold text-gray-900">{clientType}</span>
                     </div>
                     <div className="flex justify-between">
