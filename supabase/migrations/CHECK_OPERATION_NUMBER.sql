@@ -45,7 +45,6 @@ SELECT
   amount,
   payment_method,
   operation_number,
-  ticket_number,
   created_at,
   created_by
 FROM transactions

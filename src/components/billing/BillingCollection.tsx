@@ -1407,15 +1407,6 @@ Gracias.`;
         yPos += 7;
       }
 
-      // Ticket number (si existe)
-      if (transaction.ticket_number) {
-        doc.setFont('helvetica', 'bold');
-        doc.text('Nº TICKET:', 15, yPos);
-        doc.setFont('helvetica', 'normal');
-        doc.text(transaction.ticket_number, 70, yPos);
-        yPos += 7;
-      }
-
       // Tipo de documento (si existe)
       if (transaction.document_type) {
         doc.setFont('helvetica', 'bold');
@@ -1825,7 +1816,6 @@ Gracias.`;
                                           {format(new Date(t.created_at), 'dd/MM/yyyy HH:mm', { locale: es })}
                                           {' - '}
                                           <span className="text-red-600 font-bold">S/ {Math.abs(t.amount).toFixed(2)}</span>
-                                          {t.ticket_number && ` - Ticket: ${t.ticket_number}`}
                                           <div className="text-gray-600 mt-0.5">{t.description}</div>
                                         </div>
                                       </div>
@@ -2010,17 +2000,11 @@ Gracias.`;
                               <p className="text-3xl font-bold text-green-600 mb-2">
                                 S/ {Math.abs(transaction.amount).toFixed(2)}
                               </p>
-                              {transaction.ticket_number && (
-                                <Badge variant="secondary" className="mb-2">
-                                  Ticket: {transaction.ticket_number}
-                                </Badge>
-                              )}
                               <div className="flex flex-col gap-2 w-full mt-3">
                                 <Button
                                   onClick={() => {
                                     console.log('[BillingCollection] 🔍 Abriendo detalles de transacción:', transaction);
                                     console.log('[BillingCollection] 📞 operation_number:', transaction.operation_number);
-                                    console.log('[BillingCollection] 🎫 ticket_number:', transaction.ticket_number);
                                     setSelectedTransaction(transaction);
                                     setShowDetailsModal(true);
                                   }}
@@ -2344,12 +2328,6 @@ Gracias.`;
                       <div className="flex justify-between">
                         <span className="text-gray-600">Nº de operación:</span>
                         <span className="font-semibold text-gray-900">{selectedTransaction.operation_number}</span>
-                      </div>
-                    )}
-                    {selectedTransaction.ticket_number && (
-                      <div className="flex justify-between">
-                        <span className="text-gray-600">Nº de ticket:</span>
-                        <span className="font-semibold text-gray-900">{selectedTransaction.ticket_number}</span>
                       </div>
                     )}
                   </div>
