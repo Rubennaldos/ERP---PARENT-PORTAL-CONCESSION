@@ -421,6 +421,8 @@ export const BillingCollection = () => {
       
       // Obtener IDs de pedidos que ya tienen transacciones asociadas (PENDING O PAID)
       const existingOrderKeys = new Set<string>();
+      
+      // Método 1: Por metadata.lunch_order_id (transacciones virtuales convertidas a reales)
       validTransactions.forEach((t: any) => {
         if (t.metadata?.lunch_order_id) {
           existingOrderKeys.add(t.metadata.lunch_order_id);
@@ -432,6 +434,39 @@ export const BillingCollection = () => {
         if (t.metadata?.lunch_order_id) {
           existingOrderKeys.add(t.metadata.lunch_order_id);
           console.log(`✅ [BillingCollection] Pedido ${t.metadata.lunch_order_id} ya tiene transacción PAID, omitiendo`);
+        }
+      });
+      
+      // Método 2: Por coincidencia de teacher_id/student_id + fecha (para transacciones sin metadata)
+      lunchOrders?.forEach((order: any) => {
+        const orderDate = order.order_date; // Formato: "2026-02-09"
+        
+        const hasMatchingTransaction = validTransactions.some((t: any) => {
+          // Verificar si la transacción coincide con este pedido
+          const transDate = t.created_at.split('T')[0]; // Formato: "2026-02-09"
+          const descMatches = t.description?.includes('Almuerzo') || t.description?.includes('almuerzo');
+          
+          if (order.teacher_id && t.teacher_id === order.teacher_id && descMatches) {
+            // Para profesores: verificar que la transacción sea del mismo día O del día anterior (por bug de zona horaria)
+            const orderDateObj = new Date(orderDate);
+            const tranDateObj = new Date(transDate);
+            const daysDiff = Math.abs((orderDateObj.getTime() - tranDateObj.getTime()) / (1000 * 60 * 60 * 24));
+            
+            if (daysDiff <= 1) { // Mismo día o 1 día de diferencia
+              return true;
+            }
+          }
+          
+          if (order.student_id && t.student_id === order.student_id && transDate === orderDate && descMatches) {
+            return true;
+          }
+          
+          return false;
+        });
+        
+        if (hasMatchingTransaction) {
+          existingOrderKeys.add(order.id);
+          console.log(`✅ [BillingCollection] Pedido ${order.id} tiene transacción real (sin metadata), omitiendo virtual`);
         }
       });
       
