@@ -500,7 +500,7 @@ export const BillingCollection = () => {
               type: 'purchase',
               amount: -Math.abs(price), // Negativo = deuda
               payment_status: 'pending',
-              description: `Almuerzo - ${new Date(order.order_date).toLocaleDateString('es-PE', { day: 'numeric', month: 'long' })}`,
+              description: `Almuerzo - ${new Date(order.order_date + 'T12:00:00').toLocaleDateString('es-PE', { day: 'numeric', month: 'long' })}`,
               student_id: order.student_id || null,
               teacher_id: order.teacher_id || null,
               manual_client_name: order.manual_name || null,
