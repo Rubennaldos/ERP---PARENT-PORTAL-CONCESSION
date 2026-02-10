@@ -43,7 +43,9 @@ import {
   FileText,
   MessageSquare,
   AlertTriangle,
-  History
+  History,
+  Eye,
+  User
 } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { format } from 'date-fns';
@@ -95,6 +97,8 @@ export const BillingCollection = () => {
   const [loadingPaid, setLoadingPaid] = useState(false);
   const [activeTab, setActiveTab] = useState<'cobrar' | 'pagos'>('cobrar');
   const [userSchoolId, setUserSchoolId] = useState<string | null>(null);
+  const [showDetailsModal, setShowDetailsModal] = useState(false);
+  const [selectedTransaction, setSelectedTransaction] = useState<any>(null);
   
   // Filtros
   const [selectedSchool, setSelectedSchool] = useState<string>('all');
@@ -1098,7 +1102,8 @@ Gracias.`;
           *,
           students(id, full_name, parent_id),
           teacher_profiles(id, full_name),
-          schools(id, name)
+          schools(id, name),
+          created_by_user:user_profiles!transactions_created_by_fkey(id, full_name, email)
         `)
         .eq('type', 'purchase')
         .eq('payment_status', 'paid')
@@ -1222,7 +1227,7 @@ Gracias.`;
       const clientName = transaction.students?.full_name || 
                         transaction.teacher_profiles?.full_name || 
                         transaction.manual_client_name || 
-                        'Cliente desconocido';
+                        '🛒 Venta de Cocina';
       doc.setFont('helvetica', 'bold');
       doc.text('CLIENTE:', 15, yPos);
       doc.setFont('helvetica', 'normal');
@@ -1232,7 +1237,7 @@ Gracias.`;
       // Tipo de cliente
       const clientType = transaction.student_id ? 'Estudiante' : 
                         transaction.teacher_id ? 'Profesor' : 
-                        'Sin Cuenta';
+                        transaction.manual_client_name ? 'Cliente Sin Cuenta' : 'Venta Genérica';
       doc.setFont('helvetica', 'bold');
       doc.text('TIPO:', 15, yPos);
       doc.setFont('helvetica', 'normal');
@@ -1246,6 +1251,16 @@ Gracias.`;
       doc.setFont('helvetica', 'normal');
       doc.text(schoolName, 70, yPos);
       yPos += 7;
+
+      // Registrado por
+      if (transaction.created_by_user) {
+        const createdBy = transaction.created_by_user.full_name || transaction.created_by_user.email;
+        doc.setFont('helvetica', 'bold');
+        doc.text('REGISTRADO POR:', 15, yPos);
+        doc.setFont('helvetica', 'normal');
+        doc.text(createdBy, 70, yPos);
+        yPos += 7;
+      }
 
       // Método de pago
       doc.setFont('helvetica', 'bold');
@@ -1756,13 +1771,21 @@ Gracias.`;
               ) : (
                 <div className="grid grid-cols-1 gap-4">
                   {paidTransactions.map((transaction) => {
-                    const clientName = transaction.students?.full_name || 
+                    // Determinar el nombre del cliente
+                    let clientName = transaction.students?.full_name || 
                                      transaction.teacher_profiles?.full_name || 
                                      transaction.manual_client_name || 
-                                     'Cliente desconocido';
+                                     null;
+                    
+                    // Si no hay nombre, es una venta de cocina genérica
+                    const isGenericSale = !clientName && !transaction.student_id && !transaction.teacher_id;
+                    if (isGenericSale) {
+                      clientName = '🛒 Venta de Cocina';
+                    }
+                    
                     const clientType = transaction.student_id ? 'student' : 
                                       transaction.teacher_id ? 'teacher' : 
-                                      'manual';
+                                      isGenericSale ? 'generic' : 'manual';
                     const schoolName = transaction.schools?.name || 'Sin sede';
 
                     return (
@@ -1775,6 +1798,11 @@ Gracias.`;
                                 {clientType === 'teacher' && (
                                   <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200">
                                     👨‍🏫 Profesor
+                                  </Badge>
+                                )}
+                                {clientType === 'generic' && (
+                                  <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
+                                    🛒 Venta Genérica
                                   </Badge>
                                 )}
                                 {clientType === 'manual' && (
@@ -1808,6 +1836,15 @@ Gracias.`;
                                   </div>
                                 </div>
                                 
+                                {transaction.created_by_user && (
+                                  <div>
+                                    <p className="text-gray-500 text-sm">👤 Registrado por:</p>
+                                    <p className="font-semibold text-gray-900">
+                                      {transaction.created_by_user.full_name || transaction.created_by_user.email}
+                                    </p>
+                                  </div>
+                                )}
+                                
                                 <div>
                                   <p className="text-gray-500 text-sm">📝 Descripción:</p>
                                   <p className="font-semibold text-gray-900">
@@ -1835,24 +1872,38 @@ Gracias.`;
                               </div>
                             </div>
                             
-                            <div className="text-right ml-4">
-                              <p className="text-3xl font-bold text-green-600">
+                            <div className="text-right ml-4 flex flex-col items-end">
+                              <p className="text-3xl font-bold text-green-600 mb-2">
                                 S/ {Math.abs(transaction.amount).toFixed(2)}
                               </p>
                               {transaction.ticket_number && (
-                                <Badge variant="secondary" className="mt-2">
+                                <Badge variant="secondary" className="mb-2">
                                   Ticket: {transaction.ticket_number}
                                 </Badge>
                               )}
-                              <Button
-                                onClick={() => generatePaymentReceipt(transaction)}
-                                variant="outline"
-                                size="sm"
-                                className="mt-3 w-full border-green-600 text-green-600 hover:bg-green-50"
-                              >
-                                <Download className="h-4 w-4 mr-2" />
-                                Descargar Comprobante
-                              </Button>
+                              <div className="flex flex-col gap-2 w-full mt-3">
+                                <Button
+                                  onClick={() => {
+                                    setSelectedTransaction(transaction);
+                                    setShowDetailsModal(true);
+                                  }}
+                                  variant="outline"
+                                  size="sm"
+                                  className="w-full border-blue-600 text-blue-600 hover:bg-blue-50"
+                                >
+                                  <Eye className="h-4 w-4 mr-2" />
+                                  Ver Detalles
+                                </Button>
+                                <Button
+                                  onClick={() => generatePaymentReceipt(transaction)}
+                                  variant="outline"
+                                  size="sm"
+                                  className="w-full border-green-600 text-green-600 hover:bg-green-50"
+                                >
+                                  <Download className="h-4 w-4 mr-2" />
+                                  Comprobante
+                                </Button>
+                              </div>
                             </div>
                           </div>
                         </CardContent>
@@ -2082,6 +2133,121 @@ Gracias.`;
               )}
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal de Detalles Completos */}
+      <Dialog open={showDetailsModal} onOpenChange={setShowDetailsModal}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="text-2xl font-bold flex items-center gap-3">
+              <Eye className="h-7 w-7 text-blue-600" />
+              Detalles Completos del Pago
+            </DialogTitle>
+          </DialogHeader>
+          
+          {selectedTransaction && (() => {
+            const clientName = selectedTransaction.students?.full_name || 
+                             selectedTransaction.teacher_profiles?.full_name || 
+                             selectedTransaction.manual_client_name || 
+                             '🛒 Venta de Cocina';
+            const clientType = selectedTransaction.student_id ? 'Estudiante' : 
+                              selectedTransaction.teacher_id ? 'Profesor' : 
+                              selectedTransaction.manual_client_name ? 'Cliente Sin Cuenta' : 'Venta Genérica';
+            const schoolName = selectedTransaction.schools?.name || 'Sin sede';
+            const createdBy = selectedTransaction.created_by_user?.full_name || 
+                            selectedTransaction.created_by_user?.email || 
+                            'Sistema';
+
+            return (
+              <div className="space-y-4 mt-4">
+                {/* Cliente */}
+                <div className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg p-4 border border-blue-200">
+                  <h3 className="font-bold text-lg text-gray-900 mb-2">👤 Cliente</h3>
+                  <div className="space-y-2">
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Nombre:</span>
+                      <span className="font-semibold text-gray-900">{clientName}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Tipo:</span>
+                      <span className="font-semibold text-gray-900">{clientType}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Sede:</span>
+                      <span className="font-semibold text-gray-900">{schoolName}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Información del Pago */}
+                <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg p-4 border border-green-200">
+                  <h3 className="font-bold text-lg text-gray-900 mb-2">💳 Información del Pago</h3>
+                  <div className="space-y-2">
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Monto:</span>
+                      <span className="font-bold text-2xl text-green-600">S/ {Math.abs(selectedTransaction.amount).toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Método de pago:</span>
+                      <span className="font-semibold text-gray-900 capitalize">{selectedTransaction.payment_method || 'No especificado'}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Fecha:</span>
+                      <span className="font-semibold text-gray-900">
+                        {format(new Date(selectedTransaction.created_at), "dd/MM/yyyy 'a las' HH:mm", { locale: es })}
+                      </span>
+                    </div>
+                    {selectedTransaction.operation_number && (
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Nº de operación:</span>
+                        <span className="font-semibold text-gray-900">{selectedTransaction.operation_number}</span>
+                      </div>
+                    )}
+                    {selectedTransaction.ticket_number && (
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Nº de ticket:</span>
+                        <span className="font-semibold text-gray-900">{selectedTransaction.ticket_number}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Descripción */}
+                <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                  <h3 className="font-bold text-lg text-gray-900 mb-2">📝 Descripción</h3>
+                  <p className="text-gray-700">{selectedTransaction.description || 'Sin descripción'}</p>
+                </div>
+
+                {/* Información del Registro */}
+                <div className="bg-gradient-to-r from-amber-50 to-orange-50 rounded-lg p-4 border border-amber-200">
+                  <h3 className="font-bold text-lg text-gray-900 mb-2">👤 Información del Registro</h3>
+                  <div className="space-y-2">
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Registrado por:</span>
+                      <span className="font-semibold text-gray-900">{createdBy}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">ID de transacción:</span>
+                      <span className="font-mono text-xs text-gray-600">{selectedTransaction.id}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Botón de Comprobante */}
+                <Button
+                  onClick={() => {
+                    generatePaymentReceipt(selectedTransaction);
+                    setShowDetailsModal(false);
+                  }}
+                  className="w-full bg-green-600 hover:bg-green-700 h-12"
+                >
+                  <Download className="h-4 w-4 mr-2" />
+                  Descargar Comprobante PDF
+                </Button>
+              </div>
+            );
+          })()}
         </DialogContent>
       </Dialog>
     </div>
