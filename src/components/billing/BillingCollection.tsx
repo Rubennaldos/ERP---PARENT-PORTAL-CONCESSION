@@ -1087,6 +1087,43 @@ Gracias.`;
 
   const currentPeriod = selectedPeriod !== 'all' ? periods.find(p => p.id === selectedPeriod) : null;
 
+  // Función para obtener el cargo y descripción completa del usuario
+  const getUserRoleDescription = (profile: any, schoolName: string) => {
+    if (!profile) return null;
+    
+    const name = profile.full_name || profile.email || 'Usuario';
+    let roleDescription = '';
+    
+    switch (profile.role) {
+      case 'admin':
+        roleDescription = `Administrador General`;
+        break;
+      case 'billing_admin':
+        roleDescription = `Gestor de Unidad - ${schoolName}`;
+        break;
+      case 'cashier':
+        roleDescription = `Cajero - ${schoolName}`;
+        break;
+      case 'kitchen':
+        roleDescription = `Cocina - ${schoolName}`;
+        break;
+      case 'teacher':
+        roleDescription = `Profesor - ${schoolName}`;
+        break;
+      case 'parent':
+        roleDescription = `Padre de Familia`;
+        break;
+      default:
+        roleDescription = `Usuario - ${schoolName}`;
+    }
+    
+    return {
+      name,
+      role: roleDescription,
+      fullDescription: `${name} (${roleDescription})`
+    };
+  };
+
   // Función para obtener pagos realizados
   const fetchPaidTransactions = async () => {
     try {
@@ -1102,8 +1139,7 @@ Gracias.`;
           *,
           students(id, full_name, parent_id),
           teacher_profiles(id, full_name),
-          schools(id, name),
-          created_by_profile:profiles!transactions_created_by_fkey(id, full_name, email)
+          schools(id, name)
         `)
         .eq('type', 'purchase')
         .eq('payment_status', 'paid')
@@ -1148,7 +1184,44 @@ Gracias.`;
         return true;
       }) || [];
 
-      setPaidTransactions(validTransactions);
+      // 🆕 Obtener información del creador (created_by) manualmente
+      const userIds = [...new Set(validTransactions.map((t: any) => t.created_by).filter(Boolean))];
+      let createdByMap = new Map();
+      
+      if (userIds.length > 0) {
+        const { data: profiles } = await supabase
+          .from('profiles')
+          .select('id, full_name, email, role')
+          .in('id', userIds);
+        
+        if (profiles) {
+          profiles.forEach((p: any) => {
+            createdByMap.set(p.id, p);
+          });
+        }
+
+        // También buscar en teacher_profiles por si el created_by es un profesor
+        const { data: teacherProfiles } = await supabase
+          .from('teacher_profiles')
+          .select('id, full_name, school_id')
+          .in('id', userIds);
+        
+        if (teacherProfiles) {
+          teacherProfiles.forEach((tp: any) => {
+            if (!createdByMap.has(tp.id)) {
+              createdByMap.set(tp.id, { ...tp, role: 'teacher' });
+            }
+          });
+        }
+      }
+
+      // Agregar la información del creador a cada transacción
+      const transactionsWithCreator = validTransactions.map((t: any) => ({
+        ...t,
+        created_by_profile: createdByMap.get(t.created_by) || null
+      }));
+
+      setPaidTransactions(transactionsWithCreator);
     } catch (error) {
       console.error('Error fetching paid transactions:', error);
       toast({
@@ -1220,7 +1293,14 @@ Gracias.`;
       doc.setFont('helvetica', 'bold');
       doc.text('FECHA DE PAGO:', 15, yPos);
       doc.setFont('helvetica', 'normal');
-      doc.text(format(new Date(transaction.created_at), "dd/MM/yyyy 'a las' HH:mm", { locale: es }), 70, yPos);
+      doc.text(format(new Date(transaction.created_at), "dd/MM/yyyy", { locale: es }), 70, yPos);
+      yPos += 7;
+
+      // Hora de pago
+      doc.setFont('helvetica', 'bold');
+      doc.text('HORA DE PAGO:', 15, yPos);
+      doc.setFont('helvetica', 'normal');
+      doc.text(format(new Date(transaction.created_at), "HH:mm:ss", { locale: es }), 70, yPos);
       yPos += 7;
 
       // Cliente
@@ -1252,14 +1332,26 @@ Gracias.`;
       doc.text(schoolName, 70, yPos);
       yPos += 7;
 
-      // Registrado por (si existe)
+      // Registrado por (si existe) - CON CARGO COMPLETO
       if (transaction.created_by_profile) {
-        const createdBy = transaction.created_by_profile.full_name || transaction.created_by_profile.email;
-        doc.setFont('helvetica', 'bold');
-        doc.text('REGISTRADO POR:', 15, yPos);
-        doc.setFont('helvetica', 'normal');
-        doc.text(createdBy, 70, yPos);
-        yPos += 7;
+        const userInfo = getUserRoleDescription(
+          transaction.created_by_profile, 
+          transaction.schools?.name || 'Sin sede'
+        );
+        if (userInfo) {
+          doc.setFont('helvetica', 'bold');
+          doc.text('REGISTRADO POR:', 15, yPos);
+          doc.setFont('helvetica', 'normal');
+          doc.text(userInfo.name, 70, yPos);
+          yPos += 7;
+
+          doc.setFont('helvetica', 'bold');
+          doc.text('CARGO:', 15, yPos);
+          doc.setFont('helvetica', 'normal');
+          const roleText = doc.splitTextToSize(userInfo.role, pageWidth - 80);
+          doc.text(roleText, 70, yPos);
+          yPos += 7 * roleText.length;
+        }
       }
 
       // Método de pago
@@ -1836,14 +1928,19 @@ Gracias.`;
                                   </div>
                                 </div>
                                 
-                                {transaction.created_by_profile && (
-                                  <div>
-                                    <p className="text-gray-500 text-sm">👤 Registrado por:</p>
-                                    <p className="font-semibold text-gray-900">
-                                      {transaction.created_by_profile.full_name || transaction.created_by_profile.email}
-                                    </p>
-                                  </div>
-                                )}
+                                {transaction.created_by_profile && (() => {
+                                  const userInfo = getUserRoleDescription(
+                                    transaction.created_by_profile, 
+                                    transaction.schools?.name || 'Sin sede'
+                                  );
+                                  return userInfo ? (
+                                    <div className="border-t pt-2 mt-2">
+                                      <p className="text-gray-500 text-sm">👤 Registrado por:</p>
+                                      <p className="font-semibold text-gray-900">{userInfo.name}</p>
+                                      <p className="text-xs text-gray-600 mt-1">{userInfo.role}</p>
+                                    </div>
+                                  ) : null;
+                                })()}
                                 
                                 <div>
                                   <p className="text-gray-500 text-sm">📝 Descripción:</p>
@@ -2155,8 +2252,8 @@ Gracias.`;
                               selectedTransaction.teacher_id ? 'Profesor' : 
                               selectedTransaction.manual_client_name ? 'Cliente Sin Cuenta' : 'Cliente Genérico Sin Cuenta';
             const schoolName = selectedTransaction.schools?.name || 'Sin sede';
-            const createdBy = selectedTransaction.created_by_profile?.full_name || 
-                            selectedTransaction.created_by_profile?.email || 
+            const userInfo = selectedTransaction.created_by_profile ? 
+                            getUserRoleDescription(selectedTransaction.created_by_profile, schoolName) : 
                             null;
 
             return (
@@ -2192,11 +2289,16 @@ Gracias.`;
                       <span className="text-gray-600">Método de pago:</span>
                       <span className="font-semibold text-gray-900 capitalize">{selectedTransaction.payment_method || 'No especificado'}</span>
                     </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Fecha:</span>
-                      <span className="font-semibold text-gray-900">
-                        {format(new Date(selectedTransaction.created_at), "dd/MM/yyyy 'a las' HH:mm", { locale: es })}
-                      </span>
+                    <div className="flex justify-between items-start">
+                      <span className="text-gray-600">Fecha y hora:</span>
+                      <div className="text-right">
+                        <p className="font-semibold text-gray-900">
+                          {format(new Date(selectedTransaction.created_at), "dd/MM/yyyy", { locale: es })}
+                        </p>
+                        <p className="text-sm text-gray-600">
+                          {format(new Date(selectedTransaction.created_at), "HH:mm:ss", { locale: es })}
+                        </p>
+                      </div>
                     </div>
                     {selectedTransaction.operation_number && (
                       <div className="flex justify-between">
@@ -2221,13 +2323,21 @@ Gracias.`;
 
                 {/* Información del Registro */}
                 <div className="bg-gradient-to-r from-amber-50 to-orange-50 rounded-lg p-4 border border-amber-200">
-                  <h3 className="font-bold text-lg text-gray-900 mb-2">ℹ️ Información Adicional</h3>
+                  <h3 className="font-bold text-lg text-gray-900 mb-2">ℹ️ Información del Registro</h3>
                   <div className="space-y-2">
-                    {createdBy && (
-                      <div className="flex justify-between">
-                        <span className="text-gray-600">Registrado por:</span>
-                        <span className="font-semibold text-gray-900">{createdBy}</span>
-                      </div>
+                    {userInfo ? (
+                      <>
+                        <div className="flex justify-between">
+                          <span className="text-gray-600">Registrado por:</span>
+                          <span className="font-semibold text-gray-900">{userInfo.name}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-gray-600">Cargo:</span>
+                          <span className="font-semibold text-blue-700">{userInfo.role}</span>
+                        </div>
+                      </>
+                    ) : (
+                      <div className="text-gray-500 text-sm">No hay información del registrador</div>
                     )}
                     <div className="flex justify-between">
                       <span className="text-gray-600">ID de transacción:</span>
