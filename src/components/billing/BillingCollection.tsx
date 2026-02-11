@@ -2329,15 +2329,11 @@ Gracias.`;
 
       {/* Modal de Detalles Completos */}
       <Dialog open={showDetailsModal} onOpenChange={setShowDetailsModal}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle className="text-2xl font-bold flex items-center gap-3">
-              <Eye className="h-7 w-7 text-blue-600" />
-              Detalles Completos del Pago
-            </DialogTitle>
-          </DialogHeader>
-          
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           {selectedTransaction && (() => {
+            const isPending = selectedTransaction.payment_status === 'pending' || selectedTransaction.payment_status === 'partial';
+            const isPaid = selectedTransaction.payment_status === 'paid';
+            
             const clientName = selectedTransaction.client_name ||
                              selectedTransaction.students?.full_name || 
                              selectedTransaction.teacher_profiles?.full_name || 
@@ -2355,107 +2351,260 @@ Gracias.`;
             const userInfo = selectedTransaction.created_by_profile ? 
                             getUserRoleDescription(selectedTransaction.created_by_profile, schoolName) : 
                             null;
+            
+            // Determinar si tiene cuenta en el sistema
+            const hasAccount = !!(selectedTransaction.student_id || selectedTransaction.teacher_id);
+            const accountEmail = selectedTransaction.teacher_profiles?.email || 
+                                selectedTransaction.students?.email || null;
+            
+            // Determinar quién hizo el pedido
+            const getOriginInfo = () => {
+              if (selectedTransaction.created_by) {
+                // Alguien lo creó manualmente
+                if (selectedTransaction.created_by === selectedTransaction.teacher_id) {
+                  return {
+                    origin: 'Pedido por el profesor',
+                    detail: 'Realizado desde su propia cuenta en la plataforma',
+                    icon: '👨‍🏫',
+                    color: 'text-purple-700'
+                  };
+                } else if (selectedTransaction.created_by === selectedTransaction.student_id) {
+                  return {
+                    origin: 'Pedido por el estudiante',
+                    detail: 'Realizado desde su propia cuenta en la plataforma',
+                    icon: '🎒',
+                    color: 'text-blue-700'
+                  };
+                } else if (userInfo) {
+                  return {
+                    origin: `Registrado por: ${userInfo.name}`,
+                    detail: `Cargo: ${userInfo.role}`,
+                    icon: '🏢',
+                    color: 'text-orange-700'
+                  };
+                } else {
+                  return {
+                    origin: 'Registrado por un administrador',
+                    detail: 'No se pudo identificar al usuario',
+                    icon: '🏢',
+                    color: 'text-gray-700'
+                  };
+                }
+              } else if (selectedTransaction.metadata?.source === 'lunch_order') {
+                return {
+                  origin: 'Pedido desde la plataforma',
+                  detail: 'Generado automáticamente por un pedido de almuerzo',
+                  icon: '🍽️',
+                  color: 'text-green-700'
+                };
+              } else {
+                return {
+                  origin: 'Origen no identificado',
+                  detail: 'La transacción fue creada automáticamente por el sistema',
+                  icon: '⚙️',
+                  color: 'text-gray-600'
+                };
+              }
+            };
+            
+            const originInfo = getOriginInfo();
 
             return (
-              <div className="space-y-4 mt-4">
-                {/* Cliente */}
-                <div className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg p-4 border border-blue-200">
-                  <h3 className="font-bold text-lg text-gray-900 mb-2">👤 Cliente</h3>
-                  <div className="space-y-2">
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Nombre:</span>
-                      <span className="font-semibold text-gray-900">{clientName}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Categoría:</span>
-                      <span className="font-semibold text-gray-900">{clientType}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Sede:</span>
-                      <span className="font-semibold text-gray-900">{schoolName}</span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Información del Pago */}
-                <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg p-4 border border-green-200">
-                  <h3 className="font-bold text-lg text-gray-900 mb-2">💳 Información del Pago</h3>
-                  <div className="space-y-2">
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Monto:</span>
-                      <span className="font-bold text-2xl text-green-600">S/ {Math.abs(selectedTransaction.amount).toFixed(2)}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Método de pago:</span>
-                      <span className="font-semibold text-gray-900 capitalize">{selectedTransaction.payment_method || 'No especificado'}</span>
-                    </div>
-                    <div className="flex justify-between items-start">
-                      <span className="text-gray-600">Fecha y hora:</span>
-                      <div className="text-right">
-                        <p className="font-semibold text-gray-900">
-                          {format(new Date(selectedTransaction.created_at), "dd/MM/yyyy", { locale: es })}
-                        </p>
-                        <p className="text-sm text-gray-600">
-                          {format(new Date(selectedTransaction.created_at), "HH:mm:ss", { locale: es })}
-                        </p>
-                      </div>
-                    </div>
-                    {selectedTransaction.operation_number && (
-                      <div className="flex justify-between">
-                        <span className="text-gray-600">Nº de operación:</span>
-                        <span className="font-semibold text-gray-900">{selectedTransaction.operation_number}</span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                {/* 🍽️ Detalle de Consumo - MÁS DESTACADO */}
-                <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-4 border-2 border-blue-300 shadow-md">
-                  <h3 className="font-bold text-xl text-gray-900 mb-3 flex items-center gap-2">
-                    🍽️ Detalle de Consumo
-                  </h3>
-                  <p className="text-gray-900 font-semibold text-lg leading-relaxed">
-                    {selectedTransaction.description || 'Sin descripción'}
-                  </p>
-                </div>
-
-                {/* Información del Registro */}
-                <div className="bg-gradient-to-r from-amber-50 to-orange-50 rounded-lg p-4 border border-amber-200">
-                  <h3 className="font-bold text-lg text-gray-900 mb-2">ℹ️ Información del Registro</h3>
-                  <div className="space-y-2">
-                    {userInfo ? (
+              <>
+                <DialogHeader>
+                  <DialogTitle className="text-2xl font-bold flex items-center gap-3">
+                    {isPending ? (
                       <>
-                        <div className="flex justify-between">
-                          <span className="text-gray-600">Registrado por:</span>
-                          <span className="font-semibold text-gray-900">{userInfo.name}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-gray-600">Cargo:</span>
-                          <span className="font-semibold text-blue-700">{userInfo.role}</span>
-                        </div>
+                        <AlertCircle className="h-7 w-7 text-red-600" />
+                        <span className="text-red-700">Detalles de Deuda Pendiente</span>
                       </>
                     ) : (
-                      <div className="text-gray-500 text-sm">No hay información del registrador</div>
+                      <>
+                        <Eye className="h-7 w-7 text-blue-600" />
+                        Detalles Completos del Pago
+                      </>
                     )}
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">ID de transacción:</span>
-                      <span className="font-mono text-xs text-gray-600">{selectedTransaction.id}</span>
+                  </DialogTitle>
+                </DialogHeader>
+                
+                <div className="space-y-4 mt-4">
+                  {/* Estado de la transacción */}
+                  {isPending && (
+                    <div className="bg-red-50 border-2 border-red-300 rounded-lg p-3 text-center">
+                      <span className="text-red-700 font-bold text-lg">⏳ DEUDA PENDIENTE DE PAGO</span>
+                    </div>
+                  )}
+                  
+                  {/* Cliente */}
+                  <div className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg p-4 border border-blue-200">
+                    <h3 className="font-bold text-lg text-gray-900 mb-2">👤 Cliente</h3>
+                    <div className="space-y-2">
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Nombre:</span>
+                        <span className="font-semibold text-gray-900">{clientName}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Categoría:</span>
+                        <span className="font-semibold text-gray-900">{clientType}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Sede:</span>
+                        <span className="font-semibold text-gray-900">{schoolName}</span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-gray-600">Cuenta:</span>
+                        {hasAccount ? (
+                          <span className="font-semibold text-green-700 flex items-center gap-1">
+                            ✅ Tiene cuenta en el sistema
+                          </span>
+                        ) : (
+                          <span className="font-semibold text-red-600 flex items-center gap-1">
+                            ❌ No tiene cuenta
+                          </span>
+                        )}
+                      </div>
+                      {hasAccount && accountEmail && (
+                        <div className="flex justify-between">
+                          <span className="text-gray-600">Email:</span>
+                          <span className="font-semibold text-gray-900 text-sm">{accountEmail}</span>
+                        </div>
+                      )}
                     </div>
                   </div>
-                </div>
 
-                {/* Botón de Comprobante */}
-                <Button
-                  onClick={() => {
-                    generatePaymentReceipt(selectedTransaction);
-                    setShowDetailsModal(false);
-                  }}
-                  className="w-full bg-green-600 hover:bg-green-700 h-12"
-                >
-                  <Download className="h-4 w-4 mr-2" />
-                  Descargar Comprobante PDF
-                </Button>
-              </div>
+                  {/* Información del Monto y Estado */}
+                  <div className={`rounded-lg p-4 border ${isPending 
+                    ? 'bg-gradient-to-r from-red-50 to-orange-50 border-red-200' 
+                    : 'bg-gradient-to-r from-green-50 to-emerald-50 border-green-200'}`}>
+                    <h3 className="font-bold text-lg text-gray-900 mb-2">
+                      {isPending ? '💰 Información de la Deuda' : '💳 Información del Pago'}
+                    </h3>
+                    <div className="space-y-2">
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Monto:</span>
+                        <span className={`font-bold text-2xl ${isPending ? 'text-red-600' : 'text-green-600'}`}>
+                          S/ {Math.abs(selectedTransaction.amount).toFixed(2)}
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Estado:</span>
+                        {isPending ? (
+                          <span className="font-bold text-red-600 bg-red-100 px-3 py-1 rounded-full text-sm">
+                            ⏳ Pendiente de Pago
+                          </span>
+                        ) : (
+                          <span className="font-bold text-green-600 bg-green-100 px-3 py-1 rounded-full text-sm">
+                            ✅ Pagado
+                          </span>
+                        )}
+                      </div>
+                      {isPaid && (
+                        <div className="flex justify-between">
+                          <span className="text-gray-600">Método de pago:</span>
+                          <span className="font-semibold text-gray-900 capitalize">
+                            {selectedTransaction.payment_method || 'No especificado'}
+                          </span>
+                        </div>
+                      )}
+                      <div className="flex justify-between items-start">
+                        <span className="text-gray-600">{isPending ? 'Fecha del pedido:' : 'Fecha y hora:'}</span>
+                        <div className="text-right">
+                          <p className="font-semibold text-gray-900">
+                            {format(new Date(selectedTransaction.created_at), "dd/MM/yyyy", { locale: es })}
+                          </p>
+                          <p className="text-sm text-gray-600">
+                            {format(new Date(selectedTransaction.created_at), "HH:mm:ss", { locale: es })}
+                          </p>
+                        </div>
+                      </div>
+                      {selectedTransaction.operation_number && (
+                        <div className="flex justify-between">
+                          <span className="text-gray-600">Nº de operación:</span>
+                          <span className="font-semibold text-gray-900">{selectedTransaction.operation_number}</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* 🍽️ Detalle de Consumo */}
+                  <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-4 border-2 border-blue-300 shadow-md">
+                    <h3 className="font-bold text-xl text-gray-900 mb-3 flex items-center gap-2">
+                      🍽️ Detalle de Consumo
+                    </h3>
+                    <p className="text-gray-900 font-semibold text-lg leading-relaxed">
+                      {selectedTransaction.description || 'Sin descripción'}
+                    </p>
+                  </div>
+
+                  {/* 📋 Origen del Pedido / Información de Registro */}
+                  <div className="bg-gradient-to-r from-amber-50 to-orange-50 rounded-lg p-4 border border-amber-200">
+                    <h3 className="font-bold text-lg text-gray-900 mb-2">
+                      {isPending ? '📋 Origen del Pedido' : 'ℹ️ Información del Registro'}
+                    </h3>
+                    <div className="space-y-2">
+                      <div className="flex justify-between items-start">
+                        <span className="text-gray-600">Realizado por:</span>
+                        <div className="text-right">
+                          <span className={`font-semibold ${originInfo.color} flex items-center gap-1 justify-end`}>
+                            {originInfo.icon} {originInfo.origin}
+                          </span>
+                          <p className="text-xs text-gray-500 mt-1">{originInfo.detail}</p>
+                        </div>
+                      </div>
+                      {userInfo && selectedTransaction.created_by !== selectedTransaction.teacher_id && (
+                        <>
+                          <div className="flex justify-between">
+                            <span className="text-gray-600">Registrado por:</span>
+                            <span className="font-semibold text-gray-900">{userInfo.name}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-gray-600">Cargo:</span>
+                            <span className="font-semibold text-blue-700">{userInfo.role}</span>
+                          </div>
+                        </>
+                      )}
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">ID de transacción:</span>
+                        <span className="font-mono text-xs text-gray-600">{selectedTransaction.id}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Botón PDF */}
+                  {isPaid ? (
+                    <Button
+                      onClick={() => {
+                        generatePaymentReceipt(selectedTransaction);
+                        setShowDetailsModal(false);
+                      }}
+                      className="w-full bg-green-600 hover:bg-green-700 h-12"
+                    >
+                      <Download className="h-4 w-4 mr-2" />
+                      Descargar Comprobante de Pago PDF
+                    </Button>
+                  ) : (
+                    <Button
+                      onClick={() => {
+                        generatePDF({
+                          id: selectedTransaction.teacher_id || selectedTransaction.student_id || 'manual',
+                          client_name: clientName,
+                          client_type: clientType === 'Estudiante' ? 'student' : clientType === 'Profesor' ? 'teacher' : 'manual',
+                          school_id: selectedTransaction.school_id,
+                          school_name: schoolName,
+                          total_amount: Math.abs(selectedTransaction.amount),
+                          transaction_count: 1,
+                          transactions: [selectedTransaction],
+                        } as Debtor);
+                        setShowDetailsModal(false);
+                      }}
+                      className="w-full bg-red-600 hover:bg-red-700 h-12"
+                    >
+                      <Download className="h-4 w-4 mr-2" />
+                      Descargar Estado de Deuda PDF
+                    </Button>
+                  )}
+                </div>
+              </>
             );
           })()}
         </DialogContent>
