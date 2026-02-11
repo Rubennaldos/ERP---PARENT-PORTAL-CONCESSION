@@ -1844,6 +1844,25 @@ Gracias.`;
                                           <span className="text-red-600 font-bold">S/ {Math.abs(t.amount).toFixed(2)}</span>
                                           <div className="text-gray-600 mt-0.5">{t.description}</div>
                                         </div>
+                                        <button
+                                          onClick={() => {
+                                            // Convertir la transacción individual a formato compatible con el modal de detalles
+                                            const txForModal = {
+                                              ...t,
+                                              client_name: debtor.client_name,
+                                              client_type: debtor.client_type,
+                                              parent_name: debtor.parent_name,
+                                              parent_phone: debtor.parent_phone,
+                                              school_name: debtor.school_name
+                                            };
+                                            setSelectedTransactionForDetails(txForModal);
+                                            setShowDetailsModal(true);
+                                          }}
+                                          className="px-2 py-1 text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded transition-colors"
+                                          title="Ver detalles completos"
+                                        >
+                                          👁️
+                                        </button>
                                       </div>
                                     );
                                   })}
