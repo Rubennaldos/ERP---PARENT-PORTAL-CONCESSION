@@ -43,6 +43,7 @@ import {
   FileText,
   MessageSquare,
   AlertTriangle,
+  AlertCircle,
   History,
   Eye,
   User
