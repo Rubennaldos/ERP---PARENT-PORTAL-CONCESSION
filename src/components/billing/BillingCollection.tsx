@@ -2391,17 +2391,27 @@ Gracias.`;
                     color: 'text-gray-700'
                   };
                 }
-              } else if (selectedTransaction.metadata?.source === 'lunch_order') {
+              } else if (selectedTransaction.metadata?.source === 'lunch_order' || 
+                        selectedTransaction.description?.toLowerCase().includes('almuerzo')) {
+                // Es un pedido de almuerzo (real o virtual)
                 return {
-                  origin: 'Pedido desde la plataforma',
-                  detail: 'Generado automáticamente por un pedido de almuerzo',
+                  origin: 'Pedido de almuerzo desde la plataforma',
+                  detail: 'El profesor/estudiante realizó el pedido desde su cuenta en el sistema',
                   icon: '🍽️',
                   color: 'text-green-700'
                 };
+              } else if (selectedTransaction.description?.toLowerCase().includes('venta') || 
+                        selectedTransaction.description?.toLowerCase().includes('manual')) {
+                return {
+                  origin: 'Venta registrada en caja',
+                  detail: 'Registrada desde el punto de venta',
+                  icon: '🏪',
+                  color: 'text-orange-700'
+                };
               } else {
                 return {
-                  origin: 'Origen no identificado',
-                  detail: 'La transacción fue creada automáticamente por el sistema',
+                  origin: 'Generado por el sistema',
+                  detail: 'Transacción creada automáticamente',
                   icon: '⚙️',
                   color: 'text-gray-600'
                 };
