@@ -1418,15 +1418,31 @@ Gracias.`;
 
       yPos += 3;
 
-      // Descripción
+      // 🍽️ DETALLE DE CONSUMO - MUY DESTACADO CON RECUADRO AZUL
+      doc.setFillColor(59, 130, 246); // Azul
+      doc.rect(15, yPos - 2, pageWidth - 30, 8, 'F');
+      doc.setFontSize(11);
       doc.setFont('helvetica', 'bold');
-      doc.text('DESCRIPCIÓN:', 15, yPos);
-      yPos += 6;
+      doc.setTextColor(255, 255, 255);
+      doc.text('🍽️ DETALLE DE CONSUMO', 18, yPos + 4);
+      
+      yPos += 12;
+      
+      // Descripción del consumo en recuadro blanco
+      doc.setFillColor(240, 245, 255); // Azul muy claro
+      doc.setDrawColor(59, 130, 246);
+      doc.setLineWidth(0.5);
+      
       doc.setFont('helvetica', 'normal');
+      doc.setFontSize(10);
+      doc.setTextColor(0, 0, 0);
       const description = transaction.description || 'Sin descripción';
-      const descriptionLines = doc.splitTextToSize(description, pageWidth - 30);
-      doc.text(descriptionLines, 15, yPos);
-      yPos += descriptionLines.length * 5 + 5;
+      const descriptionLines = doc.splitTextToSize(description, pageWidth - 40);
+      const descHeight = descriptionLines.length * 5 + 8;
+      
+      doc.rect(15, yPos - 2, pageWidth - 30, descHeight, 'FD');
+      doc.text(descriptionLines, 20, yPos + 3);
+      yPos += descHeight + 5;
 
       // Línea separadora
       doc.setDrawColor(200, 200, 200);
@@ -1940,11 +1956,25 @@ Gracias.`;
                               </div>
 
                               <div className="bg-gray-50 rounded-lg p-3 space-y-2">
+                                {/* 🍽️ DETALLE DE CONSUMO - Lo más importante primero */}
+                                <div className="bg-white border-l-4 border-l-blue-500 rounded-md p-3 mb-3">
+                                  <p className="text-gray-500 text-sm font-semibold mb-1">🍽️ Detalle de Consumo:</p>
+                                  <p className="font-bold text-gray-900 text-base">
+                                    {transaction.description || 'Sin descripción'}
+                                  </p>
+                                </div>
+
                                 <div className="grid grid-cols-2 gap-3 text-sm">
                                   <div>
                                     <p className="text-gray-500">📅 Fecha de pago:</p>
                                     <p className="font-semibold text-gray-900">
-                                      {format(new Date(transaction.created_at), "dd/MM/yyyy 'a las' HH:mm", { locale: es })}
+                                      {format(new Date(transaction.created_at), "dd/MM/yyyy", { locale: es })}
+                                    </p>
+                                  </div>
+                                  <div>
+                                    <p className="text-gray-500">🕐 Hora de pago:</p>
+                                    <p className="font-semibold text-gray-900">
+                                      {format(new Date(transaction.created_at), "HH:mm", { locale: es })}
                                     </p>
                                   </div>
                                   <div>
@@ -1953,6 +1983,14 @@ Gracias.`;
                                       {transaction.payment_method || 'No especificado'}
                                     </p>
                                   </div>
+                                  {transaction.operation_number && (
+                                    <div>
+                                      <p className="text-gray-500">🔢 N° de operación:</p>
+                                      <p className="font-semibold text-gray-900">
+                                        {transaction.operation_number}
+                                      </p>
+                                    </div>
+                                  )}
                                 </div>
                                 
                                 {transaction.created_by_profile && (() => {
@@ -1968,25 +2006,9 @@ Gracias.`;
                                     </div>
                                   ) : null;
                                 })()}
-                                
-                                <div>
-                                  <p className="text-gray-500 text-sm">📝 Descripción:</p>
-                                  <p className="font-semibold text-gray-900">
-                                    {transaction.description || 'Sin descripción'}
-                                  </p>
-                                </div>
-
-                                {transaction.operation_number && (
-                                  <div>
-                                    <p className="text-gray-500 text-sm">🔢 Número de operación:</p>
-                                    <p className="font-semibold text-gray-900">
-                                      {transaction.operation_number}
-                                    </p>
-                                  </div>
-                                )}
 
                                 {transaction.document_type && (
-                                  <div>
+                                  <div className="border-t pt-2 mt-2">
                                     <p className="text-gray-500 text-sm">📄 Tipo de documento:</p>
                                     <p className="font-semibold text-gray-900 capitalize">
                                       {transaction.document_type}
@@ -2333,10 +2355,14 @@ Gracias.`;
                   </div>
                 </div>
 
-                {/* Descripción */}
-                <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
-                  <h3 className="font-bold text-lg text-gray-900 mb-2">📝 Descripción</h3>
-                  <p className="text-gray-700">{selectedTransaction.description || 'Sin descripción'}</p>
+                {/* 🍽️ Detalle de Consumo - MÁS DESTACADO */}
+                <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-4 border-2 border-blue-300 shadow-md">
+                  <h3 className="font-bold text-xl text-gray-900 mb-3 flex items-center gap-2">
+                    🍽️ Detalle de Consumo
+                  </h3>
+                  <p className="text-gray-900 font-semibold text-lg leading-relaxed">
+                    {selectedTransaction.description || 'Sin descripción'}
+                  </p>
                 </div>
 
                 {/* Información del Registro */}
