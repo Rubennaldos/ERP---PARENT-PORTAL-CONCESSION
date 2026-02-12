@@ -744,6 +744,7 @@ export const SalesList = () => {
     return (
       t.ticket_code?.toLowerCase().includes(search) ||
       t.student?.full_name?.toLowerCase().includes(search) ||
+      t.teacher?.full_name?.toLowerCase().includes(search) || // ✅ Incluir nombre de profesor en búsqueda
       t.client_name?.toLowerCase().includes(search) ||
       t.description?.toLowerCase().includes(search) ||
       Math.abs(t.amount).toString().includes(search)

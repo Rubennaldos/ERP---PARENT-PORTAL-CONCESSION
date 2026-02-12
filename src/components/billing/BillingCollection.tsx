@@ -314,7 +314,8 @@ export const BillingCollection = () => {
           schools(id, name)
         `)
         .eq('type', 'purchase')
-        .in('payment_status', ['pending', 'partial']); // Excluir 'paid'
+        .in('payment_status', ['pending', 'partial']) // Excluir 'paid'
+        .order('created_at', { ascending: false }); // ✅ Más reciente primero
 
       // Filtrar por fecha límite si está definida
       if (untilDate) {
@@ -415,12 +416,20 @@ export const BillingCollection = () => {
       
       // 🔥 BUSCAR TAMBIÉN TRANSACCIONES PAID PARA EVITAR DUPLICADOS
       console.log('💰 [BillingCollection] Buscando transacciones PAID de lunch_orders...');
-      const { data: paidLunchTransactions } = await supabase
+      
+      // 🔧 FIX CRÍTICO: Buscar TODAS las transacciones PAID (con Y sin metadata)
+      // Las transacciones viejas sin metadata también deben detectarse por descripción
+      let paidQuery = supabase
         .from('transactions')
-        .select('id, metadata')
+        .select('id, metadata, teacher_id, student_id, description, created_at')
         .eq('type', 'purchase')
-        .eq('payment_status', 'paid')
-        .not('metadata', 'is', null);
+        .eq('payment_status', 'paid');
+      
+      if (schoolIdFilter) {
+        paidQuery = paidQuery.eq('school_id', schoolIdFilter);
+      }
+      
+      const { data: paidLunchTransactions } = await paidQuery;
       
       console.log('💰 [BillingCollection] Transacciones PAID encontradas:', paidLunchTransactions?.length || 0);
       
@@ -442,27 +451,50 @@ export const BillingCollection = () => {
         }
       });
       
-      // Método 2: Por coincidencia de teacher_id/student_id + fecha (para transacciones sin metadata)
+      // Método 2: Por coincidencia de teacher_id/student_id + fecha EN DESCRIPCIÓN (para transacciones sin metadata)
+      // 🔧 FIX CRÍTICO: Antes comparábamos created_at con order_date, pero cuando un profesor
+      // pide almuerzos para varios días en una sola sesión, TODOS tienen el mismo created_at.
+      // Ahora extraemos la fecha del PEDIDO desde la descripción de la transacción.
+      // 🔧 FIX v2: Ahora busca TANTO en transacciones PENDING como PAID (sin metadata)
+      // para evitar crear virtuales de pedidos que YA fueron pagados sin metadata.
+      
+      // Combinar pending + paid para búsqueda por descripción
+      const allTransactionsForMatching = [
+        ...validTransactions, 
+        ...(paidLunchTransactions || [])
+      ];
+      
       lunchOrders?.forEach((order: any) => {
+        // Si ya está en existingOrderKeys (por metadata), no buscar más
+        if (existingOrderKeys.has(order.id)) return;
+        
         const orderDate = order.order_date; // Formato: "2026-02-09"
         
-        const hasMatchingTransaction = validTransactions.some((t: any) => {
-          // Verificar si la transacción coincide con este pedido
-          const transDate = t.created_at.split('T')[0]; // Formato: "2026-02-09"
+        // Formatear la fecha del pedido para buscarla en la descripción
+        const orderDateFormatted = new Date(orderDate + 'T12:00:00').toLocaleDateString('es-PE', { 
+          day: 'numeric', 
+          month: 'long' 
+        }); // "9 de febrero", "11 de febrero", etc.
+        
+        const hasMatchingTransaction = allTransactionsForMatching.some((t: any) => {
           const descMatches = t.description?.includes('Almuerzo') || t.description?.includes('almuerzo');
+          if (!descMatches) return false;
           
-          if (order.teacher_id && t.teacher_id === order.teacher_id && descMatches) {
-            // Para profesores: verificar que la transacción sea del mismo día O del día anterior (por bug de zona horaria)
-            const orderDateObj = new Date(orderDate);
-            const tranDateObj = new Date(transDate);
-            const daysDiff = Math.abs((orderDateObj.getTime() - tranDateObj.getTime()) / (1000 * 60 * 60 * 24));
-            
-            if (daysDiff <= 1) { // Mismo día o 1 día de diferencia
-              return true;
-            }
+          // Verificar que la transacción es del mismo cliente
+          const sameTeacher = order.teacher_id && t.teacher_id === order.teacher_id;
+          const sameStudent = order.student_id && t.student_id === order.student_id;
+          
+          if (!sameTeacher && !sameStudent) return false;
+          
+          // 🔧 Verificar si la descripción contiene la fecha del pedido
+          // Esto funciona con descripciones como "Almuerzo - Menú Light - 11 de febrero"
+          if (t.description?.includes(orderDateFormatted)) {
+            return true;
           }
           
-          if (order.student_id && t.student_id === order.student_id && transDate === orderDate && descMatches) {
+          // Fallback: comparar created_at con order_date (solo para mismo día exacto)
+          const transDate = t.created_at.split('T')[0];
+          if (transDate === orderDate) {
             return true;
           }
           
@@ -471,7 +503,7 @@ export const BillingCollection = () => {
         
         if (hasMatchingTransaction) {
           existingOrderKeys.add(order.id);
-          console.log(`✅ [BillingCollection] Pedido ${order.id} tiene transacción real (sin metadata), omitiendo virtual`);
+          console.log(`✅ [BillingCollection] Pedido ${order.id} (${orderDate}) tiene transacción (pending O paid, sin metadata), omitiendo virtual`);
         }
       });
       
@@ -685,6 +717,24 @@ export const BillingCollection = () => {
     );
   });
 
+  // ✅ Filtrar pagos realizados por término de búsqueda
+  const filteredPaidTransactions = paidTransactions.filter(transaction => {
+    if (!searchTerm) return true;
+    const search = searchTerm.toLowerCase();
+    
+    const clientName = transaction.students?.full_name || 
+                       transaction.teacher_profiles?.full_name || 
+                       transaction.manual_client_name || 
+                       '';
+    
+    return (
+      clientName.toLowerCase().includes(search) ||
+      transaction.description?.toLowerCase().includes(search) ||
+      transaction.ticket_code?.toLowerCase().includes(search) ||
+      transaction.operation_number?.toLowerCase().includes(search)
+    );
+  });
+
   const toggleSelection = (id: string) => {
     const newSelected = new Set(selectedDebtors);
     if (newSelected.has(id)) {
@@ -788,6 +838,7 @@ export const BillingCollection = () => {
             payment_status: 'paid',
             payment_method: paymentData.payment_method,
             operation_number: paymentData.operation_number || null,
+            created_by: user.id, // 🔧 FIX: Registrar quién cobró
           })
           .in('id', realIds);
 
@@ -803,40 +854,76 @@ export const BillingCollection = () => {
       if (virtualTransactions.length > 0) {
         console.log('💰 [BillingCollection] Creando transacciones reales para pedidos de almuerzo...');
         
-        const transactionsToCreate = virtualTransactions.map((vt: any) => {
-          const transaction: any = {
-            type: 'purchase',
-            amount: vt.amount,
-            payment_status: 'paid',
-            payment_method: paymentData.payment_method,
-            operation_number: paymentData.operation_number || null,
-            description: vt.description,
-            student_id: vt.student_id || null,
-            teacher_id: vt.teacher_id || null,
-            manual_client_name: vt.manual_client_name || null,
-            school_id: vt.school_id,
-            created_at: vt.created_at,
-          };
+        // 🔧 ANTI-DUPLICADO: Verificar que no existan transacciones reales para estos lunch_orders
+        const lunchOrderIds = virtualTransactions
+          .map((vt: any) => vt.metadata?.lunch_order_id)
+          .filter(Boolean);
+        
+        let existingLunchOrderIds = new Set<string>();
+        if (lunchOrderIds.length > 0) {
+          const { data: existingTx } = await supabase
+            .from('transactions')
+            .select('metadata')
+            .not('metadata', 'is', null);
           
-          // Agregar metadata con lunch_order_id
-          if (vt.metadata) {
-            transaction.metadata = vt.metadata;
+          if (existingTx) {
+            existingTx.forEach((tx: any) => {
+              if (tx.metadata?.lunch_order_id && lunchOrderIds.includes(tx.metadata.lunch_order_id)) {
+                existingLunchOrderIds.add(tx.metadata.lunch_order_id);
+              }
+            });
           }
-          
-          return transaction;
-        });
-
-        const { data: createdTransactions, error: createError } = await supabase
-          .from('transactions')
-          .insert(transactionsToCreate)
-          .select();
-
-        if (createError) {
-          console.error('❌ [BillingCollection] Error creando transacciones:', createError);
-          throw createError;
+          console.log(`🔍 [BillingCollection] lunch_orders que YA tienen transacción real: ${existingLunchOrderIds.size}`);
         }
+        
+        const transactionsToCreate = virtualTransactions
+          .filter((vt: any) => {
+            // 🔧 FILTRAR: No crear si ya existe una transacción real para este lunch_order
+            if (vt.metadata?.lunch_order_id && existingLunchOrderIds.has(vt.metadata.lunch_order_id)) {
+              console.log(`⏭️ [BillingCollection] Omitiendo duplicado para lunch_order: ${vt.metadata.lunch_order_id}`);
+              return false;
+            }
+            return true;
+          })
+          .map((vt: any) => {
+            const transaction: any = {
+              type: 'purchase',
+              amount: vt.amount,
+              payment_status: 'paid',
+              payment_method: paymentData.payment_method,
+              operation_number: paymentData.operation_number || null,
+              description: vt.description,
+              student_id: vt.student_id || null,
+              teacher_id: vt.teacher_id || null,
+              manual_client_name: vt.manual_client_name || null,
+              school_id: vt.school_id,
+              created_at: vt.created_at,
+              created_by: user.id, // 🔧 FIX: Registrar quién cobró
+            };
+            
+            // Agregar metadata con lunch_order_id
+            if (vt.metadata) {
+              transaction.metadata = vt.metadata;
+            }
+            
+            return transaction;
+          });
 
-        console.log('✅ [BillingCollection] Transacciones nuevas creadas:', createdTransactions?.length);
+        if (transactionsToCreate.length > 0) {
+          const { data: createdTransactions, error: createError } = await supabase
+            .from('transactions')
+            .insert(transactionsToCreate)
+            .select();
+
+          if (createError) {
+            console.error('❌ [BillingCollection] Error creando transacciones:', createError);
+            throw createError;
+          }
+
+          console.log('✅ [BillingCollection] Transacciones nuevas creadas:', createdTransactions?.length);
+        } else {
+          console.log('⚠️ [BillingCollection] Todas las virtuales ya tenían transacción real, nada que crear');
+        }
       }
 
       toast({
@@ -1854,7 +1941,6 @@ Gracias.`;
                                         <div 
                                           className="flex-1 cursor-pointer"
                                           onClick={() => {
-                                            // Convertir la transacción individual a formato compatible con el modal de detalles
                                             const txForModal = {
                                               ...t,
                                               client_name: debtor.client_name,
@@ -1867,12 +1953,26 @@ Gracias.`;
                                             setShowDetailsModal(true);
                                           }}
                                         >
-                                          <span className="font-semibold text-blue-600 hover:text-blue-700">#{idx + 1}</span>
-                                          {' - '}
-                                          {format(new Date(t.created_at), 'dd/MM/yyyy HH:mm', { locale: es })}
-                                          {' - '}
-                                          <span className="text-red-600 font-bold">S/ {Math.abs(t.amount).toFixed(2)}</span>
-                                          <div className="text-gray-700 mt-0.5 font-medium">{t.description}</div>
+                                          <div className="flex items-center justify-between">
+                                            <div className="flex items-center gap-1.5 flex-wrap">
+                                              <span className="font-semibold text-blue-600 hover:text-blue-700">#{idx + 1}</span>
+                                              {/* Mostrar fecha del pedido si viene del metadata, si no de la descripción */}
+                                              {t.metadata?.order_date ? (
+                                                <span className="bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded text-[10px] font-bold">
+                                                  📅 {format(new Date(t.metadata.order_date + 'T12:00:00'), "d MMM", { locale: es })}
+                                                </span>
+                                              ) : null}
+                                              {t.metadata?.menu_name && (
+                                                <span className="bg-purple-100 text-purple-800 px-1.5 py-0.5 rounded text-[10px] font-medium">
+                                                  {t.metadata.menu_name}
+                                                </span>
+                                              )}
+                                            </div>
+                                            <span className="text-red-600 font-bold">S/ {Math.abs(t.amount).toFixed(2)}</span>
+                                          </div>
+                                          <div className="text-gray-600 mt-0.5 text-[10px]">
+                                            {t.description} • {format(new Date(t.created_at), 'dd/MM HH:mm', { locale: es })}
+                                          </div>
                                         </div>
                                       </div>
                                     );
@@ -1931,21 +2031,21 @@ Gracias.`;
                     <p className="text-gray-500">Cargando pagos realizados...</p>
                   </CardContent>
                 </Card>
-              ) : paidTransactions.length === 0 ? (
+              ) : filteredPaidTransactions.length === 0 ? (
                 <Card>
                   <CardContent className="py-12 text-center">
                     <CheckCircle2 className="h-16 w-16 mx-auto mb-4 text-gray-400" />
                     <h3 className="text-lg font-semibold text-gray-700 mb-2">
-                      No hay pagos registrados
+                      {searchTerm ? 'No se encontraron resultados' : 'No hay pagos registrados'}
                     </h3>
                     <p className="text-gray-500">
-                      Los pagos realizados aparecerán aquí
+                      {searchTerm ? 'Intenta con otro término de búsqueda' : 'Los pagos realizados aparecerán aquí'}
                     </p>
                   </CardContent>
                 </Card>
               ) : (
                 <div className="grid grid-cols-1 gap-4">
-                  {paidTransactions.map((transaction) => {
+                  {filteredPaidTransactions.map((transaction) => {
                     // Determinar el nombre del cliente
                     let clientName = transaction.students?.full_name || 
                                      transaction.teacher_profiles?.full_name || 
@@ -2574,6 +2674,42 @@ Gracias.`;
                     <p className="text-gray-900 font-semibold text-lg leading-relaxed">
                       {selectedTransaction.description || 'Sin descripción'}
                     </p>
+                    
+                    {/* Información extra del metadata si existe */}
+                    {selectedTransaction.metadata && (
+                      <div className="mt-3 space-y-1.5 bg-white/60 rounded-lg p-3">
+                        {selectedTransaction.metadata.order_date && (
+                          <div className="flex justify-between text-sm">
+                            <span className="text-gray-600">📅 Fecha del pedido:</span>
+                            <span className="font-bold text-blue-800">
+                              {format(new Date(selectedTransaction.metadata.order_date + 'T12:00:00'), "EEEE d 'de' MMMM yyyy", { locale: es })}
+                            </span>
+                          </div>
+                        )}
+                        {selectedTransaction.metadata.menu_name && (
+                          <div className="flex justify-between text-sm">
+                            <span className="text-gray-600">🍽️ Categoría:</span>
+                            <span className="font-bold text-purple-800">
+                              {selectedTransaction.metadata.menu_name}
+                            </span>
+                          </div>
+                        )}
+                        {selectedTransaction.metadata.source && (
+                          <div className="flex justify-between text-sm">
+                            <span className="text-gray-600">📱 Origen:</span>
+                            <span className="font-medium text-gray-700">
+                              {selectedTransaction.metadata.source === 'unified_calendar_teacher' ? 'Calendario del Profesor' :
+                               selectedTransaction.metadata.source === 'unified_calendar_parent' ? 'Calendario del Padre/Madre' :
+                               selectedTransaction.metadata.source === 'teacher_calendar' ? 'Perfil del Profesor' :
+                               selectedTransaction.metadata.source === 'parent_calendar' ? 'Perfil del Padre/Madre' :
+                               selectedTransaction.metadata.source === 'admin_order' ? 'Administrador' :
+                               selectedTransaction.metadata.source === 'physical_order' ? 'Pedido presencial' :
+                               selectedTransaction.metadata.source || 'No especificado'}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
 
                   {/* 📋 Quién realizó el pedido */}

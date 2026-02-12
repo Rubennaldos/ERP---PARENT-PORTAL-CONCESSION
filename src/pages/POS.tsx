@@ -1143,7 +1143,7 @@ const POS = () => {
           .insert({
             student_id: null,
             teacher_id: selectedTeacher.id,
-            school_id: selectedTeacher.school_id_1 || null, // ✅ Agregar school_id
+            school_id: selectedTeacher.school_1_id || null, // ✅ Corregido: la vista usa school_1_id (no school_id_1)
             type: 'purchase',
             amount: -total,
             description: `Compra Profesor: ${selectedTeacher.full_name} - ${cart.length} items`,
@@ -1190,7 +1190,7 @@ const POS = () => {
           .insert({
             transaction_id: ticketCode,
             teacher_id: selectedTeacher.id,
-            school_id: selectedTeacher.school_id_1 || null,
+            school_id: selectedTeacher.school_1_id || null, // ✅ Corregido: la vista usa school_1_id
             cashier_id: user?.id,
             total: total,
             subtotal: total,
@@ -1279,7 +1279,7 @@ const POS = () => {
       });
 
       // 🖨️ IMPRIMIR AUTOMÁTICAMENTE según configuración
-      const schoolIdForPrint = selectedStudent?.school_id || selectedTeacher?.school_id_1 || cashierProfile?.school_id;
+      const schoolIdForPrint = selectedStudent?.school_id || selectedTeacher?.school_1_id || cashierProfile?.school_id;
       
       if (schoolIdForPrint) {
         // Determinar tipo de venta y método de pago basado en clientMode
@@ -1369,13 +1369,13 @@ const POS = () => {
     navigate('/dashboard');
   };
 
-  const total = getTotal();
+  // ⚠️ NO declarar total como constante - calcularlo dinámicamente con getTotal()
   
   // Verificar saldo insuficiente en useEffect
   useEffect(() => {
-    const insufficient = selectedStudent && !selectedStudent.free_account && (selectedStudent.balance < total);
+    const insufficient = selectedStudent && !selectedStudent.free_account && (selectedStudent.balance < getTotal());
     setInsufficientBalance(insufficient);
-  }, [selectedStudent, total]);
+  }, [selectedStudent, cart]); // ✅ Dependencia en 'cart' en lugar de 'total'
 
   return (
     <div className="h-screen flex flex-col bg-gray-100">
@@ -1881,7 +1881,7 @@ const POS = () => {
                     <div className="flex justify-between items-start">
                       <div>
                         <p className="text-[9px] sm:text-sm mb-0.5 sm:mb-1 uppercase font-bold text-gray-400">Total Compra</p>
-                        <p className="text-lg sm:text-3xl lg:text-4xl font-black">S/ {total.toFixed(2)}</p>
+                        <p className="text-lg sm:text-3xl lg:text-4xl font-black">S/ {getTotal().toFixed(2)}</p>
                       </div>
                     </div>
                     <p className="text-[9px] sm:text-xs text-gray-400 mt-1 sm:mt-2">{cart.length} productos</p>
