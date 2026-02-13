@@ -676,6 +676,36 @@ export const BillingCollection = () => {
         }
       });
 
+      // 🆕 Obtener fecha de creación original del pedido (lunch_order.created_at)
+      // Para transacciones reales que tienen lunch_order_id en metadata
+      const lunchOrderIdsForDates = allTransactions
+        .filter((t: any) => t.metadata?.lunch_order_id && !t.id?.toString().startsWith('lunch_'))
+        .map((t: any) => t.metadata.lunch_order_id)
+        .filter(Boolean);
+      
+      if (lunchOrderIdsForDates.length > 0) {
+        const { data: orderDates } = await supabase
+          .from('lunch_orders')
+          .select('id, created_at')
+          .in('id', lunchOrderIdsForDates);
+        
+        if (orderDates) {
+          const orderDatesMap = new Map(orderDates.map((o: any) => [o.id, o.created_at]));
+          allTransactions.forEach((t: any) => {
+            if (t.metadata?.lunch_order_id && orderDatesMap.has(t.metadata.lunch_order_id)) {
+              t.metadata.order_created_at = orderDatesMap.get(t.metadata.lunch_order_id);
+            }
+          });
+        }
+      }
+      
+      // Para transacciones virtuales, la fecha de creación ya está en created_at (viene del lunch_order)
+      allTransactions.forEach((t: any) => {
+        if (t.id?.toString().startsWith('lunch_') && t.created_at && !t.metadata?.order_created_at) {
+          t.metadata = { ...t.metadata, order_created_at: t.created_at };
+        }
+      });
+
       // Obtener IDs únicos de padres (solo para estudiantes)
       const parentIds = [...new Set(allTransactions
         .filter((t: any) => t.student_id && t.students?.parent_id)
@@ -2854,6 +2884,23 @@ Gracias.`;
                           <span className="text-gray-600">📅 Almuerzo para el día:</span>
                           <span className="font-bold text-blue-800">
                             {format(new Date(selectedTransaction.metadata.order_date + 'T12:00:00'), "EEEE d 'de' MMMM yyyy", { locale: es })}
+                          </span>
+                        </div>
+                      )}
+                      {/* Fecha de creación del pedido (cuándo el profesor/padre hizo el pedido) */}
+                      {selectedTransaction.metadata?.order_created_at && (
+                        <div className="flex justify-between text-sm">
+                          <span className="text-gray-600">🛒 Pedido registrado el:</span>
+                          <span className="font-semibold text-green-800">
+                            {format(new Date(selectedTransaction.metadata.order_created_at), "dd/MM/yyyy 'a las' HH:mm", { locale: es })}
+                          </span>
+                        </div>
+                      )}
+                      {!selectedTransaction.metadata?.order_created_at && selectedTransaction.metadata?.source && (
+                        <div className="flex justify-between text-sm">
+                          <span className="text-gray-600">🛒 Pedido registrado el:</span>
+                          <span className="font-medium text-orange-600 italic">
+                            No se registró la fecha de creación
                           </span>
                         </div>
                       )}

@@ -691,6 +691,7 @@ export default function LunchOrders() {
           lunch_order_id: order.id,
           source: 'lunch_orders_confirm',
           order_date: order.order_date,
+          order_created_at: order.created_at, // 📅 Fecha original de creación del pedido
         }
       };
 
