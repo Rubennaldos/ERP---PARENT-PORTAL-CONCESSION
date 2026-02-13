@@ -212,12 +212,13 @@ export function UnifiedLunchCalendar({ userType, userId, userSchoolId }: Unified
       setConfig(configData);
 
       // 2. Menus for the month (filtered by target_type)
+      // FIXED: include 'both' and NULL (menus without target_type = visible for all)
       const targetType = userType === 'parent' ? 'students' : 'teachers';
       const { data: menusData, error: menusError } = await supabase
         .from('lunch_menus')
         .select('id, date, starter, main_course, beverage, dessert, notes, category_id, target_type')
         .eq('school_id', effectiveSchoolId)
-        .eq('target_type', targetType)
+        .or(`target_type.eq.${targetType},target_type.eq.both,target_type.is.null`)
         .gte('date', startStr)
         .lte('date', endStr)
         .order('date', { ascending: true });

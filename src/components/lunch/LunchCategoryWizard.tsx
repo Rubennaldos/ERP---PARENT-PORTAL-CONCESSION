@@ -88,7 +88,7 @@ export function LunchCategoryWizard({
         .select('*')
         .eq('school_id', schoolId)
         .eq('is_active', true)
-        .or(`target_type.eq.${selectedTargetType},target_type.eq.both`)
+        .or(`target_type.eq.${selectedTargetType},target_type.eq.both,target_type.is.null`)
         .order('display_order', { ascending: true });
 
       if (error) throw error;

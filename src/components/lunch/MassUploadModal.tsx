@@ -201,6 +201,7 @@ export const MassUploadModal = ({
             beverage: entry.beverage.trim() || null,
             dessert: entry.dessert.trim() || null,
             notes: entry.notes.trim() || null,
+            target_type: 'both', // Visible para alumnos Y profesores
             created_by: user?.id,
           });
         }

@@ -269,13 +269,14 @@ export function UnifiedLunchCalendarV2({ userType, userId, userSchoolId }: Unifi
       }
       setConfig(configData);
 
-      // 2. Menus - FIXED: include target_type='both'
+      // 2. Menus - FIXED: include target_type='both' AND target_type IS NULL
+      // NULL = menú creado sin target_type (carga masiva), visible para todos
       const targetType = userType === 'parent' ? 'students' : 'teachers';
       const { data: menusData, error: menusError } = await supabase
         .from('lunch_menus')
         .select('id, date, starter, main_course, beverage, dessert, notes, category_id, target_type')
         .eq('school_id', effectiveSchoolId)
-        .or(`target_type.eq.${targetType},target_type.eq.both`)
+        .or(`target_type.eq.${targetType},target_type.eq.both,target_type.is.null`)
         .gte('date', startStr)
         .lte('date', endStr)
         .order('date', { ascending: true });

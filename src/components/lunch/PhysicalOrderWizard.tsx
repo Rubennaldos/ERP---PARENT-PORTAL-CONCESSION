@@ -304,7 +304,7 @@ export function PhysicalOrderWizard({ isOpen, onClose, schoolId, selectedDate, o
         .select('id, category_id, date, starter, main_course, beverage, dessert')
         .eq('school_id', schoolId)
         .eq('date', targetDate)
-        .eq('target_type', targetType);
+        .or(`target_type.eq.${targetType},target_type.eq.both,target_type.is.null`);
         
       if (menusError) {
         console.log('❌ [fetchCategories] Error buscando menús:', menusError);
@@ -385,7 +385,7 @@ export function PhysicalOrderWizard({ isOpen, onClose, schoolId, selectedDate, o
         .eq('school_id', schoolId)
         .eq('category_id', selectedCategory?.id)
         .eq('date', targetDate)
-        .eq('target_type', targetType);
+        .or(`target_type.eq.${targetType},target_type.eq.both,target_type.is.null`);
         
       if (error) {
         console.log('❌ [fetchMenus] Error buscando menús:', error);

@@ -307,11 +307,12 @@ export function OrderLunchMenus({ userType, userId, userSchoolId }: OrderLunchMe
       console.log('👤 Tipo de usuario:', userType);
 
       // Filtrar menús según el tipo de usuario
+      // FIXED: Incluir 'both' y NULL (menús sin target_type explícito = para todos)
       const targetType = userType === 'parent' ? 'students' : 'teachers';
       console.log('🎯 Filtrando por target_type:', targetType);
       
       const filteredMenus = (menusData || []).filter(
-        menu => menu.target_type === targetType
+        menu => menu.target_type === targetType || menu.target_type === 'both' || !menu.target_type
       );
 
       console.log('✅ Menús después del filtro:', filteredMenus);
