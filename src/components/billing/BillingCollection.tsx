@@ -2838,12 +2838,16 @@ Gracias.`;
                     <h3 className="font-bold text-xl text-gray-900 mb-3 flex items-center gap-2">
                       🍽️ Detalle de Consumo
                     </h3>
-                    <p className="text-gray-900 font-semibold text-lg leading-relaxed">
-                      {selectedTransaction.description || 'Sin descripción'}
-                    </p>
                     
                     {/* Fechas e información del consumo */}
-                    <div className="mt-3 space-y-1.5 bg-white/60 rounded-lg p-3">
+                    <div className="space-y-1.5 bg-white/60 rounded-lg p-3">
+                      {/* Descripción del consumo */}
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-600">📝 Descripción:</span>
+                        <span className="font-semibold text-gray-800 text-right max-w-[60%]">
+                          {selectedTransaction.description || 'Sin descripción'}
+                        </span>
+                      </div>
                       {/* Fecha del almuerzo (para qué día es) */}
                       {selectedTransaction.metadata?.order_date && (
                         <div className="flex justify-between text-sm">
