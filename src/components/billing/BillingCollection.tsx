@@ -2805,17 +2805,19 @@ Gracias.`;
                           </span>
                         </div>
                       )}
-                      <div className="flex justify-between items-start">
-                        <span className="text-gray-600">{isPending ? 'Fecha de registro:' : 'Fecha y hora:'}</span>
-                        <div className="text-right">
-                          <p className="font-semibold text-gray-900">
-                            {format(new Date(selectedTransaction.created_at), "dd/MM/yyyy", { locale: es })}
-                          </p>
-                          <p className="text-sm text-gray-600">
-                            {format(new Date(selectedTransaction.created_at), "HH:mm:ss", { locale: es })}
-                          </p>
+                      {isPaid && (
+                        <div className="flex justify-between items-start">
+                          <span className="text-gray-600">Fecha y hora:</span>
+                          <div className="text-right">
+                            <p className="font-semibold text-gray-900">
+                              {format(new Date(selectedTransaction.created_at), "dd/MM/yyyy", { locale: es })}
+                            </p>
+                            <p className="text-sm text-gray-600">
+                              {format(new Date(selectedTransaction.created_at), "HH:mm:ss", { locale: es })}
+                            </p>
+                          </div>
                         </div>
-                      </div>
+                      )}
                       {selectedTransaction.operation_number && (
                         <div className="flex justify-between">
                           <span className="text-gray-600">Nº de operación:</span>
@@ -2840,35 +2842,51 @@ Gracias.`;
                       {selectedTransaction.description || 'Sin descripción'}
                     </p>
                     
-                    {/* Información extra del metadata si existe */}
-                    {selectedTransaction.metadata && (
-                      <div className="mt-3 space-y-1.5 bg-white/60 rounded-lg p-3">
-                        {selectedTransaction.metadata.menu_name && (
-                          <div className="flex justify-between text-sm">
-                            <span className="text-gray-600">🍽️ Categoría:</span>
-                            <span className="font-bold text-purple-800">
-                              {selectedTransaction.metadata.menu_name}
-                            </span>
-                          </div>
-                        )}
-                        {selectedTransaction.metadata.source && (
-                          <div className="flex justify-between text-sm">
-                            <span className="text-gray-600">📱 Origen:</span>
-                            <span className="font-medium text-gray-700">
-                              {selectedTransaction.metadata.source === 'unified_calendar_teacher' ? 'Calendario del Profesor' :
-                               selectedTransaction.metadata.source === 'unified_calendar_parent' ? 'Calendario del Padre/Madre' :
-                               selectedTransaction.metadata.source === 'teacher_calendar' ? 'Perfil del Profesor' :
-                               selectedTransaction.metadata.source === 'parent_calendar' ? 'Perfil del Padre/Madre' :
-                               selectedTransaction.metadata.source === 'admin_order' ? 'Administrador' :
-                               selectedTransaction.metadata.source === 'physical_order' ? 'Pedido presencial' :
-                               selectedTransaction.metadata.source === 'lunch_orders_confirm' ? 'Confirmado desde Pedidos de Almuerzo' :
-                               selectedTransaction.metadata.source === 'lunch_order' ? 'Pedido de Almuerzo' :
-                               selectedTransaction.metadata.source || 'No especificado'}
-                            </span>
-                          </div>
-                        )}
+                    {/* Fechas e información del consumo */}
+                    <div className="mt-3 space-y-1.5 bg-white/60 rounded-lg p-3">
+                      {/* Fecha del almuerzo (para qué día es) */}
+                      {selectedTransaction.metadata?.order_date && (
+                        <div className="flex justify-between text-sm">
+                          <span className="text-gray-600">📅 Almuerzo para el día:</span>
+                          <span className="font-bold text-blue-800">
+                            {format(new Date(selectedTransaction.metadata.order_date + 'T12:00:00'), "EEEE d 'de' MMMM yyyy", { locale: es })}
+                          </span>
+                        </div>
+                      )}
+                      {/* Fecha de registro (cuándo se hizo el pedido) */}
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-600">🕐 Pedido registrado el:</span>
+                        <span className="font-semibold text-gray-800">
+                          {format(new Date(selectedTransaction.created_at), "dd/MM/yyyy 'a las' HH:mm", { locale: es })}
+                        </span>
                       </div>
-                    )}
+                      {/* Categoría del menú */}
+                      {selectedTransaction.metadata?.menu_name && (
+                        <div className="flex justify-between text-sm">
+                          <span className="text-gray-600">🍽️ Categoría:</span>
+                          <span className="font-bold text-purple-800">
+                            {selectedTransaction.metadata.menu_name}
+                          </span>
+                        </div>
+                      )}
+                      {/* Origen */}
+                      {selectedTransaction.metadata?.source && (
+                        <div className="flex justify-between text-sm">
+                          <span className="text-gray-600">📱 Origen:</span>
+                          <span className="font-medium text-gray-700">
+                            {selectedTransaction.metadata.source === 'unified_calendar_teacher' ? 'Calendario del Profesor' :
+                             selectedTransaction.metadata.source === 'unified_calendar_parent' ? 'Calendario del Padre/Madre' :
+                             selectedTransaction.metadata.source === 'teacher_calendar' ? 'Perfil del Profesor' :
+                             selectedTransaction.metadata.source === 'parent_calendar' ? 'Perfil del Padre/Madre' :
+                             selectedTransaction.metadata.source === 'admin_order' ? 'Administrador' :
+                             selectedTransaction.metadata.source === 'physical_order' ? 'Pedido presencial' :
+                             selectedTransaction.metadata.source === 'lunch_orders_confirm' ? 'Confirmado desde Pedidos de Almuerzo' :
+                             selectedTransaction.metadata.source === 'lunch_order' ? 'Pedido de Almuerzo' :
+                             selectedTransaction.metadata.source || 'No especificado'}
+                          </span>
+                        </div>
+                      )}
+                    </div>
                   </div>
 
                   {/* 📋 Quién realizó el pedido */}
