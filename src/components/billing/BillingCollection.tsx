@@ -2853,9 +2853,9 @@ Gracias.`;
                           </span>
                         </div>
                       )}
-                      {/* Fecha de registro (cuándo se hizo el pedido) */}
+                      {/* Fecha de confirmación (cuándo se confirmó el pedido) */}
                       <div className="flex justify-between text-sm">
-                        <span className="text-gray-600">🕐 Pedido registrado el:</span>
+                        <span className="text-gray-600">✅ Pedido confirmado el:</span>
                         <span className="font-semibold text-gray-800">
                           {format(new Date(selectedTransaction.created_at), "dd/MM/yyyy 'a las' HH:mm", { locale: es })}
                         </span>
