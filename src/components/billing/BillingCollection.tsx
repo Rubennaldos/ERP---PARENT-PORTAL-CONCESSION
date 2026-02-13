@@ -691,6 +691,14 @@ export const BillingCollection = () => {
       });
 
       const debtorsArray = Object.values(debtorsMap);
+      
+      // ✅ ORDENAR: Deudores por fecha más reciente (transacción más nueva primero)
+      debtorsArray.sort((a, b) => {
+        const aLatest = Math.max(...a.transactions.map(t => new Date(t.created_at).getTime()));
+        const bLatest = Math.max(...b.transactions.map(t => new Date(t.created_at).getTime()));
+        return bLatest - aLatest;
+      });
+      
       console.log('👥 [BillingCollection] Deudores encontrados:', debtorsArray.length);
       console.log('👥 [BillingCollection] Muestra:', debtorsArray[0]);
       
@@ -717,7 +725,7 @@ export const BillingCollection = () => {
     );
   });
 
-  // ✅ Filtrar pagos realizados por término de búsqueda
+  // ✅ Filtrar pagos realizados por término de búsqueda (MEJORADO)
   const filteredPaidTransactions = paidTransactions.filter(transaction => {
     if (!searchTerm) return true;
     const search = searchTerm.toLowerCase();
@@ -726,9 +734,13 @@ export const BillingCollection = () => {
                        transaction.teacher_profiles?.full_name || 
                        transaction.manual_client_name || 
                        '';
+    const schoolName = transaction.schools?.name || '';
+    const creatorName = transaction.created_by_profile?.full_name || '';
     
     return (
       clientName.toLowerCase().includes(search) ||
+      schoolName.toLowerCase().includes(search) ||
+      creatorName.toLowerCase().includes(search) ||
       transaction.description?.toLowerCase().includes(search) ||
       transaction.ticket_code?.toLowerCase().includes(search) ||
       transaction.operation_number?.toLowerCase().includes(search)
@@ -755,7 +767,8 @@ export const BillingCollection = () => {
 
   const handleOpenPayment = (debtor: Debtor) => {
     // 🆕 Filtrar solo transacciones seleccionadas (si hay alguna seleccionada)
-    const debtorKey = debtor.student_id || debtor.teacher_id || debtor.manual_client_name || '';
+    // 🔧 FIX: Usar debtor.id que ES el student_id, teacher_id o manual_name
+    const debtorKey = debtor.id;
     const selectedTxIds = selectedTransactionsByDebtor.get(debtorKey);
     
     let transactionsToPayAmount: number;
@@ -1506,7 +1519,10 @@ Gracias.`;
       doc.setFont('helvetica', 'bold');
       doc.text('MÉTODO DE PAGO:', 15, yPos);
       doc.setFont('helvetica', 'normal');
-      doc.text((transaction.payment_method || 'No especificado').toUpperCase(), 70, yPos);
+      const methodText = transaction.payment_method 
+        ? transaction.payment_method === 'teacher_account' ? 'CUENTA PROFESOR' : transaction.payment_method
+        : transaction.ticket_code ? 'PAGO DIRECTO EN CAJA' : 'NO REGISTRADO';
+      doc.text(methodText.toUpperCase(), 70, yPos);
       yPos += 7;
 
       // Número de operación (si existe)
@@ -1704,7 +1720,7 @@ Gracias.`;
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
                 <Input
-                  placeholder="Estudiante, padre..."
+                  placeholder="Nombre, profesor, sede..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="pl-10"
@@ -2120,8 +2136,19 @@ Gracias.`;
                                   <div>
                                     <p className="text-gray-500">💳 Método de pago:</p>
                                     <p className="font-semibold text-gray-900 capitalize">
-                                      {transaction.payment_method || 'No especificado'}
+                                      {transaction.payment_method 
+                                        ? transaction.payment_method === 'teacher_account' 
+                                          ? 'Cuenta Profesor' 
+                                          : transaction.payment_method
+                                        : transaction.ticket_code 
+                                          ? 'Pago directo en caja' 
+                                          : 'Método no registrado'}
                                     </p>
+                                    {!transaction.payment_method && (
+                                      <p className="text-xs text-amber-600 mt-0.5">
+                                        ⚠️ Transacción anterior al sistema de cobros
+                                      </p>
+                                    )}
                                   </div>
                                   {transaction.operation_number && (
                                     <div>
@@ -2642,7 +2669,13 @@ Gracias.`;
                         <div className="flex justify-between">
                           <span className="text-gray-600">Método de pago:</span>
                           <span className="font-semibold text-gray-900 capitalize">
-                            {selectedTransaction.payment_method || 'No especificado'}
+                            {selectedTransaction.payment_method 
+                              ? selectedTransaction.payment_method === 'teacher_account' 
+                                ? 'Cuenta Profesor' 
+                                : selectedTransaction.payment_method
+                              : selectedTransaction.ticket_code 
+                                ? 'Pago directo en caja' 
+                                : 'Método no registrado'}
                           </span>
                         </div>
                       )}
