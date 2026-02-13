@@ -351,6 +351,7 @@ export const BillingCollection = () => {
         .select(`
           id,
           order_date,
+          created_at,
           student_id,
           teacher_id,
           manual_name,
@@ -595,7 +596,7 @@ export const BillingCollection = () => {
               teacher_id: order.teacher_id || null,
               manual_client_name: order.manual_name || null,
               school_id: schoolId,
-              created_at: order.order_date || new Date().toISOString(),
+              created_at: order.created_at || (order.order_date ? order.order_date + 'T12:00:00-05:00' : new Date().toISOString()),
               students: order.students || null,
               teacher_profiles: order.teacher_profiles || null,
               schools: order.schools || null,
