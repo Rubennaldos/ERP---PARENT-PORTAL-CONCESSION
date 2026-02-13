@@ -423,11 +423,13 @@ export const BillingCollection = () => {
       
       // 🔧 FIX CRÍTICO: Buscar TODAS las transacciones PAID (con Y sin metadata)
       // Las transacciones viejas sin metadata también deben detectarse por descripción
+      // ⚠️ FIX: Supabase tiene límite default de 1000 rows → forzar .limit() alto
       let paidQuery = supabase
         .from('transactions')
         .select('id, metadata, teacher_id, student_id, manual_client_name, description, created_at')
         .eq('type', 'purchase')
-        .eq('payment_status', 'paid');
+        .eq('payment_status', 'paid')
+        .limit(50000); // 🔧 FIX: Evitar truncamiento silencioso de Supabase (default: 1000)
       
       if (schoolIdFilter) {
         paidQuery = paidQuery.eq('school_id', schoolIdFilter);
@@ -878,6 +880,27 @@ export const BillingCollection = () => {
       if (virtualTransactions.length > 0) {
         console.log('💰 [BillingCollection] Creando transacciones reales para pedidos de almuerzo...');
         
+        // 🎫 Generar ticket_code para las transacciones de almuerzo
+        let ticketCodeBase = '';
+        try {
+          const { data: ticketNumber, error: ticketError } = await supabase
+            .rpc('get_next_ticket_number', { p_user_id: user.id });
+          
+          if (!ticketError && ticketNumber) {
+            ticketCodeBase = ticketNumber;
+          }
+        } catch (err) {
+          console.log('⚠️ [BillingCollection] No se pudo generar ticket_code via RPC, usando fallback');
+        }
+        
+        // Fallback: generar código de ticket basado en timestamp
+        if (!ticketCodeBase) {
+          const now = new Date();
+          const dateStr = now.toISOString().slice(0,10).replace(/-/g,'');
+          const timeStr = now.toTimeString().slice(0,8).replace(/:/g,'');
+          ticketCodeBase = `COB-${dateStr}-${timeStr}`;
+        }
+        
         // 🔧 ANTI-DUPLICADO: Verificar que no existan transacciones reales para estos lunch_orders
         const lunchOrderIds = virtualTransactions
           .map((vt: any) => vt.metadata?.lunch_order_id)
@@ -885,10 +908,13 @@ export const BillingCollection = () => {
         
         let existingLunchOrderIds = new Set<string>();
         if (lunchOrderIds.length > 0) {
+          // 🔧 FIX: Buscar solo transacciones de tipo purchase con metadata, con límite alto
           const { data: existingTx } = await supabase
             .from('transactions')
             .select('metadata')
-            .not('metadata', 'is', null);
+            .eq('type', 'purchase')
+            .not('metadata', 'is', null)
+            .limit(50000); // FIX: Evitar truncamiento silencioso
           
           if (existingTx) {
             existingTx.forEach((tx: any) => {
@@ -900,6 +926,7 @@ export const BillingCollection = () => {
           console.log(`🔍 [BillingCollection] lunch_orders que YA tienen transacción real: ${existingLunchOrderIds.size}`);
         }
         
+        let ticketCounter = 0;
         const transactionsToCreate = virtualTransactions
           .filter((vt: any) => {
             // 🔧 FILTRAR: No crear si ya existe una transacción real para este lunch_order
@@ -910,6 +937,12 @@ export const BillingCollection = () => {
             return true;
           })
           .map((vt: any) => {
+            ticketCounter++;
+            // 🎫 Generar ticket_code único: base + sufijo si hay múltiples
+            const ticketCode = virtualTransactions.length > 1 
+              ? `${ticketCodeBase}-${ticketCounter}` 
+              : ticketCodeBase;
+            
             const transaction: any = {
               type: 'purchase',
               amount: vt.amount,
@@ -921,8 +954,11 @@ export const BillingCollection = () => {
               teacher_id: vt.teacher_id || null,
               manual_client_name: vt.manual_client_name || null,
               school_id: vt.school_id,
-              created_at: vt.created_at,
-              created_by: user.id, // 🔧 FIX: Registrar quién cobró
+              // ✅ FIX: NO establecer created_at manualmente → DB auto-asigna NOW()
+              // Esto corrige el bug donde todos los pagos mostraban 19:00
+              // La fecha del pedido se mantiene en metadata.order_date
+              created_by: user.id,
+              ticket_code: ticketCode, // 🎫 Siempre con ticket
             };
             
             // Agregar metadata con lunch_order_id
@@ -1284,7 +1320,8 @@ Gracias.`;
         `)
         .eq('type', 'purchase')
         .eq('payment_status', 'paid')
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: false })
+        .limit(10000); // 🔧 FIX: Evitar truncamiento silencioso (default: 1000)
 
       if (schoolIdFilter) {
         query = query.eq('school_id', schoolIdFilter);
@@ -2169,6 +2206,14 @@ Gracias.`;
                                       </p>
                                     </div>
                                   )}
+                                  {transaction.ticket_code && (
+                                    <div>
+                                      <p className="text-gray-500">🎫 N° de ticket:</p>
+                                      <p className="font-bold text-indigo-700">
+                                        {transaction.ticket_code}
+                                      </p>
+                                    </div>
+                                  )}
                                 </div>
                                 
                                 {transaction.created_by_profile && (() => {
@@ -2705,6 +2750,12 @@ Gracias.`;
                         <div className="flex justify-between">
                           <span className="text-gray-600">Nº de operación:</span>
                           <span className="font-semibold text-gray-900">{selectedTransaction.operation_number}</span>
+                        </div>
+                      )}
+                      {selectedTransaction.ticket_code && (
+                        <div className="flex justify-between">
+                          <span className="text-gray-600">🎫 Nº de ticket:</span>
+                          <span className="font-bold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded">{selectedTransaction.ticket_code}</span>
                         </div>
                       )}
                     </div>
