@@ -124,6 +124,7 @@ export default function LunchOrders() {
   const [showActionsModal, setShowActionsModal] = useState(false);
   const [showMenuDetails, setShowMenuDetails] = useState(false);
   const [selectedMenuOrder, setSelectedMenuOrder] = useState<LunchOrder | null>(null);
+  const [selectedOrderTicketCode, setSelectedOrderTicketCode] = useState<string | null>(null);
   
   // Estados para anulación de pedidos
   const [showCancelModal, setShowCancelModal] = useState(false);
@@ -835,9 +836,26 @@ export default function LunchOrders() {
     return { label: '⏳ Pendiente', color: 'bg-gray-50 text-gray-700 border-gray-300' };
   };
 
-  const handleViewMenu = (order: LunchOrder) => {
+  const handleViewMenu = async (order: LunchOrder) => {
     setSelectedMenuOrder(order);
+    setSelectedOrderTicketCode(null);
     setShowMenuDetails(true);
+    
+    // 🎫 Buscar ticket_code de la transacción asociada a este lunch_order
+    try {
+      const { data: txData } = await supabase
+        .from('transactions')
+        .select('ticket_code')
+        .eq('type', 'purchase')
+        .contains('metadata', { lunch_order_id: order.id })
+        .limit(1);
+      
+      if (txData && txData.length > 0 && txData[0].ticket_code) {
+        setSelectedOrderTicketCode(txData[0].ticket_code);
+      }
+    } catch (err) {
+      console.log('⚠️ No se pudo obtener ticket_code para el pedido:', order.id);
+    }
   };
 
   // ========================================
@@ -1684,6 +1702,23 @@ export default function LunchOrders() {
                   </div>
                 </CardContent>
               </Card>
+
+              {/* 2.5 NÚMERO DE COMPROBANTE / TICKET */}
+              {selectedOrderTicketCode && (
+                <Card className="bg-gradient-to-r from-amber-50 to-yellow-50 border-amber-300">
+                  <CardContent className="py-4">
+                    <div className="flex items-center gap-3">
+                      <div className="h-12 w-12 rounded-full bg-amber-200 flex items-center justify-center flex-shrink-0">
+                        <span className="text-2xl">🎫</span>
+                      </div>
+                      <div>
+                        <p className="text-xs text-gray-600 uppercase tracking-wide font-semibold">Nº de Comprobante</p>
+                        <p className="text-xl font-bold text-amber-800">{selectedOrderTicketCode}</p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
 
               {/* 3. QUIÉN HIZO EL PEDIDO */}
               <Card className="bg-gradient-to-r from-green-50 to-emerald-50 border-green-200">
