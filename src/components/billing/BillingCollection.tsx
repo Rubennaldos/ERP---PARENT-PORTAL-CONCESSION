@@ -2093,7 +2093,7 @@ Gracias.`;
                                 {/* Botón para seleccionar todas */}
                                 <button
                                   onClick={() => {
-                                    const debtorKey = debtor.student_id || debtor.teacher_id || debtor.manual_client_name || '';
+                                    const debtorKey = debtor.id;
                                     const newMap = new Map(selectedTransactionsByDebtor);
                                     const currentSelection = newMap.get(debtorKey);
                                     const allSelected = currentSelection && currentSelection.size === debtor.transactions.length;
@@ -2112,7 +2112,7 @@ Gracias.`;
                                   className="text-xs text-blue-600 hover:text-blue-700 underline mb-2"
                                 >
                                   {(() => {
-                                    const debtorKey = debtor.student_id || debtor.teacher_id || debtor.manual_client_name || '';
+                                    const debtorKey = debtor.id;
                                     const currentSelection = selectedTransactionsByDebtor.get(debtorKey);
                                     const allSelected = currentSelection && currentSelection.size === debtor.transactions.length;
                                     return allSelected ? 'Deseleccionar todas' : 'Seleccionar todas';
@@ -2121,7 +2121,7 @@ Gracias.`;
                                 
                                 <div className="space-y-1 max-h-40 overflow-y-auto">
                                   {debtor.transactions.map((t: any, idx: number) => {
-                                    const debtorKey = debtor.student_id || debtor.teacher_id || debtor.manual_client_name || '';
+                                    const debtorKey = debtor.id;
                                     const isSelected = selectedTransactionsByDebtor.get(debtorKey)?.has(t.id) || false;
                                     
                                     return (
