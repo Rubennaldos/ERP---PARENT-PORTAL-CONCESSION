@@ -6,7 +6,7 @@ import { useUserProfile } from '@/hooks/useUserProfile';
 import { supabase } from '@/lib/supabase';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+// Tabs de Radix removido - se usa tabs nativo para evitar error removeChild en algunos navegadores
 import { UserProfileMenu } from '@/components/admin/UserProfileMenu';
 import { 
   DollarSign, 
@@ -211,37 +211,69 @@ const Cobranzas = () => {
         {/* Tabs Principal */}
         <Card>
           <CardContent className="p-6">
-            <Tabs value={activeTab} onValueChange={setActiveTab}>
-              <TabsList className="grid w-full h-auto" style={{ gridTemplateColumns: `repeat(${Object.values(permissions).filter(Boolean).length}, 1fr)` }}>
+            {/* Tabs nativo - sin Radix para evitar removeChild */}
+            <div>
+              <div 
+                className="grid w-full h-auto bg-muted p-1 rounded-lg"
+                style={{ gridTemplateColumns: `repeat(${Object.values(permissions).filter(Boolean).length}, 1fr)` }}
+              >
                 {permissions.dashboard && (
-                  <TabsTrigger value="dashboard" className="flex items-center gap-2 py-3">
+                  <button
+                    onClick={() => setActiveTab('dashboard')}
+                    className={`flex items-center justify-center gap-2 py-3 text-sm font-medium rounded-md transition-all ${
+                      activeTab === 'dashboard'
+                        ? 'bg-background text-foreground shadow-sm'
+                        : 'text-muted-foreground hover:text-foreground'
+                    }`}
+                  >
                     <DollarSign className="h-4 w-4" />
                     <span className="hidden sm:inline">Dashboard</span>
-                  </TabsTrigger>
+                  </button>
                 )}
                 {permissions.collect && (
-                  <TabsTrigger value="collect" className="flex items-center gap-2 py-3 font-bold">
+                  <button
+                    onClick={() => setActiveTab('collect')}
+                    className={`flex items-center justify-center gap-2 py-3 text-sm font-bold rounded-md transition-all ${
+                      activeTab === 'collect'
+                        ? 'bg-background text-foreground shadow-sm'
+                        : 'text-muted-foreground hover:text-foreground'
+                    }`}
+                  >
                     <Users className="h-4 w-4" />
                     <span className="hidden sm:inline">¡Cobrar!</span>
-                  </TabsTrigger>
+                  </button>
                 )}
                 {permissions.reports && (
-                  <TabsTrigger value="reports" className="flex items-center gap-2 py-3">
+                  <button
+                    onClick={() => setActiveTab('reports')}
+                    className={`flex items-center justify-center gap-2 py-3 text-sm font-medium rounded-md transition-all ${
+                      activeTab === 'reports'
+                        ? 'bg-background text-foreground shadow-sm'
+                        : 'text-muted-foreground hover:text-foreground'
+                    }`}
+                  >
                     <FileText className="h-4 w-4" />
                     <span className="hidden sm:inline">Reportes</span>
-                  </TabsTrigger>
+                  </button>
                 )}
                 {permissions.config && (
-                  <TabsTrigger value="config" className="flex items-center gap-2 py-3">
+                  <button
+                    onClick={() => setActiveTab('config')}
+                    className={`flex items-center justify-center gap-2 py-3 text-sm font-medium rounded-md transition-all ${
+                      activeTab === 'config'
+                        ? 'bg-background text-foreground shadow-sm'
+                        : 'text-muted-foreground hover:text-foreground'
+                    }`}
+                  >
                     <Settings className="h-4 w-4" />
                     <span className="hidden sm:inline">Config</span>
-                  </TabsTrigger>
+                  </button>
                 )}
-              </TabsList>
+              </div>
 
               {/* Dashboard Tab (Incluye Estadísticas) */}
-              {permissions.dashboard && (
-                <TabsContent value="dashboard" className="mt-6 space-y-6">
+              {activeTab === 'dashboard' && permissions.dashboard && (
+                <div className="mt-6 space-y-6">
                   <BillingDashboard />
                   
                   {/* Separador visual */}
@@ -252,30 +284,30 @@ const Cobranzas = () => {
                     </h2>
                     <PaymentStatistics />
                   </div>
-                </TabsContent>
+                </div>
               )}
 
               {/* Cobrar Tab */}
-              {permissions.collect && (
-                <TabsContent value="collect" className="mt-6">
+              {activeTab === 'collect' && permissions.collect && (
+                <div className="mt-6">
                   <BillingCollection />
-                </TabsContent>
+                </div>
               )}
 
               {/* Reportes Tab */}
-              {permissions.reports && (
-                <TabsContent value="reports" className="mt-6">
+              {activeTab === 'reports' && permissions.reports && (
+                <div className="mt-6">
                   <BillingReports />
-                </TabsContent>
+                </div>
               )}
 
               {/* Configuración Tab */}
-              {permissions.config && (
-                <TabsContent value="config" className="mt-6">
+              {activeTab === 'config' && permissions.config && (
+                <div className="mt-6">
                   <BillingConfig />
-                </TabsContent>
+                </div>
               )}
-            </Tabs>
+            </div>
           </CardContent>
         </Card>
       </div>

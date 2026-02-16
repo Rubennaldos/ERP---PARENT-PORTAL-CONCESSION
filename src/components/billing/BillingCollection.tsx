@@ -42,7 +42,7 @@ import {
   Eye,
   User
 } from 'lucide-react';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+// Tabs de Radix removido - se usa tabs nativo para evitar error removeChild en algunos navegadores
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import jsPDF from 'jspdf';
@@ -1976,20 +1976,35 @@ Gracias.`;
             </Card>
           )}
 
-          {/* Pestañas: Cobrar / Pagos Realizados */}
-          <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'cobrar' | 'pagos')} className="w-full">
-            <TabsList className="grid w-full grid-cols-2 mb-6">
-              <TabsTrigger value="cobrar" className="flex items-center gap-2">
+          {/* Pestañas: Cobrar / Pagos Realizados - Sin Radix */}
+          <div className="w-full">
+            <div className="grid w-full grid-cols-2 mb-6 bg-muted p-1 rounded-lg">
+              <button
+                onClick={() => setActiveTab('cobrar')}
+                className={`flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-md transition-all ${
+                  activeTab === 'cobrar'
+                    ? 'bg-background text-foreground shadow-sm'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
                 <DollarSign className="h-4 w-4" />
                 ¡Cobrar!
-              </TabsTrigger>
-              <TabsTrigger value="pagos" className="flex items-center gap-2">
+              </button>
+              <button
+                onClick={() => setActiveTab('pagos')}
+                className={`flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-md transition-all ${
+                  activeTab === 'pagos'
+                    ? 'bg-background text-foreground shadow-sm'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
                 <History className="h-4 w-4" />
                 Pagos Realizados
-              </TabsTrigger>
-            </TabsList>
+              </button>
+            </div>
 
-            <TabsContent value="cobrar" className="mt-0">
+            {activeTab === 'cobrar' && (
+            <div className="mt-0">
               {/* Lista de deudores */}
               {filteredDebtors.length === 0 ? (
             <Card>
@@ -2231,9 +2246,11 @@ Gracias.`;
               })}
             </div>
           )}
-            </TabsContent>
+            </div>
+            )}
 
-            <TabsContent value="pagos" className="mt-0">
+            {activeTab === 'pagos' && (
+            <div className="mt-0">
               {/* Lista de pagos realizados */}
               {loadingPaid ? (
                 <Card>
@@ -2425,8 +2442,9 @@ Gracias.`;
                   })}
                 </div>
               )}
-            </TabsContent>
-          </Tabs>
+            </div>
+            )}
+          </div>
         </>
       )}
 
