@@ -348,6 +348,51 @@ export default function LunchOrders() {
           }
         }
         
+        // 🎫💰 Batch: obtener ticket_codes + payment_status para modo rango
+        if (data && data.length > 0) {
+          try {
+            const orderIds = data.map(o => o.id);
+            const { data: txData } = await supabase
+              .from('transactions')
+              .select('metadata, ticket_code, payment_status, payment_method')
+              .eq('type', 'purchase')
+              .neq('payment_status', 'cancelled')
+              .not('metadata', 'is', null);
+            
+            if (txData) {
+              const ticketMap = new Map<string, string>();
+              const paymentStatusMap = new Map<string, { status: string; method: string | null }>();
+              txData.forEach((tx: any) => {
+                const lunchOrderId = tx.metadata?.lunch_order_id;
+                if (lunchOrderId && orderIds.includes(lunchOrderId)) {
+                  if (tx.ticket_code) {
+                    ticketMap.set(lunchOrderId, tx.ticket_code);
+                  }
+                  const existing = paymentStatusMap.get(lunchOrderId);
+                  if (!existing || tx.payment_status === 'paid') {
+                    paymentStatusMap.set(lunchOrderId, { 
+                      status: tx.payment_status, 
+                      method: tx.payment_method 
+                    });
+                  }
+                }
+              });
+              
+              data.forEach((order: any) => {
+                if (ticketMap.has(order.id)) {
+                  order._ticket_code = ticketMap.get(order.id);
+                }
+                if (paymentStatusMap.has(order.id)) {
+                  order._tx_payment_status = paymentStatusMap.get(order.id)!.status;
+                  order._tx_payment_method = paymentStatusMap.get(order.id)!.method;
+                }
+              });
+            }
+          } catch (err) {
+            console.log('⚠️ No se pudieron obtener ticket_codes/payment_status batch (rango)');
+          }
+        }
+        
         setOrders(data || []);
         setLoading(false);
         return;
@@ -450,22 +495,34 @@ export default function LunchOrders() {
         }
       }
       
-      // 🎫 Batch: obtener ticket_codes de transacciones asociadas a estos pedidos
+      // 🎫 Batch: obtener ticket_codes + payment_status de transacciones asociadas a estos pedidos
       if (data && data.length > 0) {
         try {
           const orderIds = data.map(o => o.id);
           const { data: txData } = await supabase
             .from('transactions')
-            .select('metadata, ticket_code')
+            .select('metadata, ticket_code, payment_status, payment_method')
             .eq('type', 'purchase')
+            .neq('payment_status', 'cancelled')
             .not('metadata', 'is', null);
           
           if (txData) {
             const ticketMap = new Map<string, string>();
+            const paymentStatusMap = new Map<string, { status: string; method: string | null }>();
             txData.forEach((tx: any) => {
               const lunchOrderId = tx.metadata?.lunch_order_id;
-              if (lunchOrderId && orderIds.includes(lunchOrderId) && tx.ticket_code) {
-                ticketMap.set(lunchOrderId, tx.ticket_code);
+              if (lunchOrderId && orderIds.includes(lunchOrderId)) {
+                if (tx.ticket_code) {
+                  ticketMap.set(lunchOrderId, tx.ticket_code);
+                }
+                // Priorizar 'paid' sobre 'pending'
+                const existing = paymentStatusMap.get(lunchOrderId);
+                if (!existing || tx.payment_status === 'paid') {
+                  paymentStatusMap.set(lunchOrderId, { 
+                    status: tx.payment_status, 
+                    method: tx.payment_method 
+                  });
+                }
               }
             });
             
@@ -473,10 +530,14 @@ export default function LunchOrders() {
               if (ticketMap.has(order.id)) {
                 order._ticket_code = ticketMap.get(order.id);
               }
+              if (paymentStatusMap.has(order.id)) {
+                order._tx_payment_status = paymentStatusMap.get(order.id)!.status;
+                order._tx_payment_method = paymentStatusMap.get(order.id)!.method;
+              }
             });
           }
         } catch (err) {
-          console.log('⚠️ No se pudieron obtener ticket_codes batch');
+          console.log('⚠️ No se pudieron obtener ticket_codes/payment_status batch');
         }
       }
 
@@ -918,6 +979,12 @@ export default function LunchOrders() {
 
   // Función para obtener el estado de deuda
   const getDebtStatus = (order: LunchOrder): { label: string; color: string } => {
+    // 🔍 PRIMERO: Verificar el estado REAL de la transacción asociada
+    const txStatus = (order as any)._tx_payment_status;
+    if (txStatus === 'paid') {
+      return { label: '✅ Pagado', color: 'bg-green-50 text-green-700 border-green-300' };
+    }
+    
     // Si es cliente manual con "pagar luego"
     if (order.manual_name && order.payment_method === 'pagar_luego') {
       return { label: '💰 Pagar luego', color: 'bg-yellow-50 text-yellow-700 border-yellow-300' };
@@ -931,15 +998,15 @@ export default function LunchOrders() {
     // Si es estudiante, verificar tipo de cuenta
     if (order.student_id && order.student) {
       if (order.student.free_account === true) {
-        return { label: '💳 Crédito', color: 'bg-blue-50 text-blue-700 border-blue-300' };
+        return { label: '💳 Crédito (Pendiente)', color: 'bg-blue-50 text-blue-700 border-blue-300' };
       } else {
         return { label: '✅ Pagado', color: 'bg-green-50 text-green-700 border-green-300' };
       }
     }
     
-    // Si es profesor, siempre es crédito
+    // Si es profesor, crédito pendiente
     if (order.teacher_id) {
-      return { label: '💳 Crédito', color: 'bg-blue-50 text-blue-700 border-blue-300' };
+      return { label: '💳 Crédito (Pendiente)', color: 'bg-blue-50 text-blue-700 border-blue-300' };
     }
     
     return { label: '⏳ Pendiente', color: 'bg-gray-50 text-gray-700 border-gray-300' };
@@ -952,22 +1019,28 @@ export default function LunchOrders() {
     setSelectedOrderTicketCode(preloadedTicket || null);
     setShowMenuDetails(true);
     
-    // 🎫 Si no tenemos el ticket_code pre-cargado, buscarlo
-    if (!preloadedTicket) {
-      try {
-        const { data: txData } = await supabase
-          .from('transactions')
-          .select('ticket_code')
-          .eq('type', 'purchase')
-          .contains('metadata', { lunch_order_id: order.id })
-          .limit(1);
-        
-        if (txData && txData.length > 0 && txData[0].ticket_code) {
+    // 🎫💰 Siempre buscar ticket_code y payment_status actualizado al abrir detalle
+    try {
+      const { data: txData } = await supabase
+        .from('transactions')
+        .select('ticket_code, payment_status, payment_method')
+        .eq('type', 'purchase')
+        .neq('payment_status', 'cancelled')
+        .contains('metadata', { lunch_order_id: order.id })
+        .limit(1);
+      
+      if (txData && txData.length > 0) {
+        if (txData[0].ticket_code) {
           setSelectedOrderTicketCode(txData[0].ticket_code);
         }
-      } catch (err) {
-        console.log('⚠️ No se pudo obtener ticket_code para el pedido:', order.id);
+        // Actualizar el estado de pago en tiempo real
+        const updatedOrder = { ...order } as any;
+        updatedOrder._tx_payment_status = txData[0].payment_status;
+        updatedOrder._tx_payment_method = txData[0].payment_method;
+        setSelectedMenuOrder(updatedOrder);
       }
+    } catch (err) {
+      console.log('⚠️ No se pudo obtener info de transacción para el pedido:', order.id);
     }
   };
 
@@ -2035,21 +2108,47 @@ export default function LunchOrders() {
                 </CardContent>
               </Card>
 
-              {/* 8. ESTADO DE PAGO (SOLO SI ESTÁ PAGADO O TIENE DETALLES) */}
-              {(selectedMenuOrder.payment_method || selectedMenuOrder.final_price) && (
-                <Card className="bg-gradient-to-r from-emerald-50 to-teal-50 border-emerald-200">
+              {/* 8. ESTADO DE PAGO (SIEMPRE MOSTRAR SI TIENE PRECIO O TX) */}
+              {(selectedMenuOrder.payment_method || selectedMenuOrder.final_price || (selectedMenuOrder as any)._tx_payment_status) && (
+                <Card className={cn(
+                  "border",
+                  (selectedMenuOrder as any)._tx_payment_status === 'paid' 
+                    ? "bg-gradient-to-r from-green-50 to-emerald-50 border-green-300" 
+                    : "bg-gradient-to-r from-emerald-50 to-teal-50 border-emerald-200"
+                )}>
                   <CardHeader className="pb-3">
                     <CardTitle className="text-base font-semibold uppercase tracking-wide flex items-center gap-2">
                       💰 Información de Pago
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-3">
-                    {selectedMenuOrder.manual_name ? (
+                    {/* Estado real basado en la transacción */}
+                    {(selectedMenuOrder as any)._tx_payment_status === 'paid' ? (
+                      <div>
+                        <p className="text-sm text-gray-600">Estado:</p>
+                        <Badge className="bg-green-600 text-white mt-1 text-sm px-3 py-1">✅ Pagado</Badge>
+                        {(selectedMenuOrder as any)._tx_payment_method && (
+                          <p className="text-sm text-gray-600 mt-2">
+                            Método: <span className="font-semibold text-gray-900">
+                              {(selectedMenuOrder as any)._tx_payment_method === 'cash' && '💵 Efectivo'}
+                              {(selectedMenuOrder as any)._tx_payment_method === 'card' && '💳 Tarjeta'}
+                              {(selectedMenuOrder as any)._tx_payment_method === 'yape' && '📱 Yape'}
+                              {(selectedMenuOrder as any)._tx_payment_method === 'plin' && '📱 Plin'}
+                              {(selectedMenuOrder as any)._tx_payment_method === 'transfer' && '🏦 Transferencia'}
+                              {(selectedMenuOrder as any)._tx_payment_method === 'Efectivo' && '💵 Efectivo'}
+                              {(selectedMenuOrder as any)._tx_payment_method === 'Tarjeta' && '💳 Tarjeta'}
+                              {(selectedMenuOrder as any)._tx_payment_method === 'Yape' && '📱 Yape'}
+                              {!['cash', 'card', 'yape', 'plin', 'transfer', 'Efectivo', 'Tarjeta', 'Yape'].includes((selectedMenuOrder as any)._tx_payment_method || '') && (selectedMenuOrder as any)._tx_payment_method}
+                            </span>
+                          </p>
+                        )}
+                      </div>
+                    ) : selectedMenuOrder.manual_name && selectedMenuOrder.payment_method && selectedMenuOrder.payment_method !== 'pagar_luego' ? (
                       <div>
                         <p className="text-sm text-gray-600">Estado:</p>
                         <Badge className="bg-green-600 text-white mt-1">✅ Pagado (Efectivo/Manual)</Badge>
                       </div>
-                    ) : selectedMenuOrder.payment_method ? (
+                    ) : selectedMenuOrder.payment_method && selectedMenuOrder.payment_method !== 'pagar_luego' ? (
                       <div>
                         <p className="text-sm text-gray-600">Método de Pago:</p>
                         <p className="font-bold text-gray-900 mt-1">
