@@ -1035,10 +1035,14 @@ const Index = () => {
       {/* Footer - Créditos del sistema */}
       <div className="fixed bottom-16 sm:bottom-20 left-0 right-0 pointer-events-none z-10">
         <div className="max-w-7xl mx-auto px-4">
-          <div className="py-2 px-4 pointer-events-auto text-center">
-            <p className="text-[10px] sm:text-xs text-stone-300">
-              Sistema diseñado por <span className="font-semibold text-emerald-500">ARQUISIA Soluciones</span>
-            </p>
+          <div className="bg-gradient-to-r from-emerald-50/80 to-blue-50/80 backdrop-blur-sm border border-emerald-200/50 rounded-lg shadow-sm py-2 px-4 pointer-events-auto">
+            <div className="flex items-center justify-center gap-2 text-[10px] sm:text-xs text-gray-600">
+              <span className="font-medium">©</span>
+              <span>2026 <span className="font-semibold text-emerald-700">ERP Profesional</span></span>
+            </div>
+            <div className="text-center text-[9px] sm:text-[10px] text-gray-500 mt-1">
+              Diseñado por <span className="font-semibold text-emerald-600">ARQUISIA Soluciones</span> para <span className="font-semibold text-blue-600">Lima Café 28</span>
+            </div>
           </div>
         </div>
       </div>
