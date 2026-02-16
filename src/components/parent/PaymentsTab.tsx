@@ -1,14 +1,11 @@
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
 import { AlertCircle, CreditCard, Check, Clock, Receipt } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { PayDebtModal } from './PayDebtModal';
 
 interface PendingTransaction {
   id: string;
@@ -36,11 +33,6 @@ export const PaymentsTab = ({ userId }: PaymentsTabProps) => {
   const { toast } = useToast();
   const [loading, setLoading] = useState(true);
   const [debts, setDebts] = useState<StudentDebt[]>([]);
-  const [selectedTransactions, setSelectedTransactions] = useState<Set<string>>(new Set());
-  const [showPaymentModal, setShowPaymentModal] = useState(false);
-  const [paymentAmount, setPaymentAmount] = useState(0);
-  const [processingPayment, setProcessingPayment] = useState(false);
-  const [selectedStudentForPayment, setSelectedStudentForPayment] = useState<{ id: string, name: string } | null>(null);
 
   useEffect(() => {
     fetchDebts();
@@ -173,113 +165,7 @@ export const PaymentsTab = ({ userId }: PaymentsTabProps) => {
     }
   };
 
-  const toggleTransaction = (transactionId: string) => {
-    setSelectedTransactions(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(transactionId)) {
-        newSet.delete(transactionId);
-      } else {
-        newSet.add(transactionId);
-      }
-      return newSet;
-    });
-  };
-
-  const toggleSelectAll = (studentDebt: StudentDebt) => {
-    const allSelected = studentDebt.pending_transactions.every(t => selectedTransactions.has(t.id));
-    
-    setSelectedTransactions(prev => {
-      const newSet = new Set(prev);
-      studentDebt.pending_transactions.forEach(t => {
-        if (allSelected) {
-          newSet.delete(t.id);
-        } else {
-          newSet.add(t.id);
-        }
-      });
-      return newSet;
-    });
-  };
-
-  const getSelectedAmount = () => {
-    let total = 0;
-    debts.forEach(debt => {
-      debt.pending_transactions.forEach(t => {
-        if (selectedTransactions.has(t.id)) {
-          total += t.amount;
-        }
-      });
-    });
-    return total;
-  };
-
-  const handlePaySelected = () => {
-    const amount = getSelectedAmount();
-    if (amount <= 0) {
-      toast({
-        variant: 'destructive',
-        title: 'Error',
-        description: 'Selecciona al menos una transacción para pagar',
-      });
-      return;
-    }
-    // Encontrar el primer estudiante con transacciones seleccionadas
-    const firstDebt = debts.find(d => 
-      d.pending_transactions.some(t => selectedTransactions.has(t.id))
-    );
-    if (firstDebt) {
-      setSelectedStudentForPayment({ id: firstDebt.student_id, name: firstDebt.student_name });
-    }
-    setPaymentAmount(amount);
-    setShowPaymentModal(true);
-  };
-
-  const handlePayAll = (studentDebt: StudentDebt) => {
-    // Seleccionar todas las transacciones del estudiante
-    const allTransactionIds = studentDebt.pending_transactions.map(t => t.id);
-    setSelectedTransactions(new Set(allTransactionIds));
-    setPaymentAmount(studentDebt.total_debt);
-    setSelectedStudentForPayment({ id: studentDebt.student_id, name: studentDebt.student_name });
-    setShowPaymentModal(true);
-  };
-
-  const processPayment = async (method: string) => {
-    try {
-      setProcessingPayment(true);
-
-      // Actualizar cada transacción seleccionada a "paid"
-      const transactionIds = Array.from(selectedTransactions);
-
-      const { error } = await supabase
-        .from('transactions')
-        .update({ payment_status: 'paid', payment_method: method })
-        .in('id', transactionIds);
-
-      if (error) throw error;
-
-      toast({
-        title: '✅ Pago Realizado',
-        description: `Se pagaron ${transactionIds.length} compra(s) por S/ ${(paymentAmount || 0).toFixed(2)}`,
-      });
-
-      // Limpiar selección y recargar
-      setSelectedTransactions(new Set());
-      setShowPaymentModal(false);
-      await fetchDebts();
-    } catch (error: any) {
-      console.error('Error processing payment:', error);
-      toast({
-        variant: 'destructive',
-        title: 'Error',
-        description: 'No se pudo procesar el pago',
-      });
-    } finally {
-      setProcessingPayment(false);
-    }
-  };
-
   const totalDebt = debts.reduce((sum, d) => sum + d.total_debt, 0);
-  const selectedAmount = getSelectedAmount();
 
   if (loading) {
     return (

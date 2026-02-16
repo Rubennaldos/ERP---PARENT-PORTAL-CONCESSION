@@ -88,7 +88,8 @@ export const PurchaseHistoryModal = ({
         .from('transactions')
         .select('*')
         .eq('student_id', studentId)
-        .eq('type', 'purchase');
+        .eq('type', 'purchase')
+        .neq('payment_status', 'cancelled'); // No mostrar transacciones anuladas
 
       // ✅ Solo aplicar filtro de fecha si delay > 0
       if (delayDays > 0) {

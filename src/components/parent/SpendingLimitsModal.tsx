@@ -159,7 +159,7 @@ export function SpendingLimitsModal({
         daily_limit: selectedType === 'daily' ? amount : (currentConfig?.daily_limit || 0),
         weekly_limit: selectedType === 'weekly' ? amount : (currentConfig?.weekly_limit || 0),
         monthly_limit: selectedType === 'monthly' ? amount : (currentConfig?.monthly_limit || 0),
-        free_account: accountMode === 'free', // Guardar modo de cuenta
+        free_account: true, // 🔒 Siempre Cuenta Libre (modo recargas deshabilitado)
       };
 
       const { error } = await supabase
@@ -171,7 +171,7 @@ export function SpendingLimitsModal({
 
       toast({
         title: '✅ Configuración actualizada',
-        description: `${accountMode === 'free' ? 'Cuenta Libre' : 'Cuenta de Recargas'} - ${getLimitMessage()}`,
+        description: `Cuenta Libre - ${getLimitMessage()}`,
       });
 
       onSuccess();
@@ -312,69 +312,23 @@ export function SpendingLimitsModal({
 
         <div className="space-y-5 sm:space-y-6 px-4 sm:px-6 pb-6">
           {/* Selector de Método de Trabajo */}
+          {/* Modo de cuenta fijo: Cuenta Libre */}
           <div>
             <Label className="font-medium text-[10px] sm:text-xs text-stone-600 uppercase tracking-wider mb-2 sm:mb-3 block">
               Método de Trabajo
             </Label>
-            <div className="grid grid-cols-2 gap-2 sm:gap-3">
-              <button
-                onClick={() => handleModeChange('free')}
-                className={`p-3 sm:p-4 rounded-xl border transition-all text-left ${
-                  accountMode === 'free'
-                    ? 'border-emerald-500/50 bg-emerald-50/30 shadow-sm'
-                    : 'border-stone-200 hover:border-stone-300 bg-white'
-                }`}
-              >
-                <div className="flex items-center gap-1.5 sm:gap-2 mb-1 sm:mb-1.5">
-                  <div className={`w-7 h-7 sm:w-8 sm:h-8 rounded-lg flex items-center justify-center ${
-                    accountMode === 'free' ? 'bg-emerald-100/60' : 'bg-stone-100'
-                  }`}>
-                    <Wallet className={`h-3.5 w-3.5 sm:h-4 sm:w-4 ${accountMode === 'free' ? 'text-emerald-600' : 'text-stone-400'}`} />
-                  </div>
-                  {accountMode === 'free' && (
-                    <Badge className="bg-emerald-600 text-white text-[9px] sm:text-xs px-1.5 sm:px-2 py-0">ACTIVO</Badge>
-                  )}
+            <div className="p-3 sm:p-4 rounded-xl border border-emerald-500/50 bg-emerald-50/30 shadow-sm">
+              <div className="flex items-center gap-1.5 sm:gap-2 mb-1 sm:mb-1.5">
+                <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg flex items-center justify-center bg-emerald-100/60">
+                  <Wallet className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-emerald-600" />
                 </div>
-                <h4 className={`font-medium text-xs sm:text-sm ${accountMode === 'free' ? 'text-emerald-700' : 'text-stone-700'}`}>
-                  Cuenta Libre
-                </h4>
-                <p className="text-[10px] sm:text-xs text-stone-500 mt-0.5">Pagas al final del mes</p>
-              </button>
-
-              <button
-                onClick={() => handleModeChange('prepaid')}
-                className={`p-3 sm:p-4 rounded-xl border transition-all text-left ${
-                  accountMode === 'prepaid'
-                    ? 'border-emerald-500/50 bg-emerald-50/30 shadow-sm'
-                    : 'border-stone-200 hover:border-stone-300 bg-white'
-                }`}
-              >
-                <div className="flex items-center gap-1.5 sm:gap-2 mb-1 sm:mb-1.5">
-                  <div className={`w-7 h-7 sm:w-8 sm:h-8 rounded-lg flex items-center justify-center ${
-                    accountMode === 'prepaid' ? 'bg-emerald-100/60' : 'bg-stone-100'
-                  }`}>
-                    <CreditCard className={`h-3.5 w-3.5 sm:h-4 sm:w-4 ${accountMode === 'prepaid' ? 'text-emerald-600' : 'text-stone-400'}`} />
-                  </div>
-                  {accountMode === 'prepaid' && (
-                    <Badge className="bg-emerald-600 text-white text-[9px] sm:text-xs px-1.5 sm:px-2 py-0">ACTIVO</Badge>
-                  )}
-                </div>
-                <h4 className={`font-medium text-xs sm:text-sm ${accountMode === 'prepaid' ? 'text-emerald-700' : 'text-stone-700'}`}>
-                  Con Recargas
-                </h4>
-                <p className="text-[10px] sm:text-xs text-stone-500 mt-0.5">Recargas anticipadas</p>
-              </button>
+                <Badge className="bg-emerald-600 text-white text-[9px] sm:text-xs px-1.5 sm:px-2 py-0">ACTIVO</Badge>
+              </div>
+              <h4 className="font-medium text-xs sm:text-sm text-emerald-700">
+                Cuenta Libre
+              </h4>
+              <p className="text-[10px] sm:text-xs text-stone-500 mt-0.5">Tu hijo consume y pagas al final del mes en caja</p>
             </div>
-
-            {/* Info adicional según el modo */}
-            {accountMode === 'prepaid' && (
-              <Alert className="mt-2 sm:mt-3 bg-emerald-50/50 border-emerald-200/30">
-                <CreditCard className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-emerald-600" />
-                <AlertDescription className="text-[10px] sm:text-xs text-emerald-800 leading-relaxed">
-                  <strong>Modo Recargas:</strong> Debes recargar saldo antes de que tu hijo pueda comprar. Puedes hacerlo desde el botón "Recargar Saldo" en la tarjeta del estudiante.
-                </AlertDescription>
-              </Alert>
-            )}
           </div>
 
           {/* Selector de Tipo de Límite */}
@@ -491,76 +445,6 @@ export function SpendingLimitsModal({
           </div>
         </div>
       </DialogContent>
-
-      {/* Modal de Advertencia - Cambio de Modo de Cuenta */}
-      <Dialog open={showModeChangeWarning} onOpenChange={setShowModeChangeWarning}>
-        <DialogContent className="sm:max-w-lg max-h-[85vh] overflow-y-auto border border-stone-200/50 bg-white shadow-2xl">
-          <DialogHeader className="pb-4">
-            <div className="flex flex-col items-center text-center space-y-2 sm:space-y-3">
-              <div className="w-14 h-14 sm:w-16 sm:h-16 bg-gradient-to-br from-amber-50/50 to-amber-100/30 rounded-xl sm:rounded-2xl flex items-center justify-center border border-amber-200/30 shadow-sm">
-                <ShieldAlert className="h-7 w-7 sm:h-8 sm:w-8 text-amber-600/80" />
-              </div>
-              <div>
-                <DialogTitle className="text-xl sm:text-2xl font-light text-stone-800 tracking-wide">
-                  Cambiar a Recargas
-                </DialogTitle>
-                <DialogDescription className="text-xs sm:text-sm text-stone-500 mt-1.5 font-normal px-2">
-                  ¿Seguro quieres cambiar el método?
-                </DialogDescription>
-              </div>
-            </div>
-          </DialogHeader>
-
-          <div className="space-y-4 py-2 px-6">
-            <Alert className="bg-emerald-50/50 border-emerald-200/30">
-              <Info className="h-4 w-4 text-emerald-600" />
-              <AlertDescription className="text-sm text-emerald-800 leading-relaxed font-normal">
-                <strong className="font-medium">Cuenta Libre</strong> es más conveniente porque:
-              </AlertDescription>
-            </Alert>
-
-            <ul className="space-y-2 text-sm text-stone-600">
-              <li className="flex items-start gap-2">
-                <span className="text-emerald-600 font-medium">✓</span>
-                <span>No necesitas estar recargando constantemente</span>
-              </li>
-              <li className="flex items-start gap-2">
-                <span className="text-emerald-600 font-medium">✓</span>
-                <span>Tu hijo nunca se queda sin poder comprar</span>
-              </li>
-              <li className="flex items-start gap-2">
-                <span className="text-emerald-600 font-medium">✓</span>
-                <span>Pagas todo junto al final del mes</span>
-              </li>
-            </ul>
-
-            <Alert className="bg-amber-50/50 border-amber-200/30">
-              <AlertCircle className="h-4 w-4 text-amber-600" />
-              <AlertDescription className="text-xs text-amber-800 leading-relaxed">
-                <strong className="font-medium">Con Recargas:</strong> Deberás recargar saldo antes de cada compra. Si se acaba el saldo, tu hijo no podrá comprar hasta que recargues.
-              </AlertDescription>
-            </Alert>
-
-            <div className="flex flex-col gap-3 pt-2">
-              <Button
-                onClick={cancelModeChange}
-                className="h-12 sm:h-14 text-sm sm:text-base font-medium bg-gradient-to-r from-emerald-600/90 to-[#8B7355]/80 hover:from-emerald-700/90 hover:to-[#6B5744]/80 text-white shadow-lg rounded-xl transition-all hover:scale-[1.02] active:scale-95 flex items-center justify-center gap-2"
-              >
-                <Check className="h-5 w-5 sm:h-6 sm:w-6" />
-                MANTENER CUENTA LIBRE (RECOMENDADO)
-              </Button>
-              
-              <Button
-                variant="ghost"
-                onClick={confirmModeChange}
-                className="h-9 sm:h-10 text-xs font-normal text-stone-400 hover:text-emerald-700 hover:bg-emerald-50/30 rounded-xl transition-all"
-              >
-                Sí, cambiar a modo con recargas
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
 
       {/* Modal de Advertencia - Cambio de Tope */}
       <Dialog open={showWarning} onOpenChange={setShowWarning}>
