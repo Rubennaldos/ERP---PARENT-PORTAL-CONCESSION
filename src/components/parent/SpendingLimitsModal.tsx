@@ -312,22 +312,41 @@ export function SpendingLimitsModal({
 
         <div className="space-y-5 sm:space-y-6 px-4 sm:px-6 pb-6">
           {/* Selector de Método de Trabajo */}
-          {/* Modo de cuenta fijo: Cuenta Libre */}
+          {/* Selector de Método de Trabajo */}
           <div>
             <Label className="font-medium text-[10px] sm:text-xs text-stone-600 uppercase tracking-wider mb-2 sm:mb-3 block">
               Método de Trabajo
             </Label>
-            <div className="p-3 sm:p-4 rounded-xl border border-emerald-500/50 bg-emerald-50/30 shadow-sm">
-              <div className="flex items-center gap-1.5 sm:gap-2 mb-1 sm:mb-1.5">
-                <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg flex items-center justify-center bg-emerald-100/60">
-                  <Wallet className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-emerald-600" />
+            <div className="grid grid-cols-2 gap-2 sm:gap-3">
+              {/* Cuenta Libre - Activa */}
+              <div className="p-3 sm:p-4 rounded-xl border border-emerald-500/50 bg-emerald-50/30 shadow-sm">
+                <div className="flex items-center gap-1.5 sm:gap-2 mb-1 sm:mb-1.5">
+                  <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg flex items-center justify-center bg-emerald-100/60">
+                    <Wallet className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-emerald-600" />
+                  </div>
+                  <Badge className="bg-emerald-600 text-white text-[9px] sm:text-xs px-1.5 sm:px-2 py-0">ACTIVO</Badge>
                 </div>
-                <Badge className="bg-emerald-600 text-white text-[9px] sm:text-xs px-1.5 sm:px-2 py-0">ACTIVO</Badge>
+                <h4 className="font-medium text-xs sm:text-sm text-emerald-700">
+                  Cuenta Libre
+                </h4>
+                <p className="text-[10px] sm:text-xs text-stone-500 mt-0.5">Pagas al final del mes</p>
               </div>
-              <h4 className="font-medium text-xs sm:text-sm text-emerald-700">
-                Cuenta Libre
-              </h4>
-              <p className="text-[10px] sm:text-xs text-stone-500 mt-0.5">Tu hijo consume y pagas al final del mes en caja</p>
+
+              {/* Con Recargas - Deshabilitado / Próximamente */}
+              <div className="p-3 sm:p-4 rounded-xl border border-stone-200 bg-stone-50/50 opacity-60 cursor-not-allowed relative">
+                <div className="flex items-center gap-1.5 sm:gap-2 mb-1 sm:mb-1.5">
+                  <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg flex items-center justify-center bg-stone-100">
+                    <CreditCard className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-stone-400" />
+                  </div>
+                  <Badge variant="outline" className="text-[9px] sm:text-xs px-1.5 sm:px-2 py-0 border-amber-300 text-amber-600">
+                    Próximamente
+                  </Badge>
+                </div>
+                <h4 className="font-medium text-xs sm:text-sm text-stone-400">
+                  Con Recargas
+                </h4>
+                <p className="text-[10px] sm:text-xs text-stone-400 mt-0.5">Recargas anticipadas</p>
+              </div>
             </div>
           </div>
 
