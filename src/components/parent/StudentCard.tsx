@@ -189,19 +189,12 @@ export function StudentCard({
             LUNCH FAST!
           </Button>
 
-          {showPaymentButton && (
-            <Button
-              onClick={onRecharge}
-              variant="outline"
-              className={`w-full h-12 text-sm font-medium rounded-xl border transition-all active:scale-95 ${
-                hasDebt 
-                  ? 'border-rose-200/50 text-rose-600 hover:bg-rose-50/50 hover:border-rose-300'
-                  : 'border-emerald-200/40 text-emerald-700 hover:bg-emerald-50/30 hover:border-emerald-300/50'
-              }`}
-            >
-              <CreditCard className="h-4 w-4 mr-2" />
-              {buttonText}
-            </Button>
+          {/* 🔒 MÓDULO DE PAGOS/RECARGAS DESACTIVADO - Todo pago es presencial */}
+          {hasDebt && (
+            <div className="w-full rounded-xl border border-amber-200/50 bg-amber-50/50 p-3 text-center">
+              <p className="text-xs font-medium text-amber-700 mb-1">💳 Los pagos se realizan presencialmente en caja</p>
+              <p className="text-[10px] text-amber-500">Acérquese a la cafetería para cancelar su deuda</p>
+            </div>
           )}
 
           <div className="grid grid-cols-1 gap-3">
@@ -215,12 +208,25 @@ export function StudentCard({
             </Button>
           </div>
 
-          <button
-            onClick={onOpenSettings}
-            className="w-full pt-2 flex items-center justify-center gap-2 text-stone-300 hover:text-emerald-600 transition-colors group/btn"
-          >
-            <Settings2 className="h-5 w-5 group-hover/btn:rotate-90 transition-transform duration-500" />
-          </button>
+          {/* 🔒 CONFIGURACIÓN DE TOPES DESACTIVADO TEMPORALMENTE */}
+          <Popover>
+            <PopoverTrigger asChild>
+              <button
+                className="w-full pt-2 flex items-center justify-center gap-2 text-stone-200 cursor-help group/btn"
+              >
+                <Settings2 className="h-5 w-5" />
+              </button>
+            </PopoverTrigger>
+            <PopoverContent className="w-64 shadow-lg border border-stone-200/50 rounded-2xl p-4" side="top">
+              <div className="text-center space-y-2">
+                <p className="text-sm font-medium text-stone-700">🔧 Configuración de Topes</p>
+                <Badge className="bg-amber-100 text-amber-700 border border-amber-200">Próximamente</Badge>
+                <p className="text-xs text-stone-500">
+                  Esta función estará disponible pronto. Por ahora, todos los estudiantes operan con Cuenta Libre.
+                </p>
+              </div>
+            </PopoverContent>
+          </Popover>
         </div>
       </CardContent>
     </Card>

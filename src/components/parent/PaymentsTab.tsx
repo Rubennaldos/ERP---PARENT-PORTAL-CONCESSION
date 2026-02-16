@@ -310,71 +310,64 @@ export const PaymentsTab = ({ userId }: PaymentsTabProps) => {
 
   return (
     <div className="space-y-6">
-      {/* Resumen de Deuda Total */}
-      <Card className="border-2 border-amber-300 bg-gradient-to-r from-amber-50 to-orange-50">
-        <CardContent className="pt-6">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <div className="p-3 bg-amber-100 rounded-full">
-                <AlertCircle className="h-8 w-8 text-amber-600" />
-              </div>
-              <div>
-                <p className="text-sm text-amber-700 font-semibold uppercase">Deuda Total Pendiente</p>
-                <p className="text-4xl font-black text-amber-900">S/ {(totalDebt || 0).toFixed(2)}</p>
-                <p className="text-xs text-amber-600 mt-1">
-                  {debts.reduce((sum, d) => sum + d.pending_transactions.length, 0)} compra(s) pendientes
-                </p>
-              </div>
+      {/* 🔒 AVISO: Pagos presenciales */}
+      <Card className="border-2 border-blue-300 bg-gradient-to-r from-blue-50 to-indigo-50">
+        <CardContent className="pt-6 pb-4">
+          <div className="flex items-start gap-4">
+            <div className="p-3 bg-blue-100 rounded-full flex-shrink-0">
+              <CreditCard className="h-6 w-6 text-blue-600" />
             </div>
-            {selectedAmount > 0 && (
-              <Button
-                onClick={handlePaySelected}
-                size="lg"
-                className="bg-emerald-600 hover:bg-emerald-700 text-white h-14 px-8 text-lg font-bold"
-              >
-                <CreditCard className="mr-2 h-5 w-5" />
-                Pagar Seleccionadas (S/ {(selectedAmount || 0).toFixed(2)})
-              </Button>
-            )}
+            <div>
+              <p className="text-sm font-semibold text-blue-800">💳 Los pagos se realizan presencialmente en caja</p>
+              <p className="text-xs text-blue-600 mt-1">
+                Para cancelar las deudas pendientes, acérquese a la cafetería del colegio. 
+                El cajero registrará su pago en el sistema.
+              </p>
+              <p className="text-[10px] text-blue-400 mt-2 italic">
+                Pronto habilitaremos pagos en línea (Yape, Plin, tarjeta).
+              </p>
+            </div>
           </div>
         </CardContent>
       </Card>
 
-      {/* Deudas por Estudiante */}
+      {/* Resumen de Deuda Total */}
+      <Card className="border-2 border-amber-300 bg-gradient-to-r from-amber-50 to-orange-50">
+        <CardContent className="pt-6">
+          <div className="flex items-center gap-4">
+            <div className="p-3 bg-amber-100 rounded-full">
+              <AlertCircle className="h-8 w-8 text-amber-600" />
+            </div>
+            <div>
+              <p className="text-sm text-amber-700 font-semibold uppercase">Deuda Total Pendiente</p>
+              <p className="text-4xl font-black text-amber-900">S/ {(totalDebt || 0).toFixed(2)}</p>
+              <p className="text-xs text-amber-600 mt-1">
+                {debts.reduce((sum, d) => sum + d.pending_transactions.length, 0)} compra(s) pendientes
+              </p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Deudas por Estudiante (SOLO LECTURA - sin botones de pago) */}
       {debts.map((debt) => (
         <Card key={debt.student_id} className="border-2">
           <CardHeader className="bg-gradient-to-r from-blue-50 to-purple-50">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                {debt.student_photo && (
-                  <img
-                    src={debt.student_photo}
-                    alt={debt.student_name}
-                    className="w-16 h-16 rounded-full object-cover border-2 border-white shadow-lg"
-                  />
-                )}
-                <div>
-                  <CardTitle className="text-xl">{debt.student_name}</CardTitle>
-                  <CardDescription className="text-base">
-                    Deuda: <span className="font-bold text-red-600">S/ {(debt.total_debt || 0).toFixed(2)}</span>
-                    {' • '}
-                    {debt.pending_transactions.length} compra(s)
-                  </CardDescription>
-                </div>
-              </div>
-              <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  onClick={() => toggleSelectAll(debt)}
-                >
-                  {debt.pending_transactions.every(t => selectedTransactions.has(t.id)) ? 'Deseleccionar Todas' : 'Seleccionar Todas'}
-                </Button>
-                <Button
-                  onClick={() => handlePayAll(debt)}
-                  className="bg-blue-600 hover:bg-blue-700"
-                >
-                  Pagar Todo
-                </Button>
+            <div className="flex items-center gap-4">
+              {debt.student_photo && (
+                <img
+                  src={debt.student_photo}
+                  alt={debt.student_name}
+                  className="w-16 h-16 rounded-full object-cover border-2 border-white shadow-lg"
+                />
+              )}
+              <div>
+                <CardTitle className="text-xl">{debt.student_name}</CardTitle>
+                <CardDescription className="text-base">
+                  Deuda: <span className="font-bold text-red-600">S/ {(debt.total_debt || 0).toFixed(2)}</span>
+                  {' • '}
+                  {debt.pending_transactions.length} compra(s)
+                </CardDescription>
               </div>
             </div>
           </CardHeader>
@@ -383,16 +376,8 @@ export const PaymentsTab = ({ userId }: PaymentsTabProps) => {
               {debt.pending_transactions.map((transaction) => (
                 <div
                   key={transaction.id}
-                  className={`flex items-center gap-4 p-3 rounded-lg border-2 transition-colors ${
-                    selectedTransactions.has(transaction.id)
-                      ? 'bg-blue-50 border-blue-300'
-                      : 'bg-white border-gray-200 hover:border-gray-300'
-                  }`}
+                  className="flex items-center gap-4 p-3 rounded-lg border-2 bg-white border-gray-200"
                 >
-                  <Checkbox
-                    checked={selectedTransactions.has(transaction.id)}
-                    onCheckedChange={() => toggleTransaction(transaction.id)}
-                  />
                   <Receipt className="h-5 w-5 text-gray-400" />
                   <div className="flex-1">
                     <p className="font-semibold text-sm">{transaction.description}</p>
@@ -414,26 +399,6 @@ export const PaymentsTab = ({ userId }: PaymentsTabProps) => {
           </CardContent>
         </Card>
       ))}
-
-      {/* Modal de Pago con Pasarela */}
-      {showPaymentModal && selectedStudentForPayment && (
-        <PayDebtModal
-          isOpen={showPaymentModal}
-          onClose={() => {
-            setShowPaymentModal(false);
-            setSelectedStudentForPayment(null);
-          }}
-          studentName={selectedStudentForPayment.name}
-          studentId={selectedStudentForPayment.id}
-          selectedTransactionIds={Array.from(selectedTransactions)}
-          onPaymentComplete={async () => {
-            await fetchDebts();
-            setSelectedTransactions(new Set());
-            setShowPaymentModal(false);
-            setSelectedStudentForPayment(null);
-          }}
-        />
-      )}
     </div>
   );
 };

@@ -416,25 +416,25 @@ const Index = () => {
   };
 
   const openRechargeModal = (student: Student) => {
+    // 🔒 MÓDULO DE PAGOS/RECARGAS DESACTIVADO TEMPORALMENTE
+    // Todo pago es presencial en caja
+    toast({
+      title: '💳 Pagos presenciales',
+      description: 'Los pagos y recargas se realizan presencialmente en la cafetería del colegio. Pronto habilitaremos pagos en línea.',
+    });
+    return;
+    
+    /* CÓDIGO ORIGINAL - Restaurar cuando se habiliten pagos en línea:
     setSelectedStudent(student);
-    
-    // LOGICA SIMPLIFICADA: Si el balance es negativo (debe) → Pasarela, si no → Recarga
     const hasDebts = student.balance < 0;
-    
-    console.log('--- DIAGNOSTICO DE PAGO ---');
-    console.log('Estudiante:', student.full_name);
-    console.log('Deudas detectadas:', hasDebts);
-    console.log('Saldo:', student.balance);
-    
     if (hasDebts) {
-      console.log('MODO: PASARELA DE PAGOS');
       setShowPayDebtModal(true);
       setShowRechargeModal(false);
     } else {
-      console.log('MODO: RECARGA DE SALDO');
       setShowRechargeModal(true);
       setShowPayDebtModal(false);
     }
+    */
   };
 
   const openMenuModal = (student: Student) => {
@@ -513,8 +513,17 @@ const Index = () => {
   };
 
   const openSettingsModal = (student: Student) => {
+    // 🔒 MÓDULO DE TOPES DESACTIVADO TEMPORALMENTE
+    toast({
+      title: '🔧 Próximamente',
+      description: 'La configuración de topes de consumo estará disponible pronto. Por ahora, todos los estudiantes operan con Cuenta Libre.',
+    });
+    return;
+    
+    /* CÓDIGO ORIGINAL - Restaurar cuando se habiliten topes:
     setSelectedStudent(student);
     setShowLimitModal(true);
+    */
   };
 
   const handleLunchFast = async (student: Student) => {
