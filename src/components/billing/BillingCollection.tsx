@@ -355,6 +355,7 @@ export const BillingCollection = () => {
           student_id,
           teacher_id,
           manual_name,
+          payment_method,
           school_id,
           category_id,
           quantity,
@@ -576,6 +577,12 @@ export const BillingCollection = () => {
           if (schoolIdFilter && schoolId !== schoolIdFilter) {
             console.log(`⏭️ [BillingCollection] Pedido ${order.id} no coincide con filtro de sede (${schoolId} vs ${schoolIdFilter}), omitiendo`);
             return; // Saltar este pedido
+          }
+
+          // 🔑 Si es cliente manual que YA PAGÓ (método != pagar_luego), NO crear deuda virtual
+          if (order.manual_name && order.payment_method && order.payment_method !== 'pagar_luego') {
+            console.log(`✅ [BillingCollection] Pedido ${order.id} manual ya pagado con ${order.payment_method}, omitiendo`);
+            return; // No crear transacción virtual - el cliente ya pagó
           }
 
           // Crear transacción virtual solo si el pedido tiene un cliente identificado

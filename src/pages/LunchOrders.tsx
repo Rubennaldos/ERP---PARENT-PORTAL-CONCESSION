@@ -913,8 +913,8 @@ export default function LunchOrders() {
         const price = category?.price || config?.lunch_price || 7.50;
         transactionData.amount = -Math.abs(price);
         transactionData.description = `Almuerzo - ${format(new Date(order.order_date), "d 'de' MMMM", { locale: es })}`;
-      } else if (order.manual_name && order.payment_method === 'pagar_luego') {
-        // Cliente manual con "pagar luego"
+      } else if (order.manual_name) {
+        // Cliente manual - verificar si es "pagar luego" o ya pagó
         needsTransaction = true;
         transactionData.manual_client_name = order.manual_name;
         
@@ -927,6 +927,13 @@ export default function LunchOrders() {
         const price = category?.price || 7.50;
         transactionData.amount = -Math.abs(price);
         transactionData.description = `Almuerzo - ${format(new Date(order.order_date), "d 'de' MMMM", { locale: es })} - ${order.manual_name}`;
+        
+        // 🔑 Si el pedido YA fue pagado (método != pagar_luego), marcar transacción como paid
+        if (order.payment_method && order.payment_method !== 'pagar_luego') {
+          transactionData.payment_status = 'paid';
+          transactionData.payment_method = order.payment_method;
+          console.log(`✅ [handleConfirmOrder] Pedido manual ya pagado con ${order.payment_method}, tx se crea como paid`);
+        }
       }
 
       // Crear transacción si es necesario
@@ -997,18 +1004,27 @@ export default function LunchOrders() {
 
   // Función para obtener el estado de deuda
   const getDebtStatus = (order: LunchOrder): { label: string; color: string } => {
-    // 🔍 PRIMERO: Verificar el estado REAL de la transacción asociada
     const txStatus = (order as any)._tx_payment_status;
-    if (txStatus === 'paid') {
-      return { label: '✅ Pagado', color: 'bg-green-50 text-green-700 border-green-300' };
+    
+    // 🔍 Si hay transacción asociada, SIEMPRE confiar en su estado (es la fuente de verdad)
+    if (txStatus) {
+      if (txStatus === 'paid') {
+        return { label: '✅ Pagado', color: 'bg-green-50 text-green-700 border-green-300' };
+      }
+      // La transacción dice pending/partial → mostrar como pendiente
+      // NO confiar en order.payment_method porque puede estar desactualizado
+      if (order.manual_name && order.payment_method === 'pagar_luego') {
+        return { label: '💰 Pagar luego', color: 'bg-yellow-50 text-yellow-700 border-yellow-300' };
+      }
+      return { label: '💳 Crédito (Pendiente)', color: 'bg-blue-50 text-blue-700 border-blue-300' };
     }
     
-    // Si es cliente manual con "pagar luego"
+    // Sin transacción → usar lógica de fallback basada en el pedido
     if (order.manual_name && order.payment_method === 'pagar_luego') {
       return { label: '💰 Pagar luego', color: 'bg-yellow-50 text-yellow-700 border-yellow-300' };
     }
     
-    // Si es cliente manual con pago inmediato
+    // Cliente manual con pago inmediato y SIN transacción = pagó al momento
     if (order.manual_name && order.payment_method && order.payment_method !== 'pagar_luego') {
       return { label: '✅ Pagado', color: 'bg-green-50 text-green-700 border-green-300' };
     }
@@ -2144,50 +2160,82 @@ export default function LunchOrders() {
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-3">
-                    {/* Estado real basado en la transacción */}
-                    {(selectedMenuOrder as any)._tx_payment_status === 'paid' ? (
-                      <div>
-                        <p className="text-sm text-gray-600">Estado:</p>
-                        <Badge className="bg-green-600 text-white mt-1 text-sm px-3 py-1">✅ Pagado</Badge>
-                        {(selectedMenuOrder as any)._tx_payment_method && (
-                          <p className="text-sm text-gray-600 mt-2">
-                            Método: <span className="font-semibold text-gray-900">
-                              {(selectedMenuOrder as any)._tx_payment_method === 'cash' && '💵 Efectivo'}
-                              {(selectedMenuOrder as any)._tx_payment_method === 'card' && '💳 Tarjeta'}
-                              {(selectedMenuOrder as any)._tx_payment_method === 'yape' && '📱 Yape'}
-                              {(selectedMenuOrder as any)._tx_payment_method === 'plin' && '📱 Plin'}
-                              {(selectedMenuOrder as any)._tx_payment_method === 'transfer' && '🏦 Transferencia'}
-                              {(selectedMenuOrder as any)._tx_payment_method === 'Efectivo' && '💵 Efectivo'}
-                              {(selectedMenuOrder as any)._tx_payment_method === 'Tarjeta' && '💳 Tarjeta'}
-                              {(selectedMenuOrder as any)._tx_payment_method === 'Yape' && '📱 Yape'}
-                              {!['cash', 'card', 'yape', 'plin', 'transfer', 'Efectivo', 'Tarjeta', 'Yape'].includes((selectedMenuOrder as any)._tx_payment_method || '') && (selectedMenuOrder as any)._tx_payment_method}
-                            </span>
-                          </p>
-                        )}
-                      </div>
-                    ) : selectedMenuOrder.manual_name && selectedMenuOrder.payment_method && selectedMenuOrder.payment_method !== 'pagar_luego' ? (
-                      <div>
-                        <p className="text-sm text-gray-600">Estado:</p>
-                        <Badge className="bg-green-600 text-white mt-1">✅ Pagado (Efectivo/Manual)</Badge>
-                      </div>
-                    ) : selectedMenuOrder.payment_method && selectedMenuOrder.payment_method !== 'pagar_luego' ? (
-                      <div>
-                        <p className="text-sm text-gray-600">Método de Pago:</p>
-                        <p className="font-bold text-gray-900 mt-1">
-                          {selectedMenuOrder.payment_method === 'cash' && '💵 Efectivo'}
-                          {selectedMenuOrder.payment_method === 'card' && '💳 Tarjeta'}
-                          {selectedMenuOrder.payment_method === 'yape' && '📱 Yape'}
-                          {selectedMenuOrder.payment_method === 'plin' && '📱 Plin'}
-                          {selectedMenuOrder.payment_method === 'transfer' && '🏦 Transferencia'}
-                          {!['cash', 'card', 'yape', 'plin', 'transfer'].includes(selectedMenuOrder.payment_method) && selectedMenuOrder.payment_method}
-                        </p>
-                      </div>
-                    ) : (
-                      <div>
-                        <p className="text-sm text-gray-600">Estado:</p>
-                        <Badge className="bg-yellow-600 text-white mt-1">⏳ Pendiente de Pago (A Crédito)</Badge>
-                      </div>
-                    )}
+                    {/* Estado real basado en la transacción (FUENTE DE VERDAD) */}
+                    {(() => {
+                      const txStatus = (selectedMenuOrder as any)._tx_payment_status;
+                      const txMethod = (selectedMenuOrder as any)._tx_payment_method;
+                      const orderMethod = selectedMenuOrder.payment_method;
+                      
+                      // Helper para mostrar el método de pago
+                      const renderMethod = (method: string | null) => {
+                        if (!method) return null;
+                        const methodMap: Record<string, string> = {
+                          'cash': '💵 Efectivo', 'card': '💳 Tarjeta', 'yape': '📱 Yape',
+                          'plin': '📱 Plin', 'transfer': '🏦 Transferencia', 'transferencia': '🏦 Transferencia',
+                          'efectivo': '💵 Efectivo', 'tarjeta': '💳 Tarjeta',
+                          'Efectivo': '💵 Efectivo', 'Tarjeta': '💳 Tarjeta', 'Yape': '📱 Yape',
+                        };
+                        return methodMap[method] || method;
+                      };
+
+                      // CASO 1: Transacción dice PAGADO → mostrar pagado
+                      if (txStatus === 'paid') {
+                        return (
+                          <div>
+                            <p className="text-sm text-gray-600">Estado:</p>
+                            <Badge className="bg-green-600 text-white mt-1 text-sm px-3 py-1">✅ Pagado</Badge>
+                            {(txMethod || orderMethod) && (
+                              <p className="text-sm text-gray-600 mt-2">
+                                Método: <span className="font-semibold text-gray-900">
+                                  {renderMethod(txMethod || orderMethod)}
+                                </span>
+                              </p>
+                            )}
+                          </div>
+                        );
+                      }
+                      
+                      // CASO 2: Transacción dice PENDIENTE → mostrar pendiente (confiar en la transacción)
+                      if (txStatus === 'pending' || txStatus === 'partial') {
+                        return (
+                          <div>
+                            <p className="text-sm text-gray-600">Estado:</p>
+                            <Badge className="bg-yellow-600 text-white mt-1">⏳ Pendiente de Pago</Badge>
+                            {orderMethod && orderMethod !== 'pagar_luego' && (
+                              <p className="text-xs text-orange-600 mt-2">
+                                ⚠️ El pedido indica método "{renderMethod(orderMethod)}" pero la transacción no está marcada como pagada
+                              </p>
+                            )}
+                          </div>
+                        );
+                      }
+                      
+                      // CASO 3: Sin transacción - usar lógica del pedido
+                      if (selectedMenuOrder.manual_name && orderMethod && orderMethod !== 'pagar_luego') {
+                        return (
+                          <div>
+                            <p className="text-sm text-gray-600">Estado:</p>
+                            <Badge className="bg-green-600 text-white mt-1">✅ Pagado ({renderMethod(orderMethod)})</Badge>
+                          </div>
+                        );
+                      }
+                      
+                      if (orderMethod && orderMethod !== 'pagar_luego') {
+                        return (
+                          <div>
+                            <p className="text-sm text-gray-600">Método de Pago:</p>
+                            <p className="font-bold text-gray-900 mt-1">{renderMethod(orderMethod)}</p>
+                          </div>
+                        );
+                      }
+                      
+                      return (
+                        <div>
+                          <p className="text-sm text-gray-600">Estado:</p>
+                          <Badge className="bg-yellow-600 text-white mt-1">⏳ Pendiente de Pago (A Crédito)</Badge>
+                        </div>
+                      );
+                    })()}
 
                     {selectedMenuOrder.final_price && (
                       <div className="pt-2 border-t border-emerald-200">
