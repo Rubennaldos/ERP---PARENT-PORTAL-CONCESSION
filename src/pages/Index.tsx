@@ -1032,24 +1032,13 @@ const Index = () => {
         </div>
       </nav>
 
-      {/* Footer Ingenioso - Información de Sistema */}
+      {/* Footer - Créditos del sistema */}
       <div className="fixed bottom-16 sm:bottom-20 left-0 right-0 pointer-events-none z-10">
         <div className="max-w-7xl mx-auto px-4">
-          <div className="bg-gradient-to-r from-emerald-50/80 to-blue-50/80 backdrop-blur-sm border border-emerald-200/50 rounded-lg shadow-sm py-2 px-4 pointer-events-auto">
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-2 text-[10px] sm:text-xs">
-              <div className="flex items-center gap-2 text-gray-600">
-                <span className="font-medium">©</span>
-                <span>Este es un comprobante interno generado • 2026 ERP Profesional</span>
-              </div>
-              <div className="flex items-center gap-2 text-emerald-700 font-medium">
-                <span className="bg-emerald-100 px-2 py-0.5 rounded-full">Versión 1.17.2</span>
-                <span className="hidden sm:inline">•</span>
-                <span className="bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">PRODUCTION</span>
-              </div>
-            </div>
-            <div className="text-center sm:text-left text-[9px] sm:text-[10px] text-gray-500 mt-1">
-              Diseñado por <span className="font-semibold text-emerald-600">ARQUISIA Soluciones</span> para <span className="font-semibold text-blue-600">Lima Café 28</span>
-            </div>
+          <div className="py-2 px-4 pointer-events-auto text-center">
+            <p className="text-[10px] sm:text-xs text-stone-300">
+              Sistema diseñado por <span className="font-semibold text-emerald-500">ARQUISIA Soluciones</span>
+            </p>
           </div>
         </div>
       </div>
