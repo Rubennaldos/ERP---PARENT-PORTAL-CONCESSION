@@ -10,13 +10,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+// Select de Radix removido - se usa <select> nativo para evitar error removeChild en algunos navegadores
 import {
   Dialog,
   DialogContent,
@@ -400,18 +394,17 @@ Gracias.`);
               <div className="flex-1">
                 <Label className="text-lg font-semibold">Sede a Configurar</Label>
               </div>
-              <Select value={selectedSchool} onValueChange={setSelectedSchool}>
-                <SelectTrigger className="w-[250px] h-12 border-2">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {schools.map((school) => (
-                    <SelectItem key={school.id} value={school.id}>
-                      {school.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <select
+                value={selectedSchool}
+                onChange={(e) => setSelectedSchool(e.target.value)}
+                className="w-[250px] h-12 border-2 rounded-md bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+              >
+                {schools.map((school) => (
+                  <option key={school.id} value={school.id}>
+                    {school.name}
+                  </option>
+                ))}
+              </select>
             </div>
           </CardContent>
         </Card>
@@ -475,23 +468,19 @@ Gracias.`);
                 </div>
 
                 {/* Selector de días */}
-                <Select 
+                <select 
                   value={school.delay_days.toString()} 
-                  onValueChange={(value) => handleDelayDaysChange(school.school_id, parseInt(value))}
+                  onChange={(e) => handleDelayDaysChange(school.school_id, parseInt(e.target.value))}
                   disabled={!school.enabled}
+                  className={`w-[140px] ml-4 h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${!school.enabled ? 'opacity-50' : ''}`}
                 >
-                  <SelectTrigger className={`w-[140px] ml-4 ${!school.enabled ? 'opacity-50' : ''}`}>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="0">0 días (EN VIVO)</SelectItem>
-                    <SelectItem value="1">1 día</SelectItem>
-                    <SelectItem value="2">2 días</SelectItem>
-                    <SelectItem value="3">3 días</SelectItem>
-                    <SelectItem value="4">4 días</SelectItem>
-                    <SelectItem value="5">5 días</SelectItem>
-                  </SelectContent>
-                </Select>
+                  <option value="0">0 días (EN VIVO)</option>
+                  <option value="1">1 día</option>
+                  <option value="2">2 días</option>
+                  <option value="3">3 días</option>
+                  <option value="4">4 días</option>
+                  <option value="5">5 días</option>
+                </select>
               </div>
             ))}
 

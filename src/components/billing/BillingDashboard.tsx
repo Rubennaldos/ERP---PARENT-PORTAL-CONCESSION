@@ -5,13 +5,7 @@ import { useRole } from '@/hooks/useRole';
 import { useViewAsStore } from '@/stores/viewAsStore';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+// Select de Radix removido - se usa <select> nativo para evitar error removeChild en algunos navegadores
 import { 
   DollarSign, 
   TrendingUp, 
@@ -275,24 +269,18 @@ export const BillingDashboard = () => {
               <div className="flex-1">
                 <p className="text-sm font-semibold text-red-900">Filtrar por Sede:</p>
               </div>
-              <Select value={selectedSchool} onValueChange={setSelectedSchool}>
-                <SelectTrigger className="w-[250px] bg-white">
-                  <SelectValue placeholder="Selecciona una sede" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">
-                    <div className="flex items-center gap-2">
-                      <Building2 className="h-4 w-4" />
-                      <span className="font-semibold">Todas las Sedes</span>
-                    </div>
-                  </SelectItem>
-                  {schools.map((school) => (
-                    <SelectItem key={school.id} value={school.id}>
-                      {school.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <select
+                value={selectedSchool}
+                onChange={(e) => setSelectedSchool(e.target.value)}
+                className="w-[250px] bg-white flex h-10 rounded-md border border-input px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+              >
+                <option value="all">Todas las Sedes</option>
+                {schools.map((school) => (
+                  <option key={school.id} value={school.id}>
+                    {school.name}
+                  </option>
+                ))}
+              </select>
             </div>
           </CardContent>
         </Card>

@@ -13,13 +13,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { YapeLogo } from '@/components/ui/YapeLogo';
 import { PlinLogo } from '@/components/ui/PlinLogo';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+// Select de Radix removido - se usa <select> nativo para evitar error removeChild en algunos navegadores
 import {
   Dialog,
   DialogContent,
@@ -1839,38 +1833,36 @@ Gracias.`;
             {canViewAllSchools && (
               <div className="space-y-2">
                 <Label>Sede</Label>
-                <Select value={selectedSchool} onValueChange={setSelectedSchool}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Todas las Sedes</SelectItem>
-                    {schools.map((school) => (
-                      <SelectItem key={school.id} value={school.id}>
-                        {school.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <select
+                  value={selectedSchool}
+                  onChange={(e) => setSelectedSchool(e.target.value)}
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                >
+                  <option value="all">Todas las Sedes</option>
+                  {schools.map((school) => (
+                    <option key={school.id} value={school.id}>
+                      {school.name}
+                    </option>
+                  ))}
+                </select>
               </div>
             )}
 
             {/* Período (OPCIONAL) */}
             <div className="space-y-2">
               <Label>Período de Cobranza (Opcional)</Label>
-              <Select value={selectedPeriod || 'all'} onValueChange={(value) => setSelectedPeriod(value === 'all' ? '' : value)}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Todas las deudas" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todas las deudas</SelectItem>
-                  {periods.map((period) => (
-                    <SelectItem key={period.id} value={period.id}>
-                      {period.period_name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <select
+                value={selectedPeriod || 'all'}
+                onChange={(e) => setSelectedPeriod(e.target.value === 'all' ? '' : e.target.value)}
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+              >
+                <option value="all">Todas las deudas</option>
+                {periods.map((period) => (
+                  <option key={period.id} value={period.id}>
+                    {period.period_name}
+                  </option>
+                ))}
+              </select>
             </div>
 
             {/* NUEVO: Filtro de fecha límite */}
