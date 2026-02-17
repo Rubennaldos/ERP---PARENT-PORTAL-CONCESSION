@@ -2051,6 +2051,7 @@ export default function LunchOrders() {
                               return '✅ Desde el calendario de menús';
                             case 'physical_order_wizard':
                             case 'physical_order_wizard_fiado':
+                            case 'physical_order_wizard_paid':
                               return '🔧 Registro manual (administrador/cajero)';
                             case 'lunch_orders_confirm':
                               return '🔧 Confirmado por administrador/cajero';
