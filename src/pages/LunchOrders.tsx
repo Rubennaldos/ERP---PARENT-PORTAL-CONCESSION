@@ -133,6 +133,13 @@ export default function LunchOrders() {
   const [cancelReason, setCancelReason] = useState('');
   const [pendingCancelOrder, setPendingCancelOrder] = useState<LunchOrder | null>(null);
   const [cancelling, setCancelling] = useState(false);
+  // 🆕 Info de pago del pedido a anular (para mostrar advertencia de reembolso)
+  const [cancelOrderPaymentInfo, setCancelOrderPaymentInfo] = useState<{
+    isPaid: boolean;
+    amount: number;
+    paymentMethod: string | null;
+    clientName: string;
+  } | null>(null);
   const [lunchConfig, setLunchConfig] = useState<{ cancellation_deadline_time?: string; cancellation_deadline_days?: number } | null>(null);
 
   useEffect(() => {
@@ -1117,9 +1124,58 @@ export default function LunchOrders() {
   // FUNCIONES DE ANULACIÓN DE PEDIDOS
   // ========================================
   
-  const handleOpenCancel = (order: LunchOrder) => {
+  const handleOpenCancel = async (order: LunchOrder) => {
     console.log('🗑️ [handleOpenCancel] Intentando anular pedido');
     console.log('👤 [handleOpenCancel] Rol del usuario:', role);
+    
+    // 🔍 Verificar si el pedido tiene transacción PAGADA (para advertencia de reembolso)
+    let paymentInfo: typeof cancelOrderPaymentInfo = null;
+    try {
+      const { data: txData } = await supabase
+        .from('transactions')
+        .select('id, payment_status, payment_method, amount')
+        .eq('metadata->>lunch_order_id', order.id)
+        .neq('payment_status', 'cancelled')
+        .limit(1);
+      
+      if (txData && txData.length > 0) {
+        const clientName = order.student?.full_name || order.teacher?.full_name || order.manual_name || 'Cliente';
+        if (txData[0].payment_status === 'paid') {
+          paymentInfo = {
+            isPaid: true,
+            amount: Math.abs(txData[0].amount),
+            paymentMethod: txData[0].payment_method,
+            clientName,
+          };
+          console.log('💰 [handleOpenCancel] Pedido YA PAGADO:', paymentInfo);
+        } else {
+          paymentInfo = {
+            isPaid: false,
+            amount: Math.abs(txData[0].amount),
+            paymentMethod: null,
+            clientName,
+          };
+          console.log('📋 [handleOpenCancel] Pedido con deuda pendiente');
+        }
+      } else {
+        // Buscar también por campo legacy (sin metadata) - para pedidos viejos
+        // Verificar si el lunch_order tiene payment_method != pagar_luego (pagado en persona)
+        if (order.payment_method && order.payment_method !== 'pagar_luego') {
+          const price = order.final_price || order.base_price || 0;
+          paymentInfo = {
+            isPaid: true,
+            amount: price,
+            paymentMethod: order.payment_method,
+            clientName: order.student?.full_name || order.teacher?.full_name || order.manual_name || 'Cliente',
+          };
+          console.log('💰 [handleOpenCancel] Pedido pagado (sin transacción, info de lunch_orders):', paymentInfo);
+        }
+      }
+    } catch (err) {
+      console.warn('⚠️ Error verificando estado de pago al abrir anulación:', err);
+    }
+    
+    setCancelOrderPaymentInfo(paymentInfo);
     
     const isCajero = role === 'operador_caja' || role === 'cajero';
     console.log('💼 [handleOpenCancel] ¿Es cajero?:', isCajero);
@@ -1224,89 +1280,133 @@ export default function LunchOrders() {
       
       console.log('✅ [ANULAR] Pedido actualizado en BD');
       
-      // 💰 Si el pedido fue con crédito (tiene student_id o teacher_id), devolver el crédito
-      if (pendingCancelOrder.student_id || pendingCancelOrder.teacher_id) {
-        console.log('💰 Buscando transacción asociada para devolver crédito...');
-        console.log('📋 Datos del pedido:', {
-          id: pendingCancelOrder.id,
-          student_id: pendingCancelOrder.student_id,
-          teacher_id: pendingCancelOrder.teacher_id,
-          order_date: pendingCancelOrder.order_date
-        });
-        
-        // 🆕 Primero intentar buscar por lunch_order_id en metadata (más confiable)
-        let { data: transactions, error: transError } = await supabase
+      // 💰 Buscar transacción asociada para CUALQUIER tipo de pedido
+      // (crédito, fiado, pago inmediato - estudiante, profesor O manual)
+      console.log('💰 Buscando transacción asociada al pedido...');
+      console.log('📋 Datos del pedido:', {
+        id: pendingCancelOrder.id,
+        student_id: pendingCancelOrder.student_id,
+        teacher_id: pendingCancelOrder.teacher_id,
+        manual_name: pendingCancelOrder.manual_name,
+        order_date: pendingCancelOrder.order_date
+      });
+      
+      let cancelledTransactionWasPaid = false;
+      let cancelledTransactionAmount = 0;
+      let cancelledTransactionMethod: string | null = null;
+      
+      // 🔍 NIVEL 1: Buscar por metadata.lunch_order_id (más confiable)
+      let { data: transactions, error: transError } = await supabase
+        .from('transactions')
+        .select('id, amount, student_id, teacher_id, manual_client_name, description, created_at, metadata, payment_status, payment_method')
+        .eq('metadata->>lunch_order_id', pendingCancelOrder.id)
+        .in('payment_status', ['pending', 'paid', 'partial']);
+      
+      // 🔍 NIVEL 2: Si no se encuentra por metadata, buscar por descripción (legacy)
+      if (!transactions || transactions.length === 0) {
+        console.log('⚠️ No se encontró por lunch_order_id, buscando por descripción...');
+        let query = supabase
           .from('transactions')
-          .select('id, amount, student_id, teacher_id, description, created_at, metadata, payment_status')
-          .eq('metadata->>lunch_order_id', pendingCancelOrder.id)
+          .select('id, amount, student_id, teacher_id, manual_client_name, description, created_at, metadata, payment_status, payment_method')
+          .eq('type', 'purchase')
           .in('payment_status', ['pending', 'paid', 'partial']);
         
-        // Si no se encuentra por metadata, buscar por descripción (método legacy)
-        if (!transactions || transactions.length === 0) {
-          console.log('⚠️ No se encontró por lunch_order_id, buscando por descripción...');
-          let query = supabase
-            .from('transactions')
-            .select('id, amount, student_id, teacher_id, description, created_at, metadata, payment_status')
-            .eq('type', 'purchase')
-            .in('payment_status', ['pending', 'paid', 'partial']);
-          
-          // Filtrar por student_id o teacher_id según corresponda
-          if (pendingCancelOrder.student_id) {
-            query = query.eq('student_id', pendingCancelOrder.student_id);
-          } else if (pendingCancelOrder.teacher_id) {
-            query = query.eq('teacher_id', pendingCancelOrder.teacher_id);
-          }
-          
-          // Filtrar por fecha del pedido en la descripción
-          query = query.ilike('description', `%${pendingCancelOrder.order_date}%`);
-          
-          const result = await query;
-          transactions = result.data;
-          transError = result.error;
+        // Filtrar por student_id, teacher_id o manual_client_name según corresponda
+        if (pendingCancelOrder.student_id) {
+          query = query.eq('student_id', pendingCancelOrder.student_id);
+        } else if (pendingCancelOrder.teacher_id) {
+          query = query.eq('teacher_id', pendingCancelOrder.teacher_id);
+        } else if (pendingCancelOrder.manual_name) {
+          query = query.ilike('manual_client_name', `%${pendingCancelOrder.manual_name}%`);
         }
         
-        console.log('🔍 Transacciones encontradas:', transactions);
+        // Filtrar por fecha del pedido en la descripción
+        const orderDateFormatted = format(new Date(pendingCancelOrder.order_date + 'T12:00:00'), "d 'de' MMMM", { locale: es });
+        query = query.ilike('description', `%${orderDateFormatted}%`);
         
-        if (transError) {
-          console.error('❌ Error buscando transacción:', transError);
-        } else if (transactions && transactions.length > 0) {
-          const transaction = transactions[0];
-          console.log('✅ Transacción encontrada:', transaction);
-          
-          // Anular la transacción (cambiar a 'cancelled' en lugar de eliminar)
-          const { error: cancelTransError } = await supabase
-            .from('transactions')
-            .update({ 
-              payment_status: 'cancelled',
-              metadata: {
-                ...transaction.metadata,
-                cancelled_reason: 'Pedido anulado por el administrador',
-                cancelled_at: new Date().toISOString()
-              }
-            })
-            .eq('id', transaction.id);
-          
-          if (cancelTransError) {
-            console.error('❌ Error anulando transacción:', cancelTransError);
-          } else {
-            console.log('✅ Transacción cancelada, crédito devuelto automáticamente');
-          }
-        } else {
-          console.log('⚠️ No se encontró transacción asociada (puede ser un pago físico o ya fue pagado)');
-        }
+        const result = await query;
+        transactions = result.data;
+        transError = result.error;
       }
       
-      toast({
-        title: '✅ Pedido anulado',
-        description: pendingCancelOrder.student_id || pendingCancelOrder.teacher_id 
-          ? 'El pedido ha sido anulado y el crédito devuelto' 
-          : 'El pedido ha sido anulado correctamente',
-      });
+      console.log('🔍 Transacciones encontradas:', transactions?.length || 0);
+      
+      if (transError) {
+        console.error('❌ Error buscando transacción:', transError);
+      } else if (transactions && transactions.length > 0) {
+        const transaction = transactions[0];
+        console.log('✅ Transacción encontrada:', transaction.id, 'estado:', transaction.payment_status);
+        
+        // Guardar info del pago para el mensaje final
+        cancelledTransactionWasPaid = transaction.payment_status === 'paid';
+        cancelledTransactionAmount = Math.abs(transaction.amount);
+        cancelledTransactionMethod = transaction.payment_method;
+        
+        // Anular la transacción (cambiar a 'cancelled')
+        const { error: cancelTransError } = await supabase
+          .from('transactions')
+          .update({ 
+            payment_status: 'cancelled',
+            metadata: {
+              ...transaction.metadata,
+              cancellation_reason: cancelReason.trim(),
+              cancelled_by: user?.id,
+              cancelled_at: new Date().toISOString(),
+              original_payment_status: transaction.payment_status,
+              original_payment_method: transaction.payment_method,
+              requires_refund: cancelledTransactionWasPaid, // 🆕 Marcar si requiere reembolso
+              refund_amount: cancelledTransactionWasPaid ? cancelledTransactionAmount : 0,
+            }
+          })
+          .eq('id', transaction.id);
+        
+        if (cancelTransError) {
+          console.error('❌ Error anulando transacción:', cancelTransError);
+        } else {
+          console.log('✅ Transacción cancelada. Era pagada:', cancelledTransactionWasPaid);
+        }
+      } else {
+        console.log('⚠️ No se encontró transacción asociada al pedido');
+      }
+      
+      // 📢 Mostrar mensaje según el tipo de anulación
+      const clientName = pendingCancelOrder.student?.full_name || 
+                         pendingCancelOrder.teacher?.full_name || 
+                         pendingCancelOrder.manual_name || 'Cliente';
+      
+      if (cancelledTransactionWasPaid) {
+        // ⚠️ El pedido ya estaba PAGADO → necesita reembolso manual
+        const methodLabel = cancelledTransactionMethod === 'efectivo' ? 'Efectivo' 
+          : cancelledTransactionMethod === 'tarjeta' ? 'Tarjeta' 
+          : cancelledTransactionMethod === 'yape' ? 'Yape' 
+          : cancelledTransactionMethod === 'transferencia' ? 'Transferencia'
+          : cancelledTransactionMethod || 'No especificado';
+        
+        toast({
+          title: '⚠️ Pedido anulado - REQUIERE REEMBOLSO',
+          description: `Debes devolver S/ ${cancelledTransactionAmount.toFixed(2)} a ${clientName}. Método original: ${methodLabel}`,
+          variant: 'destructive',
+          duration: 15000, // 15 segundos para que lo lean
+        });
+      } else if (transactions && transactions.length > 0) {
+        // Tenía deuda pendiente → la deuda se elimina automáticamente
+        toast({
+          title: '✅ Pedido anulado',
+          description: `El pedido de ${clientName} ha sido anulado y la deuda pendiente eliminada.`,
+        });
+      } else {
+        // No tenía transacción → solo se anuló el pedido
+        toast({
+          title: '✅ Pedido anulado',
+          description: `El pedido de ${clientName} ha sido anulado correctamente.`,
+        });
+      }
       
       // Cerrar modales y limpiar estados
       setShowCancelModal(false);
       setCancelReason('');
       setPendingCancelOrder(null);
+      setCancelOrderPaymentInfo(null);
       
       console.log('🔄 [ANULAR] Recargando pedidos...');
       // Recargar pedidos
@@ -2400,6 +2500,38 @@ export default function LunchOrders() {
             </div>
           )}
           
+          {/* ⚠️ Advertencia si el pedido ya fue PAGADO */}
+          {cancelOrderPaymentInfo?.isPaid && (
+            <div className="bg-red-50 border-2 border-red-300 rounded-lg p-4 mb-2">
+              <div className="flex items-start gap-3">
+                <span className="text-2xl flex-shrink-0">⚠️</span>
+                <div>
+                  <p className="font-bold text-red-800 text-sm">¡ATENCIÓN: Este pedido ya fue PAGADO!</p>
+                  <div className="mt-2 space-y-1">
+                    <p className="text-sm text-red-700">
+                      💰 Monto: <span className="font-bold">S/ {cancelOrderPaymentInfo.amount.toFixed(2)}</span>
+                    </p>
+                    <p className="text-sm text-red-700">
+                      💳 Método: <span className="font-bold">
+                        {cancelOrderPaymentInfo.paymentMethod === 'efectivo' ? 'Efectivo' 
+                          : cancelOrderPaymentInfo.paymentMethod === 'tarjeta' ? 'Tarjeta' 
+                          : cancelOrderPaymentInfo.paymentMethod === 'yape' ? 'Yape' 
+                          : cancelOrderPaymentInfo.paymentMethod === 'transferencia' ? 'Transferencia'
+                          : cancelOrderPaymentInfo.paymentMethod || 'No especificado'}
+                      </span>
+                    </p>
+                    <p className="text-sm text-red-700">
+                      👤 Cliente: <span className="font-bold">{cancelOrderPaymentInfo.clientName}</span>
+                    </p>
+                  </div>
+                  <p className="text-sm font-bold text-red-900 mt-3 bg-red-100 p-2 rounded">
+                    🔄 Al anular, deberás devolver S/ {cancelOrderPaymentInfo.amount.toFixed(2)} manualmente al cliente.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+          
           <div className="space-y-4 py-4">
             <div>
               <label className="text-sm font-medium">Motivo de Anulación *</label>
@@ -2424,6 +2556,7 @@ export default function LunchOrders() {
                 setShowCancelModal(false);
                 setCancelReason('');
                 setPendingCancelOrder(null);
+                setCancelOrderPaymentInfo(null);
               }}
               disabled={cancelling}
             >

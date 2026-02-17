@@ -2999,6 +2999,8 @@ Gracias.`;
                              selectedTransaction.metadata.source === 'admin_order' ? 'Pedido del Administrador' :
                              selectedTransaction.metadata.source === 'physical_order' ? 'Pedido presencial (Cocina)' :
                              selectedTransaction.metadata.source === 'physical_order_wizard' ? 'Pedido presencial (Cocina)' :
+                             selectedTransaction.metadata.source === 'physical_order_wizard_fiado' ? 'Pedido presencial - Pagar luego' :
+                             selectedTransaction.metadata.source === 'physical_order_wizard_paid' ? 'Pedido presencial - Pagado' :
                              selectedTransaction.metadata.source === 'lunch_orders_confirm' ? 'Confirmado desde Pedidos de Almuerzo' :
                              selectedTransaction.metadata.source === 'lunch_order' ? 'Pedido de Almuerzo' :
                              selectedTransaction.metadata.source === 'lunch_fast' ? 'Pedido rápido de Almuerzo' :
