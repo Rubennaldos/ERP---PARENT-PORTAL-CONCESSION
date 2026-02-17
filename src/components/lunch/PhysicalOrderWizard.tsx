@@ -461,10 +461,9 @@ export function PhysicalOrderWizard({ isOpen, onClose, schoolId, selectedDate, o
 
       if (orderError) throw orderError;
 
-      // 🎫 Generar ticket_code para la transacción
+      // 🎫 Generar ticket_code para TODAS las transacciones (crédito, fiado Y pago inmediato)
       let ticketCode: string | null = null;
-      if ((paymentType === 'credit' && selectedPerson && totalPrice > 0) || 
-          (paymentType === 'cash' && cashPaymentMethod === 'pagar_luego' && totalPrice > 0)) {
+      if (totalPrice > 0) {
         try {
           const { data: ticketNumber, error: ticketErr } = await supabase
             .rpc('get_next_ticket_number', { p_user_id: null });
@@ -532,10 +531,42 @@ export function PhysicalOrderWizard({ isOpen, onClose, schoolId, selectedDate, o
         console.log('✅ Transacción de fiado creada para:', manualName);
       }
 
+      // 🆕 Crear transacción PAGADA para pagos inmediatos (efectivo, tarjeta, yape, transferencia)
+      // Este es el caso donde paymentType === 'cash' y cashPaymentMethod NO es 'pagar_luego'
+      if (paymentType === 'cash' && cashPaymentMethod && cashPaymentMethod !== 'pagar_luego' && totalPrice > 0) {
+        const transactionData: any = {
+          type: 'purchase',
+          amount: -Math.abs(totalPrice),
+          description: `Almuerzo - ${selectedCategory.name}${quantity > 1 ? ` (${quantity}x)` : ''} - ${format(new Date(selectedMenu.date + 'T00:00:00'), "d 'de' MMMM", { locale: es })} - ${manualName}`,
+          payment_status: 'paid', // ✅ Ya fue pagado inmediatamente
+          payment_method: cashPaymentMethod, // ✅ Método de pago usado
+          school_id: schoolId,
+          manual_client_name: manualName, // 👤 Nombre del cliente
+          ticket_code: ticketCode, // 🎫 Ticket generado
+          metadata: {
+            lunch_order_id: insertedOrder.id,
+            source: 'physical_order_wizard_paid',
+            order_date: selectedMenu.date,
+            category_name: selectedCategory.name,
+            quantity,
+            payment_details: paymentDetails // Detalles del pago (nº operación, etc.)
+          }
+        };
+
+        const { error: transactionError } = await supabase.from('transactions').insert([transactionData]);
+        
+        if (transactionError) {
+          console.error('❌ Error creando transacción pagada:', transactionError);
+          // No lanzar error, el pedido ya fue creado
+        } else {
+          console.log('✅ Transacción PAGADA creada para:', manualName, 'con método:', cashPaymentMethod, 'ticket:', ticketCode);
+        }
+      }
+
       toast({
         title: '✅ Pedido registrado',
         description: `${quantity}x ${selectedCategory.name} para ${paymentType === 'credit' ? selectedPerson?.full_name : manualName}${
-          cashPaymentMethod === 'pagar_luego' ? ' (Pago pendiente)' : ''
+          cashPaymentMethod === 'pagar_luego' ? ' (Pago pendiente)' : ticketCode ? ` (Ticket: ${ticketCode})` : ''
         }${existingOrders.length > 0 ? ` (pedido adicional)` : ''}`
       });
 
