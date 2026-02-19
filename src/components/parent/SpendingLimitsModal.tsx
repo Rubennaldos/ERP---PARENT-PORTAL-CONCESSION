@@ -80,14 +80,14 @@ export function SpendingLimitsModal({
       if (error) throw error;
 
       setCurrentConfig(data);
-      // ✅ SIEMPRE iniciar en "Compra Inteligente" (none)
-      setSelectedType('none');
-      // ✅ SIEMPRE iniciar en "Cuenta Libre" (free)
-      setAccountMode('free');
-      setLimitAmount('0');
-      
-      // Guardar la configuración antigua para referencia, pero no aplicarla
-      // El usuario tendrá que seleccionar manualmente si quiere un tope
+      // Cargar la configuración actual del alumno
+      setSelectedType(data.limit_type || 'none');
+      setAccountMode(data.free_account ? 'free' : 'prepaid');
+      // Cargar el monto del tope actual
+      if (data.limit_type === 'daily') setLimitAmount(String(data.daily_limit || 0));
+      else if (data.limit_type === 'weekly') setLimitAmount(String(data.weekly_limit || 0));
+      else if (data.limit_type === 'monthly') setLimitAmount(String(data.monthly_limit || 0));
+      else setLimitAmount('0');
     } catch (error: any) {
       console.error('Error fetching limit config:', error);
     } finally {
@@ -159,7 +159,7 @@ export function SpendingLimitsModal({
         daily_limit: selectedType === 'daily' ? amount : (currentConfig?.daily_limit || 0),
         weekly_limit: selectedType === 'weekly' ? amount : (currentConfig?.weekly_limit || 0),
         monthly_limit: selectedType === 'monthly' ? amount : (currentConfig?.monthly_limit || 0),
-        free_account: true, // 🔒 Siempre Cuenta Libre (modo recargas deshabilitado)
+        free_account: accountMode === 'free', // true = Cuenta Libre, false = Con Recargas
       };
 
       const { error } = await supabase
@@ -171,7 +171,7 @@ export function SpendingLimitsModal({
 
       toast({
         title: '✅ Configuración actualizada',
-        description: `Cuenta Libre - ${getLimitMessage()}`,
+        description: `${accountMode === 'free' ? 'Cuenta Libre' : 'Con Recargas'} - ${getLimitMessage()}`,
       });
 
       onSuccess();
@@ -318,35 +318,63 @@ export function SpendingLimitsModal({
               Método de Trabajo
             </Label>
             <div className="grid grid-cols-2 gap-2 sm:gap-3">
-              {/* Cuenta Libre - Activa */}
-              <div className="p-3 sm:p-4 rounded-xl border border-emerald-500/50 bg-emerald-50/30 shadow-sm">
+              {/* Cuenta Libre */}
+              <button
+                onClick={() => setAccountMode('free')}
+                className={`p-3 sm:p-4 rounded-xl border transition-all text-left ${
+                  accountMode === 'free'
+                    ? 'border-emerald-500/50 bg-emerald-50/30 shadow-sm'
+                    : 'border-stone-200 hover:border-stone-300 bg-white'
+                }`}
+              >
                 <div className="flex items-center gap-1.5 sm:gap-2 mb-1 sm:mb-1.5">
-                  <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg flex items-center justify-center bg-emerald-100/60">
-                    <Wallet className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-emerald-600" />
+                  <div className={`w-7 h-7 sm:w-8 sm:h-8 rounded-lg flex items-center justify-center ${
+                    accountMode === 'free' ? 'bg-emerald-100/60' : 'bg-stone-100'
+                  }`}>
+                    <Wallet className={`h-3.5 w-3.5 sm:h-4 sm:w-4 ${
+                      accountMode === 'free' ? 'text-emerald-600' : 'text-stone-400'
+                    }`} />
                   </div>
-                  <Badge className="bg-emerald-600 text-white text-[9px] sm:text-xs px-1.5 sm:px-2 py-0">ACTIVO</Badge>
+                  {accountMode === 'free' && (
+                    <Badge className="bg-emerald-600 text-white text-[9px] sm:text-xs px-1.5 sm:px-2 py-0">ACTIVO</Badge>
+                  )}
                 </div>
-                <h4 className="font-medium text-xs sm:text-sm text-emerald-700">
+                <h4 className={`font-medium text-xs sm:text-sm ${
+                  accountMode === 'free' ? 'text-emerald-700' : 'text-stone-600'
+                }`}>
                   Cuenta Libre
                 </h4>
                 <p className="text-[10px] sm:text-xs text-stone-500 mt-0.5">Pagas al final del mes</p>
-              </div>
+              </button>
 
-              {/* Con Recargas - Deshabilitado / Próximamente */}
-              <div className="p-3 sm:p-4 rounded-xl border border-stone-200 bg-stone-50/50 opacity-60 cursor-not-allowed relative">
+              {/* Con Recargas - Habilitado */}
+              <button
+                onClick={() => handleModeChange('prepaid')}
+                className={`p-3 sm:p-4 rounded-xl border transition-all text-left ${
+                  accountMode === 'prepaid'
+                    ? 'border-blue-500/50 bg-blue-50/30 shadow-sm'
+                    : 'border-stone-200 hover:border-stone-300 bg-white'
+                }`}
+              >
                 <div className="flex items-center gap-1.5 sm:gap-2 mb-1 sm:mb-1.5">
-                  <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg flex items-center justify-center bg-stone-100">
-                    <CreditCard className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-stone-400" />
+                  <div className={`w-7 h-7 sm:w-8 sm:h-8 rounded-lg flex items-center justify-center ${
+                    accountMode === 'prepaid' ? 'bg-blue-100/60' : 'bg-stone-100'
+                  }`}>
+                    <CreditCard className={`h-3.5 w-3.5 sm:h-4 sm:w-4 ${
+                      accountMode === 'prepaid' ? 'text-blue-600' : 'text-stone-400'
+                    }`} />
                   </div>
-                  <Badge variant="outline" className="text-[9px] sm:text-xs px-1.5 sm:px-2 py-0 border-amber-300 text-amber-600">
-                    Próximamente
-                  </Badge>
+                  {accountMode === 'prepaid' && (
+                    <Badge className="bg-blue-600 text-white text-[9px] sm:text-xs px-1.5 sm:px-2 py-0">ACTIVO</Badge>
+                  )}
                 </div>
-                <h4 className="font-medium text-xs sm:text-sm text-stone-400">
+                <h4 className={`font-medium text-xs sm:text-sm ${
+                  accountMode === 'prepaid' ? 'text-blue-700' : 'text-stone-600'
+                }`}>
                   Con Recargas
                 </h4>
-                <p className="text-[10px] sm:text-xs text-stone-400 mt-0.5">Recargas anticipadas</p>
-              </div>
+                <p className="text-[10px] sm:text-xs text-stone-500 mt-0.5">Recargas anticipadas</p>
+              </button>
             </div>
           </div>
 
