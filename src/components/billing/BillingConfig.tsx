@@ -424,18 +424,18 @@ Gracias.`);
       {/* Selector de Sede */}
       {canViewAllSchools && schools.length > 1 && (
         <Card className="border-2 shadow-lg bg-white">
-          <CardContent className="p-6">
-            <div className="flex items-center gap-4">
-              <div className="p-3 bg-blue-100 rounded-lg">
-                <Building2 className="h-6 w-6 text-blue-600" />
-              </div>
-              <div className="flex-1">
-                <Label className="text-lg font-semibold">Sede a Configurar</Label>
+          <CardContent className="p-4 sm:p-6">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
+              <div className="flex items-center gap-3">
+                <div className="p-3 bg-blue-100 rounded-lg shrink-0">
+                  <Building2 className="h-6 w-6 text-blue-600" />
+                </div>
+                <Label className="text-base sm:text-lg font-semibold">Sede a Configurar</Label>
               </div>
               <select
                 value={selectedSchool}
                 onChange={(e) => setSelectedSchool(e.target.value)}
-                className="w-[250px] h-12 border-2 rounded-md bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                className="w-full sm:w-[250px] h-12 border-2 rounded-md bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
               >
                 {schools.map((school) => (
                   <option key={school.id} value={school.id}>
@@ -450,28 +450,28 @@ Gracias.`);
 
       {/* ⏱️ Configuración de Delay de Visibilidad */}
       <Card className="border-2 shadow-lg bg-white">
-        <CardHeader className="bg-gradient-to-r from-amber-50 to-orange-50 border-b-2">
-          <CardTitle className="flex items-center gap-3 text-xl">
-            <div className="p-2 bg-amber-600 rounded-lg">
-              <Clock className="h-6 w-6 text-white" />
+        <CardHeader className="bg-gradient-to-r from-amber-50 to-orange-50 border-b-2 p-4 sm:p-6">
+          <CardTitle className="flex items-center gap-3 text-base sm:text-xl">
+            <div className="p-2 bg-amber-600 rounded-lg shrink-0">
+              <Clock className="h-5 w-5 sm:h-6 sm:w-6 text-white" />
             </div>
             Delay de Visibilidad de Compras (Portal de Padres)
           </CardTitle>
-          <CardDescription className="text-base mt-2">
+          <CardDescription className="text-sm sm:text-base mt-2">
             Controla cuántos días deben pasar antes de que los padres vean las compras de sus hijos en el portal.
             Esta configuración <strong>NO afecta</strong> al módulo de cobranzas del admin (siempre en vivo).
           </CardDescription>
         </CardHeader>
-        <CardContent className="p-6 space-y-4">
+        <CardContent className="p-3 sm:p-6 space-y-4">
           {/* Explicación */}
-          <div className="bg-gradient-to-br from-blue-50 to-cyan-50 p-4 rounded-lg border-2 border-blue-200">
+          <div className="bg-gradient-to-br from-blue-50 to-cyan-50 p-3 sm:p-4 rounded-lg border-2 border-blue-200">
             <div className="flex items-start gap-3">
-              <div className="p-2 bg-blue-500 rounded-lg">
-                <AlertTriangle className="h-5 w-5 text-white" />
+              <div className="p-2 bg-blue-500 rounded-lg shrink-0">
+                <AlertTriangle className="h-4 w-4 sm:h-5 sm:w-5 text-white" />
               </div>
               <div className="flex-1">
-                <p className="font-semibold text-gray-900 mb-1">¿Qué hace el Delay?</p>
-                <ul className="text-sm text-gray-700 space-y-1">
+                <p className="font-semibold text-gray-900 mb-1 text-sm sm:text-base">¿Qué hace el Delay?</p>
+                <ul className="text-xs sm:text-sm text-gray-700 space-y-1">
                   <li>• <strong>Switch OFF (0 días):</strong> Los padres ven las compras al instante ⚡</li>
                   <li>• <strong>Switch ON:</strong> Las compras aparecen después del número de días configurado</li>
                   <li>• Útil para dar tiempo de verificación antes de que los padres reclamen</li>
@@ -485,40 +485,43 @@ Gracias.`);
             {schoolDelays.map((school) => (
               <div 
                 key={school.school_id} 
-                className="flex items-center justify-between p-4 bg-gray-50 rounded-lg border-2 hover:border-amber-300 transition-colors"
+                className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-3 sm:p-4 bg-gray-50 rounded-lg border-2 hover:border-amber-300 transition-colors"
               >
                 {/* Nombre de la sede */}
                 <div className="flex items-center gap-3 flex-1">
-                  <Building2 className="h-5 w-5 text-gray-400" />
-                  <span className="font-semibold text-gray-900">{school.school_name}</span>
+                  <Building2 className="h-4 w-4 sm:h-5 sm:w-5 text-gray-400 shrink-0" />
+                  <span className="font-semibold text-gray-900 text-sm sm:text-base">{school.school_name}</span>
                 </div>
 
-                {/* Switch ON/OFF */}
-                <div className="flex items-center gap-2">
-                  <Label htmlFor={`delay-switch-${school.school_id}`} className="text-sm text-gray-600 cursor-pointer">
-                    {school.enabled ? 'Activado' : 'Desactivado'}
-                  </Label>
-                  <Switch
-                    id={`delay-switch-${school.school_id}`}
-                    checked={school.enabled}
-                    onCheckedChange={(checked) => handleDelayToggle(school.school_id, checked)}
-                  />
-                </div>
+                {/* Controles: switch + selector — en mobile lado a lado */}
+                <div className="flex items-center justify-between sm:justify-end gap-3">
+                  {/* Switch ON/OFF */}
+                  <div className="flex items-center gap-2">
+                    <Label htmlFor={`delay-switch-${school.school_id}`} className="text-xs sm:text-sm text-gray-600 cursor-pointer">
+                      {school.enabled ? 'Activado' : 'Desactivado'}
+                    </Label>
+                    <Switch
+                      id={`delay-switch-${school.school_id}`}
+                      checked={school.enabled}
+                      onCheckedChange={(checked) => handleDelayToggle(school.school_id, checked)}
+                    />
+                  </div>
 
-                {/* Selector de días */}
-                <select 
-                  value={school.delay_days.toString()} 
-                  onChange={(e) => handleDelayDaysChange(school.school_id, parseInt(e.target.value))}
-                  disabled={!school.enabled}
-                  className={`w-[140px] ml-4 h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${!school.enabled ? 'opacity-50' : ''}`}
-                >
-                  <option value="0">0 días (EN VIVO)</option>
-                  <option value="1">1 día</option>
-                  <option value="2">2 días</option>
-                  <option value="3">3 días</option>
-                  <option value="4">4 días</option>
-                  <option value="5">5 días</option>
-                </select>
+                  {/* Selector de días */}
+                  <select 
+                    value={school.delay_days.toString()} 
+                    onChange={(e) => handleDelayDaysChange(school.school_id, parseInt(e.target.value))}
+                    disabled={!school.enabled}
+                    className={`w-[130px] sm:w-[140px] sm:ml-2 h-9 sm:h-10 rounded-md border border-input bg-background px-2 sm:px-3 py-1 sm:py-2 text-xs sm:text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${!school.enabled ? 'opacity-50' : ''}`}
+                  >
+                    <option value="0">0 días (EN VIVO)</option>
+                    <option value="1">1 día</option>
+                    <option value="2">2 días</option>
+                    <option value="3">3 días</option>
+                    <option value="4">4 días</option>
+                    <option value="5">5 días</option>
+                  </select>
+                </div>
               </div>
             ))}
 
@@ -534,18 +537,18 @@ Gracias.`);
 
       {/* Plantilla de Mensaje */}
       <Card className="border-2 shadow-lg bg-white">
-        <CardHeader className="bg-gradient-to-r from-blue-50 to-cyan-50 border-b-2">
-          <CardTitle className="flex items-center gap-3 text-xl">
-            <div className="p-2 bg-blue-600 rounded-lg">
-              <MessageSquare className="h-6 w-6 text-white" />
+        <CardHeader className="bg-gradient-to-r from-blue-50 to-cyan-50 border-b-2 p-4 sm:p-6">
+          <CardTitle className="flex items-center gap-3 text-base sm:text-xl">
+            <div className="p-2 bg-blue-600 rounded-lg shrink-0">
+              <MessageSquare className="h-5 w-5 sm:h-6 sm:w-6 text-white" />
             </div>
             Plantilla de Mensaje WhatsApp
           </CardTitle>
-          <CardDescription className="text-base mt-2">
+          <CardDescription className="text-sm sm:text-base mt-2">
             Personaliza el mensaje que se enviará a los padres. Usa variables: {'{'}nombre_padre{'}'}, {'{'}nombre_estudiante{'}'}, {'{'}periodo{'}'}, {'{'}monto{'}'}
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4 p-6">
+        <CardContent className="space-y-4 p-3 sm:p-6">
           <div className="space-y-2">
             <Label htmlFor="message_template" className="text-base font-semibold">Mensaje</Label>
             <Textarea
@@ -584,21 +587,21 @@ Gracias.`);
 
       {/* Información de Pago */}
       <Card className="border-2 shadow-lg bg-white">
-        <CardHeader className="bg-gradient-to-r from-green-50 to-emerald-50 border-b-2">
-          <div className="flex items-center justify-between">
+        <CardHeader className="bg-gradient-to-r from-green-50 to-emerald-50 border-b-2 p-4 sm:p-6">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <div>
-              <CardTitle className="flex items-center gap-3 text-xl">
-                <div className="p-2 bg-green-600 rounded-lg">
-                  <CreditCard className="h-6 w-6 text-white" />
+              <CardTitle className="flex items-center gap-3 text-base sm:text-xl">
+                <div className="p-2 bg-green-600 rounded-lg shrink-0">
+                  <CreditCard className="h-5 w-5 sm:h-6 sm:w-6 text-white" />
                 </div>
                 Información de Pago
               </CardTitle>
-              <CardDescription className="text-base mt-2">
+              <CardDescription className="text-sm sm:text-base mt-2">
                 Esta información se agregará automáticamente al final del mensaje de WhatsApp
               </CardDescription>
             </div>
-            <div className="flex items-center gap-3">
-              <Label htmlFor="show_payment_info" className="text-base font-semibold cursor-pointer">
+            <div className="flex items-center gap-3 self-start sm:self-auto">
+              <Label htmlFor="show_payment_info" className="text-sm sm:text-base font-semibold cursor-pointer">
                 {showPaymentInfo ? 'Habilitado' : 'Deshabilitado'}
               </Label>
               <Switch
@@ -609,9 +612,9 @@ Gracias.`);
             </div>
           </div>
         </CardHeader>
-        <CardContent className="space-y-6 p-6">
+        <CardContent className="space-y-4 sm:space-y-6 p-3 sm:p-6">
           <div className="space-y-2">
-            <Label htmlFor="bank_info" className="text-base font-semibold">Información Bancaria</Label>
+            <Label htmlFor="bank_info" className="text-sm sm:text-base font-semibold">Información Bancaria</Label>
             <Textarea
               id="bank_info"
               placeholder="Ej: Banco BCP&#10;Cuenta Corriente: 123-456-789&#10;CCI: 001-123-456-789"
@@ -623,9 +626,9 @@ Gracias.`);
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="yape_number" className="text-base font-semibold">Número Yape</Label>
+              <Label htmlFor="yape_number" className="text-sm sm:text-base font-semibold">Número Yape</Label>
               <Input
                 id="yape_number"
                 placeholder="987654321"
@@ -637,7 +640,7 @@ Gracias.`);
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="plin_number" className="text-base font-semibold">Número Plin</Label>
+              <Label htmlFor="plin_number" className="text-sm sm:text-base font-semibold">Número Plin</Label>
               <Input
                 id="plin_number"
                 placeholder="987654321"
@@ -657,7 +660,7 @@ Gracias.`);
           onClick={handleSave}
           disabled={saving}
           size="lg"
-          className="bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 h-14 px-8 text-lg shadow-lg"
+          className="w-full sm:w-auto bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 h-12 sm:h-14 px-6 sm:px-8 text-base sm:text-lg shadow-lg"
         >
           {saving ? (
             <>

@@ -285,7 +285,7 @@ export const VoucherApproval = () => {
                 <CardContent className="p-4">
                   <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
                     {/* Info principal */}
-                    <div className="flex-1 space-y-2">
+                    <div className="flex-1 min-w-0 space-y-2">
                       {/* Cabecera */}
                       <div className="flex items-center flex-wrap gap-2">
                         <span className={`text-xs font-semibold px-2 py-0.5 rounded-full border ${statusInfo.className}`}>
@@ -358,12 +358,12 @@ export const VoucherApproval = () => {
                     </div>
 
                     {/* Columna derecha: imagen + acciones */}
-                    <div className="flex flex-col items-end gap-3 min-w-[140px]">
+                    <div className="flex sm:flex-col items-start sm:items-end gap-3 sm:shrink-0 sm:w-[140px]">
                       {/* Voucher imagen */}
                       {req.voucher_url ? (
                         <button
                           onClick={() => setSelectedImage(req.voucher_url)}
-                          className="border-2 border-dashed border-blue-300 rounded-lg overflow-hidden hover:border-blue-500 transition-colors w-24 h-20"
+                          className="border-2 border-dashed border-blue-300 rounded-lg overflow-hidden hover:border-blue-500 transition-colors w-20 h-16 sm:w-24 sm:h-20 shrink-0"
                         >
                           <img
                             src={req.voucher_url}
@@ -372,15 +372,15 @@ export const VoucherApproval = () => {
                           />
                         </button>
                       ) : (
-                        <div className="border border-dashed border-gray-200 rounded-lg w-24 h-20 flex flex-col items-center justify-center text-gray-300">
-                          <ImageIcon className="h-5 w-5" />
-                          <span className="text-[10px]">Sin imagen</span>
+                        <div className="border border-dashed border-gray-200 rounded-lg w-20 h-16 sm:w-24 sm:h-20 shrink-0 flex flex-col items-center justify-center text-gray-300">
+                          <ImageIcon className="h-4 w-4 sm:h-5 sm:w-5" />
+                          <span className="text-[9px] sm:text-[10px]">Sin imagen</span>
                         </div>
                       )}
 
                       {/* Acciones (solo para pending) */}
                       {req.status === 'pending' && (
-                        <div className="w-full space-y-2">
+                        <div className="flex-1 sm:flex-none sm:w-full space-y-2">
                           {showRejectInput[req.id] ? (
                             <div className="space-y-1">
                               <Input
@@ -416,7 +416,7 @@ export const VoucherApproval = () => {
                             <div className="flex flex-col gap-1.5">
                               <Button
                                 size="sm"
-                                className="h-9 bg-green-600 hover:bg-green-700 gap-1.5 font-semibold w-full"
+                                className="h-9 bg-green-600 hover:bg-green-700 gap-1.5 font-semibold w-full text-xs sm:text-sm"
                                 onClick={() => handleApprove(req)}
                                 disabled={isProcessing}
                               >

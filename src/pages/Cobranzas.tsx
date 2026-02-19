@@ -200,127 +200,190 @@ const Cobranzas = () => {
     );
   }
 
+  // Pestañas visibles (Reportes eliminado de la UI)
+  const visibleTabCount = [
+    permissions.dashboard,
+    permissions.collect,
+    // permissions.reports — eliminado de la UI
+    permissions.vouchers,
+    permissions.config,
+  ].filter(Boolean).length;
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-red-50 via-orange-50 to-yellow-50 p-6">
-      <div className="max-w-7xl mx-auto space-y-6">
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
+    <div className="min-h-screen bg-gradient-to-br from-red-50 via-orange-50 to-yellow-50 p-3 sm:p-6">
+      <div className="max-w-7xl mx-auto space-y-4 sm:space-y-6">
+        {/* Header — responsivo */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
             <Button
               variant="ghost"
               size="sm"
               onClick={() => navigate('/dashboard')}
+              className="shrink-0"
             >
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Volver
+              <ArrowLeft className="h-4 w-4" />
+              <span className="hidden sm:inline ml-1">Volver</span>
             </Button>
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
-                <DollarSign className="h-8 w-8 text-red-600" />
-                Módulo de Cobranzas
+            <div className="min-w-0">
+              <h1 className="text-xl sm:text-3xl font-bold text-gray-900 flex items-center gap-2">
+                <DollarSign className="h-6 w-6 sm:h-8 sm:w-8 text-red-600 shrink-0" />
+                <span className="truncate">Módulo de Cobranzas</span>
               </h1>
-              <p className="text-gray-600 mt-1">
+              <p className="text-gray-600 mt-0.5 text-xs sm:text-base hidden sm:block">
                 Gestión integral de cuentas por cobrar y períodos de facturación
               </p>
             </div>
           </div>
-          <UserProfileMenu
-            userEmail={user?.email || ''}
-            userName={full_name || undefined}
-            onLogout={signOut}
-          />
+          <div className="self-end sm:self-auto">
+            <UserProfileMenu
+              userEmail={user?.email || ''}
+              userName={full_name || undefined}
+              onLogout={signOut}
+            />
+          </div>
         </div>
 
         {/* Tabs Principal */}
         <Card>
-          <CardContent className="p-6">
+          <CardContent className="p-2 sm:p-6">
             {/* Tabs nativo - sin Radix para evitar removeChild */}
             <div>
-              <div 
-                className="grid w-full h-auto bg-muted p-1 rounded-lg"
-                style={{ gridTemplateColumns: `repeat(${Object.values(permissions).filter(Boolean).length}, 1fr)` }}
-              >
-                {permissions.dashboard && (
-                  <button
-                    onClick={() => setActiveTab('dashboard')}
-                    className={`flex items-center justify-center gap-2 py-3 text-sm font-medium rounded-md transition-all ${
-                      activeTab === 'dashboard'
-                        ? 'bg-background text-foreground shadow-sm'
-                        : 'text-muted-foreground hover:text-foreground'
-                    }`}
-                  >
-                    <DollarSign className="h-4 w-4" />
-                    <span className="hidden sm:inline">Dashboard</span>
-                  </button>
-                )}
-                {permissions.collect && (
-                  <button
-                    onClick={() => setActiveTab('collect')}
-                    className={`flex items-center justify-center gap-2 py-3 text-sm font-bold rounded-md transition-all ${
-                      activeTab === 'collect'
-                        ? 'bg-background text-foreground shadow-sm'
-                        : 'text-muted-foreground hover:text-foreground'
-                    }`}
-                  >
-                    <Users className="h-4 w-4" />
-                    <span className="hidden sm:inline">¡Cobrar!</span>
-                  </button>
-                )}
-                {permissions.reports && (
-                  <button
-                    onClick={() => setActiveTab('reports')}
-                    className={`flex items-center justify-center gap-2 py-3 text-sm font-medium rounded-md transition-all ${
-                      activeTab === 'reports'
-                        ? 'bg-background text-foreground shadow-sm'
-                        : 'text-muted-foreground hover:text-foreground'
-                    }`}
-                  >
-                    <FileText className="h-4 w-4" />
-                    <span className="hidden sm:inline">Reportes</span>
-                  </button>
-                )}
-                {permissions.vouchers && (
-                  <button
-                    onClick={() => setActiveTab('vouchers')}
-                    className={`flex items-center justify-center gap-2 py-3 text-sm font-medium rounded-md transition-all relative ${
-                      activeTab === 'vouchers'
-                        ? 'bg-background text-foreground shadow-sm'
-                        : 'text-muted-foreground hover:text-foreground'
-                    }`}
-                  >
-                    <Wallet className="h-4 w-4" />
-                    <span className="hidden sm:inline">Recargas</span>
-                    {pendingVouchers > 0 && (
-                      <span className="absolute -top-1 -right-1 bg-amber-500 text-white text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center">
-                        {pendingVouchers > 9 ? '9+' : pendingVouchers}
-                      </span>
-                    )}
-                  </button>
-                )}
-                {permissions.config && (
-                  <button
-                    onClick={() => setActiveTab('config')}
-                    className={`flex items-center justify-center gap-2 py-3 text-sm font-medium rounded-md transition-all ${
-                      activeTab === 'config'
-                        ? 'bg-background text-foreground shadow-sm'
-                        : 'text-muted-foreground hover:text-foreground'
-                    }`}
-                  >
-                    <Settings className="h-4 w-4" />
-                    <span className="hidden sm:inline">Config</span>
-                  </button>
-                )}
+              {/* ── Barra de tabs: scroll horizontal en mobile, grid en desktop ── */}
+              <div className="overflow-x-auto -mx-1 px-1 pb-1 sm:pb-0 sm:overflow-visible">
+                <div
+                  className="hidden sm:grid w-full h-auto bg-muted p-1 rounded-lg"
+                  style={{ gridTemplateColumns: `repeat(${visibleTabCount}, 1fr)` }}
+                >
+                  {permissions.dashboard && (
+                    <button
+                      onClick={() => setActiveTab('dashboard')}
+                      className={`flex items-center justify-center gap-2 py-3 text-sm font-medium rounded-md transition-all ${
+                        activeTab === 'dashboard'
+                          ? 'bg-background text-foreground shadow-sm'
+                          : 'text-muted-foreground hover:text-foreground'
+                      }`}
+                    >
+                      <DollarSign className="h-4 w-4" />
+                      Dashboard
+                    </button>
+                  )}
+                  {permissions.collect && (
+                    <button
+                      onClick={() => setActiveTab('collect')}
+                      className={`flex items-center justify-center gap-2 py-3 text-sm font-bold rounded-md transition-all ${
+                        activeTab === 'collect'
+                          ? 'bg-background text-foreground shadow-sm'
+                          : 'text-muted-foreground hover:text-foreground'
+                      }`}
+                    >
+                      <Users className="h-4 w-4" />
+                      ¡Cobrar!
+                    </button>
+                  )}
+                  {permissions.vouchers && (
+                    <button
+                      onClick={() => setActiveTab('vouchers')}
+                      className={`flex items-center justify-center gap-2 py-3 text-sm font-medium rounded-md transition-all relative ${
+                        activeTab === 'vouchers'
+                          ? 'bg-background text-foreground shadow-sm'
+                          : 'text-muted-foreground hover:text-foreground'
+                      }`}
+                    >
+                      <Wallet className="h-4 w-4" />
+                      Recargas
+                      {pendingVouchers > 0 && (
+                        <span className="absolute -top-1 -right-1 bg-amber-500 text-white text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center">
+                          {pendingVouchers > 9 ? '9+' : pendingVouchers}
+                        </span>
+                      )}
+                    </button>
+                  )}
+                  {permissions.config && (
+                    <button
+                      onClick={() => setActiveTab('config')}
+                      className={`flex items-center justify-center gap-2 py-3 text-sm font-medium rounded-md transition-all ${
+                        activeTab === 'config'
+                          ? 'bg-background text-foreground shadow-sm'
+                          : 'text-muted-foreground hover:text-foreground'
+                      }`}
+                    >
+                      <Settings className="h-4 w-4" />
+                      Config
+                    </button>
+                  )}
+                </div>
+
+                {/* ── Tabs en mobile: flex horizontal con scroll ── */}
+                <div className="flex sm:hidden gap-1 bg-muted p-1 rounded-lg w-max min-w-full">
+                  {permissions.dashboard && (
+                    <button
+                      onClick={() => setActiveTab('dashboard')}
+                      className={`flex items-center gap-1.5 px-3 py-2.5 text-xs font-medium rounded-md transition-all whitespace-nowrap ${
+                        activeTab === 'dashboard'
+                          ? 'bg-background text-foreground shadow-sm'
+                          : 'text-muted-foreground hover:text-foreground'
+                      }`}
+                    >
+                      <DollarSign className="h-3.5 w-3.5" />
+                      Dashboard
+                    </button>
+                  )}
+                  {permissions.collect && (
+                    <button
+                      onClick={() => setActiveTab('collect')}
+                      className={`flex items-center gap-1.5 px-3 py-2.5 text-xs font-bold rounded-md transition-all whitespace-nowrap ${
+                        activeTab === 'collect'
+                          ? 'bg-background text-foreground shadow-sm'
+                          : 'text-muted-foreground hover:text-foreground'
+                      }`}
+                    >
+                      <Users className="h-3.5 w-3.5" />
+                      ¡Cobrar!
+                    </button>
+                  )}
+                  {permissions.vouchers && (
+                    <button
+                      onClick={() => setActiveTab('vouchers')}
+                      className={`flex items-center gap-1.5 px-3 py-2.5 text-xs font-medium rounded-md transition-all whitespace-nowrap relative ${
+                        activeTab === 'vouchers'
+                          ? 'bg-background text-foreground shadow-sm'
+                          : 'text-muted-foreground hover:text-foreground'
+                      }`}
+                    >
+                      <Wallet className="h-3.5 w-3.5" />
+                      Recargas
+                      {pendingVouchers > 0 && (
+                        <span className="ml-0.5 bg-amber-500 text-white text-[9px] font-bold rounded-full w-3.5 h-3.5 flex items-center justify-center">
+                          {pendingVouchers > 9 ? '9+' : pendingVouchers}
+                        </span>
+                      )}
+                    </button>
+                  )}
+                  {permissions.config && (
+                    <button
+                      onClick={() => setActiveTab('config')}
+                      className={`flex items-center gap-1.5 px-3 py-2.5 text-xs font-medium rounded-md transition-all whitespace-nowrap ${
+                        activeTab === 'config'
+                          ? 'bg-background text-foreground shadow-sm'
+                          : 'text-muted-foreground hover:text-foreground'
+                      }`}
+                    >
+                      <Settings className="h-3.5 w-3.5" />
+                      Config
+                    </button>
+                  )}
+                </div>
               </div>
 
               {/* Dashboard Tab (Incluye Estadísticas) */}
               {activeTab === 'dashboard' && permissions.dashboard && (
-                <div className="mt-6 space-y-6">
+                <div className="mt-4 sm:mt-6 space-y-4 sm:space-y-6">
                   <BillingDashboard />
                   
                   {/* Separador visual */}
-                  <div className="border-t pt-6">
-                    <h2 className="text-2xl font-bold text-gray-900 mb-4 flex items-center gap-2">
-                      <BarChart3 className="h-6 w-6 text-red-600" />
+                  <div className="border-t pt-4 sm:pt-6">
+                    <h2 className="text-lg sm:text-2xl font-bold text-gray-900 mb-4 flex items-center gap-2">
+                      <BarChart3 className="h-5 w-5 sm:h-6 sm:w-6 text-red-600" />
                       Estadísticas de Pago
                     </h2>
                     <PaymentStatistics />
@@ -330,28 +393,21 @@ const Cobranzas = () => {
 
               {/* Cobrar Tab */}
               {activeTab === 'collect' && permissions.collect && (
-                <div className="mt-6">
+                <div className="mt-4 sm:mt-6">
                   <BillingCollection />
-                </div>
-              )}
-
-              {/* Reportes Tab */}
-              {activeTab === 'reports' && permissions.reports && (
-                <div className="mt-6">
-                  <BillingReports />
                 </div>
               )}
 
               {/* Recargas / Vouchers Tab */}
               {activeTab === 'vouchers' && permissions.vouchers && (
-                <div className="mt-6">
+                <div className="mt-4 sm:mt-6">
                   <VoucherApproval />
                 </div>
               )}
 
               {/* Configuración Tab */}
               {activeTab === 'config' && permissions.config && (
-                <div className="mt-6">
+                <div className="mt-4 sm:mt-6">
                   <BillingConfig />
                 </div>
               )}
