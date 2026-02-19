@@ -62,9 +62,10 @@ export const BillingNubefactConfig = () => {
 
   const canViewAll = role === 'admin_general';
 
+  // Re-ejecutar fetchSchools cuando el rol ya esté cargado (evita race condition)
   useEffect(() => {
-    fetchSchools();
-  }, []);
+    if (role) fetchSchools();
+  }, [role]);
 
   useEffect(() => {
     if (selectedSchool) fetchConfig(selectedSchool);
@@ -73,7 +74,7 @@ export const BillingNubefactConfig = () => {
   const fetchSchools = async () => {
     setLoading(true);
     try {
-      if (canViewAll) {
+      if (role === 'admin_general') {
         const { data } = await supabase.from('schools').select('id, name').order('name');
         setSchools(data || []);
         if (data && data.length > 0) setSelectedSchool(data[0].id);
@@ -120,6 +121,10 @@ export const BillingNubefactConfig = () => {
   };
 
   const handleSave = async () => {
+    if (!selectedSchool) {
+      toast({ title: 'Sin sede seleccionada', description: 'Selecciona una sede antes de guardar.', variant: 'destructive' });
+      return;
+    }
     if (!config.nubefact_ruta || !config.nubefact_token || !config.ruc || !config.razon_social) {
       toast({ title: 'Faltan datos', description: 'Completa RUTA, TOKEN, RUC y Razón Social.', variant: 'destructive' });
       return;
