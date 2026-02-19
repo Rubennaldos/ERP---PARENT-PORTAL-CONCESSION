@@ -321,8 +321,8 @@ export function StudentCard({
           </div>
         )}
 
-        {/* ── INFO DE TOPE (si aplica) ── */}
-        {limitType !== 'none' && (
+        {/* ── INFO DE TOPE (solo en Cuenta Libre, en Recargas el saldo ya limita) ── */}
+        {isFreeAccount && limitType !== 'none' && (
           <div className="rounded-xl p-3 mb-4 border border-purple-100 bg-purple-50/30">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
