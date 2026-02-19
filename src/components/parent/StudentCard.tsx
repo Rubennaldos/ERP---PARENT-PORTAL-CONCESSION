@@ -196,12 +196,29 @@ export function StudentCard({
             LUNCH FAST!
           </Button>
 
-          {/* 🔒 MÓDULO DE PAGOS/RECARGAS DESACTIVADO - Todo pago es presencial */}
-          {hasDebt && (
-            <div className="w-full rounded-xl border border-amber-200/50 bg-amber-50/50 p-3 text-center">
-              <p className="text-xs font-medium text-amber-700 mb-1">💳 Los pagos se realizan presencialmente en caja</p>
-              <p className="text-[10px] text-amber-500">Acérquese a la cafetería para cancelar su deuda</p>
-            </div>
+          {/* 💳 Botón de Recargar / Pagar Deudas */}
+          {showPaymentButton && (
+            <Button
+              onClick={onRecharge}
+              variant="outline"
+              className={`w-full h-12 rounded-xl font-medium text-sm tracking-wide transition-all active:scale-95 ${
+                hasDebt
+                  ? 'border-rose-200 text-rose-600 hover:bg-rose-50 hover:border-rose-300'
+                  : 'border-emerald-200 text-emerald-700 hover:bg-emerald-50 hover:border-emerald-300'
+              }`}
+            >
+              {hasDebt ? (
+                <>
+                  <CreditCard className="h-4 w-4 mr-2" />
+                  Pagar Deudas
+                </>
+              ) : (
+                <>
+                  <Wallet className="h-4 w-4 mr-2" />
+                  Recargar Saldo
+                </>
+              )}
+            </Button>
           )}
 
           <div className="grid grid-cols-1 gap-3">
