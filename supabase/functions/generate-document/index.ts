@@ -132,7 +132,8 @@ serve(async (req) => {
       numero,
       sunat_transaction: 1,
       cliente_tipo_de_documento: cliente?.tipo_doc ?? 0,
-      cliente_numero_de_documento: cliente?.numero_doc ?? "",
+      // Nubefact requiere "-" (no vacío) cuando no hay documento (tipo 0 = consumidor final)
+      cliente_numero_de_documento: cliente?.numero_doc || (cliente?.tipo_doc === 0 || !cliente?.tipo_doc ? "-" : ""),
       cliente_denominacion: cliente?.nombre ?? "Cliente",
       cliente_direccion: "",
       cliente_email: cliente?.email ?? "",
