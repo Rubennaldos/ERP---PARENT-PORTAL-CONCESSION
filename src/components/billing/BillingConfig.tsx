@@ -323,7 +323,24 @@ Gracias.`);
   };
 
   const handleSave = async () => {
-    if (!selectedSchool || !user) return;
+    console.log('💾 handleSave called - selectedSchool:', selectedSchool, 'user:', !!user, 'config:', config?.id);
+    
+    if (!selectedSchool) {
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'No se ha seleccionado ninguna sede. Recarga la página.',
+      });
+      return;
+    }
+    if (!user) {
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'No se detectó usuario autenticado.',
+      });
+      return;
+    }
 
     setSaving(true);
 
@@ -338,6 +355,9 @@ Gracias.`);
         updated_by: user.id,
       };
 
+      console.log('💾 Datos a guardar:', configData);
+      console.log('💾 Config existente:', config ? `id=${config.id}` : 'NULL (insert)');
+
       if (config) {
         // Actualizar
         const { error } = await supabase
@@ -345,14 +365,22 @@ Gracias.`);
           .update(configData)
           .eq('id', config.id);
 
-        if (error) throw error;
+        if (error) {
+          console.error('❌ Error en UPDATE billing_config:', error);
+          throw error;
+        }
+        console.log('✅ UPDATE exitoso');
       } else {
         // Crear
         const { error } = await supabase
           .from('billing_config')
           .insert(configData);
 
-        if (error) throw error;
+        if (error) {
+          console.error('❌ Error en INSERT billing_config:', error);
+          throw error;
+        }
+        console.log('✅ INSERT exitoso');
       }
 
       toast({
@@ -362,11 +390,11 @@ Gracias.`);
 
       fetchConfig();
     } catch (error: any) {
-      console.error('Error saving config:', error);
+      console.error('❌ Error saving config:', error);
       toast({
         variant: 'destructive',
-        title: 'Error',
-        description: 'No se pudo guardar la configuración',
+        title: 'Error al guardar',
+        description: error?.message || 'No se pudo guardar la configuración',
       });
     } finally {
       setSaving(false);
