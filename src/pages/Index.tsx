@@ -843,6 +843,9 @@ const Index = () => {
             studentId={selectedStudent.id}
             studentName={selectedStudent.full_name}
             onSuccess={fetchStudents}
+            onRequestRecharge={() => {
+              setShowRechargeModal(true);
+            }}
           />
 
           {/* Modal de Historial de Compras */}

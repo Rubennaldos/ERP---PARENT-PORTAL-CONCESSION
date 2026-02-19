@@ -28,6 +28,7 @@ interface SpendingLimitsModalProps {
   studentId: string;
   studentName: string;
   onSuccess: () => void;
+  onRequestRecharge?: () => void;
 }
 
 type LimitType = 'none' | 'daily' | 'weekly' | 'monthly';
@@ -44,7 +45,8 @@ export function SpendingLimitsModal({
   onOpenChange,
   studentId,
   studentName,
-  onSuccess
+  onSuccess,
+  onRequestRecharge
 }: SpendingLimitsModalProps) {
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
@@ -176,6 +178,11 @@ export function SpendingLimitsModal({
 
       onSuccess();
       onOpenChange(false);
+
+      // Si eligió "Con Recargas", abrir automáticamente el modal de recarga
+      if (accountMode === 'prepaid' && onRequestRecharge) {
+        setTimeout(() => onRequestRecharge(), 300);
+      }
     } catch (error: any) {
       console.error('Error updating limits:', error);
       toast({
