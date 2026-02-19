@@ -61,7 +61,8 @@ serve(async (req) => {
       cliente,
       items,
       monto_total,
-      doc_ref
+      doc_ref,
+      demo_mode = false,   // si true: no envía a SUNAT (pruebas)
     } = body;
 
     // 1. Obtener credenciales Nubefact de este cliente/sede
@@ -142,8 +143,8 @@ serve(async (req) => {
       total_gravada: +base_imponible.toFixed(2),
       total_igv: +igv_monto.toFixed(2),
       total: +monto_total.toFixed(2),
-      enviar_automaticamente_a_la_sunat: true,
-      enviar_automaticamente_al_cliente: !!(cliente?.email),
+      enviar_automaticamente_a_la_sunat: !demo_mode,   // false en modo demo
+      enviar_automaticamente_al_cliente: !demo_mode && !!(cliente?.email),
       items: itemsDoc,
     };
 

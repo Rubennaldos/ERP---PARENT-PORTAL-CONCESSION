@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Save, CheckCircle2, AlertCircle, Building2, FileText, Key, FlaskConical, ArrowRightLeft, Receipt, XCircle, ExternalLink, TestTube2 } from 'lucide-react';
+import { Loader2, Save, CheckCircle2, AlertCircle, Building2, FileText, Key, FlaskConical, Receipt, XCircle, ExternalLink, TestTube2, ToggleLeft, ToggleRight } from 'lucide-react';
 
 interface TestResult {
   tipo: string;
@@ -19,13 +19,6 @@ interface TestResult {
   serie?: string;
   numero?: number;
 }
-
-const PROD_BASE = 'https://api.nubefact.com';
-const DEMO_BASE = 'https://demo.api.nubefact.com';
-
-const isDemoUrl = (url: string) => url.startsWith(DEMO_BASE);
-const toDemoUrl  = (url: string) => url.replace(PROD_BASE, DEMO_BASE);
-const toProdUrl  = (url: string) => url.replace(DEMO_BASE, PROD_BASE);
 
 interface BillingConfig {
   id?: string;
@@ -114,7 +107,7 @@ export const BillingNubefactConfig = () => {
 
     if (data) {
       setConfig(data);
-      setDemoMode(isDemoUrl(data.nubefact_ruta || ''));
+      // No cambiar demoMode al cargar — el usuario lo controla manualmente
     } else {
       setConfig({
         school_id: schoolId,
@@ -157,7 +150,8 @@ export const BillingNubefactConfig = () => {
       const body: any = {
         school_id: selectedSchool,
         tipo,
-        monto_total: tipo === 1 ? 118.00 : 50.00, // factura con IGV, boleta simple
+        demo_mode: demoMode,   // ← flag que controla envío a SUNAT
+        monto_total: tipo === 1 ? 118.00 : 50.00,
         cliente: tipo === 1
           ? { nombre: 'EMPRESA DE PRUEBA S.A.C.', tipo_doc: 6, numero_doc: '20100130492' }
           : { nombre: 'Cliente de Prueba', tipo_doc: 0 },
@@ -344,7 +338,7 @@ export const BillingNubefactConfig = () => {
               <div>
                 <p className="text-sm font-bold text-yellow-800">🧪 MODO DEMO ACTIVO</p>
                 <p className="text-xs text-yellow-700">
-                  Las boletas se envían a <strong>demo.api.nubefact.com</strong> — no se reporta nada a SUNAT. Ideal para pruebas.
+                  Los comprobantes se generan en Nubefact pero <strong>NO se envían a SUNAT</strong>. Ideal para pruebas.
                 </p>
               </div>
             </div>
@@ -360,43 +354,27 @@ export const BillingNubefactConfig = () => {
               <Label htmlFor="ruta" className="text-sm font-medium">RUTA (URL de API) *</Label>
               <button
                 type="button"
-                onClick={() => {
-                  const isDemo = !demoMode;
-                  setDemoMode(isDemo);
-                  if (config.nubefact_ruta) {
-                    setConfig({
-                      ...config,
-                      nubefact_ruta: isDemo
-                        ? toDemoUrl(config.nubefact_ruta)
-                        : toProdUrl(config.nubefact_ruta),
-                    });
-                  }
-                }}
+                onClick={() => setDemoMode(d => !d)}
                 className={`flex items-center gap-1 text-xs px-2 py-1 rounded-full border font-medium transition-colors ${
                   demoMode
                     ? 'bg-yellow-100 border-yellow-400 text-yellow-700 hover:bg-yellow-200'
                     : 'bg-gray-100 border-gray-300 text-gray-600 hover:bg-gray-200'
                 }`}
               >
-                <ArrowRightLeft className="h-3 w-3" />
-                {demoMode ? 'Cambiar a PRODUCCIÓN' : 'Activar DEMO'}
+                {demoMode ? <ToggleRight className="h-3 w-3" /> : <ToggleLeft className="h-3 w-3" />}
+                {demoMode ? 'DEMO activo — click para PRODUCCIÓN' : 'Activar DEMO (pruebas)'}
               </button>
             </div>
             <Input
               id="ruta"
               placeholder="https://api.nubefact.com/api/v1/xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
               value={config.nubefact_ruta}
-              onChange={(e) => {
-                const val = e.target.value;
-                setDemoMode(isDemoUrl(val));
-                setConfig({ ...config, nubefact_ruta: val });
-              }}
-              className={demoMode ? 'border-yellow-400 bg-yellow-50' : ''}
+              onChange={(e) => setConfig({ ...config, nubefact_ruta: e.target.value })}
             />
             {demoMode && (
               <p className="text-xs text-yellow-600 flex items-center gap-1">
                 <FlaskConical className="h-3 w-3" />
-                Usando servidor demo — sin efecto real en SUNAT
+                Modo demo: se usa la misma URL pero sin enviar a SUNAT
               </p>
             )}
           </div>
