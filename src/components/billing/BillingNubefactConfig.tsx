@@ -8,7 +8,14 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Save, CheckCircle2, AlertCircle, Building2, FileText, Key } from 'lucide-react';
+import { Loader2, Save, CheckCircle2, AlertCircle, Building2, FileText, Key, FlaskConical, ArrowRightLeft } from 'lucide-react';
+
+const PROD_BASE = 'https://api.nubefact.com';
+const DEMO_BASE = 'https://demo.api.nubefact.com';
+
+const isDemoUrl = (url: string) => url.startsWith(DEMO_BASE);
+const toDemoUrl  = (url: string) => url.replace(PROD_BASE, DEMO_BASE);
+const toProdUrl  = (url: string) => url.replace(DEMO_BASE, PROD_BASE);
 
 interface BillingConfig {
   id?: string;
@@ -36,6 +43,7 @@ export const BillingNubefactConfig = () => {
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState(false);
   const [schools, setSchools] = useState<School[]>([]);
+  const [demoMode, setDemoMode] = useState(false);
   const [selectedSchool, setSelectedSchool] = useState('');
   const [config, setConfig] = useState<BillingConfig>({
     school_id: '',
@@ -92,6 +100,7 @@ export const BillingNubefactConfig = () => {
 
     if (data) {
       setConfig(data);
+      setDemoMode(isDemoUrl(data.nubefact_ruta || ''));
     } else {
       setConfig({
         school_id: schoolId,
@@ -236,19 +245,68 @@ export const BillingNubefactConfig = () => {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
+          {/* Banner modo demo */}
+          {demoMode && (
+            <div className="bg-yellow-50 border-2 border-yellow-400 rounded-lg p-3 flex items-center gap-2">
+              <FlaskConical className="h-5 w-5 text-yellow-600 shrink-0" />
+              <div>
+                <p className="text-sm font-bold text-yellow-800">🧪 MODO DEMO ACTIVO</p>
+                <p className="text-xs text-yellow-700">
+                  Las boletas se envían a <strong>demo.api.nubefact.com</strong> — no se reporta nada a SUNAT. Ideal para pruebas.
+                </p>
+              </div>
+            </div>
+          )}
+
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-xs text-blue-800">
             <p className="font-semibold mb-1">¿Dónde encuentro estos datos?</p>
             <p>Entra a <strong>nubefact.com → API - Integración</strong> y copia la <strong>RUTA</strong> y el <strong>TOKEN</strong> de tu local.</p>
           </div>
 
           <div className="space-y-1">
-            <Label htmlFor="ruta" className="text-sm font-medium">RUTA (URL de API) *</Label>
+            <div className="flex items-center justify-between">
+              <Label htmlFor="ruta" className="text-sm font-medium">RUTA (URL de API) *</Label>
+              <button
+                type="button"
+                onClick={() => {
+                  const isDemo = !demoMode;
+                  setDemoMode(isDemo);
+                  if (config.nubefact_ruta) {
+                    setConfig({
+                      ...config,
+                      nubefact_ruta: isDemo
+                        ? toDemoUrl(config.nubefact_ruta)
+                        : toProdUrl(config.nubefact_ruta),
+                    });
+                  }
+                }}
+                className={`flex items-center gap-1 text-xs px-2 py-1 rounded-full border font-medium transition-colors ${
+                  demoMode
+                    ? 'bg-yellow-100 border-yellow-400 text-yellow-700 hover:bg-yellow-200'
+                    : 'bg-gray-100 border-gray-300 text-gray-600 hover:bg-gray-200'
+                }`}
+              >
+                <ArrowRightLeft className="h-3 w-3" />
+                {demoMode ? 'Cambiar a PRODUCCIÓN' : 'Activar DEMO'}
+              </button>
+            </div>
             <Input
               id="ruta"
               placeholder="https://api.nubefact.com/api/v1/xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
               value={config.nubefact_ruta}
-              onChange={(e) => setConfig({ ...config, nubefact_ruta: e.target.value })}
+              onChange={(e) => {
+                const val = e.target.value;
+                setDemoMode(isDemoUrl(val));
+                setConfig({ ...config, nubefact_ruta: val });
+              }}
+              className={demoMode ? 'border-yellow-400 bg-yellow-50' : ''}
             />
+            {demoMode && (
+              <p className="text-xs text-yellow-600 flex items-center gap-1">
+                <FlaskConical className="h-3 w-3" />
+                Usando servidor demo — sin efecto real en SUNAT
+              </p>
+            )}
           </div>
 
           <div className="space-y-1">
