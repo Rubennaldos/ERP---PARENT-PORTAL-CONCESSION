@@ -85,11 +85,14 @@ export async function getProductsForSchool(schoolId: string | null): Promise<any
       return data || [];
     }
 
-    // Obtener productos base
+    // Obtener productos base SOLO de esta sede
+    // Un producto pertenece a la sede si su school_ids contiene el schoolId
+    // O si school_ids está vacío (producto legacy/global)
     const { data: products, error: productsError } = await supabase
       .from('products')
       .select('*')
-      .eq('active', true);
+      .eq('active', true)
+      .or(`school_ids.cs.{${schoolId}},school_ids.eq.{}`);
 
     if (productsError) throw productsError;
 
