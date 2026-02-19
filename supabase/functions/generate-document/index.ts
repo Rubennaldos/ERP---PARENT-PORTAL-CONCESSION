@@ -69,12 +69,11 @@ serve(async (req) => {
       .from("billing_config")
       .select("*")
       .eq("school_id", school_id)
-      .eq("activo", true)
       .single();
 
     if (cfgErr || !cfg) {
       return new Response(
-        JSON.stringify({ error: "No hay configuración de facturación para esta sede. Configúrala en Ajustes > Facturación." }),
+        JSON.stringify({ error: `Sin configuración para school_id=${school_id}. Detalle: ${cfgErr?.message}` }),
         { status: 400, headers: { ...cors, "Content-Type": "application/json" } }
       );
     }
@@ -195,8 +194,9 @@ serve(async (req) => {
     );
 
   } catch (error) {
+    console.error("generate-document ERROR:", error);
     return new Response(
-      JSON.stringify({ error: String(error) }),
+      JSON.stringify({ error: String(error), stack: (error as any)?.stack }),
       { status: 500, headers: { ...cors, "Content-Type": "application/json" } }
     );
   }

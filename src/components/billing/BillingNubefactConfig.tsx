@@ -173,8 +173,8 @@ export const BillingNubefactConfig = () => {
 
       const { data, error } = await supabase.functions.invoke('generate-document', { body });
 
-      if (error) throw new Error(error.message);
-      if (data?.error) throw new Error(data.error);
+      if (error) throw new Error(`Edge Function: ${error.message}`);
+      if (data?.error) throw new Error(`Nubefact/BD: ${data.error}`);
 
       const doc = data?.documento;
       const nf  = data?.nubefact;
