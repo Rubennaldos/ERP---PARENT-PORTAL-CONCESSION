@@ -418,6 +418,38 @@ export function PhysicalOrderWizard({ isOpen, onClose, schoolId, selectedDate, o
   const handleSubmit = async () => {
     if (!selectedMenu || !selectedCategory) return;
 
+    // ── Guard de caja: solo aplica cuando es un pago inmediato (cash/yape/tarjeta) ──
+    const isImmediatePayment =
+      paymentType === 'cash' &&
+      cashPaymentMethod &&
+      cashPaymentMethod !== 'pagar_luego';
+
+    if (isImmediatePayment && schoolId) {
+      const todayStart = new Date();
+      todayStart.setHours(0, 0, 0, 0);
+
+      const { data: openReg } = await supabase
+        .from('cash_registers')
+        .select('id')
+        .eq('school_id', schoolId)
+        .eq('status', 'open')
+        .gte('opened_at', todayStart.toISOString())
+        .limit(1)
+        .maybeSingle();
+
+      if (!openReg) {
+        toast({
+          variant: 'destructive',
+          title: '⛔ Caja no abierta',
+          description:
+            'Debes abrir la caja del día antes de registrar un pago en efectivo, Yape o tarjeta. ' +
+            'Ve al módulo de Cierre de Caja y declara el monto inicial.',
+        });
+        setLoading(false);
+        return;
+      }
+    }
+
     try {
       setLoading(true);
 
