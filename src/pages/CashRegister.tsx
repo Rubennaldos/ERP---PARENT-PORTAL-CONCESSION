@@ -29,6 +29,7 @@ import CashClosureDialog from './CashRegister/CashClosureDialog';
 import CashHistoryDialog from './CashRegister/CashHistoryDialog';
 import CashConfigDialog from './CashRegister/CashConfigDialog';
 import { CashOpeningModal } from '@/components/cash-register/CashOpeningModal';
+import AdminGeneralCashDashboard from './CashRegister/AdminGeneralCashDashboard';
 import { toast } from 'sonner';
 
 export default function CashRegisterPage() {
@@ -201,28 +202,38 @@ export default function CashRegisterPage() {
     );
   }
 
-  return (
-    <div className="container mx-auto p-6 space-y-6">
-      {/* Validación: Si no hay school_id, mostrar error */}
-      {!profile?.school_id ? (
+  // ── Admin General: ve el dashboard multi-sede, sin restricción de school_id ──
+  if (profile?.role === 'admin_general' || profile?.role === 'super_admin') {
+    return (
+      <div className="container mx-auto p-6">
+        <AdminGeneralCashDashboard />
+      </div>
+    );
+  }
+
+  // ── Otros roles sin sede asignada: error ──
+  if (!profile?.school_id) {
+    return (
+      <div className="container mx-auto p-6">
         <Card className="border-red-200">
           <CardContent className="p-12 text-center">
             <AlertCircle className="h-16 w-16 text-red-500 mx-auto mb-4" />
-            <h2 className="text-2xl font-bold text-gray-900 mb-2">Error: No tienes una sede asignada</h2>
+            <h2 className="text-2xl font-bold text-gray-900 mb-2">No tienes una sede asignada</h2>
             <p className="text-gray-600 mb-6">
-              Contacta al administrador del sistema para que te asigne una sede.
-              <br />
-              Luego cierra sesión y vuelve a entrar.
+              Contacta al administrador para que te asigne una sede.
             </p>
-            <Button
-              onClick={() => window.location.href = '/#/dashboard'}
-              className="px-4 py-2"
-            >
+            <Button onClick={() => window.location.href = '/#/dashboard'}>
               Volver al Dashboard
             </Button>
           </CardContent>
         </Card>
-      ) : (
+      </div>
+    );
+  }
+
+  return (
+    <div className="container mx-auto p-6 space-y-6">
+      {true ? (
         <>
           {/* Header */}
           <div className="flex items-center justify-between">
