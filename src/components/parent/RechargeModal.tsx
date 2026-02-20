@@ -174,6 +174,27 @@ export function RechargeModal({
 
     setLoading(true);
     try {
+      // ── Prevenir doble envío de voucher para los mismos pedidos ──
+      if (requestType === 'lunch_payment' && lunchOrderIds && lunchOrderIds.length > 0) {
+        const { data: existingReq } = await supabase
+          .from('recharge_requests')
+          .select('id, status')
+          .eq('parent_id', user.id)
+          .eq('request_type', 'lunch_payment')
+          .eq('status', 'pending')
+          .contains('lunch_order_ids', lunchOrderIds);
+
+        if (existingReq && existingReq.length > 0) {
+          toast({
+            variant: 'destructive',
+            title: '⚠️ Comprobante ya enviado',
+            description: 'Ya enviaste un comprobante para estos pedidos. Espera la revisión del administrador.',
+          });
+          setLoading(false);
+          return;
+        }
+      }
+
       let voucherUrl: string | null = null;
 
       if (voucherFile) {

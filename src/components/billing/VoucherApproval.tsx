@@ -22,6 +22,8 @@ import {
   AlertCircle,
   Check,
   X,
+  Ticket,
+  AlertTriangle,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -49,6 +51,8 @@ interface RechargeRequest {
   students?: { full_name: string; balance: number };
   profiles?: { full_name: string; email: string };
   schools?: { name: string };
+  // Computed
+  _ticket_codes?: string[];
 }
 
 const METHOD_LABELS: Record<string, string> = {
@@ -115,7 +119,43 @@ export const VoucherApproval = () => {
 
       const { data, error } = await query;
       if (error) throw error;
-      setRequests(data || []);
+
+      // ── Enriquecer con ticket_codes de las transacciones asociadas ──
+      const enriched = data || [];
+      const lunchPayments = enriched.filter(r => r.request_type === 'lunch_payment' && r.lunch_order_ids?.length);
+
+      if (lunchPayments.length > 0) {
+        // Recoger todos los lunch_order_ids
+        const allOrderIds = lunchPayments.flatMap(r => r.lunch_order_ids || []);
+        if (allOrderIds.length > 0) {
+          const { data: txData } = await supabase
+            .from('transactions')
+            .select('ticket_code, metadata')
+            .eq('type', 'purchase')
+            .not('metadata', 'is', null);
+
+          if (txData) {
+            // Mapear lunch_order_id -> ticket_code
+            const ticketMap = new Map<string, string>();
+            txData.forEach((tx: any) => {
+              const lunchOrderId = tx.metadata?.lunch_order_id;
+              if (lunchOrderId && allOrderIds.includes(lunchOrderId) && tx.ticket_code) {
+                ticketMap.set(lunchOrderId, tx.ticket_code);
+              }
+            });
+
+            // Asignar ticket_codes a cada request
+            lunchPayments.forEach((req: any) => {
+              const codes = (req.lunch_order_ids || [])
+                .map((id: string) => ticketMap.get(id))
+                .filter(Boolean);
+              req._ticket_codes = codes;
+            });
+          }
+        }
+      }
+
+      setRequests(enriched);
     } catch (err: any) {
       console.error('Error al cargar solicitudes:', err);
       toast({ title: 'Error', description: err.message, variant: 'destructive' });
@@ -129,6 +169,25 @@ export const VoucherApproval = () => {
     setProcessingId(req.id);
     try {
       const isLunchPayment = req.request_type === 'lunch_payment';
+
+      if (isLunchPayment && req.lunch_order_ids && req.lunch_order_ids.length > 0) {
+        // ── VALIDAR que las órdenes siguen activas ──
+        const { data: orders } = await supabase
+          .from('lunch_orders')
+          .select('id, status, is_cancelled')
+          .in('id', req.lunch_order_ids);
+
+        const cancelledOrders = orders?.filter(o => o.is_cancelled || o.status === 'cancelled') || [];
+        if (cancelledOrders.length > 0) {
+          toast({
+            variant: 'destructive',
+            title: '⚠️ Pedidos cancelados',
+            description: `${cancelledOrders.length} pedido(s) ya fueron cancelados. No se puede aprobar este pago. Rechaza la solicitud.`,
+          });
+          setProcessingId(null);
+          return;
+        }
+      }
 
       // 1. Actualizar estado de la solicitud
       const { error: reqErr } = await supabase
@@ -144,27 +203,41 @@ export const VoucherApproval = () => {
 
       if (isLunchPayment) {
         // ── PAGO DE ALMUERZO ──
-        // Marcar las transacciones de lunch como pagadas
         if (req.lunch_order_ids && req.lunch_order_ids.length > 0) {
-          // Actualizar transacciones asociadas a los pedidos de almuerzo
+          // Actualizar transacciones asociadas (MERGE metadata, no sobreescribir)
           for (const orderId of req.lunch_order_ids) {
-            await supabase
+            // Primero obtener la metadata actual
+            const { data: existingTx } = await supabase
               .from('transactions')
-              .update({ 
-                payment_status: 'paid', 
-                payment_method: req.payment_method,
-                metadata: {
-                  source: 'lunch_voucher_payment',
-                  recharge_request_id: req.id,
-                  reference_code: req.reference_code,
-                  approved_by: user.id,
-                  voucher_url: req.voucher_url,
-                }
-              })
-              .contains('metadata', { lunch_order_id: orderId });
+              .select('id, metadata')
+              .eq('type', 'purchase')
+              .contains('metadata', { lunch_order_id: orderId })
+              .maybeSingle();
+
+            if (existingTx) {
+              const mergedMetadata = {
+                ...(existingTx.metadata || {}),
+                payment_approved: true,
+                payment_source: 'lunch_voucher_payment',
+                recharge_request_id: req.id,
+                reference_code: req.reference_code,
+                approved_by: user.id,
+                approved_at: new Date().toISOString(),
+                voucher_url: req.voucher_url,
+              };
+
+              await supabase
+                .from('transactions')
+                .update({
+                  payment_status: 'paid',
+                  payment_method: req.payment_method,
+                  metadata: mergedMetadata,
+                })
+                .eq('id', existingTx.id);
+            }
           }
 
-          // Actualizar status de lunch_orders
+          // Actualizar status de lunch_orders a confirmed
           await supabase
             .from('lunch_orders')
             .update({ status: 'confirmed' })
@@ -173,11 +246,10 @@ export const VoucherApproval = () => {
 
         toast({
           title: '✅ Pago de almuerzo aprobado',
-          description: `Se confirmó el pago de S/ ${req.amount.toFixed(2)} de ${req.students?.full_name || 'el alumno'}.`,
+          description: `Se confirmó el pago de S/ ${req.amount.toFixed(2)} de ${req.students?.full_name || 'el alumno'}. Los pedidos fueron confirmados.`,
         });
       } else {
         // ── RECARGA DE SALDO ──
-        // 2. Crear transacción de recarga en el estudiante
         const { error: txErr } = await supabase.from('transactions').insert({
           student_id: req.student_id,
           school_id: req.school_id,
@@ -197,7 +269,7 @@ export const VoucherApproval = () => {
 
         if (txErr) throw txErr;
 
-        // 3. Actualizar saldo del estudiante
+        // Actualizar saldo del estudiante
         const newBalance = (req.students?.balance || 0) + req.amount;
         const { error: stuErr } = await supabase
           .from('students')
@@ -226,6 +298,7 @@ export const VoucherApproval = () => {
     const reason = rejectionReason[req.id]?.trim();
     setProcessingId(req.id);
     try {
+      // 1. Actualizar estado de la solicitud
       const { error } = await supabase
         .from('recharge_requests')
         .update({
@@ -238,9 +311,40 @@ export const VoucherApproval = () => {
 
       if (error) throw error;
 
+      // 2. Si es pago de almuerzo rechazado → las órdenes se quedan pending (padre puede re-pagar)
+      //    La deuda sigue activa en su cuenta hasta que pague correctamente
+      //    Agregamos nota en la metadata de las transacciones para que el padre vea el rechazo
+      if (req.request_type === 'lunch_payment' && req.lunch_order_ids?.length) {
+        for (const orderId of req.lunch_order_ids) {
+          const { data: existingTx } = await supabase
+            .from('transactions')
+            .select('id, metadata')
+            .eq('type', 'purchase')
+            .contains('metadata', { lunch_order_id: orderId })
+            .maybeSingle();
+
+          if (existingTx) {
+            const mergedMetadata = {
+              ...(existingTx.metadata || {}),
+              last_payment_rejected: true,
+              rejection_reason: reason || 'Comprobante no válido',
+              rejected_at: new Date().toISOString(),
+              rejected_request_id: req.id,
+            };
+
+            await supabase
+              .from('transactions')
+              .update({ metadata: mergedMetadata })
+              .eq('id', existingTx.id);
+          }
+        }
+      }
+
       toast({
         title: '❌ Solicitud rechazada',
-        description: `Se notificará al padre/madre de ${req.students?.full_name || 'el alumno'}.`,
+        description: req.request_type === 'lunch_payment'
+          ? `Pago rechazado. Los pedidos de ${req.students?.full_name || 'el alumno'} siguen pendientes de pago.`
+          : `Se notificará al padre/madre de ${req.students?.full_name || 'el alumno'}.`,
         variant: 'destructive',
       });
 
@@ -332,7 +436,6 @@ export const VoucherApproval = () => {
                         <span className={`text-xs font-semibold px-2 py-0.5 rounded-full border ${statusInfo.className}`}>
                           {statusInfo.label}
                         </span>
-                        {/* Tipo de solicitud */}
                         <span className={`text-xs font-semibold px-2 py-0.5 rounded-full border ${
                           req.request_type === 'lunch_payment'
                             ? 'bg-orange-100 text-orange-800 border-orange-300'
@@ -343,10 +446,11 @@ export const VoucherApproval = () => {
                         <span className="text-xs text-gray-400">
                           {format(new Date(req.created_at), "d 'de' MMM · HH:mm", { locale: es })}
                         </span>
-                        {req.status === 'pending' && new Date(req.expires_at) < new Date() && (
+                        {req.status === 'pending' && req.expires_at && new Date(req.expires_at) < new Date() && (
                           <span className="text-xs text-red-500 font-medium">⚠️ Expirado</span>
                         )}
                       </div>
+
                       {/* Descripción del pago */}
                       {req.description && (
                         <p className="text-xs text-gray-600 bg-gray-50 rounded px-2 py-1 mt-1">
@@ -388,12 +492,31 @@ export const VoucherApproval = () => {
                         )}
                       </div>
 
+                      {/* Tickets asociados (para pagos de almuerzo) */}
+                      {(req as any)._ticket_codes && (req as any)._ticket_codes.length > 0 && (
+                        <div className="flex items-center gap-2 bg-indigo-50 border border-indigo-200 rounded-lg px-3 py-2">
+                          <Ticket className="h-4 w-4 text-indigo-500" />
+                          <span className="text-xs text-indigo-600">Ticket(s):</span>
+                          <span className="text-sm font-mono font-bold text-indigo-800">
+                            {(req as any)._ticket_codes.join(', ')}
+                          </span>
+                        </div>
+                      )}
+
                       {/* Código de referencia */}
                       {req.reference_code && (
                         <div className="flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2">
                           <Hash className="h-4 w-4 text-gray-400" />
                           <span className="text-xs text-gray-500">N° Operación:</span>
                           <span className="text-sm font-mono font-semibold text-gray-800">{req.reference_code}</span>
+                        </div>
+                      )}
+
+                      {/* Padre */}
+                      {req.profiles?.email && (
+                        <div className="flex items-center gap-2 text-xs text-gray-400">
+                          <User className="h-3 w-3" />
+                          <span>Enviado por: {req.profiles.full_name || req.profiles.email}</span>
                         </div>
                       )}
 
@@ -500,7 +623,7 @@ export const VoucherApproval = () => {
                       {req.status === 'approved' && (
                         <div className="flex items-center gap-1 text-green-600 text-xs">
                           <CheckCircle2 className="h-4 w-4" />
-                          <span>Saldo acreditado</span>
+                          <span>{req.request_type === 'lunch_payment' ? 'Pedido confirmado' : 'Saldo acreditado'}</span>
                         </div>
                       )}
                     </div>

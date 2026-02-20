@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { AlertCircle, CreditCard, Check, Clock, Receipt } from 'lucide-react';
+import { AlertCircle, CreditCard, Check, Clock, Receipt, XCircle, Loader2, Send } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
@@ -15,6 +15,14 @@ interface PendingTransaction {
   description: string;
   created_at: string;
   ticket_code?: string;
+  metadata?: any;
+}
+
+interface VoucherStatus {
+  transaction_id: string;
+  status: 'pending' | 'approved' | 'rejected';
+  rejection_reason?: string;
+  created_at?: string;
 }
 
 interface StudentDebt {
@@ -33,6 +41,7 @@ export const PaymentsTab = ({ userId }: PaymentsTabProps) => {
   const { toast } = useToast();
   const [loading, setLoading] = useState(true);
   const [debts, setDebts] = useState<StudentDebt[]>([]);
+  const [voucherStatuses, setVoucherStatuses] = useState<Map<string, VoucherStatus>>(new Map());
 
   useEffect(() => {
     fetchDebts();
@@ -42,8 +51,7 @@ export const PaymentsTab = ({ userId }: PaymentsTabProps) => {
     try {
       setLoading(true);
 
-      // Obtener todos los estudiantes activos del padre (incluye free_account y recarga)
-      // para mostrar deudas tanto del kiosco como de almuerzos
+      // Obtener todos los estudiantes activos del padre
       const { data: students, error: studentsError } = await supabase
         .from('students')
         .select('id, full_name, photo_url, free_account, school_id')
@@ -57,32 +65,17 @@ export const PaymentsTab = ({ userId }: PaymentsTabProps) => {
         return;
       }
 
-      // Para cada estudiante, obtener sus transacciones pendientes
       const debtsData: StudentDebt[] = [];
 
       for (const student of students) {
-        // ✅ Obtener delay configurado para la sede del estudiante
-        console.log('🔍 Buscando delay para:', {
-          studentName: student.full_name,
-          schoolId: student.school_id
-        });
-
-        const { data: delayData, error: delayError } = await supabase
+        const { data: delayData } = await supabase
           .from('purchase_visibility_delay')
           .select('delay_days')
           .eq('school_id', student.school_id)
           .maybeSingle();
 
-        console.log('📦 Resultado de búsqueda de delay:', {
-          studentName: student.full_name,
-          delayData,
-          delayError,
-          valorFinal: delayData?.delay_days ?? 2
-        });
-
         const delayDays = delayData?.delay_days ?? 2;
         
-        // ✅ Construir query base
         let query = supabase
           .from('transactions')
           .select('*')
@@ -90,46 +83,16 @@ export const PaymentsTab = ({ userId }: PaymentsTabProps) => {
           .eq('type', 'purchase')
           .eq('payment_status', 'pending');
 
-        // ✅ Solo aplicar filtro de fecha si delay > 0
         if (delayDays > 0) {
           const cutoffDate = new Date();
           cutoffDate.setDate(cutoffDate.getDate() - delayDays);
-          const cutoffDateISO = cutoffDate.toISOString();
-          
-          console.log('📅 Filtro de delay aplicado (Pagos):', {
-            studentName: student.full_name,
-            schoolId: student.school_id,
-            delayDays,
-            hoy: new Date().toLocaleString('es-PE'),
-            cutoffDate: cutoffDate.toLocaleString('es-PE'),
-            cutoffDateISO,
-            message: `Solo compras HASTA ${cutoffDate.toLocaleDateString('es-PE')}`
-          });
-
-          query = query.lte('created_at', cutoffDateISO);
-        } else {
-          console.log('⚡ Modo EN VIVO (Pagos) - Sin filtro de delay:', {
-            studentName: student.full_name,
-            schoolId: student.school_id,
-            message: 'Mostrando TODAS las compras pendientes'
-          });
+          query = query.lte('created_at', cutoffDate.toISOString());
         }
 
-        // ✅ Ejecutar query
         const { data: transactions, error: transError } = await query
           .order('created_at', { ascending: false });
 
         if (transError) throw transError;
-        
-        console.log('💰 Transacciones obtenidas:', {
-          studentName: student.full_name,
-          cantidadTransacciones: transactions?.length || 0,
-          transacciones: transactions?.map(t => ({
-            fecha: new Date(t.created_at).toLocaleString('es-PE'),
-            monto: t.amount,
-            descripcion: t.description
-          }))
-        });
 
         if (transactions && transactions.length > 0) {
           const totalDebt = transactions.reduce((sum, t) => sum + Math.abs(t.amount), 0);
@@ -147,12 +110,68 @@ export const PaymentsTab = ({ userId }: PaymentsTabProps) => {
               description: t.description,
               created_at: t.created_at,
               ticket_code: t.ticket_code,
+              metadata: t.metadata,
             })),
           });
         }
       }
 
       setDebts(debtsData);
+
+      // ── Obtener estados de vouchers enviados por este padre ──
+      if (debtsData.length > 0) {
+        const studentIds = debtsData.map(d => d.student_id);
+        const { data: rechargeRequests } = await supabase
+          .from('recharge_requests')
+          .select('id, student_id, status, rejection_reason, created_at, lunch_order_ids, request_type')
+          .eq('parent_id', userId)
+          .eq('request_type', 'lunch_payment')
+          .in('student_id', studentIds)
+          .in('status', ['pending', 'rejected'])
+          .order('created_at', { ascending: false });
+
+        if (rechargeRequests && rechargeRequests.length > 0) {
+          const statusMap = new Map<string, VoucherStatus>();
+
+          // Recoger todos los lunch_order_ids
+          const allOrderIds = rechargeRequests.flatMap(r => r.lunch_order_ids || []);
+
+          // Obtener transacciones que corresponden a estas orders
+          if (allOrderIds.length > 0) {
+            const { data: relatedTx } = await supabase
+              .from('transactions')
+              .select('id, metadata')
+              .eq('type', 'purchase')
+              .eq('payment_status', 'pending')
+              .not('metadata', 'is', null);
+
+            if (relatedTx) {
+              // Para cada request, asociar sus transacciones
+              rechargeRequests.forEach(req => {
+                (req.lunch_order_ids || []).forEach((orderId: string) => {
+                  const matchingTx = relatedTx.find(
+                    (tx: any) => tx.metadata?.lunch_order_id === orderId
+                  );
+                  if (matchingTx) {
+                    // Solo guardar el estado más reciente para cada transacción
+                    const existing = statusMap.get(matchingTx.id);
+                    if (!existing || new Date(req.created_at) > new Date(existing.created_at || '')) {
+                      statusMap.set(matchingTx.id, {
+                        transaction_id: matchingTx.id,
+                        status: req.status as any,
+                        rejection_reason: req.rejection_reason || undefined,
+                        created_at: req.created_at,
+                      });
+                    }
+                  }
+                });
+              });
+            }
+          }
+
+          setVoucherStatuses(statusMap);
+        }
+      }
     } catch (error: any) {
       console.error('Error fetching debts:', error);
       toast({
@@ -166,6 +185,43 @@ export const PaymentsTab = ({ userId }: PaymentsTabProps) => {
   };
 
   const totalDebt = debts.reduce((sum, d) => sum + d.total_debt, 0);
+
+  /**
+   * Renderiza un badge de estado del voucher para la transacción
+   */
+  const renderVoucherStatus = (transaction: PendingTransaction) => {
+    const vStatus = voucherStatuses.get(transaction.id);
+    // También chequear la metadata de la transacción para rechazo
+    const wasRejected = transaction.metadata?.last_payment_rejected;
+
+    if (vStatus?.status === 'pending') {
+      return (
+        <div className="mt-1.5 bg-blue-50 border border-blue-200 rounded px-2 py-1">
+          <div className="flex items-center gap-1.5 text-blue-700">
+            <Send className="h-3 w-3" />
+            <span className="text-[10px] sm:text-xs font-semibold">Comprobante enviado — en revisión</span>
+          </div>
+        </div>
+      );
+    }
+
+    if (vStatus?.status === 'rejected' || wasRejected) {
+      const reason = vStatus?.rejection_reason || transaction.metadata?.rejection_reason || 'Comprobante no válido';
+      return (
+        <div className="mt-1.5 bg-red-50 border border-red-200 rounded px-2 py-1">
+          <div className="flex items-center gap-1.5 text-red-700">
+            <XCircle className="h-3 w-3" />
+            <span className="text-[10px] sm:text-xs font-semibold">Pago rechazado</span>
+          </div>
+          <p className="text-[10px] text-red-600 mt-0.5 ml-[18px]">
+            Motivo: {reason}. Puedes enviar un nuevo comprobante.
+          </p>
+        </div>
+      );
+    }
+
+    return null;
+  };
 
   if (loading) {
     return (
@@ -235,7 +291,7 @@ export const PaymentsTab = ({ userId }: PaymentsTabProps) => {
         </CardContent>
       </Card>
 
-      {/* Deudas por Estudiante (SOLO LECTURA - sin botones de pago) */}
+      {/* Deudas por Estudiante */}
       {debts.map((debt) => (
         <Card key={debt.student_id} className="border-2">
           <CardHeader className="bg-gradient-to-r from-blue-50 to-purple-50">
@@ -262,23 +318,27 @@ export const PaymentsTab = ({ userId }: PaymentsTabProps) => {
               {debt.pending_transactions.map((transaction) => (
                 <div
                   key={transaction.id}
-                  className="flex items-center gap-4 p-3 rounded-lg border-2 bg-white border-gray-200"
+                  className="p-3 rounded-lg border-2 bg-white border-gray-200"
                 >
-                  <Receipt className="h-5 w-5 text-gray-400" />
-                  <div className="flex-1">
-                    <p className="font-semibold text-sm">{transaction.description}</p>
-                    <p className="text-xs text-gray-500">
-                      {format(new Date(transaction.created_at), "d 'de' MMMM, yyyy • HH:mm", { locale: es })}
-                      {transaction.ticket_code && ` • Ticket: ${transaction.ticket_code}`}
-                    </p>
+                  <div className="flex items-center gap-3 sm:gap-4">
+                    <Receipt className="h-5 w-5 text-gray-400 flex-shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <p className="font-semibold text-sm truncate">{transaction.description}</p>
+                      <p className="text-xs text-gray-500">
+                        {format(new Date(transaction.created_at), "d 'de' MMMM, yyyy • HH:mm", { locale: es })}
+                        {transaction.ticket_code && ` • Ticket: ${transaction.ticket_code}`}
+                      </p>
+                    </div>
+                    <div className="text-right flex-shrink-0">
+                      <p className="text-base sm:text-lg font-bold text-red-600">S/ {(transaction.amount || 0).toFixed(2)}</p>
+                      <Badge variant="outline" className="text-[10px] sm:text-xs border-amber-300 text-amber-700">
+                        <Clock className="h-3 w-3 mr-1" />
+                        Pendiente
+                      </Badge>
+                    </div>
                   </div>
-                  <div className="text-right">
-                    <p className="text-lg font-bold text-red-600">S/ {(transaction.amount || 0).toFixed(2)}</p>
-                    <Badge variant="outline" className="text-xs border-amber-300 text-amber-700">
-                      <Clock className="h-3 w-3 mr-1" />
-                      Pendiente
-                    </Badge>
-                  </div>
+                  {/* Estado del voucher si aplica */}
+                  {renderVoucherStatus(transaction)}
                 </div>
               ))}
             </div>
