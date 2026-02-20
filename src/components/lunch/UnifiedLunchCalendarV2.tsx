@@ -26,7 +26,9 @@ import {
   Check,
   Ban,
   Trash2,
+  CreditCard as CreditCardIcon,
 } from 'lucide-react';
+import { RechargeModal } from '@/components/parent/RechargeModal';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, addMonths, subMonths } from 'date-fns';
 import { es } from 'date-fns/locale';
 import {
@@ -198,6 +200,12 @@ export function UnifiedLunchCalendarV2({ userType, userId, userSchoolId }: Unifi
 
   // Cancellation
   const [cancellingOrderId, setCancellingOrderId] = useState<string | null>(null);
+
+  // Payment flow (parents only)
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [createdOrderIds, setCreatedOrderIds] = useState<string[]>([]);
+  const [totalOrderAmount, setTotalOrderAmount] = useState(0);
+  const [orderDescriptions, setOrderDescriptions] = useState<string[]>([]);
 
   // UI State
   const [loading, setLoading] = useState(true);
@@ -506,6 +514,9 @@ export function UnifiedLunchCalendarV2({ userType, userId, userSchoolId }: Unifi
     setWizardCurrentIndex(0);
     setWizardStep('category');
     setSelectedCategory(null);
+    setCreatedOrderIds([]);
+    setTotalOrderAmount(0);
+    setOrderDescriptions([]);
     setSelectedMenu(null);
     setQuantity(1);
     setOrdersCreated(0);
@@ -601,6 +612,13 @@ export function UnifiedLunchCalendarV2({ userType, userId, userSchoolId }: Unifi
 
       const newCount = ordersCreated + 1;
       setOrdersCreated(newCount);
+
+      // Track for payment (parents)
+      if (userType === 'parent' && insertedOrder?.id) {
+        setCreatedOrderIds(prev => [...prev, insertedOrder.id]);
+        setTotalOrderAmount(prev => prev + (unitPrice * quantity));
+        setOrderDescriptions(prev => [...prev, `${quantity}x ${selectedCategory.name} - ${dateFormatted}`]);
+      }
 
       toast({
         title: '✅ Pedido registrado',
@@ -825,10 +843,57 @@ export function UnifiedLunchCalendarV2({ userType, userId, userSchoolId }: Unifi
                   Se registraron <strong>{ordersCreated}</strong> pedido(s) correctamente
                 </DialogDescription>
               </DialogHeader>
-              <div className="flex justify-center mt-6">
-                <Button onClick={closeWizard} size="lg" className="bg-green-600 hover:bg-green-700">
+
+              {/* Resumen de pedidos para padres */}
+              {userType === 'parent' && totalOrderAmount > 0 && (
+                <div className="space-y-3 mt-4">
+                  {/* Detalle de pedidos */}
+                  <div className="bg-gray-50 rounded-lg p-3 space-y-1">
+                    {orderDescriptions.map((desc, i) => (
+                      <p key={i} className="text-sm text-gray-700">• {desc}</p>
+                    ))}
+                  </div>
+
+                  {/* Total */}
+                  <div className="bg-gradient-to-r from-purple-50 to-blue-50 border-2 border-purple-200 rounded-xl p-4 flex justify-between items-center">
+                    <span className="text-lg font-bold text-gray-900">Total a pagar:</span>
+                    <span className="text-2xl font-black text-purple-700">S/ {totalOrderAmount.toFixed(2)}</span>
+                  </div>
+
+                  {/* Mensaje informativo */}
+                  <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 flex items-start gap-2">
+                    <AlertCircle className="h-4 w-4 text-amber-600 mt-0.5 flex-shrink-0" />
+                    <p className="text-xs text-amber-800">
+                      Para confirmar tu pedido, envía el comprobante de pago. 
+                      Tu pedido quedará <strong>pendiente</strong> hasta que el administrador apruebe el pago.
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              <div className="flex flex-col sm:flex-row justify-center gap-3 mt-6">
+                {/* Botón Pagar para padres */}
+                {userType === 'parent' && totalOrderAmount > 0 && (
+                  <Button
+                    onClick={() => {
+                      closeWizard();
+                      setTimeout(() => setShowPaymentModal(true), 300);
+                    }}
+                    size="lg"
+                    className="bg-purple-600 hover:bg-purple-700 text-white font-bold"
+                  >
+                    <CreditCardIcon className="h-5 w-5 mr-2" />
+                    Pagar ahora — S/ {totalOrderAmount.toFixed(2)}
+                  </Button>
+                )}
+                <Button 
+                  onClick={closeWizard} 
+                  size="lg" 
+                  variant={userType === 'parent' && totalOrderAmount > 0 ? 'outline' : 'default'}
+                  className={userType === 'parent' && totalOrderAmount > 0 ? '' : 'bg-green-600 hover:bg-green-700'}
+                >
                   <CheckCircle2 className="h-5 w-5 mr-2" />
-                  Cerrar
+                  {userType === 'parent' && totalOrderAmount > 0 ? 'Pagar después' : 'Cerrar'}
                 </Button>
               </div>
             </>
@@ -1312,12 +1377,38 @@ export function UnifiedLunchCalendarV2({ userType, userId, userSchoolId }: Unifi
                 <li>Toca los días disponibles para seleccionarlos</li>
                 <li>Presiona <strong>"Hacer Pedido"</strong> en la barra morada</li>
                 <li>Elige categoría y cantidad para cada día</li>
+                {userType === 'parent' && <li>Envía tu comprobante de pago para confirmar</li>}
                 <li>Toca días verdes para ver o cancelar pedidos</li>
               </ol>
             </div>
           </div>
         </CardContent>
       </Card>
+
+      {/* PAYMENT MODAL (parents only) */}
+      {userType === 'parent' && selectedStudent && (
+        <RechargeModal
+          isOpen={showPaymentModal}
+          onClose={() => {
+            setShowPaymentModal(false);
+            setCreatedOrderIds([]);
+            setTotalOrderAmount(0);
+            setOrderDescriptions([]);
+          }}
+          studentName={selectedStudent.full_name}
+          studentId={selectedStudent.id}
+          currentBalance={selectedStudent.balance || 0}
+          accountType={selectedStudent.free_account ? 'free' : 'prepaid'}
+          suggestedAmount={totalOrderAmount}
+          requestType="lunch_payment"
+          requestDescription={`Pago almuerzo: ${orderDescriptions.join(' | ')}`}
+          lunchOrderIds={createdOrderIds}
+          onRecharge={async () => {
+            // El RechargeModal maneja todo internamente
+            toast({ title: '✅ Comprobante enviado', description: 'Tu pago será revisado por el administrador.' });
+          }}
+        />
+      )}
     </div>
   );
 }

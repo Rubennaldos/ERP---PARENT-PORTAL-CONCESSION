@@ -35,6 +35,12 @@ interface RechargeModalProps {
   onRecharge: (amount: number, method: string) => Promise<void>;
   /** Si viene con monto pre-definido, salta el paso de monto */
   suggestedAmount?: number;
+  /** Tipo de solicitud: 'recharge' (por defecto) o 'lunch_payment' */
+  requestType?: 'recharge' | 'lunch_payment';
+  /** Descripción del pago (ej: "Almuerzo - Menú Niños - 20 de febrero") */
+  requestDescription?: string;
+  /** IDs de lunch_orders asociados (solo para lunch_payment) */
+  lunchOrderIds?: string[];
 }
 
 interface PaymentConfig {
@@ -64,6 +70,9 @@ export function RechargeModal({
   accountType,
   onRecharge,
   suggestedAmount,
+  requestType = 'recharge',
+  requestDescription,
+  lunchOrderIds,
 }: RechargeModalProps) {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -197,6 +206,9 @@ export function RechargeModal({
         voucher_url: voucherUrl,
         notes: notes.trim() || null,
         status: 'pending',
+        request_type: requestType,
+        description: requestDescription || (requestType === 'lunch_payment' ? 'Pago de almuerzo' : 'Recarga de saldo'),
+        lunch_order_ids: lunchOrderIds || null,
       });
 
       if (insertError) throw insertError;
@@ -352,7 +364,7 @@ export function RechargeModal({
         {/* Resumen de recarga */}
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 flex items-center justify-between">
           <div>
-            <p className="text-xs text-gray-500">Recarga para {studentName}</p>
+            <p className="text-xs text-gray-500">{requestType === 'lunch_payment' ? `Pago almuerzo — ${studentName}` : `Recarga para ${studentName}`}</p>
             <p className="text-xl font-bold text-blue-700">S/ {parseFloat(amount || '0').toFixed(2)}</p>
           </div>
           {!skipAmountStep && (
@@ -551,7 +563,7 @@ export function RechargeModal({
   const renderStepVoucher = () => (
     <div className="space-y-5">
       <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 flex items-center justify-between text-sm">
-        <span className="text-gray-600">Recarga solicitada:</span>
+        <span className="text-gray-600">{requestType === 'lunch_payment' ? 'Pago almuerzo:' : 'Recarga solicitada:'}</span>
         <span className="font-bold text-blue-700">S/ {parseFloat(amount).toFixed(2)} vía {currentMethodInfo.label}</span>
       </div>
 
@@ -606,7 +618,7 @@ export function RechargeModal({
       <div className="space-y-1">
         <Label className="text-sm">Nota adicional <span className="text-gray-400">(opcional)</span></Label>
         <Input
-          placeholder="Ej: Recarga para la semana del 20/02"
+          placeholder={requestType === 'lunch_payment' ? 'Ej: Pago de almuerzo del 20/02' : 'Ej: Recarga para la semana del 20/02'}
           value={notes}
           onChange={(e) => setNotes(e.target.value)}
         />
@@ -638,7 +650,10 @@ export function RechargeModal({
       <div>
         <h3 className="text-xl font-bold text-gray-900">¡Comprobante enviado!</h3>
         <p className="text-gray-500 mt-2 text-sm">
-          Recibimos tu solicitud de recarga de <strong>S/ {parseFloat(amount).toFixed(2)}</strong> para <strong>{studentName}</strong>.
+          {requestType === 'lunch_payment'
+            ? <>Recibimos tu pago de almuerzo de <strong>S/ {parseFloat(amount).toFixed(2)}</strong> para <strong>{studentName}</strong>.</>
+            : <>Recibimos tu solicitud de recarga de <strong>S/ {parseFloat(amount).toFixed(2)}</strong> para <strong>{studentName}</strong>.</>
+          }
         </p>
       </div>
 
@@ -665,7 +680,7 @@ export function RechargeModal({
         <DialogHeader>
           <DialogTitle className="text-xl flex items-center gap-2">
             <Wallet className="h-5 w-5 text-blue-600" />
-            {step === 'success' ? '¡Listo!' : 'Recargar Saldo'}
+            {step === 'success' ? '¡Listo!' : requestType === 'lunch_payment' ? 'Pagar Almuerzo' : 'Recargar Saldo'}
           </DialogTitle>
           {step !== 'success' && (
             <DialogDescription>

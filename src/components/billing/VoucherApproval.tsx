@@ -42,6 +42,9 @@ interface RechargeRequest {
   approved_by: string | null;
   created_at: string;
   expires_at: string;
+  request_type?: 'recharge' | 'lunch_payment';
+  description?: string | null;
+  lunch_order_ids?: string[] | null;
   // Joins
   students?: { full_name: string; balance: number };
   profiles?: { full_name: string; email: string };
@@ -125,6 +128,8 @@ export const VoucherApproval = () => {
     if (!user) return;
     setProcessingId(req.id);
     try {
+      const isLunchPayment = req.request_type === 'lunch_payment';
+
       // 1. Actualizar estado de la solicitud
       const { error: reqErr } = await supabase
         .from('recharge_requests')
@@ -137,39 +142,75 @@ export const VoucherApproval = () => {
 
       if (reqErr) throw reqErr;
 
-      // 2. Crear transacción de recarga en el estudiante
-      const { error: txErr } = await supabase.from('transactions').insert({
-        student_id: req.student_id,
-        school_id: req.school_id,
-        type: 'recharge',
-        amount: req.amount,
-        description: `Recarga aprobada — ${METHOD_LABELS[req.payment_method] || req.payment_method}${req.reference_code ? ` (Ref: ${req.reference_code})` : ''}`,
-        payment_status: 'paid',
-        payment_method: req.payment_method,
-        metadata: {
-          source: 'voucher_recharge',
-          recharge_request_id: req.id,
-          reference_code: req.reference_code,
-          approved_by: user.id,
-          voucher_url: req.voucher_url,
-        },
-      });
+      if (isLunchPayment) {
+        // ── PAGO DE ALMUERZO ──
+        // Marcar las transacciones de lunch como pagadas
+        if (req.lunch_order_ids && req.lunch_order_ids.length > 0) {
+          // Actualizar transacciones asociadas a los pedidos de almuerzo
+          for (const orderId of req.lunch_order_ids) {
+            await supabase
+              .from('transactions')
+              .update({ 
+                payment_status: 'paid', 
+                payment_method: req.payment_method,
+                metadata: {
+                  source: 'lunch_voucher_payment',
+                  recharge_request_id: req.id,
+                  reference_code: req.reference_code,
+                  approved_by: user.id,
+                  voucher_url: req.voucher_url,
+                }
+              })
+              .contains('metadata', { lunch_order_id: orderId });
+          }
 
-      if (txErr) throw txErr;
+          // Actualizar status de lunch_orders
+          await supabase
+            .from('lunch_orders')
+            .update({ status: 'confirmed' })
+            .in('id', req.lunch_order_ids);
+        }
 
-      // 3. Actualizar saldo del estudiante
-      const newBalance = (req.students?.balance || 0) + req.amount;
-      const { error: stuErr } = await supabase
-        .from('students')
-        .update({ balance: newBalance })
-        .eq('id', req.student_id);
+        toast({
+          title: '✅ Pago de almuerzo aprobado',
+          description: `Se confirmó el pago de S/ ${req.amount.toFixed(2)} de ${req.students?.full_name || 'el alumno'}.`,
+        });
+      } else {
+        // ── RECARGA DE SALDO ──
+        // 2. Crear transacción de recarga en el estudiante
+        const { error: txErr } = await supabase.from('transactions').insert({
+          student_id: req.student_id,
+          school_id: req.school_id,
+          type: 'recharge',
+          amount: req.amount,
+          description: `Recarga aprobada — ${METHOD_LABELS[req.payment_method] || req.payment_method}${req.reference_code ? ` (Ref: ${req.reference_code})` : ''}`,
+          payment_status: 'paid',
+          payment_method: req.payment_method,
+          metadata: {
+            source: 'voucher_recharge',
+            recharge_request_id: req.id,
+            reference_code: req.reference_code,
+            approved_by: user.id,
+            voucher_url: req.voucher_url,
+          },
+        });
 
-      if (stuErr) throw stuErr;
+        if (txErr) throw txErr;
 
-      toast({
-        title: '✅ Recarga aprobada',
-        description: `Se acreditaron S/ ${req.amount.toFixed(2)} a ${req.students?.full_name || 'el alumno'}.`,
-      });
+        // 3. Actualizar saldo del estudiante
+        const newBalance = (req.students?.balance || 0) + req.amount;
+        const { error: stuErr } = await supabase
+          .from('students')
+          .update({ balance: newBalance })
+          .eq('id', req.student_id);
+
+        if (stuErr) throw stuErr;
+
+        toast({
+          title: '✅ Recarga aprobada',
+          description: `Se acreditaron S/ ${req.amount.toFixed(2)} a ${req.students?.full_name || 'el alumno'}.`,
+        });
+      }
 
       fetchRequests();
     } catch (err: any) {
@@ -221,10 +262,10 @@ export const VoucherApproval = () => {
         <div>
           <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
             <Wallet className="h-5 w-5 text-blue-600" />
-            Aprobación de Recargas
+            Aprobación de Pagos
           </h2>
           <p className="text-sm text-gray-500 mt-1">
-            Revisa los comprobantes enviados por los padres y aprueba las recargas.
+            Revisa los comprobantes enviados por los padres (recargas y pagos de almuerzos).
           </p>
         </div>
         <Button variant="outline" size="sm" onClick={fetchRequests} className="gap-2 self-start">
@@ -291,6 +332,14 @@ export const VoucherApproval = () => {
                         <span className={`text-xs font-semibold px-2 py-0.5 rounded-full border ${statusInfo.className}`}>
                           {statusInfo.label}
                         </span>
+                        {/* Tipo de solicitud */}
+                        <span className={`text-xs font-semibold px-2 py-0.5 rounded-full border ${
+                          req.request_type === 'lunch_payment'
+                            ? 'bg-orange-100 text-orange-800 border-orange-300'
+                            : 'bg-blue-100 text-blue-800 border-blue-300'
+                        }`}>
+                          {req.request_type === 'lunch_payment' ? '🍽️ Almuerzo' : '💰 Recarga'}
+                        </span>
                         <span className="text-xs text-gray-400">
                           {format(new Date(req.created_at), "d 'de' MMM · HH:mm", { locale: es })}
                         </span>
@@ -298,6 +347,12 @@ export const VoucherApproval = () => {
                           <span className="text-xs text-red-500 font-medium">⚠️ Expirado</span>
                         )}
                       </div>
+                      {/* Descripción del pago */}
+                      {req.description && (
+                        <p className="text-xs text-gray-600 bg-gray-50 rounded px-2 py-1 mt-1">
+                          📋 {req.description}
+                        </p>
+                      )}
 
                       {/* Datos principales */}
                       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-2">

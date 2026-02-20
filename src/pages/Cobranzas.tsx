@@ -290,7 +290,7 @@ const Cobranzas = () => {
                       }`}
                     >
                       <Wallet className="h-4 w-4" />
-                      Recargas
+                      Pagos
                       {pendingVouchers > 0 && (
                         <span className="absolute -top-1 -right-1 bg-amber-500 text-white text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center">
                           {pendingVouchers > 9 ? '9+' : pendingVouchers}
@@ -351,7 +351,7 @@ const Cobranzas = () => {
                       }`}
                     >
                       <Wallet className="h-3.5 w-3.5" />
-                      Recargas
+                      Pagos
                       {pendingVouchers > 0 && (
                         <span className="ml-0.5 bg-amber-500 text-white text-[9px] font-bold rounded-full w-3.5 h-3.5 flex items-center justify-center">
                           {pendingVouchers > 9 ? '9+' : pendingVouchers}
