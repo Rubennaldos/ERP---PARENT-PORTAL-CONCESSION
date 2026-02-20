@@ -232,6 +232,16 @@ export const VoucherApproval = () => {
 
         // A) Manejar lunch_order_ids (si hay)
         if (req.lunch_order_ids && req.lunch_order_ids.length > 0) {
+          // Obtener estado real de las órdenes para no reactivar canceladas
+          const { data: currentOrders } = await supabase
+            .from('lunch_orders')
+            .select('id, status, is_cancelled')
+            .in('id', req.lunch_order_ids);
+
+          const activeOrderIds = (currentOrders || [])
+            .filter(o => !o.is_cancelled && o.status !== 'cancelled')
+            .map(o => o.id);
+
           for (const orderId of req.lunch_order_ids) {
             const { data: existingTx } = await supabase
               .from('transactions')
@@ -246,17 +256,19 @@ export const VoucherApproval = () => {
                 .update({
                   payment_status: 'paid',
                   payment_method: req.payment_method,
-                  metadata: { ...(existingTx.metadata || {}), ...paymentMeta },
+                  metadata: { ...(existingTx.metadata || {}), ...paymentMeta, last_payment_rejected: false },
                 })
                 .eq('id', existingTx.id);
             }
           }
 
-          // Confirmar lunch_orders
-          await supabase
-            .from('lunch_orders')
-            .update({ status: 'confirmed' })
-            .in('id', req.lunch_order_ids);
+          // Solo confirmar órdenes que NO están canceladas
+          if (activeOrderIds.length > 0) {
+            await supabase
+              .from('lunch_orders')
+              .update({ status: 'confirmed' })
+              .in('id', activeOrderIds);
+          }
         }
 
         // B) Manejar paid_transaction_ids (transacciones directas sin lunch_order)
@@ -291,7 +303,7 @@ export const VoucherApproval = () => {
                   .update({
                     payment_status: 'paid',
                     payment_method: req.payment_method,
-                    metadata: { ...(existingTx.metadata || {}), ...paymentMeta },
+                    metadata: { ...(existingTx.metadata || {}), ...paymentMeta, last_payment_rejected: false },
                   })
                   .eq('id', txId);
               }
@@ -682,7 +694,7 @@ export const VoucherApproval = () => {
                                 ) : (
                                   <Check className="h-4 w-4" />
                                 )}
-                                Aprobar +S/ {req.amount.toFixed(0)}
+                                {req.request_type === 'debt_payment' ? `Aprobar pago S/ ${req.amount.toFixed(0)}` : `Aprobar +S/ ${req.amount.toFixed(0)}`}
                               </Button>
                               <Button
                                 size="sm"

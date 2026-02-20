@@ -232,6 +232,16 @@ export function RechargeModal({
 
         if (uploadError) {
           console.warn('No se pudo subir imagen:', uploadError.message);
+          // Si NO hay código de referencia Y la imagen falló → no continuar
+          if (!referenceCode.trim()) {
+            toast({
+              variant: 'destructive',
+              title: 'Error al subir imagen',
+              description: 'No se pudo subir tu captura. Intenta de nuevo o escribe el número de operación.',
+            });
+            setLoading(false);
+            return;
+          }
         } else if (uploadData) {
           const { data: { publicUrl } } = supabase.storage.from('vouchers').getPublicUrl(uploadData.path);
           voucherUrl = publicUrl;

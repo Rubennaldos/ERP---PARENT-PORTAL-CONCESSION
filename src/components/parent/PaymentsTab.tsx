@@ -50,8 +50,8 @@ export const PaymentsTab = ({ userId }: PaymentsTabProps) => {
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [selectedDebt, setSelectedDebt] = useState<StudentDebt | null>(null);
 
-  // ── Estado para detectar si hay voucher pendiente por estudiante ──
-  const [pendingVoucherStudents, setPendingVoucherStudents] = useState<Set<string>>(new Set());
+  // ── Estado para detectar si hay voucher pendiente de tipo debt_payment por estudiante ──
+  const [pendingDebtVoucherStudents, setPendingDebtVoucherStudents] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     fetchDebts();
@@ -144,12 +144,13 @@ export const PaymentsTab = ({ userId }: PaymentsTabProps) => {
 
         if (rechargeRequests && rechargeRequests.length > 0) {
           const statusMap = new Map<string, VoucherStatus>();
-          const pendingStudents = new Set<string>();
+          const pendingDebtStudents = new Set<string>();
 
           // Para debt_payment, los paid_transaction_ids nos dan mapeo directo
           rechargeRequests.forEach(req => {
-            if (req.status === 'pending') {
-              pendingStudents.add(req.student_id);
+            // Solo bloquear el botón si hay un debt_payment pendiente (no lunch_payment)
+            if (req.status === 'pending' && req.request_type === 'debt_payment') {
+              pendingDebtStudents.add(req.student_id);
             }
 
             // Mapear paid_transaction_ids directamente
@@ -190,7 +191,7 @@ export const PaymentsTab = ({ userId }: PaymentsTabProps) => {
           });
 
           setVoucherStatuses(statusMap);
-          setPendingVoucherStudents(pendingStudents);
+          setPendingDebtVoucherStudents(pendingDebtStudents);
         }
       }
     } catch (error: any) {
@@ -339,7 +340,7 @@ export const PaymentsTab = ({ userId }: PaymentsTabProps) => {
 
       {/* Deudas por Estudiante */}
       {debts.map((debt) => {
-        const hasPendingVoucher = pendingVoucherStudents.has(debt.student_id);
+        const hasPendingVoucher = pendingDebtVoucherStudents.has(debt.student_id);
 
         return (
           <Card key={debt.student_id} className="border-2">
