@@ -124,35 +124,25 @@ export const VoucherApproval = () => {
       const enriched = data || [];
       const lunchPayments = enriched.filter(r => r.request_type === 'lunch_payment' && r.lunch_order_ids?.length);
 
-      if (lunchPayments.length > 0) {
-        // Recoger todos los lunch_order_ids
-        const allOrderIds = lunchPayments.flatMap(r => r.lunch_order_ids || []);
-        if (allOrderIds.length > 0) {
-          const { data: txData } = await supabase
-            .from('transactions')
-            .select('ticket_code, metadata')
-            .eq('type', 'purchase')
-            .not('metadata', 'is', null);
-
-          if (txData) {
-            // Mapear lunch_order_id -> ticket_code
-            const ticketMap = new Map<string, string>();
-            txData.forEach((tx: any) => {
-              const lunchOrderId = tx.metadata?.lunch_order_id;
-              if (lunchOrderId && allOrderIds.includes(lunchOrderId) && tx.ticket_code) {
-                ticketMap.set(lunchOrderId, tx.ticket_code);
-              }
-            });
-
-            // Asignar ticket_codes a cada request
-            lunchPayments.forEach((req: any) => {
-              const codes = (req.lunch_order_ids || [])
-                .map((id: string) => ticketMap.get(id))
-                .filter(Boolean);
-              req._ticket_codes = codes;
-            });
+      for (const req of lunchPayments) {
+        const codes: string[] = [];
+        for (const orderId of (req.lunch_order_ids || [])) {
+          try {
+            const { data: tx } = await supabase
+              .from('transactions')
+              .select('ticket_code')
+              .eq('type', 'purchase')
+              .contains('metadata', { lunch_order_id: orderId })
+              .not('ticket_code', 'is', null)
+              .maybeSingle();
+            if (tx?.ticket_code) {
+              codes.push(tx.ticket_code);
+            }
+          } catch (e) {
+            console.warn('No se pudo obtener ticket para order:', orderId, e);
           }
         }
+        (req as any)._ticket_codes = codes;
       }
 
       setRequests(enriched);
