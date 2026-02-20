@@ -41,7 +41,7 @@ interface LunchMenuModalProps {
   userSchoolId?: string | null;
   onSuccess: () => void;
   preSelectedCategoryId?: string; // Nueva prop desde wizard
-  preSelectedTargetType?: 'students' | 'teachers'; // Nueva prop desde wizard
+  preSelectedTargetType?: 'students' | 'teachers' | 'both'; // Nueva prop desde wizard
   preSelectedCategoryName?: string; // Nueva prop desde wizard
 }
 
@@ -118,12 +118,18 @@ export const LunchMenuModal = ({
     try {
       const { data, error } = await supabase
         .from('lunch_categories')
-        .select('is_kitchen_sale')
+        .select('is_kitchen_sale, target_type')
         .eq('id', categoryId)
         .single();
 
       if (error) throw error;
       setIsKitchenProduct(data?.is_kitchen_sale === true);
+      
+      // FIXED: Auto-set target_type from category to prevent mismatches
+      if (data?.target_type) {
+        setFormData(prev => ({ ...prev, target_type: data.target_type }));
+        console.log('🎯 [LunchMenuModal] target_type auto-set from category:', data.target_type);
+      }
       
       // Cargar toppings de la categoría
       if (!data?.is_kitchen_sale) {
@@ -261,14 +267,24 @@ export const LunchMenuModal = ({
         payload.product_price = null;
       }
 
-      // Agregar category_id y target_type (convertir string vacío a null)
+      // Agregar category_id y target_type
+      // FIXED: Siempre heredar target_type de la categoría para evitar desincronización
       if (formData.category_id && formData.category_id.trim() !== '') {
         payload.category_id = formData.category_id;
-        payload.target_type = formData.target_type || 'students';
+        
+        // Consultar el target_type real de la categoría para asegurar consistencia
+        const { data: catData } = await supabase
+          .from('lunch_categories')
+          .select('target_type')
+          .eq('id', formData.category_id)
+          .single();
+        
+        payload.target_type = catData?.target_type || formData.target_type || 'students';
+        console.log('🎯 [Save] target_type from category:', payload.target_type);
       } else {
         // Si no hay categoría, asegurarse de que sean null explícitamente
         payload.category_id = null;
-        payload.target_type = 'students';
+        payload.target_type = 'both'; // Sin categoría = visible para todos
       }
 
       if (menuId) {

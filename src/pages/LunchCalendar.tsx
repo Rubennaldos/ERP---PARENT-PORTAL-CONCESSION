@@ -75,6 +75,11 @@ interface LunchMenu {
   school_id: string;
   school_name: string;
   school_color?: string;
+  category_id?: string;
+  category_name?: string;
+  category_icon?: string;
+  category_color?: string;
+  target_type?: string; // 'students' | 'teachers' | 'both'
   date: string;
   starter: string | null;
   main_course: string;
@@ -146,7 +151,7 @@ const LunchCalendar = () => {
   
   // Estado del wizard
   const [wizardCategoryId, setWizardCategoryId] = useState<string | null>(null);
-  const [wizardTargetType, setWizardTargetType] = useState<'students' | 'teachers' | null>(null);
+  const [wizardTargetType, setWizardTargetType] = useState<'students' | 'teachers' | 'both' | null>(null);
   const [wizardCategoryName, setWizardCategoryName] = useState<string | null>(null);
 
   // Cargar permisos y datos del usuario
@@ -209,10 +214,18 @@ const LunchCalendar = () => {
   // Cargar escuelas
   useEffect(() => {
     const loadSchools = async () => {
+      // FIXED: Esperar a que se cargue el perfil del usuario antes de cargar sedes
+      // Sin este guard, cuando userSchoolId=null y canViewAllSchools=false,
+      // se cargan TODAS las sedes por error (race condition)
+      if (!canViewAllSchools && !userSchoolId) {
+        console.log('⏳ [LunchCalendar] Esperando datos del usuario antes de cargar sedes...');
+        return;
+      }
+
       try {
         let query = supabase.from('schools').select('id, name, color').order('name');
 
-        // Si el usuario solo puede ver su sede
+        // Si el usuario solo puede ver su sede, filtrar
         if (!canViewAllSchools && userSchoolId) {
           query = query.eq('id', userSchoolId);
         }
@@ -221,9 +234,10 @@ const LunchCalendar = () => {
 
         if (error) throw error;
 
+        console.log(`🏫 [LunchCalendar] Sedes cargadas: ${data?.length || 0} (canViewAll: ${canViewAllSchools}, schoolId: ${userSchoolId})`);
         setSchools(data || []);
         
-        // Seleccionar todas las escuelas por defecto
+        // Seleccionar todas las escuelas cargadas por defecto
         setSelectedSchools(data?.map((s) => s.id) || []);
       } catch (error) {
         console.error('Error loading schools:', error);
@@ -382,7 +396,7 @@ const LunchCalendar = () => {
     setIsWizardOpen(true);  // Abrir wizard en lugar del modal directo
   };
 
-  const handleWizardComplete = (categoryId: string, targetType: 'students' | 'teachers', categoryName: string) => {
+  const handleWizardComplete = (categoryId: string, targetType: 'students' | 'teachers' | 'both', categoryName: string) => {
     console.log('✅ Wizard completado con:', { categoryId, targetType, categoryName });
     setWizardCategoryId(categoryId);
     setWizardTargetType(targetType);
@@ -1136,9 +1150,21 @@ const LunchCalendar = () => {
                 <p className="text-gray-500 font-medium">No hay menús registrados para este día.</p>
               </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {selectedDay?.menus.map((menu) => (
-                  <Card key={menu.id} className="overflow-hidden border-l-4" style={{ borderLeftColor: menu.school_color || '#10b981' }}>
+              (() => {
+                const menus = selectedDay?.menus || [];
+                const grouped = {
+                  students: menus.filter(m => m.target_type === 'students'),
+                  both: menus.filter(m => m.target_type === 'both' || !m.target_type),
+                  teachers: menus.filter(m => m.target_type === 'teachers'),
+                };
+                const sections = [
+                  { key: 'students', label: '👦 Menús para Alumnos', bgColor: 'bg-blue-50', borderColor: 'border-blue-300', textColor: 'text-blue-700', menus: grouped.students },
+                  { key: 'both', label: '👥 Menús para Todos', bgColor: 'bg-emerald-50', borderColor: 'border-emerald-300', textColor: 'text-emerald-700', menus: grouped.both },
+                  { key: 'teachers', label: '👨‍🏫 Menús para Profesores', bgColor: 'bg-purple-50', borderColor: 'border-purple-300', textColor: 'text-purple-700', menus: grouped.teachers },
+                ].filter(s => s.menus.length > 0);
+
+                const renderMenuCard = (menu: LunchMenu) => (
+                  <Card key={menu.id} className="overflow-hidden border-l-4" style={{ borderLeftColor: menu.category_color || menu.school_color || '#10b981' }}>
                     <CardHeader className="bg-muted/30 py-3 flex flex-row items-center justify-between space-y-0">
                       <div className="flex flex-col gap-1">
                         <CardTitle className="text-sm font-bold flex items-center gap-2">
@@ -1146,7 +1172,7 @@ const LunchCalendar = () => {
                           {menu.school_name}
                         </CardTitle>
                         {menu.category_name && (
-                          <div className="flex items-center gap-1 text-xs">
+                          <div className="flex items-center gap-1.5 text-xs">
                             <span>{menu.category_icon || '🍽️'}</span>
                             <span className="font-semibold" style={{ color: menu.category_color || '#10b981' }}>
                               {menu.category_name}
@@ -1176,7 +1202,7 @@ const LunchCalendar = () => {
                           <p className="font-medium">{menu.starter || '—'}</p>
                         </div>
                         <div className="space-y-1">
-                          <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider text-green-700">Segundo</p>
+                          <p className="text-[10px] font-bold text-green-700 uppercase tracking-wider">Segundo</p>
                           <p className="font-bold text-green-700">{menu.main_course}</p>
                         </div>
                         <div className="space-y-1">
@@ -1196,8 +1222,28 @@ const LunchCalendar = () => {
                       )}
                     </CardContent>
                   </Card>
-                ))}
-              </div>
+                );
+
+                return (
+                  <div className="space-y-6">
+                    {sections.map(section => (
+                      <div key={section.key}>
+                        {sections.length > 1 && (
+                          <div className={`flex items-center gap-2 mb-3 pb-2 border-b-2 ${section.borderColor}`}>
+                            <span className={`text-base font-bold ${section.textColor}`}>{section.label}</span>
+                            <span className={`text-xs px-2 py-0.5 rounded-full ${section.bgColor} ${section.textColor} font-semibold`}>
+                              {section.menus.length}
+                            </span>
+                          </div>
+                        )}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          {section.menus.map(renderMenuCard)}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                );
+              })()
             )}
             
             {/* Botones de acción */}

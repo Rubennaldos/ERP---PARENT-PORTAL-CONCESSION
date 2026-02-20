@@ -55,7 +55,7 @@ interface LunchCategoryWizardProps {
   onClose: () => void;
   schoolId: string;
   selectedDate: Date;
-  onComplete: (categoryId: string, targetType: 'students' | 'teachers', categoryName: string) => void;
+  onComplete: (categoryId: string, targetType: 'students' | 'teachers' | 'both', categoryName: string) => void;
 }
 
 export function LunchCategoryWizard({
@@ -117,14 +117,20 @@ export function LunchCategoryWizard({
   const handleComplete = () => {
     if (!selectedCategory || !selectedTargetType) return;
     
+    // FIXED: Usar el target_type de la CATEGORÍA, no la selección del wizard
+    // Esto evita que menús de categorías 'both' queden como 'teachers' o 'students'
+    const effectiveTargetType = selectedCategory.target_type || selectedTargetType;
+    
     console.log('🎯 LunchCategoryWizard - handleComplete:', {
       categoryId: selectedCategory.id,
-      targetType: selectedTargetType,
+      wizardSelection: selectedTargetType,
+      categoryTargetType: selectedCategory.target_type,
+      effectiveTargetType,
       categoryName: selectedCategory.name
     });
     
-    // Llamar a onComplete y dejar que el padre cierre el wizard
-    onComplete(selectedCategory.id, selectedTargetType, selectedCategory.name);
+    // Llamar a onComplete con el target_type de la categoría
+    onComplete(selectedCategory.id, effectiveTargetType, selectedCategory.name);
     // NO llamar handleClose() aquí - el padre lo manejará
   };
 
