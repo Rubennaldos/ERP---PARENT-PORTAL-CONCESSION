@@ -541,19 +541,30 @@ export function RechargeModal({
           </>
         )}
 
-        <div className="flex gap-2">
-          {!skipAmountStep && (
-            <Button variant="outline" onClick={() => setStep('amount')} className="flex-1 h-11">
-              ← Atrás
-            </Button>
-          )}
+        <div className="flex flex-col gap-2">
           <Button
             onClick={() => setStep('voucher')}
             disabled={!currentMethodInfo.number}
-            className={`h-11 bg-blue-600 hover:bg-blue-700 font-semibold ${skipAmountStep ? 'w-full' : 'flex-grow'}`}
+            className="h-11 bg-blue-600 hover:bg-blue-700 font-semibold w-full"
           >
             Ya pagué → Enviar comprobante
           </Button>
+          <div className="flex gap-2">
+            {!skipAmountStep && (
+              <Button variant="outline" onClick={() => setStep('amount')} className="flex-1 h-10">
+                ← Atrás
+              </Button>
+            )}
+            {requestType === 'lunch_payment' && (
+              <Button
+                variant="ghost"
+                onClick={onClose}
+                className="flex-1 h-10 text-gray-500 hover:text-gray-700"
+              >
+                Pagar después
+              </Button>
+            )}
+          </div>
         </div>
       </div>
     );
@@ -662,9 +673,18 @@ export function RechargeModal({
           <Clock className="h-4 w-4" /> ¿Qué pasa ahora?
         </p>
         <ul className="text-xs text-blue-700 space-y-1 list-disc list-inside">
-          <li>Un administrador verificará tu pago</li>
-          <li>El saldo se acreditará en menos de 24 horas</li>
-          <li>Podrás ver el saldo actualizado en la app</li>
+          <li>Un administrador verificará tu comprobante</li>
+          {requestType === 'lunch_payment' ? (
+            <>
+              <li>Tu pedido de almuerzo quedará <strong>confirmado</strong> al aprobarse</li>
+              <li>Recibirás la confirmación en la app</li>
+            </>
+          ) : (
+            <>
+              <li>El saldo se acreditará en menos de 24 horas</li>
+              <li>Podrás ver el saldo actualizado en la app</li>
+            </>
+          )}
         </ul>
       </div>
 
