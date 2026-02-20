@@ -35,12 +35,14 @@ interface RechargeModalProps {
   onRecharge: (amount: number, method: string) => Promise<void>;
   /** Si viene con monto pre-definido, salta el paso de monto */
   suggestedAmount?: number;
-  /** Tipo de solicitud: 'recharge' (por defecto) o 'lunch_payment' */
-  requestType?: 'recharge' | 'lunch_payment';
+  /** Tipo de solicitud: 'recharge', 'lunch_payment' o 'debt_payment' */
+  requestType?: 'recharge' | 'lunch_payment' | 'debt_payment';
   /** Descripción del pago (ej: "Almuerzo - Menú Niños - 20 de febrero") */
   requestDescription?: string;
   /** IDs de lunch_orders asociados (solo para lunch_payment) */
   lunchOrderIds?: string[];
+  /** IDs de transacciones que se están pagando (para debt_payment) */
+  paidTransactionIds?: string[];
 }
 
 interface PaymentConfig {
@@ -73,6 +75,7 @@ export function RechargeModal({
   requestType = 'recharge',
   requestDescription,
   lunchOrderIds,
+  paidTransactionIds,
 }: RechargeModalProps) {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -175,12 +178,12 @@ export function RechargeModal({
     setLoading(true);
     try {
       // ── Prevenir doble envío de voucher para los mismos pedidos ──
-      if (requestType === 'lunch_payment' && lunchOrderIds && lunchOrderIds.length > 0) {
+      if ((requestType === 'lunch_payment' || requestType === 'debt_payment') && lunchOrderIds && lunchOrderIds.length > 0) {
         const { data: existingReq } = await supabase
           .from('recharge_requests')
           .select('id, status')
           .eq('parent_id', user.id)
-          .eq('request_type', 'lunch_payment')
+          .in('request_type', ['lunch_payment', 'debt_payment'])
           .eq('status', 'pending')
           .contains('lunch_order_ids', lunchOrderIds);
 
@@ -189,6 +192,27 @@ export function RechargeModal({
             variant: 'destructive',
             title: '⚠️ Comprobante ya enviado',
             description: 'Ya enviaste un comprobante para estos pedidos. Espera la revisión del administrador.',
+          });
+          setLoading(false);
+          return;
+        }
+      }
+
+      // Prevenir doble envío para debt_payment con transaction IDs
+      if (requestType === 'debt_payment' && paidTransactionIds && paidTransactionIds.length > 0) {
+        const { data: existingDebt } = await supabase
+          .from('recharge_requests')
+          .select('id, status')
+          .eq('parent_id', user.id)
+          .eq('request_type', 'debt_payment')
+          .eq('status', 'pending')
+          .eq('student_id', studentId);
+
+        if (existingDebt && existingDebt.length > 0) {
+          toast({
+            variant: 'destructive',
+            title: '⚠️ Comprobante ya enviado',
+            description: 'Ya tienes un comprobante pendiente de revisión para este alumno.',
           });
           setLoading(false);
           return;
@@ -231,8 +255,13 @@ export function RechargeModal({
         notes: notes.trim() || null,
         status: 'pending',
         request_type: requestType,
-        description: requestDescription || (requestType === 'lunch_payment' ? 'Pago de almuerzo' : 'Recarga de saldo'),
+        description: requestDescription || (
+          requestType === 'lunch_payment' ? 'Pago de almuerzo' :
+          requestType === 'debt_payment' ? 'Pago de deuda pendiente' :
+          'Recarga de saldo'
+        ),
         lunch_order_ids: lunchOrderIds || null,
+        paid_transaction_ids: paidTransactionIds || null,
       });
 
       if (insertError) throw insertError;
@@ -388,7 +417,7 @@ export function RechargeModal({
         {/* Resumen de recarga */}
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 flex items-center justify-between">
           <div>
-            <p className="text-xs text-gray-500">{requestType === 'lunch_payment' ? `Pago almuerzo — ${studentName}` : `Recarga para ${studentName}`}</p>
+            <p className="text-xs text-gray-500">{requestType === 'lunch_payment' ? `Pago almuerzo — ${studentName}` : requestType === 'debt_payment' ? `Pago deuda — ${studentName}` : `Recarga para ${studentName}`}</p>
             <p className="text-xl font-bold text-blue-700">S/ {parseFloat(amount || '0').toFixed(2)}</p>
           </div>
           {!skipAmountStep && (
@@ -579,7 +608,7 @@ export function RechargeModal({
                 ← Atrás
               </Button>
             )}
-            {requestType === 'lunch_payment' && (
+            {(requestType === 'lunch_payment' || requestType === 'debt_payment') && (
               <Button
                 variant="ghost"
                 onClick={onClose}
@@ -598,7 +627,7 @@ export function RechargeModal({
   const renderStepVoucher = () => (
     <div className="space-y-5">
       <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 flex items-center justify-between text-sm">
-        <span className="text-gray-600">{requestType === 'lunch_payment' ? 'Pago almuerzo:' : 'Recarga solicitada:'}</span>
+        <span className="text-gray-600">{requestType === 'lunch_payment' ? 'Pago almuerzo:' : requestType === 'debt_payment' ? 'Pago deuda:' : 'Recarga solicitada:'}</span>
         <span className="font-bold text-blue-700">S/ {parseFloat(amount).toFixed(2)} vía {currentMethodInfo.label}</span>
       </div>
 
@@ -653,7 +682,7 @@ export function RechargeModal({
       <div className="space-y-1">
         <Label className="text-sm">Nota adicional <span className="text-gray-400">(opcional)</span></Label>
         <Input
-          placeholder={requestType === 'lunch_payment' ? 'Ej: Pago de almuerzo del 20/02' : 'Ej: Recarga para la semana del 20/02'}
+          placeholder={requestType === 'debt_payment' ? 'Ej: Pago de deudas pendientes' : requestType === 'lunch_payment' ? 'Ej: Pago de almuerzo del 20/02' : 'Ej: Recarga para la semana del 20/02'}
           value={notes}
           onChange={(e) => setNotes(e.target.value)}
         />
@@ -687,6 +716,8 @@ export function RechargeModal({
         <p className="text-gray-500 mt-2 text-sm">
           {requestType === 'lunch_payment'
             ? <>Recibimos tu pago de almuerzo de <strong>S/ {parseFloat(amount).toFixed(2)}</strong> para <strong>{studentName}</strong>.</>
+            : requestType === 'debt_payment'
+            ? <>Recibimos tu pago de deuda de <strong>S/ {parseFloat(amount).toFixed(2)}</strong> para <strong>{studentName}</strong>.</>
             : <>Recibimos tu solicitud de recarga de <strong>S/ {parseFloat(amount).toFixed(2)}</strong> para <strong>{studentName}</strong>.</>
           }
         </p>
@@ -702,6 +733,11 @@ export function RechargeModal({
             <>
               <li>Tu pedido de almuerzo quedará <strong>confirmado</strong> al aprobarse</li>
               <li>Recibirás la confirmación en la app</li>
+            </>
+          ) : requestType === 'debt_payment' ? (
+            <>
+              <li>Tus compras pendientes se marcarán como <strong>pagadas</strong></li>
+              <li>La deuda desaparecerá de tu cuenta al aprobarse</li>
             </>
           ) : (
             <>
@@ -724,7 +760,7 @@ export function RechargeModal({
         <DialogHeader>
           <DialogTitle className="text-xl flex items-center gap-2">
             <Wallet className="h-5 w-5 text-blue-600" />
-            {step === 'success' ? '¡Listo!' : requestType === 'lunch_payment' ? 'Pagar Almuerzo' : 'Recargar Saldo'}
+            {step === 'success' ? '¡Listo!' : requestType === 'lunch_payment' ? 'Pagar Almuerzo' : requestType === 'debt_payment' ? 'Pagar Deuda' : 'Recargar Saldo'}
           </DialogTitle>
           {step !== 'success' && (
             <DialogDescription>
