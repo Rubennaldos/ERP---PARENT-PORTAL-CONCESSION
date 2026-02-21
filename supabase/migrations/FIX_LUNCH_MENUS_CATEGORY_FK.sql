@@ -5,33 +5,37 @@
 -- de lunch_menus.category_id → lunch_categories.id
 -- La columna category_id sigue existiendo pero sin FK,
 -- lo que causa errores PGRST200 en PostgREST (resource embedding)
---
--- Esta migración restaura el FK para:
--- 1. Integridad referencial en la base de datos
--- 2. Permitir PostgREST resource embedding (lunch_menus → lunch_categories)
 
--- Eliminar cualquier FK existente (por si acaso)
+-- PASO 1: Ver cuántos registros huérfanos hay (diagnóstico)
+SELECT 
+  lm.id,
+  lm.date,
+  lm.category_id,
+  lm.main_course,
+  'HUERFANO - categoría no existe' as estado
+FROM lunch_menus lm
+WHERE lm.category_id IS NOT NULL
+  AND NOT EXISTS (
+    SELECT 1 FROM lunch_categories lc WHERE lc.id = lm.category_id
+  );
+
+-- PASO 2: Eliminar menús huérfanos (sus categorías ya no existen, son legacy inservibles)
+-- No podemos poner NULL porque el constraint lunch_menus_unique_without_category
+-- solo permite 1 menú sin categoría por sede+fecha
+DELETE FROM lunch_menus
+WHERE category_id IS NOT NULL
+  AND NOT EXISTS (
+    SELECT 1 FROM lunch_categories lc WHERE lc.id = lunch_menus.category_id
+  );
+
+-- PASO 3: Eliminar cualquier FK existente (por si acaso)
 ALTER TABLE lunch_menus DROP CONSTRAINT IF EXISTS lunch_menus_category_id_fkey;
 
--- Restaurar el FK
+-- PASO 4: Restaurar el FK
 ALTER TABLE lunch_menus 
   ADD CONSTRAINT lunch_menus_category_id_fkey 
   FOREIGN KEY (category_id) 
   REFERENCES lunch_categories(id) 
   ON DELETE SET NULL;
 
--- Verificar
-SELECT 
-  tc.constraint_name,
-  tc.table_name,
-  kcu.column_name,
-  ccu.table_name AS foreign_table_name,
-  ccu.column_name AS foreign_column_name
-FROM information_schema.table_constraints AS tc
-JOIN information_schema.key_column_usage AS kcu
-  ON tc.constraint_name = kcu.constraint_name
-JOIN information_schema.constraint_column_usage AS ccu
-  ON ccu.constraint_name = tc.constraint_name
-WHERE tc.table_name = 'lunch_menus' 
-  AND tc.constraint_type = 'FOREIGN KEY'
-  AND kcu.column_name = 'category_id';
+SELECT '✅ FK restaurado. Los menús con categorías eliminadas ahora tienen category_id = NULL' as resultado;

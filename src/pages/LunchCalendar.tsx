@@ -979,7 +979,7 @@ const LunchCalendar = () => {
           {/* Tab: Configuración */}
           <TabsContent value="config">
             <LunchConfiguration
-              schoolId={userSchoolId}
+              schoolId={userSchoolId || selectedSchools[0] || null}
               canEdit={canEdit || canCreate}
             />
           </TabsContent>
@@ -996,15 +996,15 @@ const LunchCalendar = () => {
           setWizardTargetType(null);
           setWizardCategoryName(null);
         }}
-        schoolId={userSchoolId || ''}
+        schoolId={userSchoolId || selectedSchools[0] || ''}
         selectedDate={selectedDay?.displayDate || new Date()}
         onComplete={handleWizardComplete}
       />
 
       {/* Gestor de Categorías */}
-      {userSchoolId && (
+      {(userSchoolId || selectedSchools[0]) && (
         <CategoryManager
-          schoolId={userSchoolId}
+          schoolId={userSchoolId || selectedSchools[0]}
           open={isCategoryManagerOpen}
           onClose={() => setIsCategoryManagerOpen(false)}
         />
@@ -1024,7 +1024,7 @@ const LunchCalendar = () => {
         menuId={selectedMenuId}
         initialDate={selectedDay?.displayDate}
         schools={schools}
-        userSchoolId={userSchoolId}
+        userSchoolId={userSchoolId || selectedSchools[0] || null}
         preSelectedCategoryId={wizardCategoryId || undefined}
         preSelectedTargetType={wizardTargetType || undefined}
         preSelectedCategoryName={wizardCategoryName || undefined}
@@ -1294,7 +1294,7 @@ const LunchCalendar = () => {
       <PhysicalOrderWizard 
         isOpen={isPhysicalOrderOpen}
         onClose={() => setIsPhysicalOrderOpen(false)}
-        schoolId={userSchoolId || ''}
+        schoolId={userSchoolId || selectedSchools[0] || ''}
         selectedDate={selectedDay?.date || undefined}
         onSuccess={() => {
           // Recargar los menús del mes actual

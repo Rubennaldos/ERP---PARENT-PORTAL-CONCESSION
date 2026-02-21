@@ -80,6 +80,11 @@ export function LunchCategoryWizard({
 
   const fetchCategories = async () => {
     if (!selectedTargetType) return;
+    if (!schoolId) {
+      console.warn('⚠️ fetchCategories: schoolId vacío, no se pueden cargar categorías');
+      setCategories([]);
+      return;
+    }
     
     setLoading(true);
     try {
