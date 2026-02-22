@@ -45,7 +45,6 @@ export function useRole(): UseRoleReturn {
         const superadminEmails = [
           'superadmin@maracuya.com',
           'superadmin@maracuyatiendas.com',
-          'albertonaldos@gmail.com',
         ];
         
         // También chequear variable de entorno

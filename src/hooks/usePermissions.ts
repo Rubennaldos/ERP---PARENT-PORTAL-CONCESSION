@@ -27,8 +27,7 @@ export function usePermissions() {
         // 🔒 SUPERADMIN - Lista de emails con acceso total
         const superadminEmails = [
           'superadmin@maracuya.com',
-          'superadmin@maracuyatiendas.com', 
-          'albertonaldos@gmail.com',
+          'superadmin@maracuyatiendas.com',
         ];
         const userEmail = (user.email || '').toLowerCase().trim();
         if (superadminEmails.some(e => e.toLowerCase().trim() === userEmail)) {
