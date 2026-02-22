@@ -2,14 +2,14 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Lima Café 28 - Design System
+/* Maracuyá Tiendas y Concesionarias Saludables - Design System
    Paleta elegante y profesional basada en la marca
    Colores principales: Teal (verde azulado) y Gold (dorado/amarillo)
 */
 
 @layer base {
   :root {
-    /* Colores de marca Lima Café 28 */
+    /* Colores de marca Maracuyá */
     --brand-teal: 168 53% 42%;
     --brand-teal-dark: 168 53% 32%;
     --brand-teal-light: 168 40% 92%;

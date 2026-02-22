@@ -1,7 +1,7 @@
 /**
  * =====================================================
  * MÓDULO DE FACTURACIÓN ELECTRÓNICA - SUNAT
- * Desarrollado por ARQUISIA para Lima Café 28
+ * Desarrollado por ARQUISIA para Maracuyá Tiendas y Concesionarias Saludables
  * =====================================================
  * 
  * Este módulo está preparado para integrarse con un

@@ -48,7 +48,7 @@ import { es } from 'date-fns/locale';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import { generateBillingPDF } from '@/utils/pdfGenerator';
-import limaCafeLogo from '@/assets/lima-cafe-logo.png';
+import maracuyaLogo from '@/assets/maracuya-logo.png';
 
 interface School {
   id: string;
@@ -1172,7 +1172,7 @@ export const BillingCollection = () => {
       recipientLine = `Estimado(a) ${debtor.client_name}`;
     }
     
-    const message = `🔔 *COBRANZA LIMA CAFÉ 28*
+    const message = `🔔 *COBRANZA MARACUYÁ*
 
 ${recipientLine}
 
@@ -1220,7 +1220,7 @@ Gracias.`;
     // Intentar obtener el logo en base64
     let logoBase64 = '';
     try {
-      const response = await fetch(limaCafeLogo);
+      const response = await fetch(maracuyaLogo);
       const blob = await response.blob();
       logoBase64 = await new Promise((resolve) => {
         const reader = new FileReader();
@@ -1281,7 +1281,7 @@ Gracias.`;
         student_name: debtor.client_name,
         amount: debtor.total_amount.toFixed(2),
         period: period?.period_name || 'Cuenta Pendiente',
-        message: `🔔 *COBRANZA LIMA CAFÉ 28*\n\nEstimado(a) ${debtor.parent_name}\n\nEl alumno *${debtor.student_name}* tiene un consumo pendiente${period ? ` del período: ${period.period_name}` : ''}\n\n💰 Monto Total: S/ ${debtor.total_amount.toFixed(2)}\n\n📎 Adjuntamos el detalle completo.\n\nPara pagar, contacte con administración.\nGracias.`,
+        message: `🔔 *COBRANZA MARACUYÁ*\n\nEstimado(a) ${debtor.parent_name}\n\nEl alumno *${debtor.student_name}* tiene un consumo pendiente${period ? ` del período: ${period.period_name}` : ''}\n\n💰 Monto Total: S/ ${debtor.total_amount.toFixed(2)}\n\n📎 Adjuntamos el detalle completo.\n\nPara pagar, contacte con administración.\nGracias.`,
         delay_seconds: delay,
         pdf_url: '', // Se generará después
       };
@@ -1322,7 +1322,7 @@ Gracias.`;
     // Cargar logo una sola vez
     let logoBase64 = '';
     try {
-      const response = await fetch(limaCafeLogo);
+      const response = await fetch(maracuyaLogo);
       const blob = await response.blob();
       logoBase64 = await new Promise((resolve) => {
         const reader = new FileReader();
@@ -1595,7 +1595,7 @@ Gracias.`;
       // Cargar logo
       let logoBase64 = '';
       try {
-        const response = await fetch(limaCafeLogo);
+        const response = await fetch(maracuyaLogo);
         const blob = await response.blob();
         logoBase64 = await new Promise((resolve) => {
           const reader = new FileReader();
@@ -1622,7 +1622,7 @@ Gracias.`;
       // Subtítulo
       doc.setFontSize(12);
       doc.setTextColor(100, 100, 100);
-      doc.text('Lima Café - Sistema de Cobranzas', pageWidth / 2, 32, { align: 'center' });
+      doc.text('Maracuyá - Sistema de Cobranzas', pageWidth / 2, 32, { align: 'center' });
 
       // Línea separadora
       doc.setDrawColor(34, 139, 34);
@@ -1790,9 +1790,9 @@ Gracias.`;
       doc.setFont('helvetica', 'italic');
       
       const footerY = pageHeight - 30;
-      doc.text('Este es un comprobante interno generado por el sistema Lima Café', pageWidth / 2, footerY, { align: 'center' });
+      doc.text('Este es un comprobante interno generado por el sistema Maracuyá', pageWidth / 2, footerY, { align: 'center' });
       doc.text(`Generado el: ${format(new Date(), "dd/MM/yyyy 'a las' HH:mm", { locale: es })}`, pageWidth / 2, footerY + 5, { align: 'center' });
-      doc.text('Para consultas: contacto@limacafe.pe', pageWidth / 2, footerY + 10, { align: 'center' });
+      doc.text('Para consultas: contacto@maracuya.com', pageWidth / 2, footerY + 10, { align: 'center' });
 
       // Guardar PDF
       const fileName = `Comprobante_Pago_${clientName.replace(/\s+/g, '_')}_${format(new Date(transaction.created_at), 'ddMMyyyy_HHmm')}.pdf`;

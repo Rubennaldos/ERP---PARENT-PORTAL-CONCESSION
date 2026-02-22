@@ -248,7 +248,7 @@ export const UploadPhotoModal = ({
               <Label htmlFor="consent" className="text-sm leading-relaxed cursor-pointer flex-1">
                 <strong className="text-[#8B4513]">AUTORIZO</strong> el uso de la fotografía de mi hijo/a{' '}
                 <strong>({studentName})</strong> para fines de <strong>identificación</strong> en el 
-                servicio de kiosco escolar de Lima Café 28, bajo los términos descritos. Entiendo que 
+                servicio de tienda saludable de Maracuyá Tiendas y Concesionarias Saludables, bajo los términos descritos. Entiendo que 
                 puedo revocar este consentimiento en cualquier momento.
               </Label>
             </div>

@@ -90,10 +90,10 @@ export const MoreMenu = ({ userEmail, onLogout }: MoreMenuProps) => {
     {
       title: 'Ayuda y Legal',
       items: [
-        { icon: HelpCircle, label: 'Preguntas Frecuentes', action: () => window.open('https://limacafe28.com/faq', '_blank') },
+        { icon: HelpCircle, label: 'Preguntas Frecuentes', action: () => window.open('https://maracuya.com/faq', '_blank') },
         { icon: Phone, label: 'Contacto', action: () => window.open('https://wa.me/51999999999', '_blank') },
         { icon: BookOpen, label: 'Libro de Reclamaciones', badge: 'Próximamente', disabled: true },
-        { icon: FileText, label: 'Términos y Condiciones', action: () => window.open('https://limacafe28.com/terminos', '_blank') },
+        { icon: FileText, label: 'Términos y Condiciones', action: () => window.open('https://maracuya.com/terminos', '_blank') },
       ]
     }
   ];

@@ -57,7 +57,7 @@ export default {
           border: "hsl(var(--sidebar-border))",
           ring: "hsl(var(--sidebar-ring))",
         },
-        // Lima Café 28 brand colors
+        // Maracuyá Tiendas y Concesionarias Saludables brand colors
         brand: {
           teal: "hsl(var(--brand-teal))",
           "teal-dark": "hsl(var(--brand-teal-dark))",

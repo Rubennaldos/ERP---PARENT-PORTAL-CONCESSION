@@ -2655,8 +2655,8 @@ const POS = () => {
           `}</style>
           <div style={{ width: '80mm', fontFamily: 'monospace', fontSize: '12px', padding: '10px' }}>
             <div style={{ textAlign: 'center', marginBottom: '10px' }}>
-              <h2 style={{ margin: '0', fontSize: '16px', fontWeight: 'bold' }}>LIMA CAFÉ 28</h2>
-              <p style={{ margin: '2px 0', fontSize: '10px' }}>Kiosco Escolar</p>
+              <h2 style={{ margin: '0', fontSize: '16px', fontWeight: 'bold' }}>MARACUYÁ</h2>
+              <p style={{ margin: '2px 0', fontSize: '10px' }}>Tiendas y Concesionarias Saludables</p>
               <p style={{ margin: '2px 0', fontSize: '10px' }}>RUC: 20XXXXXXXXX</p>
               <p style={{ margin: '2px 0', fontSize: '10px' }}>──────────────────────</p>
             </div>

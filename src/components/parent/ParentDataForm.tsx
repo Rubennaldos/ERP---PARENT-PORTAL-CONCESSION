@@ -652,7 +652,7 @@ export function ParentDataForm({ onSuccess, isLoading: externalLoading, setIsLoa
                     </h4>
                     <p className="text-[11px] sm:text-xs text-stone-600 leading-relaxed">
                       Al aceptar estos términos, reconozco que en caso de incumplimiento de pago de los consumos realizados
-                      por mi(s) hijo(s) en el kiosco escolar <span className="font-medium">Lima Café 28</span>, autorizo
+                      por mi(s) hijo(s) en la tienda saludable <span className="font-medium">Maracuyá Tiendas y Concesionarias Saludables</span>, autorizo
                       expresamente a la institución a iniciar las acciones legales de cobranza judicial que correspondan,
                       incluyendo el cobro de intereses moratorios y gastos administrativos.
                     </p>

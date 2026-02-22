@@ -42,7 +42,7 @@ export function useRole(): UseRoleReturn {
         setLoading(true);
 
         // 🔒 SUPERADMIN - Configurable via variable de entorno (fallback al email original)
-        const superadminEmail = import.meta.env.VITE_SUPERADMIN_EMAIL || 'superadmin@limacafe28.com';
+        const superadminEmail = import.meta.env.VITE_SUPERADMIN_EMAIL || 'superadmin@maracuya.com';
         if (user.email === superadminEmail) {
           console.log('🔐 SuperAdmin detectado:', user.email);
           setRole('superadmin');

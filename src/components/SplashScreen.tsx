@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import limaCafeLogo from '@/assets/lima-cafe-logo.png';
+import maracuyaLogo from '@/assets/maracuya-logo.png';
 
 interface SplashScreenProps {
   onComplete: () => void;
@@ -48,8 +48,8 @@ export default function SplashScreen({ onComplete }: SplashScreenProps) {
         {/* Logo con animación de entrada */}
         <div className="relative animate-logo-entrance">
           <img 
-            src={limaCafeLogo} 
-            alt="Lima Café 28" 
+            src={maracuyaLogo} 
+            alt="Maracuyá" 
             className="w-56 h-56 object-contain mix-blend-multiply"
           />
           

@@ -300,7 +300,7 @@ export const BillingConfig = () => {
         setBankCCI(data.bank_cci || '');
       } else {
         // No hay config, usar valores por defecto
-        setMessageTemplate(`🔔 *COBRANZA LIMA CAFÉ 28*
+        setMessageTemplate(`🔔 *COBRANZA MARACUYÁ*
 ...
 Para pagar, contacte con administración.
 Gracias.`);
@@ -449,7 +449,7 @@ Gracias.`);
         // Si no hay config aún, crear con mensaje por defecto
         const { error } = await supabase.from('billing_config').insert({
           ...payload,
-          message_template: messageTemplate || '🔔 *COBRANZA LIMA CAFÉ 28*\nPara pagar, contacte con administración.',
+          message_template: messageTemplate || '🔔 *COBRANZA MARACUYÁ*\nPara pagar, contacte con administración.',
         });
         if (error) throw error;
       }

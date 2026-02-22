@@ -15,7 +15,7 @@ import { TeacherMoreMenu } from '@/components/teacher/TeacherMoreMenu';
 import { UnifiedLunchCalendarV2 } from '@/components/lunch/UnifiedLunchCalendarV2';
 import { MyLunchOrders } from '@/components/teacher/MyLunchOrders';
 import jsPDF from 'jspdf';
-import limaCafeLogo from '@/assets/lima-cafe-logo.png';
+import maracuyaLogo from '@/assets/maracuya-logo.png';
 
 interface TeacherProfile {
   id: string;
@@ -286,7 +286,7 @@ export default function Teacher() {
       // Cargar logo
       let logoBase64 = '';
       try {
-        const response = await fetch(limaCafeLogo);
+        const response = await fetch(maracuyaLogo);
         const blob = await response.blob();
         logoBase64 = await new Promise((resolve) => {
           const reader = new FileReader();
@@ -313,7 +313,7 @@ export default function Teacher() {
       // Subtítulo
       doc.setFontSize(12);
       doc.setTextColor(100, 100, 100);
-      doc.text('Lima Café - Profesor', pageWidth / 2, 32, { align: 'center' });
+      doc.text('Maracuyá - Profesor', pageWidth / 2, 32, { align: 'center' });
 
       // Línea separadora
       doc.setDrawColor(34, 139, 34);
@@ -456,7 +456,7 @@ export default function Teacher() {
       
       const footerY = pageHeight - 30;
       doc.text('Este es un comprobante interno generado', pageWidth / 2, footerY, { align: 'center' });
-      doc.text('© 2026 ERP Profesional diseñado por ARQUISIA Soluciones para Lima Café 28', pageWidth / 2, footerY + 5, { align: 'center' });
+      doc.text('© 2026 ERP Profesional diseñado por ARQUISIA Soluciones para Maracuyá', pageWidth / 2, footerY + 5, { align: 'center' });
       doc.text(`Versión 1.17.2 • PRODUCTION`, pageWidth / 2, footerY + 10, { align: 'center' });
       doc.text(`Generado: ${new Date().toLocaleDateString('es-PE', { dateStyle: 'full', timeZone: 'America/Lima' })}`, pageWidth / 2, footerY + 15, { align: 'center' });
 
@@ -1283,7 +1283,7 @@ export default function Teacher() {
                               {/* Footer con branding */}
                               <div className="mt-3 pt-3 border-t border-green-200">
                                 <p className="text-[10px] text-gray-500 text-center">
-                                  Este es un comprobante interno generado • © 2026 ERP Profesional diseñado por ARQUISIA Soluciones para Lima Café 28
+                                  Este es un comprobante interno generado • © 2026 ERP Profesional diseñado por ARQUISIA Soluciones para Maracuyá
                                 </p>
                               </div>
                             </div>

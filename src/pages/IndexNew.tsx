@@ -219,7 +219,7 @@ const Index = () => {
               </div>
               <div>
                 <h1 className="text-xl font-bold text-gray-900">Portal de Padres</h1>
-                <p className="text-sm text-gray-500">Lima Café 28</p>
+                <p className="text-sm text-gray-500">Maracuyá Tiendas y Concesionarias Saludables</p>
               </div>
             </div>
             

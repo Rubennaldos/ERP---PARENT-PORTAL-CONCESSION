@@ -125,7 +125,7 @@ export const ThermalTicket = ({
             letterSpacing: '2px',
             marginBottom: '6px'
           }}>
-            LIMA CAFE 28
+            MARACUYÁ
           </div>
           <div style={{ fontSize: '11px', marginBottom: '3px' }}>
             Kiosco Escolar
@@ -331,7 +331,7 @@ export const ThermalTicket = ({
                 comprobante electrónico
               </div>
               <div>
-                Consulte en: www.limacafe28.com
+                Consulte en: www.maracuya.com
               </div>
             </div>
           )}

@@ -129,7 +129,7 @@ export function CreateAdminSimple({ onSuccess, onCancel }: CreateAdminSimpleProp
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="Ej: fiorella@limacafe28.com"
+              placeholder="Ej: admin@maracuya.com"
               disabled={creating}
               required
             />

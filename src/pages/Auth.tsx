@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, Eye, EyeOff, ShieldCheck, HelpCircle, Phone, Mail, AlertCircle, Users, UtensilsCrossed } from 'lucide-react';
 import SplashScreen from '@/components/SplashScreen';
-import limaCafeLogo from '@/assets/lima-cafe-logo.png';
+import maracuyaLogo from '@/assets/maracuya-logo.png';
 import { APP_CONFIG } from '@/config/app.config';
 
 export default function Auth() {
@@ -173,7 +173,7 @@ export default function Auth() {
       {/* Header - Logo más pequeño en móvil */}
       <header className="w-full pt-8 sm:pt-12 pb-0 px-4 flex justify-center">
         <img 
-          src={limaCafeLogo} 
+          src={maracuyaLogo} 
           alt="Logo" 
           className="h-16 sm:h-20 md:h-24 w-auto object-contain mix-blend-multiply transition-all" 
         />
@@ -195,7 +195,7 @@ export default function Auth() {
             <CardDescription className="text-stone-500 font-normal text-xs sm:text-sm tracking-wide px-2">
               {isRegisterMode 
                 ? 'Regístrate para gestionar los consumos de tus hijos' 
-                : 'Sistema de Gestión Lima Café 28'}
+                : 'Sistema de Gestión Maracuyá'}
             </CardDescription>
           </CardHeader>
 
@@ -350,7 +350,7 @@ export default function Auth() {
         <p className="text-xs sm:text-sm md:text-base font-normal text-stone-500 px-4 tracking-wide leading-relaxed">
           © 2026 ERP Profesional diseñado por{' '}
           <span className="text-[#8B7355] font-medium">ARQUISIA Soluciones</span> para{' '}
-          <span className="text-stone-800 font-medium">Lima Café 28</span>
+          <span className="text-stone-800 font-medium">Maracuyá Tiendas y Concesionarias Saludables</span>
         </p>
         <p className="text-[10px] sm:text-xs text-stone-400 font-normal tracking-wide">
           Versión {APP_CONFIG.version} • {APP_CONFIG.status}
@@ -401,7 +401,7 @@ export default function Auth() {
               <h4 className="font-bold text-green-900 text-sm mb-2">Contacto del Administrador:</h4>
               <div className="flex items-center gap-2 text-sm text-green-800">
                 <Mail className="h-4 w-4 flex-shrink-0" />
-                <span><strong>Email:</strong> fiorella@limacafe28.com</span>
+                <span><strong>Email:</strong> contacto@maracuya.com</span>
               </div>
             </div>
 

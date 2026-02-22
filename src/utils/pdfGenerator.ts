@@ -56,7 +56,7 @@ export const generateBillingPDF = (data: PDFData) => {
   doc.setTextColor(...darkColor);
   doc.setFontSize(22);
   doc.setFont('helvetica', 'bold');
-  doc.text('LIMA CAFÉ 28', pageWidth - 14, 20, { align: 'right' });
+  doc.text('MARACUYÁ', pageWidth - 14, 20, { align: 'right' });
   
   doc.setFontSize(14);
   doc.setTextColor(...secondaryColor);
@@ -233,7 +233,7 @@ export const generateBillingPDF = (data: PDFData) => {
   doc.setFont('helvetica', 'normal');
   doc.setTextColor(156, 163, 175); // gray-400
   
-  const footerLine1 = `© 2026 ERP Profesional diseñado por ARQUISIA Soluciones para Lima Café 28 — Versión ${APP_CONFIG.version} ${APP_CONFIG.status}`;
+  const footerLine1 = `© 2026 ERP Profesional diseñado por ARQUISIA Soluciones para Maracuyá — Versión ${APP_CONFIG.version} ${APP_CONFIG.status}`;
   const footerLine2 = `Generado automáticamente el ${format(new Date(), 'dd/MM/yyyy HH:mm', { locale: es })}`;
   
   doc.text(footerLine1, pageWidth / 2, footerY + 2, { align: 'center' });

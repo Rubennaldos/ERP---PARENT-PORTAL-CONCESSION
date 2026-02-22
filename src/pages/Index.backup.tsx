@@ -324,7 +324,7 @@ const Index = () => {
             </div>
             <div>
               <h1 className="font-bold text-lg text-gray-800">Portal de Padres</h1>
-              <p className="text-xs text-gray-500">Kiosco Escolar - Lima Café 28</p>
+              <p className="text-xs text-gray-500">Tiendas y Concesionarias Saludables - Maracuyá</p>
             </div>
           </div>
           <span className="text-sm text-gray-600 hidden sm:block">
@@ -849,7 +849,7 @@ const Index = () => {
                   <Button variant="outline" className="w-full justify-start" onClick={() => {
                     toast({
                       title: 'Contacto',
-                      description: 'Envíanos un correo a: soporte@limacafe28.com',
+                      description: 'Envíanos un correo a: soporte@maracuya.com',
                     });
                   }}>
                     <Mail className="h-4 w-4 mr-2" />

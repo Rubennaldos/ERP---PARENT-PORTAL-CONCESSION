@@ -297,7 +297,7 @@ async function printPOSSaleHTML(saleData: SaleData, config: PrintConfig | null):
     if (shouldPrintTicketNow) {
       // Preparar datos del ticket para HTML
       const ticketData: TicketData = {
-        businessName: config?.business_name || 'LIMA CAFÉ 28',
+        businessName: config?.business_name || 'MARACUYÁ TIENDAS Y CONCESIONARIAS SALUDABLES',
         businessRuc: config?.business_ruc || null,
         businessAddress: config?.business_address || null,
         businessPhone: config?.business_phone || null,

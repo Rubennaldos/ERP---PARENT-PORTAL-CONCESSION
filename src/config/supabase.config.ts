@@ -13,17 +13,16 @@ const isDevelopment = isLocalhost ||
                        window.location.hostname.includes('staging')
                      ));
 
-// 🟢 DESARROLLO (para el programador)
-// TODO: Reemplaza estos valores cuando crees el proyecto DEV en Supabase
+// 🟢 DESARROLLO (apunta al mismo Supabase de Maracuyá por ahora)
 const DEV_CONFIG = {
-  url: import.meta.env.VITE_SUPABASE_URL_DEV || 'https://TU-PROYECTO-DEV.supabase.co',
-  anonKey: import.meta.env.VITE_SUPABASE_ANON_KEY_DEV || 'tu_anon_key_dev_aqui',
+  url: import.meta.env.VITE_SUPABASE_URL_DEV || 'https://bezduattsdrepvpwjqgv.supabase.co',
+  anonKey: import.meta.env.VITE_SUPABASE_ANON_KEY_DEV || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJlemR1YXR0c2RyZXB2cHdqcWd2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE3MjEyNTcsImV4cCI6MjA4NzI5NzI1N30.TScQQ_RDb_hG6qD4LAwpvcsYtBYZbFkTBqIBaxMyYgo',
 };
 
-// 🔴 PRODUCCIÓN (para el cliente)
+// 🔴 PRODUCCIÓN (para Maracuyá Tiendas y Concesionarias Saludables)
 const PROD_CONFIG = {
-  url: import.meta.env.VITE_SUPABASE_URL || 'https://duxqzozoahvrvqseinji.supabase.co',
-  anonKey: import.meta.env.VITE_SUPABASE_ANON_KEY || 'sb_publishable_1IjZsZ2X-_fay6oFVUc2Qg_gzCZRFNU',
+  url: import.meta.env.VITE_SUPABASE_URL || 'https://bezduattsdrepvpwjqgv.supabase.co',
+  anonKey: import.meta.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJlemR1YXR0c2RyZXB2cHdqcWd2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE3MjEyNTcsImV4cCI6MjA4NzI5NzI1N30.TScQQ_RDb_hG6qD4LAwpvcsYtBYZbFkTBqIBaxMyYgo',
 };
 
 // Seleccionar configuración según el entorno

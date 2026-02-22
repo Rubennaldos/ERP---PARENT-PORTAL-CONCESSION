@@ -667,7 +667,7 @@ const Index = () => {
                 <GraduationCap className="h-5 w-5 sm:h-5.5 sm:w-5.5 md:h-6 md:w-6 text-white" />
               </div>
               <div>
-                <h1 className="text-base sm:text-lg md:text-xl font-light text-[#6B5744] tracking-wide">Lima Café 28</h1>
+                <h1 className="text-base sm:text-lg md:text-xl font-light text-[#6B5744] tracking-wide">Maracuyá</h1>
                 <p className="text-[9px] sm:text-[10px] font-medium text-stone-400 uppercase tracking-[0.2em] sm:tracking-[0.25em]">Portal de Padres</p>
               </div>
             </div>
@@ -1040,7 +1040,7 @@ const Index = () => {
               <span>2026 <span className="font-semibold text-emerald-700">ERP Profesional</span></span>
             </div>
             <div className="text-center text-[9px] sm:text-[10px] text-gray-500 mt-1">
-              Diseñado por <span className="font-semibold text-emerald-600">ARQUISIA Soluciones</span> para <span className="font-semibold text-blue-600">Lima Café 28</span>
+              Diseñado por <span className="font-semibold text-emerald-600">ARQUISIA Soluciones</span> para <span className="font-semibold text-blue-600">Maracuyá Tiendas y Concesionarias Saludables</span>
             </div>
           </div>
         </div>

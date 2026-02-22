@@ -142,7 +142,7 @@ export const PhotoConsentModal = ({
                 <strong className="text-[#8B4513]">Yo, {' '}</strong>
                 <span className="text-gray-900">
                   en mi calidad de padre/madre/tutor legal de <strong>{studentName}</strong>, 
-                  <strong className="text-[#8B4513]"> AUTORIZO</strong> expresamente a Lima Café 28 
+                  <strong className="text-[#8B4513]"> AUTORIZO</strong> expresamente a Maracuyá Tiendas y Concesionarias Saludables 
                   el uso de la fotografía de mi hijo/a para los fines de <strong>identificación</strong> descritos. 
                   Entiendo que esta autorización puede ser <strong>revocada</strong> en cualquier momento 
                   eliminando la fotografía desde este portal.

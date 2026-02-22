@@ -1587,7 +1587,7 @@ export default function LunchOrders() {
         doc.setFont('helvetica', 'italic');
         doc.setTextColor(128, 128, 128);
         doc.text(
-          'Este es un reporte interno generado • © 2026 ERP Profesional diseñado por ARQUISIA Soluciones para Lima Café 28',
+          'Este es un reporte interno generado • © 2026 ERP Profesional diseñado por ARQUISIA Soluciones para Maracuyá',
           doc.internal.pageSize.width / 2,
           doc.internal.pageSize.height - 10,
           { align: 'center' }

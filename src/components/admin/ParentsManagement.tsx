@@ -482,7 +482,7 @@ export default function ParentsManagement() {
     // Agregar logos (simulado - necesitarías las imágenes reales)
     doc.setFontSize(18);
     doc.text('ARQUISIA', 15, 15);
-    doc.text('Lima Café 28', 150, 15);
+    doc.text('Maracuyá', 150, 15);
     
     doc.setFontSize(14);
     doc.text('Reporte de Padres', 15, 30);
