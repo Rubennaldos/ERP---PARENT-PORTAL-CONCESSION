@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+﻿import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRole } from '@/hooks/useRole';
 import { Button } from '@/components/ui/button';
@@ -118,17 +118,17 @@ const SalesList = () => {
       <main className="container mx-auto px-4 py-8">
         <Tabs defaultValue="list" className="w-full">
           <TabsList className="grid w-full grid-cols-3 bg-white border rounded-xl p-1 mb-6">
-            <TabsTrigger value="list" className="data-[state=active]:bg-[#8B4513] data-[state=active]:text-white">
+            <TabsTrigger value="list" className="data-[state=active]:bg-[#9E4D68] data-[state=active]:text-white">
               <FileText className="h-4 w-4 mr-2" />
               Lista de Ventas
             </TabsTrigger>
             {canViewDashboard && (
-              <TabsTrigger value="dashboard" className="data-[state=active]:bg-[#8B4513] data-[state=active]:text-white">
+              <TabsTrigger value="dashboard" className="data-[state=active]:bg-[#9E4D68] data-[state=active]:text-white">
                 <BarChart3 className="h-4 w-4 mr-2" />
                 Dashboard & Analytics
               </TabsTrigger>
             )}
-            <TabsTrigger value="visibility" className="data-[state=active]:bg-[#8B4513] data-[state=active]:text-white">
+            <TabsTrigger value="visibility" className="data-[state=active]:bg-[#9E4D68] data-[state=active]:text-white">
               <Settings className="h-4 w-4 mr-2" />
               Config. Visualización
             </TabsTrigger>

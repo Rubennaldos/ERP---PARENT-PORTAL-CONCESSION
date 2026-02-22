@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+﻿import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -294,7 +294,7 @@ export function SpendingLimitsModal({
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent>
           <div className="flex items-center justify-center py-12">
-            <Loader2 className="h-8 w-8 animate-spin text-[#8B4513]" />
+            <Loader2 className="h-8 w-8 animate-spin text-[#9E4D68]" />
           </div>
         </DialogContent>
       </Dialog>
@@ -306,7 +306,7 @@ export function SpendingLimitsModal({
       <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto border border-stone-200/50 bg-white shadow-2xl">
         <DialogHeader className="pb-4 sm:pb-6 px-4 sm:px-6">
           <div className="flex flex-col items-center text-center space-y-2 sm:space-y-3">
-            <div className="w-14 h-14 sm:w-16 sm:h-16 bg-gradient-to-br from-emerald-50/50 to-[#8B7355]/5 rounded-xl sm:rounded-2xl flex items-center justify-center border border-emerald-100/30 shadow-sm">
+            <div className="w-14 h-14 sm:w-16 sm:h-16 bg-gradient-to-br from-emerald-50/50 to-[#A3566E]/5 rounded-xl sm:rounded-2xl flex items-center justify-center border border-emerald-100/30 shadow-sm">
               <DollarSign className="h-7 w-7 sm:h-8 sm:w-8 text-emerald-600/80" />
             </div>
             <div>
@@ -488,7 +488,7 @@ export function SpendingLimitsModal({
             <Button
               onClick={handleSave}
               disabled={saving}
-              className="h-11 sm:h-12 font-medium bg-gradient-to-r from-emerald-600/90 to-[#8B7355]/80 hover:from-emerald-700/90 hover:to-[#6B5744]/80 rounded-xl text-sm sm:text-base"
+              className="h-11 sm:h-12 font-medium bg-gradient-to-r from-emerald-600/90 to-[#A3566E]/80 hover:from-emerald-700/90 hover:to-[#8B4060]/80 rounded-xl text-sm sm:text-base"
             >
               {saving ? (
                 <>
@@ -559,7 +559,7 @@ export function SpendingLimitsModal({
             <div className="flex flex-col gap-3 pt-2">
               <Button
                 onClick={cancelModeChange}
-                className="h-12 sm:h-14 text-sm sm:text-base font-medium bg-gradient-to-r from-emerald-600/90 to-[#8B7355]/80 hover:from-emerald-700/90 hover:to-[#6B5744]/80 text-white shadow-lg rounded-xl transition-all hover:scale-[1.02] active:scale-95 flex items-center justify-center gap-2"
+                className="h-12 sm:h-14 text-sm sm:text-base font-medium bg-gradient-to-r from-emerald-600/90 to-[#A3566E]/80 hover:from-emerald-700/90 hover:to-[#8B4060]/80 text-white shadow-lg rounded-xl transition-all hover:scale-[1.02] active:scale-95 flex items-center justify-center gap-2"
               >
                 <Check className="h-5 w-5" />
                 CONTINUAR CON CUENTA LIBRE (RECOMENDADO)
@@ -633,7 +633,7 @@ export function SpendingLimitsModal({
             <div className="flex flex-col gap-3 pt-2">
               <Button
                 onClick={cancelTypeChange}
-                className="h-12 sm:h-14 text-sm sm:text-base font-medium bg-gradient-to-r from-emerald-600/90 to-[#8B7355]/80 hover:from-emerald-700/90 hover:to-[#6B5744]/80 text-white shadow-lg rounded-xl transition-all hover:scale-[1.02] active:scale-95 flex items-center justify-center gap-2"
+                className="h-12 sm:h-14 text-sm sm:text-base font-medium bg-gradient-to-r from-emerald-600/90 to-[#A3566E]/80 hover:from-emerald-700/90 hover:to-[#8B4060]/80 text-white shadow-lg rounded-xl transition-all hover:scale-[1.02] active:scale-95 flex items-center justify-center gap-2"
               >
                 <Check className="h-5 w-5 sm:h-6 sm:w-6" />
                 MANTENER COMPRA INTELIGENTE (RECOMENDADO)

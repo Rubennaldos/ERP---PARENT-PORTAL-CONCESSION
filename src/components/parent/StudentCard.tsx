@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+﻿import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -139,7 +139,7 @@ export function StudentCard({
       {/* Header bar */}
       <div className={`h-1.5 relative transition-colors duration-500 ${
         hasDebt ? 'bg-rose-400' 
-        : 'bg-gradient-to-r from-emerald-500/70 via-[#8B7355] to-[#6B5744]'
+        : 'bg-gradient-to-r from-emerald-500/70 via-[#A3566E] to-[#8B4060]'
       }`} />
 
       {/* Perfil */}
@@ -371,7 +371,7 @@ export function StudentCard({
         <div className="space-y-3">
           <Button
             onClick={onLunchFast}
-            className="w-full h-14 text-base font-medium bg-gradient-to-r from-emerald-600/90 via-[#8B7355] to-[#6B5744] hover:from-emerald-700/90 hover:via-[#6B5744] hover:to-[#5B4734] text-white shadow-md rounded-xl transition-all active:scale-95 tracking-wide"
+            className="w-full h-14 text-base font-medium bg-gradient-to-r from-emerald-600/90 via-[#A3566E] to-[#8B4060] hover:from-emerald-700/90 hover:via-[#8B4060] hover:to-[#7A3755] text-white shadow-md rounded-xl transition-all active:scale-95 tracking-wide"
           >
             <UtensilsCrossed className="h-5 w-5 mr-2" />
             LUNCH FAST!

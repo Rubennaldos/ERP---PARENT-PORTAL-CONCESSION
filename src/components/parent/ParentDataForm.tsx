@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+﻿import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
@@ -412,7 +412,7 @@ export function ParentDataForm({ onSuccess, isLoading: externalLoading, setIsLoa
         </div>
 
         <div className="flex justify-center mb-1 sm:mb-2">
-          <div className="bg-gradient-to-br from-emerald-50/50 to-[#8B7355]/5 p-3 sm:p-4 rounded-xl sm:rounded-2xl">
+          <div className="bg-gradient-to-br from-emerald-50/50 to-[#A3566E]/5 p-3 sm:p-4 rounded-xl sm:rounded-2xl">
             {step === 1 && <UserCheck className="h-7 w-7 sm:h-8 sm:w-8 text-emerald-600/80" />}
             {step === 2 && <Users className="h-7 w-7 sm:h-8 sm:w-8 text-emerald-600/80" />}
             {step === 3 && <Scale className="h-7 w-7 sm:h-8 sm:w-8 text-emerald-600/80" />}
@@ -523,7 +523,7 @@ export function ParentDataForm({ onSuccess, isLoading: externalLoading, setIsLoa
               <Button
                 type="button"
                 onClick={handleNextStep}
-                className="w-full h-12 sm:h-14 text-sm sm:text-base font-medium bg-gradient-to-r from-emerald-600/90 via-[#8B7355] to-[#6B5744] hover:from-emerald-700/90 hover:via-[#6B5744] hover:to-[#5B4734] text-white shadow-md rounded-xl tracking-wide"
+                className="w-full h-12 sm:h-14 text-sm sm:text-base font-medium bg-gradient-to-r from-emerald-600/90 via-[#A3566E] to-[#8B4060] hover:from-emerald-700/90 hover:via-[#8B4060] hover:to-[#7A3755] text-white shadow-md rounded-xl tracking-wide"
                 disabled={isLoading}
               >
                 Continuar
@@ -631,7 +631,7 @@ export function ParentDataForm({ onSuccess, isLoading: externalLoading, setIsLoa
                 <Button
                   type="button"
                   onClick={handleNextStep}
-                  className="flex-1 h-12 sm:h-14 text-sm sm:text-base font-medium bg-gradient-to-r from-emerald-600/90 via-[#8B7355] to-[#6B5744] hover:from-emerald-700/90 hover:via-[#6B5744] hover:to-[#5B4734] text-white shadow-md rounded-xl tracking-wide"
+                  className="flex-1 h-12 sm:h-14 text-sm sm:text-base font-medium bg-gradient-to-r from-emerald-600/90 via-[#A3566E] to-[#8B4060] hover:from-emerald-700/90 hover:via-[#8B4060] hover:to-[#7A3755] text-white shadow-md rounded-xl tracking-wide"
                   disabled={isLoading}
                 >
                   Continuar
@@ -693,7 +693,7 @@ export function ParentDataForm({ onSuccess, isLoading: externalLoading, setIsLoa
                 </Button>
                 <Button
                   type="submit"
-                  className="flex-1 h-12 sm:h-14 text-sm sm:text-base font-medium bg-gradient-to-r from-emerald-600/90 via-[#8B7355] to-[#6B5744] hover:from-emerald-700/90 hover:via-[#6B5744] hover:to-[#5B4734] text-white shadow-md rounded-xl tracking-wide"
+                  className="flex-1 h-12 sm:h-14 text-sm sm:text-base font-medium bg-gradient-to-r from-emerald-600/90 via-[#A3566E] to-[#8B4060] hover:from-emerald-700/90 hover:via-[#8B4060] hover:to-[#7A3755] text-white shadow-md rounded-xl tracking-wide"
                   disabled={isLoading || !legalAcceptance}
                 >
                   {isLoading ? (

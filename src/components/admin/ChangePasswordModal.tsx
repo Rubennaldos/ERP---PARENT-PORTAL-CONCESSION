@@ -1,4 +1,4 @@
-import { useState } from 'react';
+﻿import { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -139,7 +139,7 @@ export const ChangePasswordModal = ({ open, onOpenChange }: ChangePasswordModalP
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle className="text-xl flex items-center gap-2">
-            <Lock className="h-6 w-6 text-[#8B4513]" />
+            <Lock className="h-6 w-6 text-[#9E4D68]" />
             Cambiar Contraseña
           </DialogTitle>
           <DialogDescription>
@@ -270,7 +270,7 @@ export const ChangePasswordModal = ({ open, onOpenChange }: ChangePasswordModalP
           <Button
             onClick={handleChangePassword}
             disabled={loading || !currentPassword || !newPassword || !confirmPassword || newPassword !== confirmPassword || newPassword.length < 6}
-            className="flex-1 bg-[#8B4513] hover:bg-[#A0522D]"
+            className="flex-1 bg-[#9E4D68] hover:bg-[#B86880]"
           >
             {loading ? (
               <>

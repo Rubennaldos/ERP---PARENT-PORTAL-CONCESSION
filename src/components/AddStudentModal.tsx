@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+﻿import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -260,7 +260,7 @@ export function AddStudentModal({ isOpen, onClose, onSuccess }: AddStudentModalP
       <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto border border-stone-200/50 bg-white shadow-2xl">
         <DialogHeader className="pb-3 sm:pb-4 px-4 sm:px-6">
           <div className="flex flex-col items-center text-center space-y-2 sm:space-y-3">
-            <div className="w-14 h-14 sm:w-16 sm:h-16 bg-gradient-to-br from-emerald-50/50 to-[#8B7355]/5 rounded-xl sm:rounded-2xl flex items-center justify-center border border-emerald-100/30 shadow-sm">
+            <div className="w-14 h-14 sm:w-16 sm:h-16 bg-gradient-to-br from-emerald-50/50 to-[#A3566E]/5 rounded-xl sm:rounded-2xl flex items-center justify-center border border-emerald-100/30 shadow-sm">
               <GraduationCap className="h-7 w-7 sm:h-8 sm:w-8 text-emerald-600/80" />
             </div>
             <div>
@@ -293,7 +293,7 @@ export function AddStudentModal({ isOpen, onClose, onSuccess }: AddStudentModalP
           {/* Sede/Colegio */}
           <div className="space-y-1.5 sm:space-y-2">
             <Label htmlFor="school" className="font-medium text-[10px] sm:text-xs text-stone-600 uppercase tracking-wider flex items-center gap-1.5 sm:gap-2">
-              <School className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-[#8B7355]" /> Sede/Colegio *
+              <School className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-[#A3566E]" /> Sede/Colegio *
             </Label>
             {isLoadingSchools ? (
               <div className="flex items-center justify-center h-11 sm:h-12 border border-stone-200 rounded-xl bg-stone-50/50">
@@ -312,7 +312,7 @@ export function AddStudentModal({ isOpen, onClose, onSuccess }: AddStudentModalP
                 }}
                 disabled={isSubmitting}
               >
-                <SelectTrigger className="h-11 sm:h-12 border border-stone-200 focus:border-[#8B7355]/50 focus:ring-[#8B7355]/10 rounded-xl text-sm sm:text-base">
+                <SelectTrigger className="h-11 sm:h-12 border border-stone-200 focus:border-[#A3566E]/50 focus:ring-[#A3566E]/10 rounded-xl text-sm sm:text-base">
                   <SelectValue placeholder="Selecciona la sede del estudiante" />
                 </SelectTrigger>
                 <SelectContent>
@@ -411,7 +411,7 @@ export function AddStudentModal({ isOpen, onClose, onSuccess }: AddStudentModalP
             <Button
               type="submit"
               disabled={isSubmitting}
-              className="flex-1 h-11 sm:h-12 bg-gradient-to-r from-emerald-600/90 to-[#8B7355]/80 hover:from-emerald-700/90 hover:to-[#6B5744]/80 text-white shadow-md rounded-xl font-medium tracking-wide text-sm sm:text-base"
+              className="flex-1 h-11 sm:h-12 bg-gradient-to-r from-emerald-600/90 to-[#A3566E]/80 hover:from-emerald-700/90 hover:to-[#8B4060]/80 text-white shadow-md rounded-xl font-medium tracking-wide text-sm sm:text-base"
             >
               {isSubmitting ? (
                 <>

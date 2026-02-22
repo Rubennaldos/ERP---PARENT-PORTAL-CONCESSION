@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+﻿import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
@@ -181,7 +181,7 @@ export const PurchaseHistoryModal = ({
       <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-2xl flex items-center gap-2">
-            <ShoppingBag className="h-6 w-6 text-[#8B4513]" />
+            <ShoppingBag className="h-6 w-6 text-[#9E4D68]" />
             Historial de Compras - {studentName}
           </DialogTitle>
         </DialogHeader>
@@ -189,7 +189,7 @@ export const PurchaseHistoryModal = ({
         {loading ? (
           <div className="flex items-center justify-center py-12">
             <div className="text-center">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#8B4513] mx-auto mb-4"></div>
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#9E4D68] mx-auto mb-4"></div>
               <p className="text-gray-500">Cargando historial...</p>
             </div>
           </div>
@@ -211,8 +211,8 @@ export const PurchaseHistoryModal = ({
                   {/* Header de la compra */}
                   <div className="flex items-start justify-between mb-3 pb-3 border-b-2 border-gray-100">
                     <div className="flex items-center gap-3">
-                      <div className="p-2 bg-[#8B4513]/10 rounded-lg">
-                        <Receipt className="h-5 w-5 text-[#8B4513]" />
+                      <div className="p-2 bg-[#9E4D68]/10 rounded-lg">
+                        <Receipt className="h-5 w-5 text-[#9E4D68]" />
                       </div>
                       <div>
                         <div className="font-bold text-gray-900 flex items-center gap-2">
@@ -232,7 +232,7 @@ export const PurchaseHistoryModal = ({
                     </div>
                     <div className="text-right">
                       <p className="text-sm text-gray-500">Total</p>
-                      <p className="text-2xl font-black text-[#8B4513]">
+                      <p className="text-2xl font-black text-[#9E4D68]">
                         S/ {purchase.amount.toFixed(2)}
                       </p>
                     </div>

@@ -1,4 +1,4 @@
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+﻿import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Check, ShieldCheck, Info } from 'lucide-react';
 import { useState } from 'react';
@@ -27,8 +27,8 @@ export function FreeAccountOnboardingModal({
       <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto border border-stone-200/50 bg-white shadow-2xl">
         <DialogHeader className="pb-4">
           <div className="flex flex-col items-center text-center space-y-3">
-            <div className="w-16 h-16 bg-gradient-to-br from-[#8B7355]/10 to-[#6B5744]/10 rounded-2xl flex items-center justify-center">
-              <ShieldCheck className="h-9 w-9 text-[#8B7355]" />
+            <div className="w-16 h-16 bg-gradient-to-br from-[#A3566E]/10 to-[#8B4060]/10 rounded-2xl flex items-center justify-center">
+              <ShieldCheck className="h-9 w-9 text-[#A3566E]" />
             </div>
             <div>
               <DialogTitle className="text-2xl font-light text-stone-800 tracking-wide">
@@ -45,7 +45,7 @@ export function FreeAccountOnboardingModal({
           {/* Explicación */}
           <div className="bg-stone-50/50 border border-stone-200/50 rounded-xl p-6">
             <h3 className="font-medium text-stone-800 mb-3 flex items-center gap-2 text-sm">
-              <Check className="h-5 w-5 text-[#8B7355]" />
+              <Check className="h-5 w-5 text-[#A3566E]" />
               ¿Qué es una Cuenta Libre?
             </h3>
             <p className="text-sm text-stone-600 leading-relaxed font-normal">
@@ -60,26 +60,26 @@ export function FreeAccountOnboardingModal({
             <h4 className="font-medium text-stone-700 mb-4 text-xs uppercase tracking-wider">Ventajas</h4>
             <ul className="space-y-3">
               <li className="flex items-start gap-3 text-sm text-stone-600">
-                <div className="w-5 h-5 rounded-lg bg-[#8B7355]/10 flex items-center justify-center flex-shrink-0 mt-0.5">
-                  <Check className="h-3.5 w-3.5 text-[#8B7355]" />
+                <div className="w-5 h-5 rounded-lg bg-[#A3566E]/10 flex items-center justify-center flex-shrink-0 mt-0.5">
+                  <Check className="h-3.5 w-3.5 text-[#A3566E]" />
                 </div>
                 <span className="font-normal"><strong className="font-medium text-stone-800">Sin recargas anticipadas:</strong> No necesitas estar transfiriendo dinero constantemente</span>
               </li>
               <li className="flex items-start gap-3 text-sm text-stone-600">
-                <div className="w-5 h-5 rounded-lg bg-[#8B7355]/10 flex items-center justify-center flex-shrink-0 mt-0.5">
-                  <Check className="h-3.5 w-3.5 text-[#8B7355]" />
+                <div className="w-5 h-5 rounded-lg bg-[#A3566E]/10 flex items-center justify-center flex-shrink-0 mt-0.5">
+                  <Check className="h-3.5 w-3.5 text-[#A3566E]" />
                 </div>
                 <span className="font-normal"><strong className="font-medium text-stone-800">Acceso inmediato:</strong> Tus hijos pueden comprar lo que necesiten al instante</span>
               </li>
               <li className="flex items-start gap-3 text-sm text-stone-600">
-                <div className="w-5 h-5 rounded-lg bg-[#8B7355]/10 flex items-center justify-center flex-shrink-0 mt-0.5">
-                  <Check className="h-3.5 w-3.5 text-[#8B7355]" />
+                <div className="w-5 h-5 rounded-lg bg-[#A3566E]/10 flex items-center justify-center flex-shrink-0 mt-0.5">
+                  <Check className="h-3.5 w-3.5 text-[#A3566E]" />
                 </div>
                 <span className="font-normal"><strong className="font-medium text-stone-800">Control total:</strong> Puedes establecer límites diarios, semanales o mensuales</span>
               </li>
               <li className="flex items-start gap-3 text-sm text-stone-600">
-                <div className="w-5 h-5 rounded-lg bg-[#8B7355]/10 flex items-center justify-center flex-shrink-0 mt-0.5">
-                  <Check className="h-3.5 w-3.5 text-[#8B7355]" />
+                <div className="w-5 h-5 rounded-lg bg-[#A3566E]/10 flex items-center justify-center flex-shrink-0 mt-0.5">
+                  <Check className="h-3.5 w-3.5 text-[#A3566E]" />
                 </div>
                 <span className="font-normal"><strong className="font-medium text-stone-800">Historial completo:</strong> Ve todos los consumos con un retraso de 2 días (tiempo de registro manual del kiosco)</span>
               </li>
@@ -99,12 +99,12 @@ export function FreeAccountOnboardingModal({
           </div>
 
           {/* Checkbox de entendimiento */}
-          <label className="flex items-start gap-3 cursor-pointer group p-4 bg-white border border-stone-200 rounded-xl hover:border-[#8B7355]/30 transition-colors">
+          <label className="flex items-start gap-3 cursor-pointer group p-4 bg-white border border-stone-200 rounded-xl hover:border-[#A3566E]/30 transition-colors">
             <input
               type="checkbox"
               checked={understood}
               onChange={(e) => setUnderstood(e.target.checked)}
-              className="w-5 h-5 rounded border-2 border-stone-300 text-[#8B7355] focus:ring-[#8B7355] mt-0.5"
+              className="w-5 h-5 rounded border-2 border-stone-300 text-[#A3566E] focus:ring-[#A3566E] mt-0.5"
             />
             <span className="text-sm font-normal text-stone-700 leading-relaxed group-hover:text-stone-900">
               Entiendo y acepto que mis hijos están en Cuenta Libre
@@ -115,7 +115,7 @@ export function FreeAccountOnboardingModal({
           <Button
             onClick={handleAccept}
             disabled={!understood}
-            className="w-full h-14 text-base font-medium bg-gradient-to-r from-[#8B7355] to-[#6B5744] hover:from-[#6B5744] hover:to-[#5B4734] text-white shadow-md rounded-xl transition-all disabled:opacity-40 disabled:cursor-not-allowed tracking-wide"
+            className="w-full h-14 text-base font-medium bg-gradient-to-r from-[#A3566E] to-[#8B4060] hover:from-[#8B4060] hover:to-[#7A3755] text-white shadow-md rounded-xl transition-all disabled:opacity-40 disabled:cursor-not-allowed tracking-wide"
           >
             Comenzar a Usar el Portal
           </Button>

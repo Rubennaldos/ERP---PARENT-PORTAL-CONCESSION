@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+﻿import { useState, useRef, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -190,7 +190,7 @@ export const UploadPhotoModal = ({
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-2xl flex items-center gap-2">
-            <Camera className="h-6 w-6 text-[#8B4513]" />
+            <Camera className="h-6 w-6 text-[#9E4D68]" />
             {step === 'consent' ? 'Consentimiento de Uso de Fotografía' : `Subir Foto de ${studentName}`}
           </DialogTitle>
         </DialogHeader>
@@ -198,7 +198,7 @@ export const UploadPhotoModal = ({
         {step === 'consent' ? (
           <div className="space-y-4">
             <div className="bg-[#FFF8E7] border-2 border-[#D2691E] rounded-lg p-4">
-              <h4 className="font-bold text-[#8B4513] mb-2 flex items-center gap-2">
+              <h4 className="font-bold text-[#9E4D68] mb-2 flex items-center gap-2">
                 <ShieldCheck className="h-5 w-5" />
                 ¿Para qué se usa la foto de mi hijo/a?
               </h4>
@@ -238,7 +238,7 @@ export const UploadPhotoModal = ({
               </div>
             </div>
 
-            <div className="flex items-start gap-3 p-4 bg-gray-50 rounded-lg border-2 border-[#8B4513]">
+            <div className="flex items-start gap-3 p-4 bg-gray-50 rounded-lg border-2 border-[#9E4D68]">
               <Switch 
                 id="consent" 
                 checked={consentAccepted}
@@ -246,7 +246,7 @@ export const UploadPhotoModal = ({
                 className="mt-1"
               />
               <Label htmlFor="consent" className="text-sm leading-relaxed cursor-pointer flex-1">
-                <strong className="text-[#8B4513]">AUTORIZO</strong> el uso de la fotografía de mi hijo/a{' '}
+                <strong className="text-[#9E4D68]">AUTORIZO</strong> el uso de la fotografía de mi hijo/a{' '}
                 <strong>({studentName})</strong> para fines de <strong>identificación</strong> en el 
                 servicio de tienda saludable de Maracuyá Tiendas y Concesionarias Saludables, bajo los términos descritos. Entiendo que 
                 puedo revocar este consentimiento en cualquier momento.
@@ -264,7 +264,7 @@ export const UploadPhotoModal = ({
               <Button
                 onClick={handleConsentAccept}
                 disabled={!consentAccepted}
-                className="flex-1 bg-[#8B4513] hover:bg-[#A0522D]"
+                className="flex-1 bg-[#9E4D68] hover:bg-[#B86880]"
               >
                 Aceptar y Continuar
               </Button>
@@ -278,7 +278,7 @@ export const UploadPhotoModal = ({
                   <img
                     src={preview}
                     alt="Preview"
-                    className="w-48 h-48 object-cover rounded-full border-4 border-[#8B4513]"
+                    className="w-48 h-48 object-cover rounded-full border-4 border-[#9E4D68]"
                   />
                   <Button
                     size="icon"
@@ -294,7 +294,7 @@ export const UploadPhotoModal = ({
                   </Button>
                 </div>
               ) : (
-                <div className="w-48 h-48 bg-gradient-to-br from-[#8B4513] to-[#D2691E] rounded-full flex items-center justify-center">
+                <div className="w-48 h-48 bg-gradient-to-br from-[#9E4D68] to-[#D2691E] rounded-full flex items-center justify-center">
                   <Camera className="h-24 w-24 text-white opacity-50" />
                 </div>
               )}
@@ -314,7 +314,7 @@ export const UploadPhotoModal = ({
               />
               <Button
                 variant="outline"
-                className="w-full border-[#8B4513] text-[#8B4513] hover:bg-[#FFF8E7]"
+                className="w-full border-[#9E4D68] text-[#9E4D68] hover:bg-[#FFF8E7]"
                 onClick={() => fileInputRef.current?.click()}
                 disabled={uploading}
               >
@@ -339,7 +339,7 @@ export const UploadPhotoModal = ({
                 Cancelar
               </Button>
               <Button
-                className="flex-1 bg-[#8B4513] hover:bg-[#A0522D]"
+                className="flex-1 bg-[#9E4D68] hover:bg-[#B86880]"
                 onClick={handleUpload}
                 disabled={!selectedFile || uploading}
               >

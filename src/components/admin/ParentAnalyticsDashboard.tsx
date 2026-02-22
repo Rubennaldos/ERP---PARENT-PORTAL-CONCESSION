@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+﻿import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -64,7 +64,7 @@ interface ActivityEvent {
   created_at: string;
 }
 
-const COLORS = ['#8B4513', '#D2691E', '#CD853F', '#DEB887', '#F4A460'];
+const COLORS = ['#9E4D68', '#D2691E', '#CD853F', '#DEB887', '#F4A460'];
 
 interface ParentAnalyticsDashboardProps {
   selectedSchool?: string;
@@ -235,7 +235,7 @@ export function ParentAnalyticsDashboard({ selectedSchool = 'all' }: ParentAnaly
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#8B4513]"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#9E4D68]"></div>
       </div>
     );
   }
@@ -271,7 +271,7 @@ export function ParentAnalyticsDashboard({ selectedSchool = 'all' }: ParentAnaly
             variant="outline"
             size="sm"
             onClick={() => setTimeRange(7)}
-            className={timeRange === 7 ? 'bg-[#8B4513] text-white' : ''}
+            className={timeRange === 7 ? 'bg-[#9E4D68] text-white' : ''}
           >
             7 días
           </Button>
@@ -279,7 +279,7 @@ export function ParentAnalyticsDashboard({ selectedSchool = 'all' }: ParentAnaly
             variant="outline"
             size="sm"
             onClick={() => setTimeRange(30)}
-            className={timeRange === 30 ? 'bg-[#8B4513] text-white' : ''}
+            className={timeRange === 30 ? 'bg-[#9E4D68] text-white' : ''}
           >
             30 días
           </Button>
@@ -287,7 +287,7 @@ export function ParentAnalyticsDashboard({ selectedSchool = 'all' }: ParentAnaly
             variant="outline"
             size="sm"
             onClick={() => setTimeRange(90)}
-            className={timeRange === 90 ? 'bg-[#8B4513] text-white' : ''}
+            className={timeRange === 90 ? 'bg-[#9E4D68] text-white' : ''}
           >
             90 días
           </Button>
@@ -409,7 +409,7 @@ export function ParentAnalyticsDashboard({ selectedSchool = 'all' }: ParentAnaly
                     <XAxis dataKey="name" />
                     <YAxis />
                     <Tooltip />
-                    <Bar dataKey="value" fill="#8B4513" />
+                    <Bar dataKey="value" fill="#9E4D68" />
                   </BarChart>
                 </ResponsiveContainer>
               </CardContent>
@@ -460,7 +460,7 @@ export function ParentAnalyticsDashboard({ selectedSchool = 'all' }: ParentAnaly
                   <CardTitle>Reporte de Todos los Padres</CardTitle>
                   <CardDescription>Análisis comparativo para Marketing</CardDescription>
                 </div>
-                <Button onClick={exportToExcel} className="bg-[#8B4513] hover:bg-[#6F370F]">
+                <Button onClick={exportToExcel} className="bg-[#9E4D68] hover:bg-[#6F370F]">
                   <Download className="h-4 w-4 mr-2" />
                   Exportar a Excel
                 </Button>

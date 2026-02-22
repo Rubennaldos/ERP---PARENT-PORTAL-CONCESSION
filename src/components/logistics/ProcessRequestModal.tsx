@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+﻿import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -232,7 +232,7 @@ export function ProcessRequestModal({
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-2xl">
-            <TruckIcon className="h-6 w-6 text-[#8B4513]" />
+            <TruckIcon className="h-6 w-6 text-[#9E4D68]" />
             Procesar Pedido: {requestNumber}
           </DialogTitle>
           <DialogDescription>
@@ -242,7 +242,7 @@ export function ProcessRequestModal({
 
         {loading ? (
           <div className="flex items-center justify-center py-12">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#8B4513]"></div>
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#9E4D68]"></div>
           </div>
         ) : (
           <div className="space-y-4">
@@ -394,7 +394,7 @@ export function ProcessRequestModal({
             <Button 
               onClick={handleProcessRequest} 
               disabled={processing || selectedItems.size === 0}
-              className="bg-[#8B4513] hover:bg-[#6F370F]"
+              className="bg-[#9E4D68] hover:bg-[#6F370F]"
             >
               {processing ? (
                 <>

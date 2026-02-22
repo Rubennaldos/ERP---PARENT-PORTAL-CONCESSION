@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+﻿import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -138,7 +138,7 @@ export const EditProfileModal = ({ open, onOpenChange }: EditProfileModalProps) 
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle className="text-xl flex items-center gap-2">
-            <User className="h-6 w-6 text-[#8B4513]" />
+            <User className="h-6 w-6 text-[#9E4D68]" />
             Editar Datos Personales
           </DialogTitle>
           <DialogDescription>
@@ -148,7 +148,7 @@ export const EditProfileModal = ({ open, onOpenChange }: EditProfileModalProps) 
 
         {loadingData ? (
           <div className="flex items-center justify-center py-8">
-            <Loader2 className="h-8 w-8 animate-spin text-[#8B4513]" />
+            <Loader2 className="h-8 w-8 animate-spin text-[#9E4D68]" />
           </div>
         ) : (
           <div className="space-y-4 py-4">
@@ -212,7 +212,7 @@ export const EditProfileModal = ({ open, onOpenChange }: EditProfileModalProps) 
             <Button
               onClick={handleSave}
               disabled={loading || !profileData.full_name.trim()}
-              className="flex-1 bg-[#8B4513] hover:bg-[#A0522D]"
+              className="flex-1 bg-[#9E4D68] hover:bg-[#B86880]"
             >
               {loading ? (
                 <>

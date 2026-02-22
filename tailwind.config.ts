@@ -58,6 +58,7 @@ export default {
           ring: "hsl(var(--sidebar-ring))",
         },
         // Maracuyá Tiendas y Concesionarias Saludables brand colors
+        // Berry magenta mate + tonos cálidos trigo
         brand: {
           teal: "hsl(var(--brand-teal))",
           "teal-dark": "hsl(var(--brand-teal-dark))",

@@ -161,32 +161,36 @@ export default function Auth() {
   
   if (authLoading || roleLoading) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-brand-cream/20">
-        <Loader2 className="h-12 w-12 text-brand-teal animate-spin mb-4" />
-        <p className="text-brand-teal font-semibold animate-pulse">Iniciando sesión segura...</p>
+      <div className="min-h-screen flex flex-col items-center justify-center" style={{ background: 'linear-gradient(135deg, #faf7f5, #fff, #fdf2f0)' }}>
+        <Loader2 className="h-12 w-12 animate-spin mb-4" style={{ color: 'hsl(338, 45%, 45%)' }} />
+        <p className="font-semibold animate-pulse" style={{ color: 'hsl(338, 35%, 45%)' }}>Iniciando sesión segura...</p>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen flex flex-col bg-gradient-to-br from-[#FAFAF9] via-white to-stone-100">
-      {/* Header - Logo más pequeño en móvil */}
+    <div className="min-h-screen flex flex-col" style={{ background: 'linear-gradient(160deg, #faf7f5 0%, #fff 35%, #fdf2f0 65%, #f9f5f3 100%)' }}>
+      {/* Header - Logo */}
       <header className="w-full pt-8 sm:pt-12 pb-0 px-4 flex justify-center">
         <img 
           src={maracuyaLogo} 
-          alt="Logo" 
-          className="h-16 sm:h-20 md:h-24 w-auto object-contain mix-blend-multiply transition-all" 
+          alt="Maracuyá" 
+          className="h-20 sm:h-24 md:h-28 w-auto object-contain transition-all mix-blend-multiply" 
+          style={{ filter: 'drop-shadow(0 2px 12px hsla(338, 40%, 45%, 0.08))' }}
         />
       </header>
 
-      {/* Main - Menos padding en móvil */}
+      {/* Main */}
       <main className="flex-1 flex items-start justify-center p-3 sm:p-4 pt-2 pb-8 sm:pb-12">
-        <Card className="w-full max-w-md shadow-lg border border-stone-200/50 bg-white/95 backdrop-blur-sm overflow-hidden rounded-2xl">
-          {/* Header del Card - Padding ajustado para móvil */}
+        <Card className="w-full max-w-md shadow-lg border border-stone-200/40 bg-white/95 backdrop-blur-sm overflow-hidden rounded-2xl">
+          {/* Header del Card */}
           <CardHeader className="text-center space-y-2 sm:space-y-3 pb-3 sm:pb-4 pt-6 sm:pt-8 px-4 sm:px-6">
             <div className="flex justify-center mb-1 sm:mb-2">
-              <div className="bg-gradient-to-br from-[#8B7355]/10 to-[#6B5744]/10 p-2.5 sm:p-3 rounded-xl sm:rounded-2xl">
-                <ShieldCheck className="h-7 w-7 sm:h-8 sm:w-8 text-[#8B7355]" />
+              <div 
+                className="p-2.5 sm:p-3 rounded-xl sm:rounded-2xl"
+                style={{ background: 'linear-gradient(135deg, hsla(338, 40%, 45%, 0.08), hsla(338, 40%, 45%, 0.04))' }}
+              >
+                <ShieldCheck className="h-7 w-7 sm:h-8 sm:w-8" style={{ color: 'hsl(338, 40%, 45%)' }} />
               </div>
             </div>
             <CardTitle className="text-xl sm:text-2xl font-light text-stone-800 tracking-wide">
@@ -199,7 +203,7 @@ export default function Auth() {
             </CardDescription>
           </CardHeader>
 
-          {/* Content - Padding responsivo */}
+          {/* Content */}
           <CardContent className="space-y-5 sm:space-y-6 px-4 sm:px-6 md:px-8 pb-6 sm:pb-8">
             <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-5">
               
@@ -213,11 +217,16 @@ export default function Auth() {
                     <button
                       type="button"
                       onClick={() => setSelectedRole('parent')}
-                      className={`flex flex-col items-center gap-2 p-3 rounded-xl border-2 transition-all ${
-                        selectedRole === 'parent'
-                          ? 'border-[#8B7355] bg-[#8B7355]/5 text-[#8B7355]'
-                          : 'border-stone-100 bg-stone-50 text-stone-400 hover:border-stone-200'
-                      }`}
+                      className="flex flex-col items-center gap-2 p-3 rounded-xl border-2 transition-all"
+                      style={selectedRole === 'parent' ? {
+                        borderColor: 'hsl(338, 40%, 50%)',
+                        background: 'hsla(338, 40%, 50%, 0.05)',
+                        color: 'hsl(338, 40%, 42%)',
+                      } : {
+                        borderColor: '#f5f0ee',
+                        background: '#faf8f7',
+                        color: '#a0998f',
+                      }}
                     >
                       <Users className="h-6 w-6" />
                       <span className="text-xs font-bold uppercase tracking-tighter">Padre de Familia</span>
@@ -225,11 +234,16 @@ export default function Auth() {
                     <button
                       type="button"
                       onClick={() => setSelectedRole('teacher')}
-                      className={`flex flex-col items-center gap-2 p-3 rounded-xl border-2 transition-all ${
-                        selectedRole === 'teacher'
-                          ? 'border-purple-600 bg-purple-50 text-purple-600'
-                          : 'border-stone-100 bg-stone-50 text-stone-400 hover:border-stone-200'
-                      }`}
+                      className="flex flex-col items-center gap-2 p-3 rounded-xl border-2 transition-all"
+                      style={selectedRole === 'teacher' ? {
+                        borderColor: 'hsl(270, 35%, 50%)',
+                        background: 'hsla(270, 35%, 50%, 0.05)',
+                        color: 'hsl(270, 35%, 45%)',
+                      } : {
+                        borderColor: '#f5f0ee',
+                        background: '#faf8f7',
+                        color: '#a0998f',
+                      }}
                     >
                       <UtensilsCrossed className="h-6 w-6" />
                       <span className="text-xs font-bold uppercase tracking-tighter">Profesor / Personal</span>
@@ -248,7 +262,7 @@ export default function Auth() {
                   placeholder="tu@email.com" 
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="h-11 sm:h-12 border border-stone-200 focus:border-[#8B7355] rounded-xl transition-all text-sm sm:text-base"
+                  className="h-11 sm:h-12 border border-stone-200 rounded-xl transition-all text-sm sm:text-base focus:border-[hsl(338,40%,55%)] focus:ring-[hsla(338,40%,55%,0.15)]"
                   disabled={isLoading}
                   autoComplete="email"
                 />
@@ -264,7 +278,8 @@ export default function Auth() {
                     <button 
                       type="button" 
                       onClick={() => setShowPasswordRecoveryModal(true)} 
-                      className="text-[10px] sm:text-xs text-[#8B7355] hover:underline font-normal"
+                      className="text-[10px] sm:text-xs hover:underline font-normal"
+                      style={{ color: 'hsl(338, 35%, 48%)' }}
                     >
                       ¿Olvidaste tu clave?
                     </button>
@@ -275,7 +290,7 @@ export default function Auth() {
                     type={showPassword ? "text" : "password"}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="h-11 sm:h-12 pr-10 border border-stone-200 focus:border-[#8B7355] rounded-xl transition-all text-sm sm:text-base"
+                    className="h-11 sm:h-12 pr-10 border border-stone-200 rounded-xl transition-all text-sm sm:text-base focus:border-[hsl(338,40%,55%)] focus:ring-[hsla(338,40%,55%,0.15)]"
                     disabled={isLoading}
                     autoComplete={isRegisterMode ? "new-password" : "current-password"}
                   />
@@ -301,7 +316,7 @@ export default function Auth() {
                       type={showConfirmPassword ? "text" : "password"}
                       value={confirmPassword}
                       onChange={(e) => setConfirmPassword(e.target.value)}
-                      className="h-11 sm:h-12 pr-10 border border-stone-200 focus:border-[#8B7355] rounded-xl transition-all text-sm sm:text-base"
+                      className="h-11 sm:h-12 pr-10 border border-stone-200 rounded-xl transition-all text-sm sm:text-base focus:border-[hsl(338,40%,55%)] focus:ring-[hsla(338,40%,55%,0.15)]"
                       disabled={isLoading}
                       autoComplete="new-password"
                     />
@@ -317,17 +332,20 @@ export default function Auth() {
                 </div>
               )}
 
-              {/* Botón Submit - Altura responsiva */}
+              {/* Botón Submit */}
               <Button 
                 type="submit" 
-                className="w-full h-12 sm:h-14 text-sm sm:text-base font-medium bg-gradient-to-r from-[#8B7355] to-[#6B5744] hover:from-[#6B5744] hover:to-[#5B4734] text-white shadow-md transition-all rounded-xl tracking-wide" 
+                className="w-full h-12 sm:h-14 text-sm sm:text-base font-medium text-white shadow-md transition-all rounded-xl tracking-wide" 
+                style={{
+                  background: 'linear-gradient(135deg, hsl(338, 45%, 45%), hsl(338, 45%, 35%))',
+                }}
                 disabled={isLoading}
               >
                 {isLoading ? <Loader2 className="animate-spin h-5 w-5" /> : (isRegisterMode ? 'Crear Mi Cuenta' : 'Iniciar Sesión')}
               </Button>
             </form>
 
-            {/* Link para cambiar modo - Texto más pequeño en móvil */}
+            {/* Link para cambiar modo */}
             <div className="mt-4 sm:mt-6 text-center">
               <button 
                 onClick={() => {
@@ -335,7 +353,10 @@ export default function Auth() {
                   setPassword('');
                   setConfirmPassword('');
                 }}
-                className="text-xs sm:text-sm font-normal text-stone-500 hover:text-[#8B7355] transition-colors tracking-wide"
+                className="text-xs sm:text-sm font-normal text-stone-500 transition-colors tracking-wide"
+                style={{ }}
+                onMouseEnter={(e) => (e.currentTarget.style.color = 'hsl(338, 35%, 48%)')}
+                onMouseLeave={(e) => (e.currentTarget.style.color = '')}
                 type="button"
               >
                 {isRegisterMode ? '¿Ya tienes cuenta? Ingresa aquí' : '¿No tienes cuenta? Regístrate aquí'}
@@ -345,11 +366,11 @@ export default function Auth() {
         </Card>
       </main>
 
-      {/* Footer - Texto más pequeño y ajustado en móvil */}
+      {/* Footer */}
       <footer className="py-4 sm:py-6 md:py-8 text-center space-y-1.5 sm:space-y-2">
         <p className="text-xs sm:text-sm md:text-base font-normal text-stone-500 px-4 tracking-wide leading-relaxed">
           © 2026 ERP Profesional diseñado por{' '}
-          <span className="text-[#8B7355] font-medium">ARQUISIA Soluciones</span> para{' '}
+          <span style={{ color: 'hsl(338, 35%, 45%)' }} className="font-medium">ARQUISIA Soluciones</span> para{' '}
           <span className="text-stone-800 font-medium">Maracuyá Tiendas y Concesionarias Saludables</span>
         </p>
         <p className="text-[10px] sm:text-xs text-stone-400 font-normal tracking-wide">
@@ -362,7 +383,7 @@ export default function Auth() {
         <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle className="text-lg flex items-center gap-2">
-              <HelpCircle className="h-5 w-5 text-[#8B4513]" />
+              <HelpCircle className="h-5 w-5" style={{ color: 'hsl(338, 40%, 45%)' }} />
               ¿Olvidaste tu contraseña?
             </DialogTitle>
             <DialogDescription className="text-sm">
@@ -386,9 +407,9 @@ export default function Auth() {
             </div>
 
             {/* Instrucciones */}
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-              <h4 className="font-bold text-blue-900 text-sm mb-2">¿Cómo recuperar mi contraseña?</h4>
-              <ol className="text-xs text-blue-800 space-y-1 list-decimal list-inside ml-1">
+            <div className="border rounded-lg p-3" style={{ background: 'hsla(338, 30%, 96%, 1)', borderColor: 'hsla(338, 30%, 88%, 1)' }}>
+              <h4 className="font-bold text-sm mb-2" style={{ color: 'hsl(338, 30%, 30%)' }}>¿Cómo recuperar mi contraseña?</h4>
+              <ol className="text-xs space-y-1 list-decimal list-inside ml-1" style={{ color: 'hsl(338, 20%, 35%)' }}>
                 <li>Contacta al <strong>Administrador del Sistema</strong></li>
                 <li>Proporciona tu <strong>correo electrónico registrado</strong></li>
                 <li>El administrador reseteará tu contraseña desde el panel de control</li>
@@ -401,7 +422,7 @@ export default function Auth() {
               <h4 className="font-bold text-green-900 text-sm mb-2">Contacto del Administrador:</h4>
               <div className="flex items-center gap-2 text-sm text-green-800">
                 <Mail className="h-4 w-4 flex-shrink-0" />
-                <span><strong>Email:</strong> contacto@maracuya.com</span>
+                <span><strong>Email:</strong> contacto@maracuyatiendas.com</span>
               </div>
             </div>
 
@@ -415,7 +436,8 @@ export default function Auth() {
           {/* Botón */}
           <Button
             onClick={() => setShowPasswordRecoveryModal(false)}
-            className="w-full bg-[#8B4513] hover:bg-[#A0522D]"
+            className="w-full text-white"
+            style={{ background: 'hsl(338, 45%, 42%)' }}
           >
             Entendido
           </Button>

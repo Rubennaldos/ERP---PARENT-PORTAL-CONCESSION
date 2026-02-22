@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+﻿import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -60,7 +60,7 @@ interface SchoolMenuStats {
   unique_dishes: number;
 }
 
-const COLORS = ['#8B4513', '#D2691E', '#CD853F', '#DEB887', '#F4A460', '#8B7355', '#A0522D'];
+const COLORS = ['#9E4D68', '#D2691E', '#CD853F', '#DEB887', '#F4A460', '#A3566E', '#B86880'];
 const DAY_NAMES = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
 
 interface LunchAnalyticsDashboardProps {
@@ -332,7 +332,7 @@ export function LunchAnalyticsDashboard({ selectedSchool = 'all', canViewAllScho
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#8B4513]"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#9E4D68]"></div>
       </div>
     );
   }
@@ -357,7 +357,7 @@ export function LunchAnalyticsDashboard({ selectedSchool = 'all', canViewAllScho
             variant="outline"
             size="sm"
             onClick={() => setTimeRange('month')}
-            className={timeRange === 'month' ? 'bg-[#8B4513] text-white' : ''}
+            className={timeRange === 'month' ? 'bg-[#9E4D68] text-white' : ''}
           >
             Este Mes
           </Button>
@@ -365,7 +365,7 @@ export function LunchAnalyticsDashboard({ selectedSchool = 'all', canViewAllScho
             variant="outline"
             size="sm"
             onClick={() => setTimeRange('all')}
-            className={timeRange === 'all' ? 'bg-[#8B4513] text-white' : ''}
+            className={timeRange === 'all' ? 'bg-[#9E4D68] text-white' : ''}
           >
             Últimos 6 Meses
           </Button>
@@ -465,7 +465,7 @@ export function LunchAnalyticsDashboard({ selectedSchool = 'all', canViewAllScho
                     <XAxis type="number" />
                     <YAxis dataKey="dish_name" type="category" width={100} />
                     <Tooltip />
-                    <Bar dataKey="frequency" fill="#8B4513" />
+                    <Bar dataKey="frequency" fill="#9E4D68" />
                   </BarChart>
                 </ResponsiveContainer>
               </CardContent>
@@ -523,7 +523,7 @@ export function LunchAnalyticsDashboard({ selectedSchool = 'all', canViewAllScho
                       <tr key={`dish-${dish.dish_name}-${dish.category}-${idx}`} className="border-b hover:bg-slate-50">
                         <td className="p-3 font-bold">{dish.dish_name}</td>
                         <td className="p-3 text-center">
-                          <Badge className="bg-[#8B4513] text-white">{dish.category}</Badge>
+                          <Badge className="bg-[#9E4D68] text-white">{dish.category}</Badge>
                         </td>
                         <td className="p-3 text-center font-bold text-green-600">{dish.frequency}</td>
                         <td className="p-3 text-center">{dish.schools_count}</td>
@@ -552,7 +552,7 @@ export function LunchAnalyticsDashboard({ selectedSchool = 'all', canViewAllScho
                   <YAxis />
                   <Tooltip />
                   <Legend />
-                  <Bar dataKey="total_menus" fill="#8B4513" name="Total Menús" />
+                  <Bar dataKey="total_menus" fill="#9E4D68" name="Total Menús" />
                   <Bar dataKey="schools_served" fill="#82ca9d" name="Sedes Atendidas" />
                 </BarChart>
               </ResponsiveContainer>

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+﻿import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -65,7 +65,7 @@ interface SalesByStudent {
   total_spent: number;
 }
 
-const COLORS = ['#8B4513', '#D2691E', '#CD853F', '#DEB887', '#F4A460', '#8B7355', '#A0522D'];
+const COLORS = ['#9E4D68', '#D2691E', '#CD853F', '#DEB887', '#F4A460', '#A3566E', '#B86880'];
 
 interface SalesDashboardProps {
   selectedSchool?: string;
@@ -296,7 +296,7 @@ export function SalesDashboard({ selectedSchool = 'all', canViewAllSchools }: Sa
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#8B4513]"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#9E4D68]"></div>
       </div>
     );
   }
@@ -321,7 +321,7 @@ export function SalesDashboard({ selectedSchool = 'all', canViewAllSchools }: Sa
             variant="outline"
             size="sm"
             onClick={() => setTimeRange('today')}
-            className={timeRange === 'today' ? 'bg-[#8B4513] text-white' : ''}
+            className={timeRange === 'today' ? 'bg-[#9E4D68] text-white' : ''}
           >
             Hoy
           </Button>
@@ -329,7 +329,7 @@ export function SalesDashboard({ selectedSchool = 'all', canViewAllSchools }: Sa
             variant="outline"
             size="sm"
             onClick={() => setTimeRange('week')}
-            className={timeRange === 'week' ? 'bg-[#8B4513] text-white' : ''}
+            className={timeRange === 'week' ? 'bg-[#9E4D68] text-white' : ''}
           >
             Esta Semana
           </Button>
@@ -337,7 +337,7 @@ export function SalesDashboard({ selectedSchool = 'all', canViewAllSchools }: Sa
             variant="outline"
             size="sm"
             onClick={() => setTimeRange('month')}
-            className={timeRange === 'month' ? 'bg-[#8B4513] text-white' : ''}
+            className={timeRange === 'month' ? 'bg-[#9E4D68] text-white' : ''}
           >
             Este Mes
           </Button>
@@ -432,7 +432,7 @@ export function SalesDashboard({ selectedSchool = 'all', canViewAllSchools }: Sa
                     <XAxis dataKey="product_name" angle={-45} textAnchor="end" height={100} />
                     <YAxis />
                     <Tooltip />
-                    <Bar dataKey="quantity" fill="#8B4513" />
+                    <Bar dataKey="quantity" fill="#9E4D68" />
                   </BarChart>
                 </ResponsiveContainer>
               </CardContent>
@@ -515,7 +515,7 @@ export function SalesDashboard({ selectedSchool = 'all', canViewAllSchools }: Sa
                   <YAxis yAxisId="right" orientation="right" />
                   <Tooltip />
                   <Legend />
-                  <Line yAxisId="left" type="monotone" dataKey="total_sales" stroke="#8B4513" name="Cantidad de Ventas" />
+                  <Line yAxisId="left" type="monotone" dataKey="total_sales" stroke="#9E4D68" name="Cantidad de Ventas" />
                   <Line yAxisId="right" type="monotone" dataKey="total_amount" stroke="#82ca9d" name="Monto (S/)" />
                 </LineChart>
               </ResponsiveContainer>

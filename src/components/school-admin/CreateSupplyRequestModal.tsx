@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+﻿import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -276,7 +276,7 @@ export function CreateSupplyRequestModal({
       <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-2xl">
-            <ShoppingCart className="h-6 w-6 text-[#8B4513]" />
+            <ShoppingCart className="h-6 w-6 text-[#9E4D68]" />
             Crear Pedido de Suministros
           </DialogTitle>
           <DialogDescription>
@@ -319,7 +319,7 @@ export function CreateSupplyRequestModal({
             <div className="max-h-[500px] overflow-y-auto space-y-2">
               {loading ? (
                 <div className="text-center py-8">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#8B4513] mx-auto"></div>
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#9E4D68] mx-auto"></div>
                 </div>
               ) : filteredItems.length > 0 ? (
                 filteredItems.map(item => (
@@ -336,7 +336,7 @@ export function CreateSupplyRequestModal({
                         <Button 
                           size="sm" 
                           onClick={() => handleAddItem(item)}
-                          className="bg-[#8B4513] hover:bg-[#6F370F]"
+                          className="bg-[#9E4D68] hover:bg-[#6F370F]"
                         >
                           <Plus className="h-4 w-4" />
                         </Button>
@@ -417,7 +417,7 @@ export function CreateSupplyRequestModal({
           <Button 
             onClick={handleSubmit} 
             disabled={submitting || requestItems.length === 0}
-            className="bg-[#8B4513] hover:bg-[#6F370F]"
+            className="bg-[#9E4D68] hover:bg-[#6F370F]"
           >
             {submitting ? (
               <>

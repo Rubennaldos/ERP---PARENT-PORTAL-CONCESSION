@@ -1,4 +1,4 @@
-import { Card, CardContent } from '@/components/ui/card';
+﻿import { Card, CardContent } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
@@ -101,7 +101,7 @@ export const MoreMenu = ({ userEmail, onLogout }: MoreMenuProps) => {
   return (
     <div className="space-y-6 pb-20">
       {/* Header con usuario */}
-      <Card className="bg-gradient-to-br from-[#8B4513] to-[#D2691E] text-white border-0">
+      <Card className="bg-gradient-to-br from-[#9E4D68] to-[#D2691E] text-white border-0">
         <CardContent className="p-6">
           <div className="flex items-center gap-4">
             <div className="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center">
@@ -138,7 +138,7 @@ export const MoreMenu = ({ userEmail, onLogout }: MoreMenuProps) => {
                     }`}
                   >
                     <div className="flex items-center gap-3">
-                      <item.icon className="h-5 w-5 text-[#8B4513]" />
+                      <item.icon className="h-5 w-5 text-[#9E4D68]" />
                       <span className="font-medium text-gray-900">{item.label}</span>
                     </div>
                     <div className="flex items-center gap-2">
@@ -213,7 +213,7 @@ export const MoreMenu = ({ userEmail, onLogout }: MoreMenuProps) => {
         <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle className="text-xl flex items-center gap-2">
-              <Camera className="h-6 w-6 text-[#8B4513]" />
+              <Camera className="h-6 w-6 text-[#9E4D68]" />
               Estado del Consentimiento de Fotografías
             </DialogTitle>
           </DialogHeader>
@@ -277,7 +277,7 @@ export const MoreMenu = ({ userEmail, onLogout }: MoreMenuProps) => {
 
             <Button 
               onClick={() => setShowPhotoInfo(false)}
-              className="w-full bg-[#8B4513] hover:bg-[#A0522D]"
+              className="w-full bg-[#9E4D68] hover:bg-[#B86880]"
             >
               Cerrar
             </Button>

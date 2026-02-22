@@ -1,4 +1,4 @@
-import { useState } from 'react';
+﻿import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -27,7 +27,7 @@ export const UserProfileMenu = ({ userEmail, userName, onLogout }: UserProfileMe
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button variant="ghost" size="icon" className="relative">
-            <Settings className="h-5 w-5 text-gray-700 hover:text-[#8B4513] transition-colors hover:rotate-90 duration-300" />
+            <Settings className="h-5 w-5 text-gray-700 hover:text-[#9E4D68] transition-colors hover:rotate-90 duration-300" />
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-64">

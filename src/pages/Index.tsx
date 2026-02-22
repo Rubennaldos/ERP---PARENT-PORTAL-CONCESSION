@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+﻿import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -663,11 +663,11 @@ const Index = () => {
           <div className="flex items-center justify-between">
             {/* Logo y Título - Más compacto en móvil */}
             <div className="flex items-center gap-2 sm:gap-3 md:gap-4">
-              <div className="w-9 h-9 sm:w-10 sm:h-10 md:w-11 md:h-11 bg-gradient-to-br from-emerald-600/90 via-[#8B7355] to-[#6B5744] rounded-xl sm:rounded-2xl flex items-center justify-center shadow-sm">
+              <div className="w-9 h-9 sm:w-10 sm:h-10 md:w-11 md:h-11 bg-gradient-to-br from-emerald-600/90 via-[#A3566E] to-[#8B4060] rounded-xl sm:rounded-2xl flex items-center justify-center shadow-sm">
                 <GraduationCap className="h-5 w-5 sm:h-5.5 sm:w-5.5 md:h-6 md:w-6 text-white" />
               </div>
               <div>
-                <h1 className="text-base sm:text-lg md:text-xl font-light text-[#6B5744] tracking-wide">Maracuyá</h1>
+                <h1 className="text-base sm:text-lg md:text-xl font-light text-[#8B4060] tracking-wide">Maracuyá</h1>
                 <p className="text-[9px] sm:text-[10px] font-medium text-stone-400 uppercase tracking-[0.2em] sm:tracking-[0.25em]">Portal de Padres</p>
               </div>
             </div>
@@ -711,7 +711,7 @@ const Index = () => {
                   <Button 
                     size="lg" 
                     onClick={() => setShowAddStudent(true)}
-                    className="bg-gradient-to-r from-emerald-600/90 via-[#8B7355] to-[#6B5744] hover:from-emerald-700/90 hover:via-[#6B5744] hover:to-[#5B4734] text-white shadow-md transition-all duration-300 h-12 sm:h-auto text-sm sm:text-base"
+                    className="bg-gradient-to-r from-emerald-600/90 via-[#A3566E] to-[#8B4060] hover:from-emerald-700/90 hover:via-[#8B4060] hover:to-[#7A3755] text-white shadow-md transition-all duration-300 h-12 sm:h-auto text-sm sm:text-base"
                   >
                     <Plus className="h-4 w-4 sm:h-5 sm:w-5 mr-2" />
                     Agregar Mi Primer Hijo

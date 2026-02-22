@@ -1,4 +1,4 @@
-import { useState } from 'react';
+﻿import { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -76,8 +76,8 @@ export const PhotoConsentModal = ({
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <div className="flex items-center gap-3 mb-2">
-            <div className="p-3 bg-[#8B4513]/10 rounded-full">
-              <Camera className="h-8 w-8 text-[#8B4513]" />
+            <div className="p-3 bg-[#9E4D68]/10 rounded-full">
+              <Camera className="h-8 w-8 text-[#9E4D68]" />
             </div>
             <div>
               <DialogTitle className="text-2xl">Autorización de Fotografía</DialogTitle>
@@ -90,7 +90,7 @@ export const PhotoConsentModal = ({
 
         <div className="space-y-3 py-2">
           <div className="bg-[#FFF8E7] border-2 border-[#D2691E] rounded-lg p-3">
-            <h4 className="font-bold text-[#8B4513] text-sm mb-2 flex items-center gap-2">
+            <h4 className="font-bold text-[#9E4D68] text-sm mb-2 flex items-center gap-2">
               <Shield className="h-4 w-4" />
               ¿Para qué se usa la fotografía?
             </h4>
@@ -130,7 +130,7 @@ export const PhotoConsentModal = ({
             </div>
           </div>
 
-          <div className="border-2 border-[#8B4513] rounded-lg p-3 bg-white">
+          <div className="border-2 border-[#9E4D68] rounded-lg p-3 bg-white">
             <div className="flex items-start gap-3">
               <Checkbox 
                 id="consent-check" 
@@ -139,10 +139,10 @@ export const PhotoConsentModal = ({
                 className="mt-1"
               />
               <Label htmlFor="consent-check" className="text-xs leading-relaxed cursor-pointer flex-1">
-                <strong className="text-[#8B4513]">Yo, {' '}</strong>
+                <strong className="text-[#9E4D68]">Yo, {' '}</strong>
                 <span className="text-gray-900">
                   en mi calidad de padre/madre/tutor legal de <strong>{studentName}</strong>, 
-                  <strong className="text-[#8B4513]"> AUTORIZO</strong> expresamente a Maracuyá Tiendas y Concesionarias Saludables 
+                  <strong className="text-[#9E4D68]"> AUTORIZO</strong> expresamente a Maracuyá Tiendas y Concesionarias Saludables 
                   el uso de la fotografía de mi hijo/a para los fines de <strong>identificación</strong> descritos. 
                   Entiendo que esta autorización puede ser <strong>revocada</strong> en cualquier momento 
                   eliminando la fotografía desde este portal.
@@ -163,7 +163,7 @@ export const PhotoConsentModal = ({
           <Button
             onClick={handleAcceptConsent}
             disabled={!consentAccepted || loading}
-            className="flex-1 h-11 text-sm font-bold bg-[#8B4513] hover:bg-[#A0522D]"
+            className="flex-1 h-11 text-sm font-bold bg-[#9E4D68] hover:bg-[#B86880]"
           >
             {loading ? 'Guardando...' : '✓ Aceptar y Continuar'}
           </Button>

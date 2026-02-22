@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+﻿import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -187,7 +187,7 @@ const Logistics = () => {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#8B4513] mx-auto"></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#9E4D68] mx-auto"></div>
           <p className="mt-4 text-slate-600">Cargando sistema de logística...</p>
         </div>
       </div>
@@ -203,7 +203,7 @@ const Logistics = () => {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-black text-slate-800 flex items-center gap-3">
-              <Package className="h-8 w-8 text-[#8B4513]" />
+              <Package className="h-8 w-8 text-[#9E4D68]" />
               Logística y Almacén
             </h1>
             <p className="text-slate-400 font-medium mt-1">
@@ -286,19 +286,19 @@ const Logistics = () => {
         {/* Tabs Principales */}
         <Tabs defaultValue="inventory" className="w-full">
           <TabsList className="grid w-full grid-cols-4 bg-white border rounded-xl p-1">
-            <TabsTrigger value="inventory" className="data-[state=active]:bg-[#8B4513] data-[state=active]:text-white">
+            <TabsTrigger value="inventory" className="data-[state=active]:bg-[#9E4D68] data-[state=active]:text-white">
               <Package className="h-4 w-4 mr-2" />
               Inventario
             </TabsTrigger>
-            <TabsTrigger value="requests" className="data-[state=active]:bg-[#8B4513] data-[state=active]:text-white">
+            <TabsTrigger value="requests" className="data-[state=active]:bg-[#9E4D68] data-[state=active]:text-white">
               <TruckIcon className="h-4 w-4 mr-2" />
               Pedidos
             </TabsTrigger>
-            <TabsTrigger value="assets" className="data-[state=active]:bg-[#8B4513] data-[state=active]:text-white">
+            <TabsTrigger value="assets" className="data-[state=active]:bg-[#9E4D68] data-[state=active]:text-white">
               <HardDrive className="h-4 w-4 mr-2" />
               Activos
             </TabsTrigger>
-            <TabsTrigger value="analytics" className="data-[state=active]:bg-[#8B4513] data-[state=active]:text-white">
+            <TabsTrigger value="analytics" className="data-[state=active]:bg-[#9E4D68] data-[state=active]:text-white">
               <BarChart3 className="h-4 w-4 mr-2" />
               Analytics
             </TabsTrigger>
@@ -311,14 +311,14 @@ const Logistics = () => {
                 <div className="flex items-center justify-between">
                   <div>
                     <CardTitle className="flex items-center gap-2">
-                      <Package className="h-6 w-6 text-[#8B4513]" />
+                      <Package className="h-6 w-6 text-[#9E4D68]" />
                       Inventario Central
                     </CardTitle>
                     <CardDescription>
                       Gestiona el stock de productos en el almacén central
                     </CardDescription>
                   </div>
-                  <Button className="bg-[#8B4513] hover:bg-[#6F370F]">
+                  <Button className="bg-[#9E4D68] hover:bg-[#6F370F]">
                     <Plus className="h-4 w-4 mr-2" />
                     Nuevo Producto
                   </Button>
@@ -402,7 +402,7 @@ const Logistics = () => {
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <TruckIcon className="h-6 w-6 text-[#8B4513]" />
+                  <TruckIcon className="h-6 w-6 text-[#9E4D68]" />
                   Pedidos de Suministros
                 </CardTitle>
                 <CardDescription>
@@ -432,7 +432,7 @@ const Logistics = () => {
                               {getStatusBadge(request.status)}
                               <Button 
                                 size="sm" 
-                                className="bg-[#8B4513] hover:bg-[#6F370F] w-full"
+                                className="bg-[#9E4D68] hover:bg-[#6F370F] w-full"
                                 onClick={() => handleOpenProcessModal(request)}
                               >
                                 Procesar Pedido
@@ -458,7 +458,7 @@ const Logistics = () => {
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <HardDrive className="h-6 w-6 text-[#8B4513]" />
+                  <HardDrive className="h-6 w-6 text-[#9E4D68]" />
                   Inventario de Activos
                 </CardTitle>
                 <CardDescription>
@@ -476,7 +476,7 @@ const Logistics = () => {
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <BarChart3 className="h-6 w-6 text-[#8B4513]" />
+                  <BarChart3 className="h-6 w-6 text-[#9E4D68]" />
                   Analytics de Inventario
                 </CardTitle>
                 <CardDescription>

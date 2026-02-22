@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+﻿import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -107,7 +107,7 @@ const SchoolAdmin = () => {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#8B4513] mx-auto"></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#9E4D68] mx-auto"></div>
           <p className="mt-4 text-slate-600">Cargando administración de sede...</p>
         </div>
       </div>
@@ -121,7 +121,7 @@ const SchoolAdmin = () => {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-black text-slate-800 flex items-center gap-3">
-              <ShoppingCart className="h-8 w-8 text-[#8B4513]" />
+              <ShoppingCart className="h-8 w-8 text-[#9E4D68]" />
               Administración de Sede
             </h1>
             <p className="text-slate-400 font-medium mt-1">
@@ -141,19 +141,19 @@ const SchoolAdmin = () => {
         {/* Tabs Principales */}
         <Tabs defaultValue="requests" className="w-full">
           <TabsList className="grid w-full grid-cols-4 bg-white border rounded-xl p-1">
-            <TabsTrigger value="requests" className="data-[state=active]:bg-[#8B4513] data-[state=active]:text-white">
+            <TabsTrigger value="requests" className="data-[state=active]:bg-[#9E4D68] data-[state=active]:text-white">
               <ShoppingCart className="h-4 w-4 mr-2" />
               Pedidos
             </TabsTrigger>
-            <TabsTrigger value="grades" className="data-[state=active]:bg-[#8B4513] data-[state=active]:text-white">
+            <TabsTrigger value="grades" className="data-[state=active]:bg-[#9E4D68] data-[state=active]:text-white">
               <GraduationCap className="h-4 w-4 mr-2" />
               Grados y Salones
             </TabsTrigger>
-            <TabsTrigger value="calendar" className="data-[state=active]:bg-[#8B4513] data-[state=active]:text-white">
+            <TabsTrigger value="calendar" className="data-[state=active]:bg-[#9E4D68] data-[state=active]:text-white">
               <Calendar className="h-4 w-4 mr-2" />
               Calendario
             </TabsTrigger>
-            <TabsTrigger value="cards" className="data-[state=active]:bg-[#8B4513] data-[state=active]:text-white">
+            <TabsTrigger value="cards" className="data-[state=active]:bg-[#9E4D68] data-[state=active]:text-white">
               <CreditCard className="h-4 w-4 mr-2" />
               Tarjetas ID
             </TabsTrigger>
@@ -161,14 +161,14 @@ const SchoolAdmin = () => {
 
           {/* Pestaña de Pedidos */}
           <TabsContent value="requests" className="mt-6">
-            <Card className="border-2 border-[#8B4513]/20">
+            <Card className="border-2 border-[#9E4D68]/20">
               <CardHeader className="bg-gradient-to-r from-amber-50 to-orange-50">
                 <div className="text-center">
                   <CardTitle className="flex items-center justify-center gap-3 text-2xl mb-3">
-                    <ShoppingCart className="h-8 w-8 text-[#8B4513]" />
+                    <ShoppingCart className="h-8 w-8 text-[#9E4D68]" />
                     Módulo de Pedidos
                   </CardTitle>
-                  <Badge className="bg-gradient-to-r from-[#8B4513] to-amber-700 text-white text-lg px-6 py-2">
+                  <Badge className="bg-gradient-to-r from-[#9E4D68] to-amber-700 text-white text-lg px-6 py-2">
                     🚧 Próximamente
                   </Badge>
                 </div>
@@ -318,7 +318,7 @@ const SchoolAdmin = () => {
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <Calendar className="h-6 w-6 text-[#8B4513]" />
+                  <Calendar className="h-6 w-6 text-[#9E4D68]" />
                   Calendarios
                 </CardTitle>
                 <CardDescription>
@@ -336,7 +336,7 @@ const SchoolAdmin = () => {
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <CreditCard className="h-6 w-6 text-[#8B4513]" />
+                  <CreditCard className="h-6 w-6 text-[#9E4D68]" />
                   Tarjetas de Identificación
                 </CardTitle>
                 <CardDescription>

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+﻿import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -172,7 +172,7 @@ export function LunchCalendarView({ studentId, studentName }: LunchCalendarViewP
   return (
     <div className="space-y-4">
       {/* Header con navegación */}
-      <Card className="bg-gradient-to-r from-[#8B4513] to-[#D2691E]">
+      <Card className="bg-gradient-to-r from-[#9E4D68] to-[#D2691E]">
         <CardHeader>
           <div className="flex items-center justify-between text-white">
             <Button
@@ -204,7 +204,7 @@ export function LunchCalendarView({ studentId, studentName }: LunchCalendarViewP
       </Card>
 
       <div className="flex justify-center">
-        <Button onClick={goToToday} variant="outline" className="border-[#8B4513] text-[#8B4513]">
+        <Button onClick={goToToday} variant="outline" className="border-[#9E4D68] text-[#9E4D68]">
           <Calendar className="h-4 w-4 mr-2" />
           Hoy
         </Button>
@@ -239,7 +239,7 @@ export function LunchCalendarView({ studentId, studentName }: LunchCalendarViewP
         <CardContent className="p-2">
           {loading ? (
             <div className="text-center py-12">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#8B4513] mx-auto"></div>
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#9E4D68] mx-auto"></div>
               <p className="mt-4 text-gray-500">Cargando menús...</p>
             </div>
           ) : (
