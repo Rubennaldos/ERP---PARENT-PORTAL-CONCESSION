@@ -3,6 +3,7 @@ import react from "@vitejs/plugin-react-swc";
 import path from "path";
 import { componentTagger } from "lovable-tagger";
 import mkcert from "vite-plugin-mkcert";
+import { VitePWA } from "vite-plugin-pwa";
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => ({
@@ -12,7 +13,7 @@ export default defineConfig(({ mode }) => ({
   build: {
     outDir: "dist",
     sourcemap: false,
-    minify: "esbuild", // Cambiado de terser a esbuild (viene por defecto)
+    minify: "esbuild",
     rollupOptions: {
       output: {
         manualChunks: undefined,
@@ -23,15 +24,47 @@ export default defineConfig(({ mode }) => ({
   server: {
     host: "::",
     port: 8080,
-    // ✅ HTTPS habilitado para desarrollo
-    // Esto resuelve el problema de QZ Tray pidiendo permiso constantemente
     https: mode === "development",
   },
   plugins: [
     react(), 
     mode === "development" && componentTagger(),
-    // ✅ Plugin para generar certificados SSL válidos en localhost
     mode === "development" && mkcert(),
+    VitePWA({
+      registerType: "autoUpdate",
+      includeAssets: ["favicon.png", "apple-touch-icon.png"],
+      manifest: false, // Usamos el manifest.json manual en /public
+      workbox: {
+        maximumFileSizeToCacheInBytes: 5 * 1024 * 1024, // 5 MB
+        globPatterns: ["**/*.{js,css,html,ico,png,svg,woff2}"],
+        runtimeCaching: [
+          {
+            // Cache de la API de Supabase
+            urlPattern: /^https:\/\/.*\.supabase\.co\/rest\/v1\/.*/i,
+            handler: "NetworkFirst",
+            options: {
+              cacheName: "supabase-api",
+              expiration: {
+                maxEntries: 50,
+                maxAgeSeconds: 300, // 5 minutos
+              },
+            },
+          },
+          {
+            // Cache de imágenes
+            urlPattern: /\.(?:png|jpg|jpeg|svg|gif|webp)$/i,
+            handler: "CacheFirst",
+            options: {
+              cacheName: "images",
+              expiration: {
+                maxEntries: 60,
+                maxAgeSeconds: 30 * 24 * 60 * 60, // 30 días
+              },
+            },
+          },
+        ],
+      },
+    }),
   ].filter(Boolean),
   resolve: {
     alias: {
