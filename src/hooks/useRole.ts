@@ -41,9 +41,10 @@ export function useRole(): UseRoleReturn {
       try {
         setLoading(true);
 
-        // 🔒 SUPERADMIN HARDCODED - No depende de la base de datos
-        if (user.email === 'superadmin@limacafe28.com') {
-          console.log('🔐 SuperAdmin detectado (hardcoded):', user.email);
+        // 🔒 SUPERADMIN - Configurable via variable de entorno (fallback al email original)
+        const superadminEmail = import.meta.env.VITE_SUPERADMIN_EMAIL || 'superadmin@limacafe28.com';
+        if (user.email === superadminEmail) {
+          console.log('🔐 SuperAdmin detectado:', user.email);
           setRole('superadmin');
           setLoading(false);
           return;
