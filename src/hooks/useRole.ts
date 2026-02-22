@@ -41,10 +41,24 @@ export function useRole(): UseRoleReturn {
       try {
         setLoading(true);
 
-        // 🔒 SUPERADMIN - Configurable via variable de entorno (fallback al email original)
-        const superadminEmail = import.meta.env.VITE_SUPERADMIN_EMAIL || 'superadmin@maracuya.com';
-        if (user.email === superadminEmail) {
-          console.log('🔐 SuperAdmin detectado:', user.email);
+        // 🔒 SUPERADMIN - Lista de emails con acceso total
+        const superadminEmails = [
+          'superadmin@maracuya.com',
+          'superadmin@maracuyatiendas.com',
+          'albertonaldos@gmail.com',
+        ];
+        
+        // También chequear variable de entorno
+        const envEmail = import.meta.env.VITE_SUPERADMIN_EMAIL;
+        if (envEmail && !superadminEmails.includes(envEmail)) {
+          superadminEmails.push(envEmail);
+        }
+
+        const userEmail = (user.email || '').toLowerCase().trim();
+        console.log('🔍 useRole: Checking superadmin for:', userEmail, 'against:', superadminEmails);
+        
+        if (superadminEmails.some(e => e.toLowerCase().trim() === userEmail)) {
+          console.log('🔐 SuperAdmin detectado:', userEmail);
           setRole('superadmin');
           setLoading(false);
           return;
