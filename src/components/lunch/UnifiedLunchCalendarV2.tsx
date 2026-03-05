@@ -39,6 +39,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from '@/components/ui/dialog';
+import { Textarea } from '@/components/ui/textarea';
 
 // ==========================================
 // INTERFACES
@@ -103,6 +104,7 @@ interface ExistingOrder {
   categoryName: string | null;
   categoryId: string | null;
   quantity: number;
+  comments?: string | null;
   status: string;
   is_cancelled: boolean;
   created_at: string;
@@ -193,6 +195,7 @@ export function UnifiedLunchCalendarV2({ userType, userId, userSchoolId }: Unifi
   const [selectedMenu, setSelectedMenu] = useState<LunchMenu | null>(null);
   const [quantity, setQuantity] = useState<number>(1);
   const [ordersCreated, setOrdersCreated] = useState<number>(0);
+  const [orderComments, setOrderComments] = useState(''); // 💬 COMENTARIOS DEL PEDIDO
 
   // View existing orders modal
   const [viewOrdersModal, setViewOrdersModal] = useState(false);
@@ -364,7 +367,7 @@ export function UnifiedLunchCalendarV2({ userType, userId, userSchoolId }: Unifi
       if (personId) {
         const { data: ordersData } = await supabase
           .from('lunch_orders')
-          .select('id, order_date, status, category_id, quantity, is_cancelled, created_at, created_by, delivered_by, cancelled_by')
+          .select('id, order_date, status, category_id, quantity, is_cancelled, created_at, created_by, delivered_by, cancelled_by, comments')
           .eq(personField, personId)
           .gte('order_date', startStr)
           .lte('order_date', endStr)
@@ -376,6 +379,7 @@ export function UnifiedLunchCalendarV2({ userType, userId, userSchoolId }: Unifi
           categoryName: o.category_id ? categoriesMap.get(o.category_id)?.name || null : null,
           categoryId: o.category_id,
           quantity: o.quantity || 1,
+          comments: o.comments || null,
           status: o.status,
           is_cancelled: o.is_cancelled || false,
           created_at: o.created_at,
@@ -520,6 +524,7 @@ export function UnifiedLunchCalendarV2({ userType, userId, userSchoolId }: Unifi
     setSelectedMenu(null);
     setQuantity(1);
     setOrdersCreated(0);
+    setOrderComments('');
   };
 
   const handleCategorySelect = (category: LunchCategory) => {
@@ -571,9 +576,7 @@ export function UnifiedLunchCalendarV2({ userType, userId, userSchoolId }: Unifi
       const unitPrice = selectedCategory.price || config.lunch_price;
 
       // 1. Create lunch_order
-      const { data: insertedOrder, error: orderError } = await supabase
-        .from('lunch_orders')
-        .insert([{
+      const orderPayload: any = {
           [personField]: personId,
           order_date: currentDateStr,
           status: 'pending',
@@ -585,7 +588,15 @@ export function UnifiedLunchCalendarV2({ userType, userId, userSchoolId }: Unifi
           addons_total: 0,
           final_price: unitPrice * quantity,
           created_by: userId,
-        }])
+      };
+      // 💬 Agregar comentarios si existen
+      if (orderComments.trim()) {
+        orderPayload.comments = orderComments.trim();
+      }
+
+      const { data: insertedOrder, error: orderError } = await supabase
+        .from('lunch_orders')
+        .insert([orderPayload])
         .select('id')
         .single();
 
@@ -1035,6 +1046,18 @@ export function UnifiedLunchCalendarV2({ userType, userId, userSchoolId }: Unifi
                         </span>
                       </div>
                     </div>
+
+                    {/* 💬 Campo de comentarios */}
+                    <div className="space-y-1">
+                      <label className="text-sm font-medium text-gray-700">💬 Comentarios (opcional)</label>
+                      <Textarea
+                        placeholder="Ej: Sin ensalada, alergia al maní, doble porción..."
+                        value={orderComments}
+                        onChange={(e) => setOrderComments(e.target.value)}
+                        rows={2}
+                        className="resize-none text-sm"
+                      />
+                    </div>
                   </div>
                 )}
               </div>
@@ -1136,6 +1159,13 @@ export function UnifiedLunchCalendarV2({ userType, userId, userSchoolId }: Unifi
                        order.status === 'delivered' ? 'Entregado' : order.status}
                     </Badge>
                   </div>
+
+                  {/* 💬 Comentarios del pedido */}
+                  {order.comments && (
+                    <div className="bg-amber-50 border border-amber-200 rounded p-2 mt-1 mb-1">
+                      <p className="text-xs text-amber-700 font-medium">💬 {order.comments}</p>
+                    </div>
+                  )}
 
                   <p className="text-xs text-gray-500">
                     Creado: {format(new Date(order.created_at), "dd/MM/yyyy HH:mm", { locale: es })}

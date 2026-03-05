@@ -1,0 +1,127 @@
+═══════════════════════════════════════════════════════════════
+📡 SISTEMA NFC PARA PROFESORES - INFORMACIÓN Y PRECIOS
+═══════════════════════════════════════════════════════════════
+
+¿QUÉ ES EL NFC PARA PROFESORES?
+
+El NFC (Near Field Communication) es una tecnología que permite identificar automáticamente a los profesores en el Punto de Venta (kiosco escolar) usando una tarjeta o sticker con chip integrado.
+
+───────────────────────────────────────────────────────────────
+💰 OPCIONES Y PRECIOS
+───────────────────────────────────────────────────────────────
+
+1. 📱 STICKER NFC (S/ 3.00)
+   • Sticker adhesivo con chip NFC integrado
+   • Se pega en la parte trasera del celular o en cualquier superficie
+   • Precio: S/ 3.00
+   • Ideal para profesores que prefieren una solución económica y portátil
+
+2. 💳 TARJETA PERSONALIZADA (S/ 15.00)
+   • Tarjeta física de PVC con chip NFC integrado
+   • Diseño personalizado con nombre del profesor y logo del colegio
+   • Más resistente y profesional
+   • Precio: S/ 15.00
+   • Ideal para profesores que prefieren una tarjeta física tradicional
+
+───────────────────────────────────────────────────────────────
+✨ ¿EN QUÉ AYUDA EL NFC?
+───────────────────────────────────────────────────────────────
+
+1. ⚡ IDENTIFICACIÓN INSTANTÁNEA
+   • Al llegar al kiosco, solo pasa la tarjeta/sticker por el lector
+   • El sistema identifica automáticamente al profesor en menos de 1 segundo
+   • No necesitas decir tu nombre ni buscar en el sistema
+
+2. 🚀 VELOCIDAD EN LAS COMPRAS
+   • Proceso de compra más rápido y eficiente
+   • El cajero no necesita buscar tu nombre manualmente
+   • Reducción de tiempo de espera en la cola
+
+3. 🔒 SEGURIDAD Y PRECISIÓN
+   • Evita errores de identificación
+   • Cada tarjeta está vinculada únicamente a tu cuenta
+   • No hay confusión con otros profesores con nombres similares
+
+4. 📊 REGISTRO AUTOMÁTICO
+   • Todos tus consumos se registran automáticamente en tu cuenta
+   • No hay posibilidad de olvidar registrar una compra
+   • Historial completo y preciso de todos tus gastos
+
+5. 💳 CUENTA LIBRE AUTOMÁTICA
+   • Al pasar la tarjeta, el sistema activa tu cuenta libre
+   • Puedes comprar sin necesidad de recargar saldo
+   • Todos los consumos se registran para pago posterior
+
+───────────────────────────────────────────────────────────────
+📱 CÓMO FUNCIONA
+───────────────────────────────────────────────────────────────
+
+PASO 1: REGISTRO DE TARJETA
+• El administrador de sede registra tu tarjeta NFC en el sistema
+• Vincula tu tarjeta física con tu cuenta de profesor
+• El proceso toma menos de 2 minutos
+
+PASO 2: USO EN EL KIOSCO
+• Llegas al kiosco con tus productos
+• El cajero pasa tu tarjeta/sticker por el lector USB
+• El sistema identifica tu cuenta automáticamente
+• Realizas tu compra normalmente
+
+PASO 3: REGISTRO AUTOMÁTICO
+• Tu compra se registra automáticamente en tu cuenta
+• Puedes ver el consumo en tiempo real desde tu portal
+• Todo queda registrado para el pago al final del mes
+
+───────────────────────────────────────────────────────────────
+💡 VENTAJAS DEL SISTEMA NFC
+───────────────────────────────────────────────────────────────
+
+✅ RAPIDEZ: Identificación en menos de 1 segundo
+✅ COMODIDAD: No necesitas recordar tu nombre o código
+✅ PRECISIÓN: Elimina errores de identificación manual
+✅ SEGURIDAD: Cada tarjeta es única e intransferible
+✅ MODERNIDAD: Tecnología de última generación
+✅ PORTABILIDAD: Sticker se pega en el celular, tarjeta cabe en la billetera
+
+───────────────────────────────────────────────────────────────
+❓ PREGUNTAS FRECUENTES
+───────────────────────────────────────────────────────────────
+
+¿Puedo usar el NFC si no lo tengo?
+Sí, puedes seguir comprando normalmente. El cajero te buscará por nombre manualmente.
+
+¿Qué pasa si pierdo mi tarjeta/sticker?
+Contacta al administrador de sede para desactivar la tarjeta perdida y registrar una nueva.
+
+¿Puedo compartir mi tarjeta con otro profesor?
+No. Cada tarjeta está vinculada únicamente a tu cuenta. Compartirla podría causar confusión en los registros.
+
+¿Funciona con cualquier celular?
+El sticker NFC funciona con cualquier dispositivo. Solo necesitas pegarlo en tu celular o en cualquier superficie.
+
+¿Cuánto tiempo dura la tarjeta/sticker?
+Las tarjetas personalizadas duran años con uso normal. Los stickers también son duraderos si se cuidan adecuadamente.
+
+¿Puedo cambiar de sticker a tarjeta después?
+Sí, puedes solicitar el cambio. El administrador desactivará el sticker y registrará la nueva tarjeta.
+
+───────────────────────────────────────────────────────────────
+📋 PROCESO DE ADQUISICIÓN
+───────────────────────────────────────────────────────────────
+
+1. Solicita tu tarjeta/sticker NFC al administrador de sede
+2. Elige entre Sticker (S/ 3.00) o Tarjeta Personalizada (S/ 15.00)
+3. El administrador registra tu tarjeta en el sistema
+4. Recibe tu tarjeta/sticker y listo para usar
+5. ¡Disfruta de compras más rápidas y eficientes!
+
+───────────────────────────────────────────────────────────────
+🔧 REQUISITOS TÉCNICOS
+───────────────────────────────────────────────────────────────
+
+• Lector NFC USB conectado al sistema del kiosco
+• Tarjeta/sticker NFC con chip integrado
+• Registro previo en el sistema por parte del administrador
+• Conexión a internet en el kiosco (para verificar en tiempo real)
+
+═══════════════════════════════════════════════════════════════

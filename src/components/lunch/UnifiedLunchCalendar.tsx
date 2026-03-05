@@ -4,6 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/lib/supabase';
 import { useToast } from '@/hooks/use-toast';
+import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
 import {
   ChevronLeft,
@@ -142,6 +143,7 @@ export function UnifiedLunchCalendar({ userType, userId, userSchoolId }: Unified
   // Selection & Cart
   const [selectedDates, setSelectedDates] = useState<Set<string>>(new Set());
   const [cart, setCart] = useState<CartItem[]>([]);
+  const [orderComments, setOrderComments] = useState(''); // 💬 COMENTARIOS DEL PEDIDO
 
   // UI State
   const [loading, setLoading] = useState(true);
@@ -500,6 +502,10 @@ export function UnifiedLunchCalendar({ userType, userId, userSchoolId }: Unified
             addons_total: 0,
             final_price: item.price,
           };
+          // 💬 Agregar comentarios si existen
+          if (orderComments.trim()) {
+            orderData.comments = orderComments.trim();
+          }
 
           const { data: insertedOrder, error: orderError } = await supabase
             .from('lunch_orders')
@@ -996,6 +1002,18 @@ export function UnifiedLunchCalendar({ userType, userId, userSchoolId }: Unified
                   </span>
                 </div>
               ))}
+            </div>
+
+            {/* 💬 Campo de comentarios */}
+            <div className="space-y-1">
+              <label className="text-sm font-medium text-gray-700">💬 Comentarios (opcional)</label>
+              <Textarea
+                placeholder="Ej: Sin ensalada, alergia al maní, doble porción..."
+                value={orderComments}
+                onChange={(e) => setOrderComments(e.target.value)}
+                rows={2}
+                className="resize-none text-sm"
+              />
             </div>
 
             <Button

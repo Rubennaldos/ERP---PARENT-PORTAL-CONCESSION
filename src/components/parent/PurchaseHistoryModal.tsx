@@ -52,86 +52,17 @@ export const PurchaseHistoryModal = ({
     try {
       setLoading(true);
 
-      // ✅ PASO 1: Obtener school_id del estudiante para aplicar delay
-      const { data: studentData, error: studentError } = await supabase
-        .from('students')
-        .select('school_id')
-        .eq('id', studentId)
-        .single();
-
-      if (studentError) throw studentError;
-
-      // ✅ PASO 2: Obtener delay configurado para la sede
-      console.log('🔍 Buscando delay para:', {
-        studentName,
-        schoolId: studentData.school_id
-      });
-
-      const { data: delayData, error: delayError } = await supabase
-        .from('purchase_visibility_delay')
-        .select('delay_days')
-        .eq('school_id', studentData.school_id)
-        .maybeSingle();
-
-      console.log('📦 Resultado de búsqueda de delay:', {
-        studentName,
-        delayData,
-        delayError,
-        valorFinal: delayData?.delay_days ?? 2
-      });
-
-      // Si no hay configuración, usar 2 días por defecto
-      const delayDays = delayData?.delay_days ?? 2;
-      
-      // ✅ Construir query base
-      let query = supabase
+      // ✅ Sin delay — mostrar TODAS las compras en tiempo real
+      const { data: transactions, error: transError } = await supabase
         .from('transactions')
         .select('*')
         .eq('student_id', studentId)
         .eq('type', 'purchase')
-        .neq('payment_status', 'cancelled'); // No mostrar transacciones anuladas
-
-      // ✅ Solo aplicar filtro de fecha si delay > 0
-      if (delayDays > 0) {
-        const cutoffDate = new Date();
-        cutoffDate.setDate(cutoffDate.getDate() - delayDays);
-        const cutoffDateISO = cutoffDate.toISOString();
-
-        console.log('📅 Filtro de delay aplicado (Historial):', {
-          studentName,
-          schoolId: studentData.school_id,
-          delayDays,
-          hoy: new Date().toLocaleString('es-PE'),
-          cutoffDate: cutoffDate.toLocaleString('es-PE'),
-          cutoffDateISO,
-          message: `Solo compras HASTA ${cutoffDate.toLocaleDateString('es-PE')}`
-        });
-
-        query = query.lte('created_at', cutoffDateISO);
-      } else {
-        console.log('⚡ Modo EN VIVO (Historial) - Sin filtro de delay:', {
-          studentName,
-          schoolId: studentData.school_id,
-          message: 'Mostrando TODAS las compras'
-        });
-      }
-
-      // ✅ Ejecutar query
-      const { data: transactions, error: transError } = await query
+        .neq('payment_status', 'cancelled')
         .order('created_at', { ascending: false })
         .limit(50);
 
       if (transError) throw transError;
-      
-      console.log('🛒 Compras obtenidas (Historial):', {
-        studentName,
-        cantidadCompras: transactions?.length || 0,
-        compras: transactions?.map(t => ({
-          fecha: new Date(t.created_at).toLocaleString('es-PE'),
-          monto: t.amount,
-          descripcion: t.description
-        }))
-      });
 
       if (!transactions || transactions.length === 0) {
         setPurchases([]);
@@ -274,4 +205,3 @@ export const PurchaseHistoryModal = ({
     </Dialog>
   );
 };
-

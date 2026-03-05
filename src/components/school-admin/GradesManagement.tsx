@@ -755,31 +755,31 @@ export const GradesManagement = ({ schoolId }: GradesManagementProps) => {
   const studentsInSelectedLevel = students.filter(s => s.level_id === selectedLevel);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <Card className="border-2 shadow-lg">
-        <CardHeader className="bg-gradient-to-r from-blue-50 to-cyan-50 border-b-2">
-          <div className="flex justify-between items-center">
+        <CardHeader className="bg-gradient-to-r from-blue-50 to-cyan-50 border-b-2 p-4 sm:p-6">
+          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
             <div className="flex-1">
-              <CardTitle className="text-2xl flex items-center gap-3">
-                <GraduationCap className="h-7 w-7 text-blue-600" />
-                Grados y Salones Personalizables
+              <CardTitle className="text-lg sm:text-2xl flex items-center gap-2">
+                <GraduationCap className="h-5 w-5 sm:h-7 sm:w-7 text-blue-600 flex-shrink-0" />
+                Grados y Salones
               </CardTitle>
-              <CardDescription className="text-base mt-2">
-                Configura los niveles y aulas de tu sede según tu nomenclatura
+              <CardDescription className="text-xs sm:text-base mt-1">
+                Configura los niveles y aulas de tu sede
               </CardDescription>
             </div>
             
             {/* Selector de Sede para Admin General */}
             {isAdminGeneral && schools.length > 0 && (
-              <div className="w-72">
-                <Label className="text-sm font-semibold mb-2 block">Seleccionar Sede:</Label>
+              <div className="w-full sm:w-64">
+                <Label className="text-xs sm:text-sm font-semibold mb-1 block">Sede:</Label>
                 <Select value={selectedSchoolId || ''} onValueChange={setSelectedSchoolId}>
-                  <SelectTrigger className="h-11 text-base font-medium">
+                  <SelectTrigger className="h-9 sm:h-11 text-sm sm:text-base font-medium">
                     <SelectValue placeholder="Selecciona una sede" />
                   </SelectTrigger>
                   <SelectContent>
                     {schools.map((school) => (
-                      <SelectItem key={school.id} value={school.id} className="text-base">
+                      <SelectItem key={school.id} value={school.id} className="text-sm sm:text-base">
                         {school.name}
                       </SelectItem>
                     ))}
@@ -789,21 +789,21 @@ export const GradesManagement = ({ schoolId }: GradesManagementProps) => {
             )}
           </div>
         </CardHeader>
-        <CardContent className="p-6">
+        <CardContent className="p-3 sm:p-6">
           <Tabs defaultValue="levels">
-            <TabsList className={`grid w-full ${isAdminGeneral ? 'grid-cols-3' : 'grid-cols-2'} mb-6`}>
-              <TabsTrigger value="levels">
-                <GraduationCap className="h-4 w-4 mr-2" />
-                Grados/Niveles
+            <TabsList className={`grid w-full ${isAdminGeneral ? 'grid-cols-3' : 'grid-cols-2'} mb-4 sm:mb-6 h-auto`}>
+              <TabsTrigger value="levels" className="flex flex-col sm:flex-row items-center gap-1 py-2 px-1 sm:px-3 text-xs sm:text-sm">
+                <GraduationCap className="h-4 w-4" />
+                <span className="text-[10px] sm:text-sm">Grados</span>
               </TabsTrigger>
-              <TabsTrigger value="students">
-                <Users className="h-4 w-4 mr-2" />
-                Ver Estudiantes ({students.length})
+              <TabsTrigger value="students" className="flex flex-col sm:flex-row items-center gap-1 py-2 px-1 sm:px-3 text-xs sm:text-sm">
+                <Users className="h-4 w-4" />
+                <span className="text-[10px] sm:text-sm">Alumnos ({students.length})</span>
               </TabsTrigger>
               {isAdminGeneral && (
-                <TabsTrigger value="all-schools">
-                  <Building2 className="h-4 w-4 mr-2" />
-                  Todas las Sedes
+                <TabsTrigger value="all-schools" className="flex flex-col sm:flex-row items-center gap-1 py-2 px-1 sm:px-3 text-xs sm:text-sm">
+                  <Building2 className="h-4 w-4" />
+                  <span className="text-[10px] sm:text-sm">Sedes</span>
                 </TabsTrigger>
               )}
             </TabsList>
@@ -811,36 +811,33 @@ export const GradesManagement = ({ schoolId }: GradesManagementProps) => {
             {/* Tab: Grados y Aulas */}
             <TabsContent value="levels">
               {/* Explicación del funcionamiento */}
-              <div className="mb-6 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-blue-200 rounded-xl">
-                <div className="flex items-start gap-3">
-                  <School className="h-6 w-6 text-blue-600 mt-1 flex-shrink-0" />
+              <div className="mb-4 p-3 bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-blue-200 rounded-xl">
+                <div className="flex items-start gap-2">
+                  <School className="h-5 w-5 text-blue-600 mt-0.5 flex-shrink-0" />
                   <div>
-                    <h4 className="font-bold text-blue-900 mb-2">📚 ¿Cómo funciona?</h4>
-                    <p className="text-blue-800 text-sm leading-relaxed">
-                      Cada <strong>Grado/Nivel</strong> (ejemplo: "1er Grado", "Inicial 3 años") tiene sus propias <strong>Aulas/Secciones</strong> (ejemplo: "Aula A", "Aula B"). 
-                      <br />
-                      <span className="inline-block mt-2 font-semibold">
-                        👉 Selecciona un grado de la izquierda para ver y gestionar sus aulas en la derecha.
-                      </span>
+                    <h4 className="font-bold text-blue-900 mb-1 text-sm">📚 ¿Cómo funciona?</h4>
+                    <p className="text-blue-800 text-xs leading-relaxed">
+                      Cada <strong>Grado</strong> tiene sus propias <strong>Aulas</strong>. 
+                      Selecciona un grado para ver y gestionar sus aulas.
                     </p>
                   </div>
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
                 {/* Columna Izquierda: Grados */}
-                <div className="space-y-4">
+                <div className="space-y-3">
                   <div className="flex justify-between items-center bg-gradient-to-r from-blue-100 to-blue-50 p-3 rounded-lg border-2 border-blue-300">
                     <div>
-                      <h3 className="font-bold text-lg text-blue-900 flex items-center gap-2">
-                        <GraduationCap className="h-5 w-5" />
+                      <h3 className="font-bold text-sm sm:text-base text-blue-900 flex items-center gap-2">
+                        <GraduationCap className="h-4 w-4" />
                         1️⃣ Grados/Niveles
                       </h3>
-                      <p className="text-xs text-blue-700 mt-1">Haz clic para ver sus aulas →</p>
+                      <p className="text-xs text-blue-700 mt-0.5 hidden sm:block">Clic para ver aulas →</p>
                     </div>
-                    <Button onClick={() => setShowNewLevelModal(true)} size="sm" className="bg-blue-600 hover:bg-blue-700">
-                      <Plus className="h-4 w-4 mr-2" />
-                      Agregar Grado
+                    <Button onClick={() => setShowNewLevelModal(true)} size="sm" className="bg-blue-600 hover:bg-blue-700 text-xs px-2 sm:px-3">
+                      <Plus className="h-4 w-4 sm:mr-1" />
+                      <span className="hidden sm:inline">Agregar</span>
                     </Button>
                   </div>
                   <div className="space-y-2">
@@ -925,30 +922,30 @@ export const GradesManagement = ({ schoolId }: GradesManagementProps) => {
                 </div>
 
                 {/* Columna Derecha: Aulas/Secciones */}
-                <div className="space-y-4">
+                <div className="space-y-3">
                   <div className="flex justify-between items-center bg-gradient-to-r from-green-100 to-emerald-50 p-3 rounded-lg border-2 border-green-300">
                     <div>
-                      <h3 className="font-bold text-lg text-green-900 flex items-center gap-2">
-                        <Users className="h-5 w-5" />
+                      <h3 className="font-bold text-sm sm:text-base text-green-900 flex items-center gap-1 sm:gap-2 flex-wrap">
+                        <Users className="h-4 w-4" />
                         2️⃣ Aulas/Secciones
                         {selectedLevel && (
-                          <Badge className="ml-2 bg-green-600">
+                          <Badge className="ml-1 bg-green-600 text-xs">
                             {levels.find(l => l.id === selectedLevel)?.name}
                           </Badge>
                         )}
                       </h3>
                       {!selectedLevel && (
-                        <p className="text-xs text-green-700 mt-1">← Selecciona un grado primero</p>
+                        <p className="text-xs text-green-700 mt-0.5">← Selecciona un grado</p>
                       )}
                     </div>
                     <Button
                       onClick={() => setShowNewClassroomModal(true)}
                       size="sm"
                       disabled={!selectedLevel}
-                      className="bg-green-600 hover:bg-green-700 disabled:opacity-50"
+                      className="bg-green-600 hover:bg-green-700 disabled:opacity-50 text-xs px-2 sm:px-3"
                     >
-                      <Plus className="h-4 w-4 mr-2" />
-                      Agregar Aula
+                      <Plus className="h-4 w-4 sm:mr-1" />
+                      <span className="hidden sm:inline">Agregar</span>
                     </Button>
                   </div>
                   {selectedLevel ? (
@@ -1022,11 +1019,11 @@ export const GradesManagement = ({ schoolId }: GradesManagementProps) => {
                       )}
                     </div>
                   ) : (
-                    <div className="text-center py-12 bg-gradient-to-br from-amber-50 to-orange-50 rounded-xl border-2 border-dashed border-amber-300">
-                      <GraduationCap className="h-16 w-16 text-amber-400 mx-auto mb-4" />
-                      <p className="text-amber-900 font-bold text-lg mb-2">👈 Selecciona un grado primero</p>
-                      <p className="text-amber-700 text-sm">
-                        Haz clic en un grado de la columna izquierda para ver sus aulas
+                    <div className="text-center py-8 bg-gradient-to-br from-amber-50 to-orange-50 rounded-xl border-2 border-dashed border-amber-300">
+                      <GraduationCap className="h-10 w-10 sm:h-16 sm:w-16 text-amber-400 mx-auto mb-3" />
+                      <p className="text-amber-900 font-bold text-sm sm:text-base mb-1">👈 Selecciona un grado</p>
+                      <p className="text-amber-700 text-xs hidden sm:block">
+                        Haz clic en un grado de la izquierda para ver sus aulas
                       </p>
                     </div>
                   )}
@@ -1036,50 +1033,50 @@ export const GradesManagement = ({ schoolId }: GradesManagementProps) => {
 
             {/* Tab: Ver Estudiantes */}
             <TabsContent value="students">
-                <div className="space-y-4">
+                <div className="space-y-3">
                   <div className="flex justify-between items-center">
-                    <h3 className="font-bold text-lg">
-                      {isAdminGeneral ? 'Estudiantes de Mi Sede' : 'Todos los Estudiantes de esta Sede'}
+                    <h3 className="font-bold text-sm sm:text-base">
+                      {isAdminGeneral ? 'Estudiantes de Mi Sede' : 'Estudiantes de esta Sede'}
                     </h3>
-                    <Badge variant="outline">{filterStudents(students).length} de {students.length} estudiantes</Badge>
+                    <Badge variant="outline" className="text-xs">{filterStudents(students).length}/{students.length}</Badge>
                   </div>
                   
                   {/* Filtros de Búsqueda */}
                   <Card className="border-2 border-blue-200 bg-blue-50/50">
-                    <CardContent className="p-4">
-                      <div className="flex items-center gap-2 mb-3">
-                        <Search className="h-5 w-5 text-blue-600" />
-                        <h4 className="font-semibold text-blue-900">Buscar Estudiantes</h4>
+                    <CardContent className="p-3">
+                      <div className="flex items-center gap-2 mb-2">
+                        <Search className="h-4 w-4 text-blue-600" />
+                        <h4 className="font-semibold text-blue-900 text-sm">Buscar Estudiantes</h4>
                       </div>
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                         <div className="space-y-1">
-                          <Label htmlFor="search-name" className="text-xs text-gray-700">Nombre del Estudiante</Label>
+                          <Label htmlFor="search-name" className="text-xs text-gray-700">Nombre</Label>
                           <Input
                             id="search-name"
                             placeholder="Ej: Juan Pérez"
                             value={searchName}
                             onChange={(e) => setSearchName(e.target.value)}
-                            className="h-9"
+                            className="h-8 text-sm"
                           />
                         </div>
                         <div className="space-y-1">
                           <Label htmlFor="search-grade" className="text-xs text-gray-700">Grado/Nivel</Label>
                           <Input
                             id="search-grade"
-                            placeholder="Ej: little"
+                            placeholder="Ej: 1er Grado"
                             value={searchGrade}
                             onChange={(e) => setSearchGrade(e.target.value)}
-                            className="h-9"
+                            className="h-8 text-sm"
                           />
                         </div>
                         <div className="space-y-1">
                           <Label htmlFor="search-classroom" className="text-xs text-gray-700">Aula/Sección</Label>
                           <Input
                             id="search-classroom"
-                            placeholder="Ej: geoge"
+                            placeholder="Ej: Aula A"
                             value={searchClassroom}
                             onChange={(e) => setSearchClassroom(e.target.value)}
-                            className="h-9"
+                            className="h-8 text-sm"
                           />
                         </div>
                       </div>
@@ -1101,16 +1098,16 @@ export const GradesManagement = ({ schoolId }: GradesManagementProps) => {
                     </CardContent>
                   </Card>
                   
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-3">
                     {filterStudents(students).map((student) => {
                       const level = levels.find(l => l.id === student.level_id);
                       const classroom = classrooms.find(c => c.id === student.classroom_id);
                       
                       return (
                         <Card key={student.id} className="border">
-                          <CardContent className="p-4">
-                            <p className="font-semibold">{student.full_name}</p>
-                            <div className="flex gap-2 mt-2">
+                          <CardContent className="p-3">
+                            <p className="font-semibold text-sm">{student.full_name}</p>
+                            <div className="flex gap-1 mt-1 flex-wrap">
                               <Badge variant="secondary" className="text-xs">
                                 {level?.name || student.grade || 'Sin grado'}
                               </Badge>
@@ -1129,52 +1126,52 @@ export const GradesManagement = ({ schoolId }: GradesManagementProps) => {
             {/* Tab: Todas las Sedes (Solo Admin General) */}
             {isAdminGeneral && (
               <TabsContent value="all-schools">
-                <div className="space-y-6">
-                  <div className="flex justify-between items-center mb-4">
-                    <h3 className="font-bold text-xl">Estudiantes por Sede</h3>
-                    <Badge variant="outline" className="text-base">
+                <div className="space-y-4">
+                  <div className="flex justify-between items-center">
+                    <h3 className="font-bold text-sm sm:text-base">Estudiantes por Sede</h3>
+                    <Badge variant="outline" className="text-xs">
                       {allSchoolsStudents.reduce((acc, school) => 
                         acc + filterStudents(school.students).length, 0
-                      )} de {allSchoolsStudents.reduce((acc, school) => acc + school.students.length, 0)} estudiantes totales
+                      )}/{allSchoolsStudents.reduce((acc, school) => acc + school.students.length, 0)} alumnos
                     </Badge>
                   </div>
                   
                   {/* Filtros de Búsqueda Global */}
                   <Card className="border-2 border-purple-200 bg-purple-50/50">
-                    <CardContent className="p-4">
-                      <div className="flex items-center gap-2 mb-3">
-                        <Search className="h-5 w-5 text-purple-600" />
-                        <h4 className="font-semibold text-purple-900">Buscar en Todas las Sedes</h4>
+                    <CardContent className="p-3">
+                      <div className="flex items-center gap-2 mb-2">
+                        <Search className="h-4 w-4 text-purple-600" />
+                        <h4 className="font-semibold text-purple-900 text-sm">Buscar en Todas las Sedes</h4>
                       </div>
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                         <div className="space-y-1">
-                          <Label htmlFor="search-name-all" className="text-xs text-gray-700">Nombre del Estudiante</Label>
+                          <Label htmlFor="search-name-all" className="text-xs text-gray-700">Nombre</Label>
                           <Input
                             id="search-name-all"
                             placeholder="Ej: Juan Pérez"
                             value={searchName}
                             onChange={(e) => setSearchName(e.target.value)}
-                            className="h-9"
+                            className="h-8 text-sm"
                           />
                         </div>
                         <div className="space-y-1">
                           <Label htmlFor="search-grade-all" className="text-xs text-gray-700">Grado/Nivel</Label>
                           <Input
                             id="search-grade-all"
-                            placeholder="Ej: little"
+                            placeholder="Ej: 1er Grado"
                             value={searchGrade}
                             onChange={(e) => setSearchGrade(e.target.value)}
-                            className="h-9"
+                            className="h-8 text-sm"
                           />
                         </div>
                         <div className="space-y-1">
                           <Label htmlFor="search-classroom-all" className="text-xs text-gray-700">Aula/Sección</Label>
                           <Input
                             id="search-classroom-all"
-                            placeholder="Ej: geoge"
+                            placeholder="Ej: Aula A"
                             value={searchClassroom}
                             onChange={(e) => setSearchClassroom(e.target.value)}
-                            className="h-9"
+                            className="h-8 text-sm"
                           />
                         </div>
                       </div>
@@ -1199,43 +1196,43 @@ export const GradesManagement = ({ schoolId }: GradesManagementProps) => {
                   {allSchoolsStudents.map((school) => {
                     const filteredSchoolStudents = filterStudents(school.students);
                     if (filteredSchoolStudents.length === 0 && (searchName || searchGrade || searchClassroom)) {
-                      return null; // No mostrar sedes sin resultados cuando hay filtros activos
+                      return null;
                     }
                     
                     return (
                     <Card key={school.id} className="border-2 shadow-md">
-                      <CardHeader className="bg-gradient-to-r from-purple-50 to-pink-50 border-b-2">
+                      <CardHeader className="bg-gradient-to-r from-purple-50 to-pink-50 border-b-2 p-3 sm:p-4">
                         <div className="flex justify-between items-center">
-                          <CardTitle className="flex items-center gap-2 text-xl">
-                            <Building2 className="h-6 w-6 text-purple-600" />
+                          <CardTitle className="flex items-center gap-2 text-sm sm:text-lg">
+                            <Building2 className="h-4 w-4 sm:h-5 sm:w-5 text-purple-600" />
                             {school.name}
                           </CardTitle>
-                          <Badge variant="secondary" className="text-base">
-                            {filteredSchoolStudents.length} {filteredSchoolStudents.length !== school.students.length && `de ${school.students.length}`} estudiantes
+                          <Badge variant="secondary" className="text-xs">
+                            {filteredSchoolStudents.length} {filteredSchoolStudents.length !== school.students.length && `de ${school.students.length}`}
                           </Badge>
                         </div>
                       </CardHeader>
-                      <CardContent className="p-6">
+                      <CardContent className="p-3 sm:p-4">
                         {filteredSchoolStudents.length > 0 ? (
-                          <div className="rounded-lg border overflow-hidden">
+                          <div className="rounded-lg border overflow-x-auto">
                             <Table>
                               <TableHeader>
                                 <TableRow className="bg-gray-50">
-                                  <TableHead className="font-bold">Nombre Completo</TableHead>
-                                  <TableHead className="font-bold">Grado/Nivel</TableHead>
-                                  <TableHead className="font-bold">Aula/Sección</TableHead>
+                                  <TableHead className="font-bold text-xs sm:text-sm whitespace-nowrap">Nombre</TableHead>
+                                  <TableHead className="font-bold text-xs sm:text-sm whitespace-nowrap">Grado</TableHead>
+                                  <TableHead className="font-bold text-xs sm:text-sm whitespace-nowrap">Aula</TableHead>
                                 </TableRow>
                               </TableHeader>
                               <TableBody>
                                 {filteredSchoolStudents.map((student) => (
                                   <TableRow key={student.id} className="hover:bg-gray-50">
-                                    <TableCell className="font-medium">{student.full_name}</TableCell>
-                                    <TableCell>
+                                    <TableCell className="font-medium text-xs sm:text-sm py-2">{student.full_name}</TableCell>
+                                    <TableCell className="py-2">
                                       <Badge variant="secondary" className="text-xs">
                                         {student.grade || 'Sin grado'}
                                       </Badge>
                                     </TableCell>
-                                    <TableCell>
+                                    <TableCell className="py-2">
                                       <Badge variant="outline" className="text-xs">
                                         {student.section || 'Sin aula'}
                                       </Badge>
@@ -1246,9 +1243,9 @@ export const GradesManagement = ({ schoolId }: GradesManagementProps) => {
                             </Table>
                           </div>
                         ) : (
-                          <div className="text-center py-8 text-muted-foreground">
-                            <Users className="h-12 w-12 mx-auto mb-2 opacity-30" />
-                            <p>No hay estudiantes registrados en esta sede</p>
+                          <div className="text-center py-6 text-muted-foreground">
+                            <Users className="h-8 w-8 mx-auto mb-2 opacity-30" />
+                            <p className="text-sm">No hay estudiantes registrados en esta sede</p>
                           </div>
                         )}
                       </CardContent>

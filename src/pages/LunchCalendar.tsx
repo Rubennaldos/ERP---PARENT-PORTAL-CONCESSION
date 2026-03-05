@@ -195,13 +195,16 @@ const LunchCalendar = () => {
           }
         });
 
-        setCanCreate(permMap.get('crear_menu') || false);
-        setCanEdit(permMap.get('editar_menu') || false);
-        setCanDelete(permMap.get('eliminar_menu') || false);
-        setCanMassUpload(permMap.get('carga_masiva') || false);
-        setCanManageSpecialDays(permMap.get('gestionar_dias_especiales') || false);
-        setCanExport(permMap.get('exportar') || false);
-        setCanViewAllSchools(permMap.get('ver_todas_sedes') || false);
+        // Roles con acceso total por defecto (sin necesitar filas en role_permissions)
+        const isFullAdmin = ['superadmin', 'admin_general', 'supervisor_red'].includes(profile.role);
+
+        setCanCreate(permMap.get('crear_menu') || isFullAdmin);
+        setCanEdit(permMap.get('editar_menu') || isFullAdmin);
+        setCanDelete(permMap.get('eliminar_menu') || isFullAdmin);
+        setCanMassUpload(permMap.get('carga_masiva') || isFullAdmin);
+        setCanManageSpecialDays(permMap.get('gestionar_dias_especiales') || isFullAdmin);
+        setCanExport(permMap.get('exportar') || isFullAdmin);
+        setCanViewAllSchools(permMap.get('ver_todas_sedes') || isFullAdmin);
 
       } catch (error) {
         console.error('Error loading permissions:', error);
@@ -481,51 +484,65 @@ const LunchCalendar = () => {
               </div>
             </div>
 
-            {/* Botones de acción - Responsive */}
-            <div className="flex items-center gap-1 sm:gap-2 overflow-x-auto pb-2 sm:pb-0">
+            {/* Botones de acción — desktop: en línea, móvil: dropdown */}
+            <div className="flex items-center gap-1.5">
+              {/* Botones visibles en sm+ */}
               {canExport && (
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  onClick={handleExport}
-                  className="h-7 sm:h-9 text-xs px-2 sm:px-3 shrink-0"
-                >
-                  <Download className="h-3 w-3 sm:h-4 sm:w-4 sm:mr-2" />
+                <Button variant="outline" size="sm" onClick={handleExport}
+                  className="hidden sm:flex h-8 text-xs px-2.5 gap-1.5">
+                  <Download className="h-3.5 w-3.5" />
                   <span className="hidden md:inline">Exportar</span>
                 </Button>
               )}
               {canMassUpload && (
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  onClick={() => setIsMassUploadModalOpen(true)}
-                  className="h-7 sm:h-9 text-xs px-2 sm:px-3 shrink-0"
-                >
-                  <Upload className="h-3 w-3 sm:h-4 sm:w-4 sm:mr-2" />
-                  <span className="hidden md:inline">Carga Masiva</span>
+                <Button variant="outline" size="sm" onClick={() => setIsMassUploadModalOpen(true)}
+                  className="hidden sm:flex h-8 text-xs px-2.5 gap-1.5">
+                  <Upload className="h-3.5 w-3.5" />
+                  <span className="hidden md:inline">Carga masiva</span>
                 </Button>
               )}
               {canCreate && (
                 <>
-                  <Button 
-                    size="sm" 
-                    variant="outline" 
-                    onClick={() => setIsCategoryManagerOpen(true)}
-                    className="h-7 sm:h-9 text-xs px-2 sm:px-3 shrink-0"
-                  >
-                    <Tag className="h-3 w-3 sm:h-4 sm:w-4 sm:mr-2" />
-                    <span className="hidden lg:inline">Categorías</span>
+                  <Button variant="outline" size="sm" onClick={() => setIsCategoryManagerOpen(true)}
+                    className="hidden md:flex h-8 text-xs px-2.5 gap-1.5">
+                    <Tag className="h-3.5 w-3.5" />
+                    Categorías
                   </Button>
-                  <Button 
-                    size="sm" 
-                    onClick={handleCreateMenu}
-                    className="h-7 sm:h-9 text-xs px-2 sm:px-3 shrink-0 bg-green-600 hover:bg-green-700"
-                  >
-                    <Plus className="h-3 w-3 sm:h-4 sm:w-4 sm:mr-2" />
-                    <span className="hidden sm:inline">Nuevo Menú</span>
+                  <Button size="sm" onClick={handleCreateMenu}
+                    className="h-8 text-xs px-3 bg-green-600 hover:bg-green-700 gap-1.5">
+                    <Plus className="h-3.5 w-3.5" />
+                    <span className="hidden sm:inline">Nuevo menú</span>
                     <span className="sm:hidden">Nuevo</span>
                   </Button>
                 </>
+              )}
+
+              {/* Menú "más opciones" solo en móvil */}
+              {(canExport || canMassUpload || canCreate) && (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" size="sm" className="sm:hidden h-8 w-8 p-0">
+                      <MoreVertical className="h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-44">
+                    {canCreate && (
+                      <DropdownMenuItem onClick={() => setIsCategoryManagerOpen(true)}>
+                        <Tag className="h-4 w-4 mr-2" /> Categorías
+                      </DropdownMenuItem>
+                    )}
+                    {canMassUpload && (
+                      <DropdownMenuItem onClick={() => setIsMassUploadModalOpen(true)}>
+                        <Upload className="h-4 w-4 mr-2" /> Carga masiva
+                      </DropdownMenuItem>
+                    )}
+                    {canExport && (
+                      <DropdownMenuItem onClick={handleExport}>
+                        <Download className="h-4 w-4 mr-2" /> Exportar
+                      </DropdownMenuItem>
+                    )}
+                  </DropdownMenuContent>
+                </DropdownMenu>
               )}
             </div>
           </div>
@@ -535,22 +552,22 @@ const LunchCalendar = () => {
       <main className="container mx-auto px-2 sm:px-4 py-4 sm:py-8">
         <Tabs defaultValue="calendar" className="w-full">
           {/* Tabs responsive */}
-          <TabsList className="grid w-full grid-cols-4 mb-4 sm:mb-6 h-auto">
-            <TabsTrigger value="calendar" className="text-[10px] sm:text-sm py-2 sm:py-3 px-1 sm:px-3">
-              <span className="hidden sm:inline">📅 Calendario</span>
-              <span className="sm:hidden">📅</span>
+          <TabsList className="grid w-full grid-cols-4 mb-4 sm:mb-6 h-9 sm:h-10">
+            <TabsTrigger value="calendar" className="text-[10px] sm:text-xs font-medium px-1 sm:px-3 gap-1">
+              <span>📅</span>
+              <span className="hidden xs:inline sm:inline">Calendario</span>
             </TabsTrigger>
-            <TabsTrigger value="orders" className="text-[10px] sm:text-sm py-2 sm:py-3 px-1 sm:px-3">
-              <span className="hidden sm:inline">🍽️ Pedidos</span>
-              <span className="sm:hidden">🍽️</span>
+            <TabsTrigger value="orders" className="text-[10px] sm:text-xs font-medium px-1 sm:px-3 gap-1">
+              <span>🍽️</span>
+              <span className="hidden xs:inline sm:inline">Pedidos</span>
             </TabsTrigger>
-            <TabsTrigger value="analytics" className="text-[10px] sm:text-sm py-2 sm:py-3 px-1 sm:px-3">
-              <span className="hidden sm:inline">📊 Analytics</span>
-              <span className="sm:hidden">📊</span>
+            <TabsTrigger value="analytics" className="text-[10px] sm:text-xs font-medium px-1 sm:px-3 gap-1">
+              <span>📊</span>
+              <span className="hidden xs:inline sm:inline">Analytics</span>
             </TabsTrigger>
-            <TabsTrigger value="config" className="text-[10px] sm:text-sm py-2 sm:py-3 px-1 sm:px-3">
-              <span className="hidden sm:inline">⚙️ Config</span>
-              <span className="sm:hidden">⚙️</span>
+            <TabsTrigger value="config" className="text-[10px] sm:text-xs font-medium px-1 sm:px-3 gap-1">
+              <span>⚙️</span>
+              <span className="hidden xs:inline sm:inline">Config</span>
             </TabsTrigger>
           </TabsList>
 

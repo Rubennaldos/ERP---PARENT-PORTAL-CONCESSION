@@ -3,6 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import { Card } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { supabase } from '@/lib/supabase';
@@ -57,6 +58,7 @@ export function PhysicalOrderWizard({ isOpen, onClose, schoolId, selectedDate, o
   const [selectedMenu, setSelectedMenu] = useState<LunchMenu | null>(null);
   const [quantity, setQuantity] = useState(1); // 🆕 CANTIDAD DE MENÚS
   const [existingOrders, setExistingOrders] = useState<any[]>([]); // 🆕 PEDIDOS EXISTENTES
+  const [orderComments, setOrderComments] = useState(''); // 💬 COMENTARIOS DEL PEDIDO
   const [cashPaymentMethod, setCashPaymentMethod] = useState<'efectivo' | 'tarjeta' | 'yape' | 'transferencia' | null>(null);
   
   // Detalles de pago
@@ -90,6 +92,7 @@ export function PhysicalOrderWizard({ isOpen, onClose, schoolId, selectedDate, o
     setSelectedMenu(null);
     setQuantity(1); // 🆕 RESETEAR CANTIDAD
     setExistingOrders([]); // 🆕 LIMPIAR PEDIDOS EXISTENTES
+    setOrderComments(''); // 💬 LIMPIAR COMENTARIOS
     setCashPaymentMethod(null);
     setPaymentDetails({
       currency: 'soles',
@@ -496,13 +499,19 @@ export function PhysicalOrderWizard({ isOpen, onClose, schoolId, selectedDate, o
         const newQuantity = (existingOrderForCategory.quantity || 1) + quantity;
         const newFinalPrice = (selectedCategory.price || 0) * newQuantity;
 
-        const { error: updateError } = await supabase
-          .from('lunch_orders')
-          .update({
+        const updatePayload: any = {
             quantity: newQuantity,
             final_price: newFinalPrice,
             menu_id: selectedMenu.id, // Actualizar al menú más reciente
-          })
+          };
+        // 💬 Si hay comentarios nuevos, agregarlos o concatenar con los existentes
+        if (orderComments.trim()) {
+          updatePayload.comments = orderComments.trim();
+        }
+
+        const { error: updateError } = await supabase
+          .from('lunch_orders')
+          .update(updatePayload)
           .eq('id', existingOrderForCategory.id);
 
         if (updateError) throw updateError;
@@ -521,6 +530,11 @@ export function PhysicalOrderWizard({ isOpen, onClose, schoolId, selectedDate, o
           base_price: selectedCategory.price || 0,
           final_price: totalPrice,
         };
+
+        // 💬 Agregar comentarios si existen
+        if (orderComments.trim()) {
+          orderData.comments = orderComments.trim();
+        }
 
         if (paymentType === 'credit') {
           if (targetType === 'students') {
@@ -1184,6 +1198,18 @@ export function PhysicalOrderWizard({ isOpen, onClose, schoolId, selectedDate, o
               </div>
             </div>
 
+            {/* 💬 Campo de comentarios */}
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">💬 Comentarios (opcional)</Label>
+              <Textarea
+                placeholder="Ej: Sin ensalada, alergia al maní, doble porción de arroz..."
+                value={orderComments}
+                onChange={(e) => setOrderComments(e.target.value)}
+                rows={2}
+                className="resize-none"
+              />
+            </div>
+
             <div className="flex justify-between gap-2 pt-4">
               <Button variant="outline" onClick={() => setStep(5)}>
                 <ArrowLeft className="mr-2 h-4 w-4" /> Atrás
@@ -1256,6 +1282,18 @@ export function PhysicalOrderWizard({ isOpen, onClose, schoolId, selectedDate, o
                   </p>
                 </div>
               </div>
+            </div>
+
+            {/* 💬 Campo de comentarios */}
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">💬 Comentarios (opcional)</Label>
+              <Textarea
+                placeholder="Ej: Sin ensalada, alergia al maní, doble porción de arroz..."
+                value={orderComments}
+                onChange={(e) => setOrderComments(e.target.value)}
+                rows={2}
+                className="resize-none"
+              />
             </div>
 
             <div className="flex justify-between gap-2 pt-4">

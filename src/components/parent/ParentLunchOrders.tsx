@@ -31,6 +31,7 @@ interface LunchOrder {
   cancellation_reason: string | null;
   postponement_reason: string | null;
   is_no_order_delivery: boolean;
+  comments?: string | null; // 💬 Comentarios del pedido
   student: {
     id: string;
     full_name: string;
@@ -96,6 +97,7 @@ export function ParentLunchOrders({ parentId }: ParentLunchOrdersProps) {
           cancellation_reason,
           postponement_reason,
           is_no_order_delivery,
+          comments,
           student:students!lunch_orders_student_id_fkey (
             id,
             full_name,
@@ -400,6 +402,17 @@ export function ParentLunchOrders({ parentId }: ParentLunchOrdersProps) {
                         {order.menu.notes}
                       </p>
                     )}
+                  </div>
+                )}
+
+                {/* 💬 Comentarios del pedido */}
+                {order.comments && (
+                  <div className="px-2 sm:px-3 md:px-4 pb-1">
+                    <div className="bg-amber-50 border border-amber-200 rounded p-2">
+                      <p className="text-[9px] sm:text-[10px] md:text-xs text-amber-700 font-medium">
+                        💬 {order.comments}
+                      </p>
+                    </div>
                   </div>
                 )}
 

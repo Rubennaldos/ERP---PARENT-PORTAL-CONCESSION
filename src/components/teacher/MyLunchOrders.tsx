@@ -16,6 +16,7 @@ interface LunchOrder {
   category_id: string | null;
   delivered_by?: string | null;
   delivered_at?: string | null;
+  comments?: string | null; // 💬 Comentarios del pedido
   lunch_menus: {
     starter: string | null;
     main_course: string;
@@ -68,6 +69,7 @@ export function MyLunchOrders({ teacherId }: MyLunchOrdersProps) {
           category_id,
           delivered_by,
           delivered_at,
+          comments,
           lunch_menus (
             starter,
             main_course,
@@ -228,6 +230,13 @@ export function MyLunchOrders({ teacherId }: MyLunchOrdersProps) {
                   </div>
                 )}
               </div>
+
+              {/* 💬 Comentarios del pedido */}
+              {order.comments && (
+                <div className="bg-amber-50 border border-amber-200 rounded-lg p-2 mt-1">
+                  <p className="text-xs text-amber-700 font-medium">💬 {order.comments}</p>
+                </div>
+              )}
 
               {/* Fecha de pedido y ticket */}
               <div className="pt-2 border-t">

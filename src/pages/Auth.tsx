@@ -79,40 +79,33 @@ export default function Auth() {
     
     try {
       if (isRegisterMode) {
-        console.log('📝 Llamando a signUp()...');
         const { data, error } = await signUp(email, password, { 
           role: selectedRole,
           full_name: '', // Se completará en el onboarding
         });
         
-        console.log('📦 RESPUESTA DE SUPABASE:');
-        console.log('   - data:', data);
-        console.log('   - error:', error);
-        console.log('   - user:', data?.user);
-        console.log('   - session:', data?.session);
-        
         if (error) {
-          console.log('❌ ERROR EN SIGNUP:', error);
           throw error;
         }
 
-        if (data.user && !data.session) {
-          console.log('📧 Usuario creado pero necesita confirmar email');
+        if (data.user && data.session) {
+          // ✅ Sesión activa — el usuario entra directo al portal
+          toast({ 
+            title: '✅ ¡Bienvenido!', 
+            description: 'Tu cuenta ha sido creada. Accediendo al portal...' 
+          });
+          // El useEffect de arriba detectará user+role y navegará automáticamente
+        } else if (data.user && !data.session) {
+          // Fallback: Supabase requiere confirmación de email y no se pudo saltear
           toast({
-            title: '📧 Revisa tu correo',
-            description: 'Te hemos enviado un link para confirmar tu cuenta.',
+            title: '⚠️ Se necesita confirmación de email',
+            description: 'Contacta al administrador para activar tu cuenta.',
             duration: 10000,
           });
           setIsRegisterMode(false);
           setEmail('');
           setPassword('');
           setConfirmPassword('');
-        } else {
-          console.log('✅ Usuario creado con sesión activa');
-          toast({ 
-            title: '✅ Cuenta creada', 
-            description: 'Bienvenido al portal.' 
-          });
         }
       } else {
         console.log('🔑 Llamando a signIn()...');
@@ -122,12 +115,11 @@ export default function Auth() {
         console.log('   - error:', error);
         
         if (error) {
-          console.log('❌ ERROR EN LOGIN:', error);
           if (error.message.includes('Email not confirmed')) {
             toast({
               variant: 'destructive',
-              title: 'Email no confirmado',
-              description: 'Por favor, confirma tu email desde el enlace que te enviamos.',
+              title: 'Cuenta pendiente de activación',
+              description: 'Tu cuenta aún no ha sido activada. Contacta al administrador.',
             });
           } else if (error.message.includes('Invalid login credentials')) {
             toast({

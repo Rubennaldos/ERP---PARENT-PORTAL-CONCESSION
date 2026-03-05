@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Textarea } from '@/components/ui/textarea';
 import { supabase } from '@/lib/supabase';
 import { useToast } from '@/hooks/use-toast';
 import { 
@@ -101,6 +102,7 @@ export function OrderLunchMenus({ userType, userId, userSchoolId }: OrderLunchMe
 
   // ⏰ Estado para configuración de hora límite
   const [lunchConfig, setLunchConfig] = useState<{ order_deadline_time?: string; order_deadline_days?: number } | null>(null);
+  const [orderComments, setOrderComments] = useState(''); // 💬 COMENTARIOS DEL PEDIDO
 
   // Cargar estudiantes (solo para padres)
   useEffect(() => {
@@ -450,6 +452,11 @@ export function OrderLunchMenus({ userType, userId, userSchoolId }: OrderLunchMe
         addons_total: addonsPrice,
         final_price: totalPrice,
       };
+
+      // 💬 Agregar comentarios si existen
+      if (orderComments.trim()) {
+        orderData.comments = orderComments.trim();
+      }
 
       if (userType === 'parent') {
         orderData.student_id = studentId;
@@ -871,6 +878,18 @@ export function OrderLunchMenus({ userType, userId, userSchoolId }: OrderLunchMe
                   )}
                 </div>
               ) : null}
+
+              {/* 💬 Campo de comentarios */}
+              <div className="space-y-1 border-t pt-3">
+                <label className="text-sm font-medium text-gray-700">💬 Comentarios (opcional)</label>
+                <Textarea
+                  placeholder="Ej: Sin ensalada, alergia al maní, doble porción de arroz..."
+                  value={orderComments}
+                  onChange={(e) => setOrderComments(e.target.value)}
+                  rows={2}
+                  className="resize-none text-sm"
+                />
+              </div>
             </div>
           )}
 

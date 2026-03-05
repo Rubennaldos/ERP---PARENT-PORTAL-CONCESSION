@@ -228,14 +228,19 @@ export const LunchMenuModal = ({
     setLoading(true);
     try {
       // 1. Guardar platos en la librería para futuro autocomplete (solo si NO es producto de cocina)
+      // NOTA: se ignoran errores si la función aún no existe en la BD
       if (!isKitchenProduct) {
-        const libraryPromises = [
-          supabase.rpc('upsert_lunch_item', { p_type: 'entrada', p_name: formData.starter.trim() }),
-          supabase.rpc('upsert_lunch_item', { p_type: 'segundo', p_name: formData.main_course.trim() }),
-          supabase.rpc('upsert_lunch_item', { p_type: 'bebida', p_name: formData.beverage.trim() }),
-          supabase.rpc('upsert_lunch_item', { p_type: 'postre', p_name: formData.dessert.trim() }),
-        ];
-        await Promise.all(libraryPromises);
+        try {
+          const libraryPromises = [
+            formData.starter?.trim() && supabase.rpc('upsert_lunch_item', { p_type: 'entrada', p_name: formData.starter.trim() }),
+            formData.main_course?.trim() && supabase.rpc('upsert_lunch_item', { p_type: 'segundo', p_name: formData.main_course.trim() }),
+            formData.beverage?.trim() && supabase.rpc('upsert_lunch_item', { p_type: 'bebida', p_name: formData.beverage.trim() }),
+            formData.dessert?.trim() && supabase.rpc('upsert_lunch_item', { p_type: 'postre', p_name: formData.dessert.trim() }),
+          ].filter(Boolean);
+          await Promise.allSettled(libraryPromises);
+        } catch (_) {
+          // Ignorar errores de librería — no afectan el guardado del menú
+        }
       }
 
       // 2. Guardar el menú/producto

@@ -85,11 +85,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signUp = async (email: string, password: string, metadata: any = {}) => {
-    // Debug logs comentados para mejorar performance
-    // console.log('🔵 AuthContext.signUp() - INICIO');
-    
     if (!supabase) {
-      // console.log('❌ AuthContext: Supabase NO configurado');
       return {
         data: { user: null, session: null },
         error: {
@@ -100,20 +96,38 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       };
     }
 
-    // Redirigir a la raíz del portal después de confirmar email
-    const redirectUrl = `${window.location.origin}/`;
-
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
-        emailRedirectTo: redirectUrl,
+        emailRedirectTo: undefined, // Sin redirección por email
         data: metadata, // Guardar rol y otros datos en user_metadata
       },
     });
     
-    // Debug logs comentados para mejorar performance
-    // console.log('🔵 Respuesta de Supabase:', { data, error });
+    if (error) return { data: { user: null, session: null }, error };
+
+    // ✅ Si Supabase devolvió usuario pero sin sesión (email confirmation activo),
+    // intentamos hacer signIn automático para saltarnos la confirmación de email.
+    if (data.user && !data.session) {
+      const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (!signInError && signInData.session) {
+        // ✅ Login automático exitoso — el usuario entra directo al sistema
+        return {
+          data: {
+            user: signInData.user,
+            session: signInData.session,
+          },
+          error: null,
+        };
+      }
+      // Si el signIn falla (email confirmation estricto en Supabase),
+      // devolvemos el estado original para que Auth.tsx maneje el mensaje.
+    }
     
     return { data, error };
   };

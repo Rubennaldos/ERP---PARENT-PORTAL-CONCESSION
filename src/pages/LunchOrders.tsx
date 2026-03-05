@@ -89,6 +89,7 @@ interface LunchOrder {
     addon_price: number;
     quantity: number;
   }>;
+  comments?: string | null; // 💬 Comentarios del pedido
 }
 
 interface School {
@@ -431,6 +432,7 @@ export default function LunchOrders() {
         .from('lunch_orders')
         .select(`
           *,
+          comments,
           school:schools!lunch_orders_school_id_fkey (
             name,
             code
@@ -1510,8 +1512,11 @@ export default function LunchOrders() {
           menuDetails = '-';
         }
         
-        // 📝 Observaciones
-        const notes = order.lunch_menus?.notes || order.cancellation_reason || order.postponement_reason || '-';
+        // 📝 Observaciones (notas del menú + comentarios del pedido)
+        const menuNotes = order.lunch_menus?.notes || '';
+        const orderComments = order.comments || '';
+        const cancellation = order.cancellation_reason || order.postponement_reason || '';
+        const notes = [menuNotes, orderComments, cancellation].filter(Boolean).join(' | ') || '-';
         
         // 📱 Origen del pedido (por qué medio lo hizo)
         let origin = 'Desconocido';
@@ -1633,41 +1638,33 @@ export default function LunchOrders() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-2">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900 flex items-center gap-3">
-            <UtensilsCrossed className="h-6 w-6 text-blue-600" />
+          <h2 className="text-base sm:text-lg font-semibold text-gray-900 flex items-center gap-2">
+            <UtensilsCrossed className="h-4 w-4 sm:h-5 sm:w-5 text-blue-600" />
             Gestión de Pedidos
           </h2>
-          <p className="text-gray-600">Gestiona las entregas de almuerzos del día</p>
+          <p className="text-xs text-gray-500 hidden sm:block">Gestiona las entregas de almuerzos del día</p>
         </div>
-
-        <div className="flex gap-2">
-          {/* Botón de Exportar PDF */}
-          <Button
-            variant="outline"
-            onClick={exportToPDF}
-            disabled={filteredOrders.length === 0}
-            className="gap-2"
-          >
-            <Download className="h-4 w-4" />
-            Exportar PDF
-          </Button>
-        </div>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={exportToPDF}
+          disabled={filteredOrders.length === 0}
+          className="h-8 text-xs gap-1.5 shrink-0"
+        >
+          <Download className="h-3.5 w-3.5" />
+          <span className="hidden sm:inline">Exportar PDF</span>
+          <span className="sm:hidden">PDF</span>
+        </Button>
       </div>
 
       {/* Filters */}
       <Card>
-        <CardHeader>
-          <CardTitle className="text-lg flex items-center gap-2">
-            <Filter className="h-5 w-5" />
-            Filtros
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
+        <CardContent className="p-3 sm:p-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-6 gap-3">
             {/* Filtro de Fecha/Rango - ocupa 2 columnas */}
             <div className="md:col-span-2">
               <label className="text-sm font-medium mb-2 block">
@@ -1830,26 +1827,28 @@ export default function LunchOrders() {
                   key={order.id}
                   onClick={() => order.lunch_menus && handleViewMenu(order)}
                   className={cn(
-                    "flex items-center justify-between p-4 border rounded-lg transition-colors",
-                    order.lunch_menus && "cursor-pointer hover:bg-blue-50 hover:border-blue-300"
+                    "p-3 sm:p-4 border rounded-xl transition-colors bg-white shadow-sm",
+                    order.lunch_menus && "cursor-pointer hover:bg-blue-50/50 hover:border-blue-300",
+                    order.is_cancelled && "opacity-60"
                   )}
                 >
-                  <div className="flex items-center gap-4 flex-1">
-                    {/* Foto o inicial */}
-                    <div className="relative">
+                  {/* Fila superior: foto + info + estado */}
+                  <div className="flex items-start gap-3">
+                    {/* Foto o inicial — más pequeño en móvil */}
+                    <div className="relative shrink-0">
                       {order.student?.photo_url ? (
                         <img
                           src={order.student.photo_url}
                           alt={order.student.full_name}
-                          className="h-14 w-14 rounded-full object-cover border-2 border-blue-200"
+                          className="h-10 w-10 sm:h-12 sm:w-12 rounded-full object-cover border-2 border-blue-200"
                         />
                       ) : (
                         <div className={cn(
-                          "h-14 w-14 rounded-full flex items-center justify-center border-2",
+                          "h-10 w-10 sm:h-12 sm:w-12 rounded-full flex items-center justify-center border-2",
                           order.teacher ? "bg-green-100 border-green-300" : "bg-blue-100 border-blue-200"
                         )}>
                           <span className={cn(
-                            "font-bold text-xl",
+                            "font-bold text-base sm:text-lg",
                             order.teacher ? "text-green-700" : "text-blue-600"
                           )}>
                             {order.student?.full_name[0] || order.teacher?.full_name[0] || order.manual_name?.[0] || '?'}
@@ -1857,96 +1856,84 @@ export default function LunchOrders() {
                         </div>
                       )}
                       {order.student?.is_temporary && (
-                        <div className="absolute -top-1 -right-1 bg-purple-600 rounded-full p-1">
-                          <UserPlus className="h-3 w-3 text-white" />
+                        <div className="absolute -top-1 -right-1 bg-purple-600 rounded-full p-0.5">
+                          <UserPlus className="h-2.5 w-2.5 text-white" />
                         </div>
                       )}
                       {order.teacher && (
-                        <div className="absolute -bottom-1 -right-1 bg-green-600 rounded-full p-1">
-                          <span className="text-white text-[10px] font-bold px-1">👨‍🏫</span>
+                        <div className="absolute -bottom-1 -right-1 bg-green-600 rounded-full p-0.5">
+                          <span className="text-white text-[9px] font-bold px-0.5">👨‍🏫</span>
                         </div>
                       )}
                     </div>
 
-                    {/* Info */}
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <p className="font-bold text-lg text-gray-900">
-                          {order.student?.full_name || order.teacher?.full_name || order.manual_name || 'Desconocido'}
-                        </p>
+                    {/* Info principal */}
+                    <div className="flex-1 min-w-0">
+                      {/* Nombre */}
+                      <p className="font-semibold text-sm sm:text-base text-gray-900 truncate">
+                        {order.student?.full_name || order.teacher?.full_name || order.manual_name || 'Desconocido'}
+                      </p>
+
+                      {/* Badges de tipo — solo los más relevantes en móvil */}
+                      <div className="flex items-center gap-1.5 flex-wrap mt-0.5">
                         {order.school && (
-                          <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-300 text-xs">
-                            🏫 {order.school.name}
-                          </Badge>
+                          <span className="text-[10px] sm:text-xs text-purple-600 font-medium">🏫 {order.school.name}</span>
                         )}
                         {order.teacher && (
-                          <Badge variant="outline" className="bg-green-50 text-green-700 border-green-300 text-xs">
-                            Profesor
-                          </Badge>
+                          <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200 text-[10px] py-0 px-1.5 h-4">Profe</Badge>
                         )}
                         {order.manual_name && (
-                          <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-300 text-xs">
-                            💵 Pago Físico
-                          </Badge>
-                        )}
-                        {order.student && !order.student.is_temporary && (
-                          <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-300 text-xs">
-                            Alumno
-                          </Badge>
+                          <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 text-[10px] py-0 px-1.5 h-4">Físico</Badge>
                         )}
                       </div>
+
                       {order.student?.is_temporary && order.student.temporary_classroom_name && (
-                        <p className="text-sm font-medium text-purple-600">
-                          🎫 Puente Temporal - {order.student.temporary_classroom_name}
+                        <p className="text-xs font-medium text-purple-600 mt-0.5">
+                          🎫 {order.student.temporary_classroom_name}
                         </p>
                       )}
-                      <p className="text-sm text-gray-500">
-                        Pedido a las {new Date(order.created_at).toLocaleTimeString('es-PE', {
-                          hour: '2-digit',
-                          minute: '2-digit',
-                          timeZone: 'America/Lima'
-                        })}
-                      </p>
-                      {/* Mostrar agregados si existen */}
-                      {order.lunch_order_addons && order.lunch_order_addons.length > 0 && (
-                        <div className="mt-1">
-                          <p className="text-xs text-gray-500">
-                            <span className="font-semibold text-green-600">Agregados:</span>{' '}
-                            {order.lunch_order_addons.map((addon: any, idx: number) => (
-                              <span key={addon.id}>
-                                {addon.addon_name}
-                                {idx < order.lunch_order_addons.length - 1 ? ', ' : ''}
-                              </span>
-                            ))}
+
+                      {/* Hora + precio */}
+                      <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                        <p className="text-xs text-gray-400">
+                          {new Date(order.created_at).toLocaleTimeString('es-PE', {
+                            hour: '2-digit', minute: '2-digit', timeZone: 'America/Lima'
+                          })}
+                        </p>
+                        {order.final_price !== null && order.final_price !== undefined && (
+                          <p className="text-xs font-semibold text-green-700">
+                            S/ {order.final_price.toFixed(2)}
                           </p>
-                        </div>
-                      )}
-                      {/* Mostrar precio total si está disponible */}
-                      {order.final_price !== null && order.final_price !== undefined && (
-                        <p className="text-sm font-semibold text-green-700 mt-1">
-                          Total: S/ {order.final_price.toFixed(2)}
-                          {order.addons_total && order.addons_total > 0 && (
-                            <span className="text-xs font-normal text-gray-500 ml-1">
-                              (Base: S/ {order.base_price?.toFixed(2)} + Agregados: S/ {order.addons_total.toFixed(2)})
-                            </span>
-                          )}
+                        )}
+                        {(order as any)._ticket_code && (
+                          <p className="text-[10px] font-bold text-indigo-600">
+                            🎫 {(order as any)._ticket_code}
+                          </p>
+                        )}
+                      </div>
+
+                      {/* Agregados */}
+                      {order.lunch_order_addons && order.lunch_order_addons.length > 0 && (
+                        <p className="text-[10px] text-gray-400 mt-0.5">
+                          + {order.lunch_order_addons.map((a: any) => a.addon_name).join(', ')}
                         </p>
                       )}
-                      {/* 🎫 Ticket code */}
-                      {(order as any)._ticket_code && (
-                        <p className="text-xs font-bold text-indigo-700 mt-1">
-                          🎫 Ticket: {(order as any)._ticket_code}
+
+                      {/* 💬 Comentarios del pedido */}
+                      {order.comments && (
+                        <p className="text-[10px] text-amber-600 mt-0.5 italic">
+                          💬 {order.comments}
                         </p>
                       )}
                     </div>
 
-                    {/* Estado y Estado de Deuda */}
-                    <div className="flex flex-col gap-2 items-end">
+                    {/* Estado — esquina superior derecha */}
+                    <div className="flex flex-col gap-1 items-end shrink-0">
                       {getStatusBadge(order.status, order.is_no_order_delivery)}
                       {(() => {
                         const debtStatus = getDebtStatus(order);
                         return (
-                          <Badge variant="outline" className={cn("text-xs", debtStatus.color)}>
+                          <Badge variant="outline" className={cn("text-[10px] py-0 px-1.5 h-4", debtStatus.color)}>
                             {debtStatus.label}
                           </Badge>
                         );
@@ -1954,54 +1941,47 @@ export default function LunchOrders() {
                     </div>
                   </div>
 
-                  {/* Acciones */}
-                  <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
-                    {/* Botón Confirmar - Solo para pedidos pendientes */}
-                    {order.status === 'pending' && !order.is_cancelled && (
+                  {/* Fila inferior: botones de acción */}
+                  {!order.is_cancelled ? (
+                    <div
+                      className="flex gap-2 mt-2.5 flex-wrap"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      {order.status === 'pending' && (
+                        <Button
+                          size="sm"
+                          onClick={() => handleConfirmOrder(order)}
+                          className="h-8 text-xs px-3 bg-green-600 hover:bg-green-700 flex-1 sm:flex-none"
+                        >
+                          <CheckCircle2 className="h-3.5 w-3.5 mr-1" />
+                          Confirmar
+                        </Button>
+                      )}
+                      {order.status === 'confirmed' && (
+                        <Button
+                          size="sm"
+                          onClick={() => handleDeliverOrder(order)}
+                          className="h-8 text-xs px-3 bg-blue-600 hover:bg-blue-700 flex-1 sm:flex-none"
+                        >
+                          <PackagePlus className="h-3.5 w-3.5 mr-1" />
+                          Entregado
+                        </Button>
+                      )}
                       <Button
                         size="sm"
-                        variant="default"
-                        onClick={() => handleConfirmOrder(order)}
-                        className="bg-green-600 hover:bg-green-700"
-                      >
-                        <CheckCircle2 className="h-4 w-4 mr-1" />
-                        Confirmar
-                      </Button>
-                    )}
-
-                    {/* Botón Entregado - Solo para pedidos confirmados */}
-                    {order.status === 'confirmed' && !order.is_cancelled && (
-                      <Button
-                        size="sm"
-                        variant="default"
-                        onClick={() => handleDeliverOrder(order)}
-                        className="bg-blue-600 hover:bg-blue-700"
-                      >
-                        <PackagePlus className="h-4 w-4 mr-1" />
-                        Entregado
-                      </Button>
-                    )}
-
-                    {/* Botón Anular (siempre visible excepto si está cancelado) */}
-                    {!order.is_cancelled && (
-                      <Button
-                        size="sm"
-                        variant="destructive"
+                        variant="outline"
                         onClick={() => handleOpenCancel(order)}
-                        className="gap-1"
+                        className="h-8 text-xs px-3 border-red-200 text-red-600 hover:bg-red-50 flex-1 sm:flex-none"
                       >
-                        <Trash2 className="h-4 w-4" />
+                        <Trash2 className="h-3.5 w-3.5 mr-1" />
                         Anular
                       </Button>
-                    )}
-                    
-                    {/* Badge de "Anulado" si está cancelado */}
-                    {order.is_cancelled && (
-                      <Badge variant="destructive" className="text-xs">
-                        ❌ ANULADO
-                      </Badge>
-                    )}
-                  </div>
+                    </div>
+                  ) : (
+                    <div className="mt-2" onClick={(e) => e.stopPropagation()}>
+                      <Badge variant="destructive" className="text-xs">❌ ANULADO</Badge>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
@@ -2298,12 +2278,29 @@ export default function LunchOrders() {
                   </div>
                   {selectedMenuOrder.lunch_menus.notes && (
                     <div className="mt-3 bg-yellow-50 border border-yellow-200 rounded-lg p-3">
-                      <p className="text-xs font-semibold text-yellow-700 uppercase mb-1">📝 Notas</p>
+                      <p className="text-xs font-semibold text-yellow-700 uppercase mb-1">📝 Notas del Menú</p>
                       <p className="text-sm text-gray-700">{selectedMenuOrder.lunch_menus.notes}</p>
                     </div>
                   )}
                 </CardContent>
               </Card>
+
+              {/* 💬 COMENTARIOS DEL PEDIDO */}
+              {selectedMenuOrder.comments && (
+                <Card className="bg-amber-50 border-amber-300">
+                  <CardContent className="py-4">
+                    <div className="flex items-start gap-3">
+                      <div className="h-10 w-10 rounded-full bg-amber-200 flex items-center justify-center flex-shrink-0">
+                        <span className="text-xl">💬</span>
+                      </div>
+                      <div>
+                        <p className="text-xs font-semibold text-amber-700 uppercase mb-1">Comentarios del Pedido</p>
+                        <p className="text-sm text-gray-800">{selectedMenuOrder.comments}</p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
 
               {/* 8. ESTADO DE PAGO (SIEMPRE MOSTRAR SI TIENE PRECIO O TX) */}
               {(selectedMenuOrder.payment_method || selectedMenuOrder.final_price || (selectedMenuOrder as any)._tx_payment_status) && (

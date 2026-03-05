@@ -10,6 +10,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import { CreateSupplyRequestModal } from '@/components/school-admin/CreateSupplyRequestModal';
 import { GradesManagement } from '@/components/school-admin/GradesManagement';
+import { NFCCardsManager } from '@/components/admin/NFCCardsManager';
 
 interface SupplyRequest {
   id: string;
@@ -115,191 +116,103 @@ const SchoolAdmin = () => {
   }
 
   return (
-    <div className="min-h-screen bg-[#FDFCFB] p-6">
-      <div className="max-w-7xl mx-auto space-y-6">
+    <div className="min-h-screen bg-[#FDFCFB] p-3 sm:p-6">
+      <div className="max-w-7xl mx-auto space-y-4 sm:space-y-6">
         {/* Header */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-black text-slate-800 flex items-center gap-3">
-              <ShoppingCart className="h-8 w-8 text-[#9E4D68]" />
-              Administración de Sede
+        <div className="flex items-start sm:items-center justify-between gap-3">
+          <div className="flex-1 min-w-0">
+            <h1 className="text-xl sm:text-3xl font-black text-slate-800 flex items-center gap-2">
+              <ShoppingCart className="h-5 w-5 sm:h-8 sm:w-8 text-[#9E4D68] flex-shrink-0" />
+              <span className="truncate">Administración de Sede</span>
             </h1>
-            <p className="text-slate-400 font-medium mt-1">
+            <p className="text-slate-400 font-medium mt-1 text-xs sm:text-sm hidden sm:block">
               Gestión de pedidos, calendarios y tarjetas de identificación
             </p>
           </div>
           <Button 
             variant="outline" 
             onClick={() => navigate('/dashboard')}
-            className="gap-2"
+            className="gap-2 flex-shrink-0 text-xs sm:text-sm px-2 sm:px-4"
           >
             <ArrowLeft className="h-4 w-4" />
-            Volver al Panel
+            <span className="hidden sm:inline">Volver al Panel</span>
           </Button>
         </div>
 
         {/* Tabs Principales */}
         <Tabs defaultValue="requests" className="w-full">
-          <TabsList className="grid w-full grid-cols-4 bg-white border rounded-xl p-1">
-            <TabsTrigger value="requests" className="data-[state=active]:bg-[#9E4D68] data-[state=active]:text-white">
-              <ShoppingCart className="h-4 w-4 mr-2" />
-              Pedidos
+          <TabsList className="grid w-full grid-cols-4 bg-white border rounded-xl p-1 h-auto">
+            <TabsTrigger value="requests" className="data-[state=active]:bg-[#9E4D68] data-[state=active]:text-white flex flex-col sm:flex-row items-center gap-1 py-2 px-1 sm:px-3 text-xs sm:text-sm">
+              <ShoppingCart className="h-4 w-4" />
+              <span className="hidden xs:inline sm:inline text-[10px] sm:text-sm leading-tight">Pedidos</span>
             </TabsTrigger>
-            <TabsTrigger value="grades" className="data-[state=active]:bg-[#9E4D68] data-[state=active]:text-white">
-              <GraduationCap className="h-4 w-4 mr-2" />
-              Grados y Salones
+            <TabsTrigger value="grades" className="data-[state=active]:bg-[#9E4D68] data-[state=active]:text-white flex flex-col sm:flex-row items-center gap-1 py-2 px-1 sm:px-3 text-xs sm:text-sm">
+              <GraduationCap className="h-4 w-4" />
+              <span className="hidden xs:inline sm:inline text-[10px] sm:text-sm leading-tight">Grados</span>
             </TabsTrigger>
-            <TabsTrigger value="calendar" className="data-[state=active]:bg-[#9E4D68] data-[state=active]:text-white">
-              <Calendar className="h-4 w-4 mr-2" />
-              Calendario
+            <TabsTrigger value="calendar" className="data-[state=active]:bg-[#9E4D68] data-[state=active]:text-white flex flex-col sm:flex-row items-center gap-1 py-2 px-1 sm:px-3 text-xs sm:text-sm">
+              <Calendar className="h-4 w-4" />
+              <span className="hidden xs:inline sm:inline text-[10px] sm:text-sm leading-tight">Calendario</span>
             </TabsTrigger>
-            <TabsTrigger value="cards" className="data-[state=active]:bg-[#9E4D68] data-[state=active]:text-white">
-              <CreditCard className="h-4 w-4 mr-2" />
-              Tarjetas ID
+            <TabsTrigger value="cards" className="data-[state=active]:bg-[#9E4D68] data-[state=active]:text-white flex flex-col sm:flex-row items-center gap-1 py-2 px-1 sm:px-3 text-xs sm:text-sm">
+              <CreditCard className="h-4 w-4" />
+              <span className="hidden xs:inline sm:inline text-[10px] sm:text-sm leading-tight">Tarjetas</span>
             </TabsTrigger>
           </TabsList>
 
           {/* Pestaña de Pedidos */}
-          <TabsContent value="requests" className="mt-6">
+          <TabsContent value="requests" className="mt-4">
             <Card className="border-2 border-[#9E4D68]/20">
-              <CardHeader className="bg-gradient-to-r from-amber-50 to-orange-50">
+              <CardHeader className="bg-gradient-to-r from-amber-50 to-orange-50 p-4 sm:p-6">
                 <div className="text-center">
-                  <CardTitle className="flex items-center justify-center gap-3 text-2xl mb-3">
-                    <ShoppingCart className="h-8 w-8 text-[#9E4D68]" />
+                  <CardTitle className="flex items-center justify-center gap-2 text-lg sm:text-2xl mb-2">
+                    <ShoppingCart className="h-5 w-5 sm:h-8 sm:w-8 text-[#9E4D68]" />
                     Módulo de Pedidos
                   </CardTitle>
-                  <Badge className="bg-gradient-to-r from-[#9E4D68] to-amber-700 text-white text-lg px-6 py-2">
+                  <Badge className="bg-gradient-to-r from-[#9E4D68] to-amber-700 text-white text-sm sm:text-lg px-4 py-1 sm:px-6 sm:py-2">
                     🚧 Próximamente
                   </Badge>
                 </div>
               </CardHeader>
-              <CardContent className="pt-8">
+              <CardContent className="pt-4 sm:pt-8 p-3 sm:p-6">
                 {/* Especificaciones del Módulo */}
-                <div className="space-y-6 max-w-4xl mx-auto">
+                <div className="space-y-4 sm:space-y-6 max-w-4xl mx-auto">
                   {/* Descripción General */}
-                  <div className="bg-gradient-to-br from-blue-50 to-indigo-50 p-6 rounded-xl border-2 border-blue-200">
-                    <h3 className="text-xl font-black text-blue-900 mb-3 flex items-center gap-2">
-                      <ShoppingCart className="h-6 w-6" />
+                  <div className="bg-gradient-to-br from-blue-50 to-indigo-50 p-4 rounded-xl border-2 border-blue-200">
+                    <h3 className="text-base sm:text-xl font-black text-blue-900 mb-2 flex items-center gap-2">
+                      <ShoppingCart className="h-5 w-5 flex-shrink-0" />
                       ¿Qué es este módulo?
                     </h3>
-                    <p className="text-blue-800 leading-relaxed">
+                    <p className="text-blue-800 leading-relaxed text-sm sm:text-base">
                       El módulo de <strong>Pedidos de Suministros</strong> permitirá a los administradores de sede solicitar mercadería, ingredientes y productos desde la sede central o almacén principal de forma organizada y trazable.
                     </p>
                   </div>
 
                   {/* Funcionalidades */}
-                  <div className="bg-gradient-to-br from-emerald-50 to-teal-50 p-6 rounded-xl border-2 border-emerald-200">
-                    <h3 className="text-xl font-black text-emerald-900 mb-4 flex items-center gap-2">
-                      <CheckCircle2 className="h-6 w-6" />
+                  <div className="bg-gradient-to-br from-emerald-50 to-teal-50 p-4 rounded-xl border-2 border-emerald-200">
+                    <h3 className="text-base sm:text-xl font-black text-emerald-900 mb-3 flex items-center gap-2">
+                      <CheckCircle2 className="h-5 w-5 flex-shrink-0" />
                       Funcionalidades Incluidas
                     </h3>
-                    <ul className="space-y-3 text-emerald-800">
-                      <li className="flex items-start gap-3">
-                        <span className="text-emerald-600 font-bold text-xl">•</span>
-                        <div>
-                          <strong>Crear Pedidos:</strong> Solicitar productos del catálogo con cantidades específicas.
-                        </div>
-                      </li>
-                      <li className="flex items-start gap-3">
-                        <span className="text-emerald-600 font-bold text-xl">•</span>
-                        <div>
-                          <strong>Historial de Pedidos:</strong> Ver todos los pedidos realizados con su estado actual (Pendiente, En Proceso, Completado).
-                        </div>
-                      </li>
-                      <li className="flex items-start gap-3">
-                        <span className="text-emerald-600 font-bold text-xl">•</span>
-                        <div>
-                          <strong>Tracking en Tiempo Real:</strong> Seguimiento del estado de cada pedido desde la solicitud hasta la entrega.
-                        </div>
-                      </li>
-                      <li className="flex items-start gap-3">
-                        <span className="text-emerald-600 font-bold text-xl">•</span>
-                        <div>
-                          <strong>Notificaciones:</strong> Alertas cuando un pedido cambia de estado o es completado.
-                        </div>
-                      </li>
-                      <li className="flex items-start gap-3">
-                        <span className="text-emerald-600 font-bold text-xl">•</span>
-                        <div>
-                          <strong>Reportes:</strong> Generación de reportes de pedidos por fecha, estado o sede.
-                        </div>
-                      </li>
-                    </ul>
-                  </div>
-
-                  {/* Requerimientos */}
-                  <div className="bg-gradient-to-br from-amber-50 to-orange-50 p-6 rounded-xl border-2 border-amber-200">
-                    <h3 className="text-xl font-black text-amber-900 mb-4 flex items-center gap-2">
-                      <AlertTriangle className="h-6 w-6" />
-                      Requerimientos del Sistema
-                    </h3>
-                    <ul className="space-y-3 text-amber-800">
-                      <li className="flex items-start gap-3">
-                        <span className="text-amber-600 font-bold text-xl">•</span>
-                        <div>
-                          <strong>Catálogo de Productos:</strong> Base de datos completa con todos los productos disponibles para pedido.
-                        </div>
-                      </li>
-                      <li className="flex items-start gap-3">
-                        <span className="text-amber-600 font-bold text-xl">•</span>
-                        <div>
-                          <strong>Control de Inventario:</strong> Integración con el módulo de logística para verificar stock disponible.
-                        </div>
-                      </li>
-                      <li className="flex items-start gap-3">
-                        <span className="text-amber-600 font-bold text-xl">•</span>
-                        <div>
-                          <strong>Roles y Permisos:</strong> Definir qué usuarios pueden crear, aprobar y completar pedidos.
-                        </div>
-                      </li>
-                      <li className="flex items-start gap-3">
-                        <span className="text-amber-600 font-bold text-xl">•</span>
-                        <div>
-                          <strong>Sistema de Aprobación:</strong> Flujo de trabajo para aprobar pedidos antes de procesarlos.
-                        </div>
-                      </li>
-                      <li className="flex items-start gap-3">
-                        <span className="text-amber-600 font-bold text-xl">•</span>
-                        <div>
-                          <strong>Notificaciones por Email:</strong> Configuración SMTP para enviar alertas automáticas.
-                        </div>
-                      </li>
-                    </ul>
-                  </div>
-
-                  {/* Beneficios */}
-                  <div className="bg-gradient-to-br from-purple-50 to-pink-50 p-6 rounded-xl border-2 border-purple-200">
-                    <h3 className="text-xl font-black text-purple-900 mb-4 flex items-center gap-2">
-                      <Clock className="h-6 w-6" />
-                      Beneficios para tu Sede
-                    </h3>
-                    <ul className="space-y-3 text-purple-800">
-                      <li className="flex items-start gap-3">
-                        <span className="text-purple-600 font-bold text-xl">✓</span>
-                        <div>Mayor control y trazabilidad de los pedidos realizados.</div>
-                      </li>
-                      <li className="flex items-start gap-3">
-                        <span className="text-purple-600 font-bold text-xl">✓</span>
-                        <div>Reducción de errores en la gestión de inventarios.</div>
-                      </li>
-                      <li className="flex items-start gap-3">
-                        <span className="text-purple-600 font-bold text-xl">✓</span>
-                        <div>Optimización del tiempo en la solicitud de suministros.</div>
-                      </li>
-                      <li className="flex items-start gap-3">
-                        <span className="text-purple-600 font-bold text-xl">✓</span>
-                        <div>Visibilidad completa del estado de cada pedido.</div>
-                      </li>
-                      <li className="flex items-start gap-3">
-                        <span className="text-purple-600 font-bold text-xl">✓</span>
-                        <div>Mejor planificación y previsión de necesidades.</div>
-                      </li>
+                    <ul className="space-y-2 text-emerald-800 text-sm sm:text-base">
+                      {[
+                        { title: 'Crear Pedidos', desc: 'Solicitar productos del catálogo con cantidades específicas.' },
+                        { title: 'Historial de Pedidos', desc: 'Ver todos los pedidos realizados con su estado actual.' },
+                        { title: 'Tracking en Tiempo Real', desc: 'Seguimiento del estado de cada pedido hasta la entrega.' },
+                        { title: 'Notificaciones', desc: 'Alertas cuando un pedido cambia de estado o es completado.' },
+                        { title: 'Reportes', desc: 'Generación de reportes de pedidos por fecha, estado o sede.' },
+                      ].map((item, i) => (
+                        <li key={i} className="flex items-start gap-2">
+                          <span className="text-emerald-600 font-bold text-base mt-0.5">•</span>
+                          <div><strong>{item.title}:</strong> {item.desc}</div>
+                        </li>
+                      ))}
                     </ul>
                   </div>
 
                   {/* Mensaje Final */}
-                  <div className="text-center bg-gradient-to-r from-slate-50 to-gray-100 p-6 rounded-xl border-2 border-slate-300">
-                    <p className="text-slate-600 text-lg">
+                  <div className="text-center bg-gradient-to-r from-slate-50 to-gray-100 p-4 rounded-xl border-2 border-slate-300">
+                    <p className="text-slate-600 text-sm sm:text-base">
                       Este módulo estará disponible próximamente. Mientras tanto, puedes contactar al administrador para realizar pedidos manuales.
                     </p>
                   </div>
@@ -309,44 +222,31 @@ const SchoolAdmin = () => {
           </TabsContent>
 
           {/* Pestaña de Grados y Salones */}
-          <TabsContent value="grades" className="mt-6">
+          <TabsContent value="grades" className="mt-4">
             <GradesManagement schoolId={userSchoolId} />
           </TabsContent>
 
           {/* Pestaña de Calendario */}
-          <TabsContent value="calendar" className="mt-6">
+          <TabsContent value="calendar" className="mt-4">
             <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Calendar className="h-6 w-6 text-[#9E4D68]" />
+              <CardHeader className="p-4 sm:p-6">
+                <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+                  <Calendar className="h-5 w-5 text-[#9E4D68]" />
                   Calendarios
                 </CardTitle>
-                <CardDescription>
+                <CardDescription className="text-xs sm:text-sm">
                   Eventos académicos e internos
                 </CardDescription>
               </CardHeader>
-              <CardContent>
-                <p className="text-slate-400 text-center py-12">Próximamente: Gestión de eventos</p>
+              <CardContent className="p-4 sm:p-6">
+                <p className="text-slate-400 text-center py-8 text-sm sm:text-base">Próximamente: Gestión de eventos</p>
               </CardContent>
             </Card>
           </TabsContent>
 
-          {/* Pestaña de Tarjetas ID */}
-          <TabsContent value="cards" className="mt-6">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <CreditCard className="h-6 w-6 text-[#9E4D68]" />
-                  Tarjetas de Identificación
-                </CardTitle>
-                <CardDescription>
-                  Activar y vincular tarjetas a estudiantes y padres
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <p className="text-slate-400 text-center py-12">Próximamente: Sistema de activación de tarjetas</p>
-              </CardContent>
-            </Card>
+          {/* Pestaña de Tarjetas NFC */}
+          <TabsContent value="cards" className="mt-4">
+            <NFCCardsManager schoolId={userSchoolId} />
           </TabsContent>
         </Tabs>
 
