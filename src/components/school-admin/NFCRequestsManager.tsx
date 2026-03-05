@@ -246,7 +246,8 @@ export function NFCRequestsManager({ schoolId }: NFCRequestsManagerProps) {
           studentSchoolId = studentData?.school_id || schoolId;
         }
 
-        const { error: transError } = await supabase
+        // 1. Insertar transacción
+        const { data: transData, error: transError } = await supabase
           .from('transactions')
           .insert({
             student_id: actionRequest.student_id,
@@ -264,16 +265,23 @@ export function NFCRequestsManager({ schoolId }: NFCRequestsManagerProps) {
               nfc_type: actionRequest.nfc_type,
               nfc_price: actionRequest.price,
             },
-          });
+          })
+          .select('id')
+          .single();
 
         if (transError) {
           console.error('Error creating NFC transaction:', transError);
-          // No bloqueamos — la solicitud ya fue aprobada
           toast({
             variant: 'destructive',
             title: 'Advertencia',
             description: 'Solicitud aprobada pero no se pudo generar el cobro automáticamente. Registre el cobro manualmente.',
           });
+        } else if (transData) {
+          // 2. FORZAR payment_status = 'pending' (un trigger de BD lo puede sobreescribir a 'paid')
+          await supabase
+            .from('transactions')
+            .update({ payment_status: 'pending' })
+            .eq('id', transData.id);
         }
       }
 
