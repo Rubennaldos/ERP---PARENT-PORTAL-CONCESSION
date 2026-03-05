@@ -219,8 +219,66 @@ export function NFCRequestsManager({ schoolId }: NFCRequestsManagerProps) {
 
       if (error) throw error;
 
+      // 💰 Si se APRUEBA → crear transacción (deuda) para el padre
+      if (actionType === 'approve' && actionRequest.price > 0) {
+        const nfcTypeName = NFC_TYPE_CONFIG[actionRequest.nfc_type]?.name || actionRequest.nfc_type;
+        
+        // Generar ticket_code
+        let ticketCode: string | null = null;
+        try {
+          const { data: ticketNumber, error: ticketErr } = await supabase
+            .rpc('get_next_ticket_number', { p_user_id: user.id });
+          if (!ticketErr && ticketNumber) {
+            ticketCode = ticketNumber;
+          }
+        } catch (err) {
+          ticketCode = `NFC-${Date.now()}`;
+        }
+
+        // Obtener school_id del estudiante
+        let studentSchoolId = actionRequest.school_id;
+        if (!studentSchoolId) {
+          const { data: studentData } = await supabase
+            .from('students')
+            .select('school_id')
+            .eq('id', actionRequest.student_id)
+            .single();
+          studentSchoolId = studentData?.school_id || schoolId;
+        }
+
+        const { error: transError } = await supabase
+          .from('transactions')
+          .insert({
+            student_id: actionRequest.student_id,
+            school_id: studentSchoolId,
+            type: 'purchase',
+            amount: -Math.abs(actionRequest.price),
+            description: `Solicitud NFC - ${nfcTypeName} para ${actionRequest.student_name || 'Alumno'}`,
+            payment_status: 'pending',
+            payment_method: null,
+            created_by: user.id,
+            ticket_code: ticketCode,
+            metadata: {
+              source: 'nfc_request',
+              nfc_request_id: actionRequest.id,
+              nfc_type: actionRequest.nfc_type,
+              nfc_price: actionRequest.price,
+            },
+          });
+
+        if (transError) {
+          console.error('Error creating NFC transaction:', transError);
+          // No bloqueamos — la solicitud ya fue aprobada
+          toast({
+            variant: 'destructive',
+            title: 'Advertencia',
+            description: 'Solicitud aprobada pero no se pudo generar el cobro automáticamente. Registre el cobro manualmente.',
+          });
+        }
+      }
+
       const actionLabels = {
-        approve: 'aprobada',
+        approve: 'aprobada y cobro generado',
         reject: 'rechazada',
         deliver: 'marcada como entregada',
       };
@@ -229,6 +287,15 @@ export function NFCRequestsManager({ schoolId }: NFCRequestsManagerProps) {
         title: '✅ Solicitud actualizada',
         description: `La solicitud fue ${actionLabels[actionType]} correctamente.`,
       });
+
+      // Si se marca entregada, sugerir afiliar la tarjeta
+      if (actionType === 'deliver') {
+        toast({
+          title: '📋 Siguiente paso',
+          description: `Ahora afilia la tarjeta/sticker NFC de ${actionRequest.student_name} en la sección "Tarjetas NFC" más abajo.`,
+          duration: 8000,
+        });
+      }
 
       setActionRequest(null);
       setActionType(null);
@@ -489,9 +556,9 @@ export function NFCRequestsManager({ schoolId }: NFCRequestsManagerProps) {
               {actionType === 'deliver' && 'Confirmar Entrega'}
             </DialogTitle>
             <DialogDescription>
-              {actionType === 'approve' && `¿Aprobar la solicitud de ${NFC_TYPE_CONFIG[actionRequest?.nfc_type || 'sticker'].name} para ${actionRequest?.student_name}?`}
+              {actionType === 'approve' && `¿Aprobar la solicitud de ${NFC_TYPE_CONFIG[actionRequest?.nfc_type || 'sticker'].name} para ${actionRequest?.student_name}? Se generará un cobro de S/ ${actionRequest?.price?.toFixed(2)} en la cuenta del padre.`}
               {actionType === 'reject' && `¿Rechazar la solicitud de ${NFC_TYPE_CONFIG[actionRequest?.nfc_type || 'sticker'].name} para ${actionRequest?.student_name}?`}
-              {actionType === 'deliver' && `¿Confirmar que se entregó el ${NFC_TYPE_CONFIG[actionRequest?.nfc_type || 'sticker'].name} a ${actionRequest?.student_name}?`}
+              {actionType === 'deliver' && `¿Confirmar que se entregó el ${NFC_TYPE_CONFIG[actionRequest?.nfc_type || 'sticker'].name} a ${actionRequest?.student_name}? Después deberás afiliar la tarjeta/sticker.`}
             </DialogDescription>
           </DialogHeader>
 

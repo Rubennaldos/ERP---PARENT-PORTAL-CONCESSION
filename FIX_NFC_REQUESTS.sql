@@ -53,7 +53,10 @@ CREATE POLICY "admins_view_nfc_requests" ON public.nfc_requests
     EXISTS (
       SELECT 1 FROM public.profiles p
       WHERE p.id = auth.uid()
-      AND (p.role IN ('admin_general', 'superadmin') OR (p.role = 'admin' AND p.school_id = nfc_requests.school_id))
+      AND (
+        p.role IN ('admin_general', 'superadmin', 'supervisor_red')
+        OR (p.role IN ('gestor_unidad', 'operador_caja') AND p.school_id = nfc_requests.school_id)
+      )
     )
   );
 
@@ -64,7 +67,10 @@ CREATE POLICY "admins_update_nfc_requests" ON public.nfc_requests
     EXISTS (
       SELECT 1 FROM public.profiles p
       WHERE p.id = auth.uid()
-      AND (p.role IN ('admin_general', 'superadmin') OR (p.role = 'admin' AND p.school_id = nfc_requests.school_id))
+      AND (
+        p.role IN ('admin_general', 'superadmin', 'supervisor_red')
+        OR (p.role IN ('gestor_unidad', 'operador_caja') AND p.school_id = nfc_requests.school_id)
+      )
     )
   );
 
