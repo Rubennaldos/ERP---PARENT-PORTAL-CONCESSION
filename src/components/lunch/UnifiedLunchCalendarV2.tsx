@@ -256,28 +256,13 @@ export function UnifiedLunchCalendarV2({ userType, userId, userSchoolId }: Unifi
       const startStr = format(start, 'yyyy-MM-dd');
       const endStr = format(end, 'yyyy-MM-dd');
 
-      // 1. Configuration - FIXED: correct column names from DB
-      console.log(`🏫 [V2-DEBUG] effectiveSchoolId = ${effectiveSchoolId}`);
+      // 1. Configuration
       const { data: configData, error: configError } = await supabase
         .from('lunch_configuration')
         .select('lunch_price, orders_enabled, order_deadline_time, order_deadline_days, cancellation_deadline_time, cancellation_deadline_days')
         .eq('school_id', effectiveSchoolId)
         .maybeSingle();
 
-      if (configError) {
-        console.error('❌ [V2-DEBUG] Error loading config:', configError);
-      }
-      console.log('⚙️ [V2-DEBUG] Config loaded:', JSON.stringify(configData));
-      if (configData) {
-        console.log(`  ⏰ order_deadline_time: ${configData.order_deadline_time}`);
-        console.log(`  📅 order_deadline_days: ${configData.order_deadline_days}`);
-        console.log(`  🟢 orders_enabled: ${configData.orders_enabled}`);
-        const peruNowDebug = getPeruNow();
-        console.log(`  🕐 Peru Now: ${peruNowDebug.toString()}`);
-        console.log(`  🕐 Peru Date: ${getPeruTodayStr()}`);
-      } else {
-        console.warn('⚠️ [V2-DEBUG] NO CONFIG found for school', effectiveSchoolId);
-      }
       setConfig(configData);
 
       // 2. Menus - FIXED: include target_type='both' AND target_type IS NULL
@@ -318,9 +303,7 @@ export function UnifiedLunchCalendarV2({ userType, userId, userSchoolId }: Unifi
           (cat: any) => cat.is_kitchen_sale !== true
         );
 
-        console.log(`📦 [V2-DEBUG] Categories: ${categoriesData?.length || 0} total, ${lunchCategories.length} after filtering (removed kitchen_sale). Active filter NOT applied.`);
         lunchCategories.forEach((cat: any) => {
-          console.log(`  📂 Category: ${cat.name} | school_id: ${cat.school_id} | target: ${cat.target_type} | active: ${cat.is_active} | kitchen: ${cat.is_kitchen_sale}`);
           categoriesMap.set(cat.id, cat);
         });
       }
@@ -345,7 +328,6 @@ export function UnifiedLunchCalendarV2({ userType, userId, userSchoolId }: Unifi
         existing.push(menuWithCat);
         menusMap.set(menu.date, existing);
       });
-      console.log(`🍽️ [V2-DEBUG] Menus: ${menusIncluded} included, ${menusSkipped} skipped (category not in school). Days with menus: ${menusMap.size}`);
       setMenus(menusMap);
 
       // 4. Special days
@@ -408,15 +390,9 @@ export function UnifiedLunchCalendarV2({ userType, userId, userSchoolId }: Unifi
    * so the comparison is always correct regardless of the user's actual timezone.
    */
   const canOrderForDate = useCallback((dateStr: string): { canOrder: boolean; reason?: string } => {
-    if (!config) {
-      console.log(`🔓 [V2-DEADLINE] ${dateStr}: No config → allowed`);
-      return { canOrder: true };
-    }
+    if (!config) return { canOrder: true };
     if (!config.orders_enabled) return { canOrder: false, reason: 'Pedidos deshabilitados' };
-    if (!config.order_deadline_time) {
-      console.log(`🔓 [V2-DEADLINE] ${dateStr}: No deadline time → allowed`);
-      return { canOrder: true };
-    }
+    if (!config.order_deadline_time) return { canOrder: true };
 
     const peruNow = getPeruNow();
     const [year, month, day] = dateStr.split('-').map(Number);
@@ -431,7 +407,6 @@ export function UnifiedLunchCalendarV2({ userType, userId, userSchoolId }: Unifi
     const deadlineDate = new Date(year, month - 1, day - deadlineDays, hours, minutes, 0, 0);
 
     const canOrder = peruNow <= deadlineDate;
-    console.log(`🔍 [V2-DEADLINE] ${dateStr}: peruNow=${format(peruNow, 'dd/MM HH:mm')} | deadline=${format(deadlineDate, 'dd/MM HH:mm')} (days=${deadlineDays}, time=${config.order_deadline_time}) | canOrder=${canOrder}`);
 
     if (!canOrder) {
       // Show user-friendly message with the exact deadline

@@ -296,13 +296,7 @@ export function PhysicalOrderWizard({ isOpen, onClose, schoolId, selectedDate, o
         targetDate = format(new Date(selectedDate), 'yyyy-MM-dd');
       }
       
-      console.log('🔍 [fetchCategories] Inicio');
-      console.log('📅 [fetchCategories] Fecha objetivo:', targetDate);
-      console.log('🏫 [fetchCategories] School ID:', schoolId);
-      console.log('👥 [fetchCategories] Target type:', targetType);
-      
       // Buscar menús sin FK (método más confiable)
-      console.log('🔧 [fetchCategories] Buscando menús...');
       const { data: menusData, error: menusError } = await supabase
         .from('lunch_menus')
         .select('id, category_id, date, starter, main_course, beverage, dessert')
@@ -310,27 +304,18 @@ export function PhysicalOrderWizard({ isOpen, onClose, schoolId, selectedDate, o
         .eq('date', targetDate)
         .or(`target_type.eq.${targetType},target_type.eq.both,target_type.is.null`);
         
-      if (menusError) {
-        console.log('❌ [fetchCategories] Error buscando menús:', menusError);
-        throw menusError;
-      }
-      
-      console.log('✅ [fetchCategories] Menús encontrados:', menusData?.length || 0);
-      console.log('📋 [fetchCategories] Menús:', menusData);
+      if (menusError) throw menusError;
       
       // Si no hay menús, no hay categorías
       if (!menusData || menusData.length === 0) {
-        console.log('⚠️ [fetchCategories] No hay menús disponibles');
         setCategories([]);
         return;
       }
       
       // Extraer IDs de categorías únicas
       const categoryIds = [...new Set(menusData.map((m: any) => m.category_id).filter(Boolean))];
-      console.log('📋 [fetchCategories] IDs de categorías:', categoryIds);
       
       if (categoryIds.length === 0) {
-        console.log('⚠️ [fetchCategories] No hay categorías asignadas');
         setCategories([]);
         return;
       }
@@ -342,13 +327,7 @@ export function PhysicalOrderWizard({ isOpen, onClose, schoolId, selectedDate, o
         .in('id', categoryIds)
         .order('display_order');
         
-      if (categoriesError) {
-        console.log('❌ [fetchCategories] Error buscando categorías:', categoriesError);
-        throw categoriesError;
-      }
-      
-      console.log('✅ [fetchCategories] Categorías encontradas:', categoriesData?.length || 0);
-      console.log('📝 [fetchCategories] Categorías:', categoriesData);
+      if (categoriesError) throw categoriesError;
       
       setCategories(categoriesData || []);
     } catch (error) {
@@ -360,7 +339,6 @@ export function PhysicalOrderWizard({ isOpen, onClose, schoolId, selectedDate, o
       });
     } finally {
       setLoading(false);
-      console.log('🏁 [fetchCategories] Fin');
     }
   };
 
@@ -375,14 +353,7 @@ export function PhysicalOrderWizard({ isOpen, onClose, schoolId, selectedDate, o
         targetDate = format(new Date(selectedDate), 'yyyy-MM-dd');
       }
       
-      console.log('🔍 [fetchMenus] Inicio');
-      console.log('📅 [fetchMenus] Fecha objetivo:', targetDate);
-      console.log('📂 [fetchMenus] Categoría seleccionada:', selectedCategory?.id, selectedCategory?.name);
-      console.log('🏫 [fetchMenus] School ID:', schoolId);
-      console.log('👥 [fetchMenus] Target type:', targetType);
-      
       // Buscar menús sin FK (método más confiable)
-      console.log('🔧 [fetchMenus] Buscando menús...');
       const { data, error } = await supabase
         .from('lunch_menus')
         .select('*')
@@ -391,12 +362,7 @@ export function PhysicalOrderWizard({ isOpen, onClose, schoolId, selectedDate, o
         .eq('date', targetDate)
         .or(`target_type.eq.${targetType},target_type.eq.both,target_type.is.null`);
         
-      if (error) {
-        console.log('❌ [fetchMenus] Error buscando menús:', error);
-        throw error;
-      }
-      
-      console.log('✅ [fetchMenus] Menús encontrados:', data?.length || 0);
+      if (error) throw error;
       
       // Agregar la categoría manualmente a cada menú
       const menusWithCategory = (data || []).map((menu: any) => ({
@@ -404,7 +370,6 @@ export function PhysicalOrderWizard({ isOpen, onClose, schoolId, selectedDate, o
         lunch_categories: selectedCategory
       }));
       
-      console.log('📝 [fetchMenus] Menús finales:', menusWithCategory);
       setMenus(menusWithCategory);
     } catch (error) {
       console.error('💥 [fetchMenus] Error fatal:', error);
@@ -415,7 +380,6 @@ export function PhysicalOrderWizard({ isOpen, onClose, schoolId, selectedDate, o
       });
     } finally {
       setLoading(false);
-      console.log('🏁 [fetchMenus] Fin');
     }
   };
 
