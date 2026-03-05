@@ -4,13 +4,14 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { ShoppingCart, Calendar, CreditCard, Plus, Clock, CheckCircle2, AlertTriangle, ArrowLeft, GraduationCap } from 'lucide-react';
+import { ShoppingCart, Calendar, CreditCard, Plus, Clock, CheckCircle2, AlertTriangle, ArrowLeft, GraduationCap, Nfc } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import { CreateSupplyRequestModal } from '@/components/school-admin/CreateSupplyRequestModal';
 import { GradesManagement } from '@/components/school-admin/GradesManagement';
 import { NFCCardsManager } from '@/components/admin/NFCCardsManager';
+import { NFCRequestsManager } from '@/components/school-admin/NFCRequestsManager';
 
 interface SupplyRequest {
   id: string;
@@ -141,7 +142,7 @@ const SchoolAdmin = () => {
 
         {/* Tabs Principales */}
         <Tabs defaultValue="requests" className="w-full">
-          <TabsList className="grid w-full grid-cols-4 bg-white border rounded-xl p-1 h-auto">
+          <TabsList className="grid w-full grid-cols-5 bg-white border rounded-xl p-1 h-auto">
             <TabsTrigger value="requests" className="data-[state=active]:bg-[#9E4D68] data-[state=active]:text-white flex flex-col sm:flex-row items-center gap-1 py-2 px-1 sm:px-3 text-xs sm:text-sm">
               <ShoppingCart className="h-4 w-4" />
               <span className="hidden xs:inline sm:inline text-[10px] sm:text-sm leading-tight">Pedidos</span>
@@ -153,6 +154,10 @@ const SchoolAdmin = () => {
             <TabsTrigger value="calendar" className="data-[state=active]:bg-[#9E4D68] data-[state=active]:text-white flex flex-col sm:flex-row items-center gap-1 py-2 px-1 sm:px-3 text-xs sm:text-sm">
               <Calendar className="h-4 w-4" />
               <span className="hidden xs:inline sm:inline text-[10px] sm:text-sm leading-tight">Calendario</span>
+            </TabsTrigger>
+            <TabsTrigger value="nfc-requests" className="data-[state=active]:bg-[#9E4D68] data-[state=active]:text-white flex flex-col sm:flex-row items-center gap-1 py-2 px-1 sm:px-3 text-xs sm:text-sm">
+              <Nfc className="h-4 w-4" />
+              <span className="hidden xs:inline sm:inline text-[10px] sm:text-sm leading-tight">NFC</span>
             </TabsTrigger>
             <TabsTrigger value="cards" className="data-[state=active]:bg-[#9E4D68] data-[state=active]:text-white flex flex-col sm:flex-row items-center gap-1 py-2 px-1 sm:px-3 text-xs sm:text-sm">
               <CreditCard className="h-4 w-4" />
@@ -242,6 +247,11 @@ const SchoolAdmin = () => {
                 <p className="text-slate-400 text-center py-8 text-sm sm:text-base">Próximamente: Gestión de eventos</p>
               </CardContent>
             </Card>
+          </TabsContent>
+
+          {/* Pestaña de Solicitudes NFC */}
+          <TabsContent value="nfc-requests" className="mt-4">
+            <NFCRequestsManager schoolId={userSchoolId} />
           </TabsContent>
 
           {/* Pestaña de Tarjetas NFC */}

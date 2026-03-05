@@ -28,6 +28,7 @@ import { PurchaseHistoryModal } from '@/components/parent/PurchaseHistoryModal';
 import { UnifiedLunchCalendarV2 } from '@/components/lunch/UnifiedLunchCalendarV2';
 import { ParentLunchOrders } from '@/components/parent/ParentLunchOrders';
 import { ParentDataForm } from '@/components/parent/ParentDataForm';
+import { NFCRequestModal } from '@/components/parent/NFCRequestModal';
 import { useOnboardingCheck } from '@/hooks/useOnboardingCheck';
 
 interface Student {
@@ -80,6 +81,9 @@ const Index = () => {
   
   // Estudiante seleccionado
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
+
+  // NFC
+  const [showNFCModal, setShowNFCModal] = useState(false);
 
   // Estado para evitar doble apertura
   const [isOpeningPhotoModal, setIsOpeningPhotoModal] = useState(false);
@@ -414,6 +418,10 @@ const Index = () => {
                       onViewHistory={() => openHistoryModal(student)}
                       onPayDebt={() => openPayDebtModal(student)}
                       onPhotoClick={() => openPhotoModal(student)}
+                      onActivateNFC={() => {
+                        setSelectedStudent(student);
+                        setShowNFCModal(true);
+                      }}
                     />
                   ))}
                 </div>
@@ -511,6 +519,14 @@ const Index = () => {
             onAccept={handlePhotoConsentAccept}
             studentName={selectedStudent.full_name}
             parentId={user?.id || ''}
+          />
+
+          <NFCRequestModal
+            isOpen={showNFCModal}
+            onClose={() => setShowNFCModal(false)}
+            studentId={selectedStudent.id}
+            studentName={selectedStudent.full_name}
+            schoolId={selectedStudent.school_id}
           />
         </>
       )}

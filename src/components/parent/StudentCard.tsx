@@ -7,6 +7,7 @@ import {
   Camera,
   Info,
   CreditCard,
+  Nfc,
 } from 'lucide-react';
 import {
   Popover,
@@ -36,6 +37,7 @@ interface StudentCardProps {
   onViewHistory: () => void;
   onPayDebt?: () => void;
   onPhotoClick: () => void;
+  onActivateNFC?: () => void;
 }
 
 export function StudentCard({
@@ -44,6 +46,7 @@ export function StudentCard({
   onViewHistory,
   onPayDebt,
   onPhotoClick,
+  onActivateNFC,
 }: StudentCardProps) {
   // Siempre Cuenta Libre
   const hasDebt = totalDebt > 0;
@@ -176,6 +179,18 @@ export function StudentCard({
             >
               <CreditCard className="h-4 w-4 mr-2" />
               Pagar Deudas
+            </Button>
+          )}
+
+          {/* Activar NFC */}
+          {onActivateNFC && (
+            <Button
+              onClick={onActivateNFC}
+              variant="outline"
+              className="w-full h-12 rounded-xl font-medium text-sm tracking-wide transition-all active:scale-95 border-blue-200 text-blue-600 hover:bg-blue-50 hover:border-blue-300"
+            >
+              <Nfc className="h-4 w-4 mr-2" />
+              Activar NFC
             </Button>
           )}
 
