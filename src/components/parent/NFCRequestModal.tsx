@@ -13,7 +13,7 @@ import { Card } from '@/components/ui/card';
 import { supabase } from '@/lib/supabase';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
-import { Loader2, Check, Nfc, AlertCircle } from 'lucide-react';
+import { Loader2, Check, Nfc, AlertCircle, RefreshCw } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface NFCRequestModalProps {
@@ -90,6 +90,7 @@ export function NFCRequestModal({ isOpen, onClose, studentId, studentName, schoo
   const [submitting, setSubmitting] = useState(false);
   const [existingRequest, setExistingRequest] = useState<any>(null);
   const [loadingExisting, setLoadingExisting] = useState(true);
+  const [changingType, setChangingType] = useState(false);
 
   // Verificar si ya existe una solicitud pendiente
   useEffect(() => {
@@ -147,6 +148,7 @@ export function NFCRequestModal({ isOpen, onClose, studentId, studentName, schoo
       });
 
       setSelectedType(null);
+      setChangingType(false);
       onClose();
     } catch (error: any) {
       console.error('Error creating NFC request:', error);
@@ -160,6 +162,44 @@ export function NFCRequestModal({ isOpen, onClose, studentId, studentName, schoo
         variant: 'destructive',
         title: 'Error',
         description: msg,
+      });
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleChangeType = async () => {
+    if (!selectedType || !user || !existingRequest) return;
+
+    setSubmitting(true);
+    try {
+      const { error } = await supabase
+        .from('nfc_requests')
+        .update({
+          nfc_type: selectedType.type,
+          price: selectedType.price,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', existingRequest.id)
+        .eq('status', 'pending'); // Solo si sigue pendiente
+
+      if (error) throw error;
+
+      toast({
+        title: '✅ Dispositivo cambiado',
+        description: `Se cambió a ${selectedType.name} (S/ ${selectedType.price.toFixed(2)}) correctamente.`,
+      });
+
+      setSelectedType(null);
+      setChangingType(false);
+      setExistingRequest(null);
+      checkExistingRequest(); // Recargar
+    } catch (error: any) {
+      console.error('Error updating NFC request:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'No se pudo cambiar el tipo de dispositivo',
       });
     } finally {
       setSubmitting(false);
@@ -198,8 +238,8 @@ export function NFCRequestModal({ isOpen, onClose, studentId, studentName, schoo
           <div className="flex items-center justify-center py-8">
             <Loader2 className="h-6 w-6 animate-spin text-blue-600" />
           </div>
-        ) : existingRequest ? (
-          // Ya tiene una solicitud
+        ) : existingRequest && !changingType ? (
+          // Ya tiene una solicitud — mostrar estado + opción de cambiar
           <div className="space-y-4 py-4">
             <div className={cn(
               "p-4 rounded-xl border-2 text-center",
@@ -235,12 +275,30 @@ export function NFCRequestModal({ isOpen, onClose, studentId, studentName, schoo
                   : 'Ya tienes una solicitud activa para este alumno.'}
               </p>
             </div>
+
+            {/* Botón para cambiar tipo de dispositivo — solo si está pendiente */}
+            {existingRequest.status === 'pending' && (
+              <Button
+                variant="outline"
+                className="w-full border-amber-300 text-amber-700 hover:bg-amber-50"
+                onClick={() => {
+                  setChangingType(true);
+                  setSelectedType(null);
+                }}
+              >
+                <RefreshCw className="h-4 w-4 mr-2" />
+                Cambiar tipo de dispositivo
+              </Button>
+            )}
           </div>
         ) : (
-          // Selección de tipo NFC
+          // Selección de tipo NFC (nuevo o cambio)
           <div className="space-y-4 py-2">
             <p className="text-sm text-gray-600 font-medium text-center">
-              Elige el tipo de NFC que deseas para <strong>{studentName}</strong>:
+              {changingType 
+                ? <>Elige el nuevo tipo de NFC para <strong>{studentName}</strong>:</>
+                : <>Elige el tipo de NFC que deseas para <strong>{studentName}</strong>:</>
+              }
             </p>
 
             <div className="space-y-3">
@@ -293,28 +351,60 @@ export function NFCRequestModal({ isOpen, onClose, studentId, studentName, schoo
         )}
 
         <DialogFooter className="gap-2 pt-2">
-          <Button variant="outline" onClick={onClose} disabled={submitting}>
-            {existingRequest ? 'Cerrar' : 'Cancelar'}
-          </Button>
-          {!existingRequest && !loadingExisting && (
-            <Button
-              onClick={handleSubmit}
-              disabled={!selectedType || submitting}
-              className="bg-blue-600 hover:bg-blue-700"
-            >
-              {submitting ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Enviando...
-                </>
-              ) : (
-                <>
-                  <Nfc className="h-4 w-4 mr-2" />
-                  Enviar Solicitud
-                  {selectedType && ` — S/ ${selectedType.price.toFixed(2)}`}
-                </>
+          {changingType ? (
+            <>
+              <Button 
+                variant="outline" 
+                onClick={() => { setChangingType(false); setSelectedType(null); }} 
+                disabled={submitting}
+              >
+                Cancelar cambio
+              </Button>
+              <Button
+                onClick={handleChangeType}
+                disabled={!selectedType || submitting}
+                className="bg-amber-600 hover:bg-amber-700"
+              >
+                {submitting ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Cambiando...
+                  </>
+                ) : (
+                  <>
+                    <RefreshCw className="h-4 w-4 mr-2" />
+                    Confirmar Cambio
+                    {selectedType && ` — S/ ${selectedType.price.toFixed(2)}`}
+                  </>
+                )}
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button variant="outline" onClick={onClose} disabled={submitting}>
+                {existingRequest ? 'Cerrar' : 'Cancelar'}
+              </Button>
+              {!existingRequest && !loadingExisting && (
+                <Button
+                  onClick={handleSubmit}
+                  disabled={!selectedType || submitting}
+                  className="bg-blue-600 hover:bg-blue-700"
+                >
+                  {submitting ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Enviando...
+                    </>
+                  ) : (
+                    <>
+                      <Nfc className="h-4 w-4 mr-2" />
+                      Enviar Solicitud
+                      {selectedType && ` — S/ ${selectedType.price.toFixed(2)}`}
+                    </>
+                  )}
+                </Button>
               )}
-            </Button>
+            </>
           )}
         </DialogFooter>
       </DialogContent>

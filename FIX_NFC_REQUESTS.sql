@@ -46,6 +46,11 @@ DROP POLICY IF EXISTS "parents_create_nfc_requests" ON public.nfc_requests;
 CREATE POLICY "parents_create_nfc_requests" ON public.nfc_requests
   FOR INSERT WITH CHECK (parent_id = auth.uid());
 
+-- Padres pueden modificar sus propias solicitudes pendientes (cambiar tipo de dispositivo)
+DROP POLICY IF EXISTS "parents_update_own_pending_nfc_requests" ON public.nfc_requests;
+CREATE POLICY "parents_update_own_pending_nfc_requests" ON public.nfc_requests
+  FOR UPDATE USING (parent_id = auth.uid() AND status = 'pending');
+
 -- Admins pueden ver todas las solicitudes de su sede
 DROP POLICY IF EXISTS "admins_view_nfc_requests" ON public.nfc_requests;
 CREATE POLICY "admins_view_nfc_requests" ON public.nfc_requests
