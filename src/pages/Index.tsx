@@ -29,6 +29,7 @@ import { UnifiedLunchCalendarV2 } from '@/components/lunch/UnifiedLunchCalendarV
 import { ParentLunchOrders } from '@/components/parent/ParentLunchOrders';
 import { ParentDataForm } from '@/components/parent/ParentDataForm';
 import { NFCRequestModal } from '@/components/parent/NFCRequestModal';
+import { MaintenanceScreen } from '@/components/parent/MaintenanceScreen';
 import { useOnboardingCheck } from '@/hooks/useOnboardingCheck';
 
 interface Student {
@@ -85,6 +86,9 @@ const Index = () => {
   // NFC
   const [showNFCModal, setShowNFCModal] = useState(false);
 
+  // Modo mantenimiento
+  const [lunchMaintenance, setLunchMaintenance] = useState<{ is_active: boolean; title: string; message: string; bypass_emails: string[] } | null>(null);
+
   // Estado para evitar doble apertura
   const [isOpeningPhotoModal, setIsOpeningPhotoModal] = useState(false);
 
@@ -92,7 +96,21 @@ const Index = () => {
     fetchStudents();
     fetchParentProfile();
     checkOnboardingStatus();
+    checkLunchMaintenance();
   }, [user]);
+
+  const checkLunchMaintenance = async () => {
+    try {
+      const { data } = await supabase
+        .from('module_maintenance')
+        .select('is_active, title, message, bypass_emails')
+        .eq('module_key', 'parent_lunch')
+        .maybeSingle();
+      if (data) setLunchMaintenance(data);
+    } catch {
+      // Si falla (tabla no existe aún), no bloquear nada
+    }
+  };
 
   const fetchParentProfile = async () => {
     if (!user) return;
@@ -447,36 +465,54 @@ const Index = () => {
 
         {/* Pestaña Almuerzos */}
         <div className={activeTab !== 'almuerzos' ? 'hidden' : ''}>
-          {user && (
-            <div className="px-2 sm:px-4 space-y-4 sm:space-y-6">
-              <Tabs defaultValue="hacer-pedido" className="w-full">
-                <TabsList className="grid w-full grid-cols-2 h-auto">
-                  <TabsTrigger value="hacer-pedido" className="text-xs sm:text-sm py-2 sm:py-3">
-                    <UtensilsCrossed className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
-                    Hacer Pedido
-                  </TabsTrigger>
-                  <TabsTrigger value="mis-pedidos" className="text-xs sm:text-sm py-2 sm:py-3">
-                    <Calendar className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
-                    Mis Pedidos
-                  </TabsTrigger>
-                </TabsList>
-                
-                <TabsContent value="hacer-pedido" className="mt-4 sm:mt-6">
-                  {user && parentProfileData && (
-                    <UnifiedLunchCalendarV2 
-                      userType="parent"
-                      userId={user.id}
-                      userSchoolId={parentProfileData.school_id || ''}
-                    />
-                  )}
-                </TabsContent>
-                
-                <TabsContent value="mis-pedidos" className="mt-4 sm:mt-6">
-                  <ParentLunchOrders parentId={user.id} />
-                </TabsContent>
-              </Tabs>
-            </div>
-          )}
+          {user && (() => {
+            // Verificar si está en modo mantenimiento y el usuario NO está en la lista bypass
+            const isInMaintenance =
+              lunchMaintenance?.is_active === true &&
+              !lunchMaintenance.bypass_emails
+                .map(e => e.toLowerCase())
+                .includes((user.email || '').toLowerCase());
+
+            if (isInMaintenance) {
+              return (
+                <MaintenanceScreen
+                  title={lunchMaintenance?.title}
+                  message={lunchMaintenance?.message}
+                />
+              );
+            }
+
+            return (
+              <div className="px-2 sm:px-4 space-y-4 sm:space-y-6">
+                <Tabs defaultValue="hacer-pedido" className="w-full">
+                  <TabsList className="grid w-full grid-cols-2 h-auto">
+                    <TabsTrigger value="hacer-pedido" className="text-xs sm:text-sm py-2 sm:py-3">
+                      <UtensilsCrossed className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
+                      Hacer Pedido
+                    </TabsTrigger>
+                    <TabsTrigger value="mis-pedidos" className="text-xs sm:text-sm py-2 sm:py-3">
+                      <Calendar className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
+                      Mis Pedidos
+                    </TabsTrigger>
+                  </TabsList>
+                  
+                  <TabsContent value="hacer-pedido" className="mt-4 sm:mt-6">
+                    {user && parentProfileData && (
+                      <UnifiedLunchCalendarV2 
+                        userType="parent"
+                        userId={user.id}
+                        userSchoolId={parentProfileData.school_id || ''}
+                      />
+                    )}
+                  </TabsContent>
+                  
+                  <TabsContent value="mis-pedidos" className="mt-4 sm:mt-6">
+                    <ParentLunchOrders parentId={user.id} />
+                  </TabsContent>
+                </Tabs>
+              </div>
+            );
+          })()}
         </div>
       </main>
 

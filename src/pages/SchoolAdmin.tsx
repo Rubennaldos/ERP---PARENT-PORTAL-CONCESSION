@@ -4,7 +4,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { ShoppingCart, Calendar, CreditCard, Plus, Clock, CheckCircle2, AlertTriangle, ArrowLeft, GraduationCap, Nfc } from 'lucide-react';
+import { ShoppingCart, Calendar, CreditCard, Plus, Clock, CheckCircle2, AlertTriangle, ArrowLeft, GraduationCap, Nfc, Wrench } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
@@ -12,6 +12,7 @@ import { CreateSupplyRequestModal } from '@/components/school-admin/CreateSupply
 import { GradesManagement } from '@/components/school-admin/GradesManagement';
 import { NFCCardsManager } from '@/components/admin/NFCCardsManager';
 import { NFCRequestsManager } from '@/components/school-admin/NFCRequestsManager';
+import { MaintenanceModeManager } from '@/components/school-admin/MaintenanceModeManager';
 
 interface SupplyRequest {
   id: string;
@@ -142,7 +143,7 @@ const SchoolAdmin = () => {
 
         {/* Tabs Principales */}
         <Tabs defaultValue="requests" className="w-full">
-          <TabsList className="grid w-full grid-cols-4 bg-white border rounded-xl p-1 h-auto">
+          <TabsList className="grid w-full grid-cols-5 bg-white border rounded-xl p-1 h-auto">
             <TabsTrigger value="requests" className="data-[state=active]:bg-[#9E4D68] data-[state=active]:text-white flex flex-col sm:flex-row items-center gap-1 py-2 px-1 sm:px-3 text-xs sm:text-sm">
               <ShoppingCart className="h-4 w-4" />
               <span className="hidden xs:inline sm:inline text-[10px] sm:text-sm leading-tight">Pedidos</span>
@@ -158,6 +159,10 @@ const SchoolAdmin = () => {
             <TabsTrigger value="cards" className="data-[state=active]:bg-[#9E4D68] data-[state=active]:text-white flex flex-col sm:flex-row items-center gap-1 py-2 px-1 sm:px-3 text-xs sm:text-sm">
               <CreditCard className="h-4 w-4" />
               <span className="hidden xs:inline sm:inline text-[10px] sm:text-sm leading-tight">Tarjetas</span>
+            </TabsTrigger>
+            <TabsTrigger value="maintenance" className="data-[state=active]:bg-[#9E4D68] data-[state=active]:text-white flex flex-col sm:flex-row items-center gap-1 py-2 px-1 sm:px-3 text-xs sm:text-sm">
+              <Wrench className="h-4 w-4" />
+              <span className="hidden xs:inline sm:inline text-[10px] sm:text-sm leading-tight">Mant.</span>
             </TabsTrigger>
           </TabsList>
 
@@ -249,6 +254,24 @@ const SchoolAdmin = () => {
           <TabsContent value="cards" className="mt-4 space-y-4">
             <NFCRequestsManager schoolId={userSchoolId} />
             <NFCCardsManager schoolId={userSchoolId} />
+          </TabsContent>
+
+          {/* Pestaña de Modo Mantenimiento */}
+          <TabsContent value="maintenance" className="mt-4">
+            <Card className="border-2 border-amber-200">
+              <CardHeader className="bg-gradient-to-r from-amber-50 to-orange-50 p-4 sm:p-6">
+                <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+                  <Wrench className="h-5 w-5 text-amber-600" />
+                  Modo Mantenimiento
+                </CardTitle>
+                <CardDescription className="text-xs sm:text-sm">
+                  Controla qué módulos del portal de padres están disponibles. Agrega tu correo de prueba para verlos tú solo.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="p-4 sm:p-6">
+                <MaintenanceModeManager schoolId={userSchoolId} />
+              </CardContent>
+            </Card>
           </TabsContent>
         </Tabs>
 
