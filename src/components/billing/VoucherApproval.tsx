@@ -89,6 +89,8 @@ export const VoucherApproval = () => {
   const [showRejectInput, setShowRejectInput] = useState<Record<string, boolean>>({});
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [userSchoolId, setUserSchoolId] = useState<string | null | undefined>(undefined);
+  // Cache de signed URLs para vouchers
+  const [voucherUrls, setVoucherUrls] = useState<Record<string, string>>({});
 
   // ── Búsqueda ──
   const [searchTerm, setSearchTerm] = useState('');
@@ -200,12 +202,45 @@ export const VoucherApproval = () => {
       }
 
       setRequests(enriched);
+
+      // ── Resolver URLs de vouchers (signed URLs para paths, dejar URLs completas como están) ──
+      resolveVoucherUrls(enriched);
     } catch (err: any) {
       console.error('Error al cargar solicitudes:', err);
       toast({ title: 'Error', description: err.message, variant: 'destructive' });
     } finally {
       setLoading(false);
     }
+  };
+
+  /**
+   * Resuelve voucher_url: si es un path de storage (no empieza con http), genera signed URL.
+   * Si ya es URL completa, la usa directamente.
+   */
+  const resolveVoucherUrls = async (reqs: RechargeRequest[]) => {
+    const urls: Record<string, string> = {};
+    for (const req of reqs) {
+      if (!req.voucher_url) continue;
+      if (req.voucher_url.startsWith('http')) {
+        // Ya es URL completa (vouchers antiguos con getPublicUrl)
+        urls[req.id] = req.voucher_url;
+      } else {
+        // Es un path de storage → generar signed URL (1 hora)
+        try {
+          const { data, error } = await supabase.storage
+            .from('vouchers')
+            .createSignedUrl(req.voucher_url, 3600);
+          if (data?.signedUrl) {
+            urls[req.id] = data.signedUrl;
+          }
+        } catch {
+          // fallback: intentar URL pública
+          const { data: { publicUrl } } = supabase.storage.from('vouchers').getPublicUrl(req.voucher_url);
+          urls[req.id] = publicUrl;
+        }
+      }
+    }
+    setVoucherUrls(urls);
   };
 
   // ── Filtrar por búsqueda ──
@@ -857,15 +892,19 @@ export const VoucherApproval = () => {
                     {/* Columna derecha: imagen + acciones */}
                     <div className="flex sm:flex-col items-start sm:items-end gap-3 sm:shrink-0 sm:w-[140px]">
                       {/* Voucher imagen */}
-                      {req.voucher_url ? (
+                      {(voucherUrls[req.id] || req.voucher_url) ? (
                         <button
-                          onClick={() => setSelectedImage(req.voucher_url)}
+                          onClick={() => setSelectedImage(voucherUrls[req.id] || req.voucher_url)}
                           className="border-2 border-dashed border-blue-300 rounded-lg overflow-hidden hover:border-blue-500 transition-colors w-20 h-16 sm:w-24 sm:h-20 shrink-0"
                         >
                           <img
-                            src={req.voucher_url}
+                            src={voucherUrls[req.id] || req.voucher_url || ''}
                             alt="Voucher"
                             className="w-full h-full object-cover"
+                            onError={(e) => {
+                              // Si falla, ocultar la imagen rota
+                              (e.target as HTMLImageElement).style.display = 'none';
+                            }}
                           />
                         </button>
                       ) : (

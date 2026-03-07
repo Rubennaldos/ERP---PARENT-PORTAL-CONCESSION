@@ -329,19 +329,16 @@ export function RechargeModal({
       const { data: student } = await supabase.from('students').select('school_id').eq('id', studentId).single();
       const schoolId = student?.school_id || null;
 
-      // Upload helper
+      // Upload helper — guarda el path para poder generar signed URLs
       const uploadVoucher = async (file: File): Promise<string | null> => {
         const ext = file.name.split('.').pop()?.toLowerCase() || 'jpg';
         const safeName = `voucher_${Date.now()}_${Math.random().toString(36).slice(2, 8)}.${ext}`;
-        const fileName = `${user.id}/${safeName}`;
+        const filePath = `${user.id}/${safeName}`;
         const { data: uploadData, error: uploadError } = await supabase.storage
-          .from('vouchers').upload(fileName, file, { upsert: false });
+          .from('vouchers').upload(filePath, file, { upsert: false });
         if (uploadError) throw new Error(`Error al subir imagen: ${uploadError.message}`);
-        if (uploadData) {
-          const { data: { publicUrl } } = supabase.storage.from('vouchers').getPublicUrl(uploadData.path);
-          return publicUrl;
-        }
-        return null;
+        // Guardar el path relativo (no la URL pública) para generar signed URLs
+        return uploadData?.path || filePath;
       };
 
       const basePayload = {
