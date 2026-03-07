@@ -264,7 +264,20 @@ export function UnifiedLunchCalendarV2({ userType, userId, userSchoolId }: Unifi
         .eq('school_id', effectiveSchoolId)
         .maybeSingle();
 
-      setConfig(configData);
+      if (configError) {
+        console.warn('⚠️ Error cargando lunch_configuration:', configError.message, configError.code);
+      }
+
+      // Si no hay config (RLS block o no existe), usar valores por defecto
+      const fallbackConfig: LunchConfig = {
+        lunch_price: 15,
+        orders_enabled: true,
+        order_deadline_time: '20:00:00',
+        order_deadline_days: 1,
+        cancellation_deadline_time: '07:00:00',
+        cancellation_deadline_days: 0,
+      };
+      setConfig(configData || fallbackConfig);
 
       // 2. Menus - FIXED: include target_type='both' AND target_type IS NULL
       // NULL = menú creado sin target_type (carga masiva), visible para todos
