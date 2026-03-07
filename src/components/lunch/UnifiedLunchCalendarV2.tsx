@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -201,6 +201,11 @@ export function UnifiedLunchCalendarV2({ userType, userId, userSchoolId }: Unifi
   // ── PREVIEW en multi-select: ver menú antes de agregar ──
   const [previewDate, setPreviewDate] = useState<string | null>(null);
 
+  // ── KEYBOARD AWARE: evitar que el teclado tape el textarea ──
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const orderModalContentRef = useRef<HTMLDivElement>(null);
+  const [keyboardOffset, setKeyboardOffset] = useState(0);
+
   // View existing orders modal
   const [viewOrdersModal, setViewOrdersModal] = useState(false);
   const [viewOrdersDate, setViewOrdersDate] = useState<string | null>(null);
@@ -234,6 +239,39 @@ export function UnifiedLunchCalendarV2({ userType, userId, userSchoolId }: Unifi
   useEffect(() => {
     if (effectiveSchoolId) fetchMonthlyData();
   }, [currentDate, effectiveSchoolId]);
+
+  // ── Escuchar resize de visualViewport (teclado virtual en móvil) ──
+  useEffect(() => {
+    const vv = window.visualViewport;
+    if (!vv) return;
+
+    const handleViewportResize = () => {
+      const windowHeight = window.innerHeight;
+      const viewportHeight = vv.height;
+      const offset = Math.max(0, windowHeight - viewportHeight - vv.offsetTop);
+      setKeyboardOffset(offset);
+    };
+
+    vv.addEventListener('resize', handleViewportResize);
+    vv.addEventListener('scroll', handleViewportResize);
+
+    return () => {
+      vv.removeEventListener('resize', handleViewportResize);
+      vv.removeEventListener('scroll', handleViewportResize);
+    };
+  }, []);
+
+  // ── Cuando se abre el textarea, hacer scroll para que sea visible ──
+  useEffect(() => {
+    if (showComments && textareaRef.current) {
+      // Esperar al teclado (300ms) y luego hacer scroll
+      const timer = setTimeout(() => {
+        textareaRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        textareaRef.current?.focus();
+      }, 300);
+      return () => clearTimeout(timer);
+    }
+  }, [showComments]);
 
   const fetchStudents = async () => {
     try {
@@ -1122,8 +1160,18 @@ export function UnifiedLunchCalendarV2({ userType, userId, userSchoolId }: Unifi
     const shortDateLabel = format(getPeruDateOnly(orderModalDate), "EEE d MMM", { locale: es });
 
     return (
-      <Dialog open={!!orderModalDate} onOpenChange={(open) => !open && closeOrderModal()}>
-        <DialogContent className="max-w-[360px] p-0 overflow-hidden rounded-2xl gap-0">
+      <Dialog open={!!orderModalDate} onOpenChange={(open) => { if (!open) { setKeyboardOffset(0); closeOrderModal(); } }}>
+        <DialogContent
+          className="max-w-[360px] p-0 overflow-y-auto rounded-2xl gap-0 transition-transform duration-200"
+          style={{
+            transform: keyboardOffset > 0
+              ? `translateY(-${Math.min(keyboardOffset * 0.5, 120)}px)`
+              : undefined,
+            maxHeight: keyboardOffset > 0
+              ? `calc(100vh - ${keyboardOffset + 20}px)`
+              : '90vh',
+          }}
+        >
           {/* Header mini */}
           <div className="bg-gradient-to-r from-purple-600 to-blue-600 text-white px-3 py-2">
             <DialogHeader>
@@ -1246,12 +1294,17 @@ export function UnifiedLunchCalendarV2({ userType, userId, userSchoolId }: Unifi
 
                 {showComments && (
                   <Textarea
+                    ref={textareaRef}
                     placeholder="Ej: Sin ensalada..."
                     value={orderComments}
                     onChange={(e) => setOrderComments(e.target.value)}
                     rows={2}
                     className="resize-none text-[11px] h-14"
-                    autoFocus
+                    onFocus={() => {
+                      setTimeout(() => {
+                        textareaRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                      }, 320);
+                    }}
                   />
                 )}
 
