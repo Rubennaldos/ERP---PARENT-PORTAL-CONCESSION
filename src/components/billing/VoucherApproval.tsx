@@ -88,7 +88,7 @@ export const VoucherApproval = () => {
   const [rejectionReason, setRejectionReason] = useState<Record<string, string>>({});
   const [showRejectInput, setShowRejectInput] = useState<Record<string, boolean>>({});
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
-  const [userSchoolId, setUserSchoolId] = useState<string | null>(null);
+  const [userSchoolId, setUserSchoolId] = useState<string | null | undefined>(undefined);
 
   // ── Búsqueda ──
   const [searchTerm, setSearchTerm] = useState('');
@@ -678,17 +678,17 @@ export const VoucherApproval = () => {
       {/* Filtros */}
       <div className="flex flex-wrap gap-2">
         {([
-          { key: 'pending', label: 'Pendientes', color: 'amber' },
-          { key: 'approved', label: 'Aprobados', color: 'green' },
-          { key: 'rejected', label: 'Rechazados', color: 'red' },
-          { key: 'all', label: 'Todos', color: 'gray' },
-        ] as const).map(({ key, label, color }) => (
+          { key: 'pending', label: 'Pendientes', active: 'bg-amber-100 text-amber-800 border-amber-300 shadow-sm' },
+          { key: 'approved', label: 'Aprobados', active: 'bg-green-100 text-green-800 border-green-300 shadow-sm' },
+          { key: 'rejected', label: 'Rechazados', active: 'bg-red-100 text-red-800 border-red-300 shadow-sm' },
+          { key: 'all', label: 'Todos', active: 'bg-gray-100 text-gray-800 border-gray-300 shadow-sm' },
+        ] as const).map(({ key, label, active }) => (
           <button
             key={key}
             onClick={() => setFilter(key)}
             className={`px-4 py-2 rounded-full text-sm font-medium border transition-all
               ${filter === key
-                ? `bg-${color}-100 text-${color}-800 border-${color}-300 shadow-sm`
+                ? active
                 : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300'
               }`}
           >

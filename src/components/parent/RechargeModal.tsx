@@ -10,14 +10,12 @@ import { supabase } from '@/lib/supabase';
 import { YapeLogo } from '@/components/ui/YapeLogo';
 import { PlinLogo } from '@/components/ui/PlinLogo';
 import {
-  CreditCard,
   Building2,
   CheckCircle2,
   AlertCircle,
   Loader2,
   Upload,
   Clock,
-  Image as ImageIcon,
   X,
   Send,
   Wallet,
@@ -90,7 +88,6 @@ export function RechargeModal({
   const { user } = useAuth();
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const splitFileInputRefs = useRef<Map<string, HTMLInputElement>>(new Map());
 
   const skipAmountStep = !!suggestedAmount && suggestedAmount > 0;
 
@@ -919,7 +916,7 @@ export function RechargeModal({
                 <div className="relative">
                   <img src={sv.voucherPreview} alt="Voucher split" className="w-full max-h-24 object-contain rounded-lg border border-gray-200" />
                   <button
-                    onClick={() => updateSplitVoucher(sv.id, 'voucherFile', null) || updateSplitVoucher(sv.id, 'voucherPreview', null)}
+                    onClick={() => { updateSplitVoucher(sv.id, 'voucherFile', null); updateSplitVoucher(sv.id, 'voucherPreview', null); }}
                     className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-0.5 hover:bg-red-600"
                   >
                     <X className="h-2.5 w-2.5" />

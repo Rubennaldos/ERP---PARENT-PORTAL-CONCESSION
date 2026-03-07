@@ -67,9 +67,6 @@ export const PaymentsTab = ({ userId }: PaymentsTabProps) => {
   // ── Checkboxes por transacción por alumno ──
   const [selectedTxByStudent, setSelectedTxByStudent] = useState<Map<string, Set<string>>>(new Map());
 
-  // ── Modo pago combinado (todos los hijos) ──
-  const [showCombinedPaymentModal, setShowCombinedPaymentModal] = useState(false);
-
   useEffect(() => {
     fetchDebts();
   }, [userId]);
