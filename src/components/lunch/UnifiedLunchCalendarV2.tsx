@@ -191,6 +191,13 @@ export function UnifiedLunchCalendarV2({ userType, userId, userSchoolId }: Unifi
   const [orderComments, setOrderComments] = useState('');
   const [showComments, setShowComments] = useState(false);
 
+  // ── MULTI-DAY: Selección de múltiples días ──
+  const [multiSelectMode, setMultiSelectMode] = useState(false);
+  const [selectedDates, setSelectedDates] = useState<Set<string>>(new Set());
+  const [multiOrderModalOpen, setMultiOrderModalOpen] = useState(false);
+  const [multiOrderProcessing, setMultiOrderProcessing] = useState(false);
+  const [multiOrderResults, setMultiOrderResults] = useState<{ date: string; success: boolean; desc?: string }[]>([]);
+
   // View existing orders modal
   const [viewOrdersModal, setViewOrdersModal] = useState(false);
   const [viewOrdersDate, setViewOrdersDate] = useState<string | null>(null);
@@ -435,9 +442,9 @@ export function UnifiedLunchCalendarV2({ userType, userId, userSchoolId }: Unifi
   // ==========================================
 
   const handleDateClick = (dateStr: string) => {
-    // Days with existing orders → open view modal
+    // Days with existing orders → open view modal (siempre, en cualquier modo)
     const dayOrders = existingOrders.filter(o => o.date === dateStr && !o.is_cancelled);
-    if (dayOrders.length > 0) {
+    if (dayOrders.length > 0 && !multiSelectMode) {
       setViewOrdersDate(dateStr);
       setViewOrdersModal(true);
       return;
@@ -459,7 +466,23 @@ export function UnifiedLunchCalendarV2({ userType, userId, userSchoolId }: Unifi
       return;
     }
 
-    // ── Abrir modal de pedido directo ──
+    // ── MULTI-SELECT MODE: toggle selección ──
+    if (multiSelectMode) {
+      // No seleccionar días que ya tienen pedido
+      if (dayOrders.length > 0) {
+        toast({ title: '⚠️ Ya tienes pedido', description: 'Este día ya tiene un pedido registrado.' });
+        return;
+      }
+      setSelectedDates(prev => {
+        const next = new Set(prev);
+        if (next.has(dateStr)) next.delete(dateStr);
+        else next.add(dateStr);
+        return next;
+      });
+      return;
+    }
+
+    // ── MODO NORMAL: Abrir modal de pedido directo ──
     openOrderModal(dateStr);
   };
 
@@ -490,10 +513,21 @@ export function UnifiedLunchCalendarV2({ userType, userId, userSchoolId }: Unifi
   // ==========================================
 
   const handleConfirmOrder = async () => {
-    if (!config || !selectedMenu || !orderModalDate) return;
+    if (!config) {
+      toast({ variant: 'destructive', title: 'Error', description: 'Configuración no cargada. Recarga la página.' });
+      return;
+    }
+    if (!selectedMenu) {
+      toast({ variant: 'destructive', title: 'Error', description: 'Selecciona un plato primero.' });
+      return;
+    }
+    if (!orderModalDate) return;
 
     const selectedCategory = selectedMenu.category;
-    if (!selectedCategory) return;
+    if (!selectedCategory) {
+      toast({ variant: 'destructive', title: 'Error', description: 'El plato no tiene categoría asignada.' });
+      return;
+    }
 
     setSubmitting(true);
 
@@ -501,7 +535,11 @@ export function UnifiedLunchCalendarV2({ userType, userId, userSchoolId }: Unifi
       const personField = userType === 'parent' ? 'student_id' : 'teacher_id';
       const personId = userType === 'parent' ? selectedStudent?.id : userId;
 
-      if (!personId) throw new Error('No se encontró el usuario');
+      if (!personId) {
+        toast({ variant: 'destructive', title: 'Error', description: userType === 'parent' ? 'Selecciona un alumno primero.' : 'No se encontró el usuario.' });
+        setSubmitting(false);
+        return;
+      }
 
       // ── Verificar pedido duplicado ──
       const { data: existingOrder } = await supabase
@@ -617,6 +655,135 @@ export function UnifiedLunchCalendarV2({ userType, userId, userSchoolId }: Unifi
   };
 
   // ==========================================
+  // MULTI-DAY ORDER: Pedir varios días a la vez
+  // ==========================================
+
+  const handleMultiDayOrder = async () => {
+    if (!config || selectedDates.size === 0) return;
+
+    const personField = userType === 'parent' ? 'student_id' : 'teacher_id';
+    const personId = userType === 'parent' ? selectedStudent?.id : userId;
+    if (!personId) {
+      toast({ variant: 'destructive', title: 'Error', description: 'Selecciona un alumno primero.' });
+      return;
+    }
+
+    setMultiOrderProcessing(true);
+    const results: { date: string; success: boolean; desc?: string }[] = [];
+
+    const sortedDates = Array.from(selectedDates).sort();
+
+    for (const dateStr of sortedDates) {
+      const dayMenus = menus.get(dateStr) || [];
+
+      // Buscar el primer menú con categoría válida
+      const menu = dayMenus.find(m => m.category_id && m.category);
+      if (!menu || !menu.category) {
+        results.push({ date: dateStr, success: false, desc: 'Sin menú disponible' });
+        continue;
+      }
+
+      const cat = menu.category;
+      const unitPrice = cat.price || config.lunch_price;
+
+      try {
+        // Verificar duplicado
+        const { data: existing } = await supabase
+          .from('lunch_orders')
+          .select('id')
+          .eq(personField, personId)
+          .eq('order_date', dateStr)
+          .eq('category_id', cat.id)
+          .eq('is_cancelled', false)
+          .maybeSingle();
+
+        if (existing) {
+          results.push({ date: dateStr, success: false, desc: 'Ya tiene pedido' });
+          continue;
+        }
+
+        // Crear lunch_order
+        const { data: insertedOrder, error: orderError } = await supabase
+          .from('lunch_orders')
+          .insert([{
+            [personField]: personId,
+            order_date: dateStr,
+            status: 'pending',
+            category_id: cat.id,
+            menu_id: menu.id,
+            school_id: effectiveSchoolId,
+            quantity: 1,
+            base_price: unitPrice,
+            addons_total: 0,
+            final_price: unitPrice,
+            created_by: userId,
+          }])
+          .select('id')
+          .single();
+
+        if (orderError) throw orderError;
+
+        // Crear transacción
+        const dateFormatted = format(getPeruDateOnly(dateStr), "d 'de' MMMM", { locale: es });
+
+        let ticketCode: string | null = null;
+        try {
+          const { data: tn } = await supabase.rpc('get_next_ticket_number', { p_user_id: userId });
+          if (tn) ticketCode = tn;
+        } catch {}
+
+        await supabase.from('transactions').insert([{
+          [personField]: personId,
+          type: 'purchase',
+          amount: -Math.abs(unitPrice),
+          description: `Almuerzo - ${cat.name} - ${dateFormatted}`,
+          payment_status: 'pending',
+          payment_method: null,
+          school_id: effectiveSchoolId,
+          created_by: userId,
+          ticket_code: ticketCode,
+          metadata: {
+            lunch_order_id: insertedOrder.id,
+            source: `unified_calendar_v2_multi_${userType}`,
+            order_date: dateStr,
+            category_name: cat.name,
+            quantity: 1,
+          }
+        }]);
+
+        if (userType === 'parent' && insertedOrder?.id) {
+          setCreatedOrderIds(prev => [...prev, insertedOrder.id]);
+          setTotalOrderAmount(prev => prev + unitPrice);
+          setOrderDescriptions(prev => [...prev, `${cat.name} - ${dateFormatted}`]);
+        }
+
+        results.push({ date: dateStr, success: true, desc: `${menu.main_course} — S/ ${unitPrice.toFixed(2)}` });
+      } catch (err: any) {
+        results.push({ date: dateStr, success: false, desc: err.message || 'Error' });
+      }
+    }
+
+    setMultiOrderResults(results);
+    setMultiOrderProcessing(false);
+
+    const successCount = results.filter(r => r.success).length;
+    if (successCount > 0) {
+      toast({
+        title: `✅ ${successCount} pedido(s) registrado(s)`,
+        description: `De ${sortedDates.length} día(s) seleccionado(s)`,
+      });
+      fetchMonthlyData();
+    }
+  };
+
+  const closeMultiOrderModal = () => {
+    setMultiOrderModalOpen(false);
+    setMultiOrderResults([]);
+    setSelectedDates(new Set());
+    setMultiSelectMode(false);
+  };
+
+  // ==========================================
   // CANCEL ORDER
   // ==========================================
 
@@ -699,6 +866,7 @@ export function UnifiedLunchCalendarV2({ userType, userId, userSchoolId }: Unifi
           const dateStr = format(date, 'yyyy-MM-dd');
           const status = getDayStatus(dateStr);
           const isToday = dateStr === peruTodayStr;
+          const isSelected = multiSelectMode && selectedDates.has(dateStr);
           const dayOrders = existingOrders.filter(o => o.date === dateStr && !o.is_cancelled);
           const dayMenus = menus.get(dateStr) || [];
 
@@ -714,28 +882,34 @@ export function UnifiedLunchCalendarV2({ userType, userId, userSchoolId }: Unifi
                 "aspect-square p-0.5 sm:p-1 rounded-lg border-2 transition-all relative flex flex-col items-center justify-start",
                 "hover:shadow-md active:scale-95 disabled:cursor-not-allowed disabled:opacity-40",
                 isToday && "ring-2 ring-blue-400",
-                status === 'available' && "bg-white border-gray-200 hover:border-blue-400 hover:bg-blue-50",
-                status === 'has_orders' && "bg-green-50 border-green-300 hover:border-green-400",
-                status === 'special' && "bg-gray-100 border-gray-300",
-                status === 'unavailable' && "bg-gray-50 border-gray-200",
-                status === 'blocked' && "bg-red-50 border-red-200",
+                isSelected && "bg-purple-100 border-purple-500 ring-2 ring-purple-300",
+                !isSelected && status === 'available' && "bg-white border-gray-200 hover:border-blue-400 hover:bg-blue-50",
+                !isSelected && status === 'has_orders' && "bg-green-50 border-green-300 hover:border-green-400",
+                !isSelected && status === 'special' && "bg-gray-100 border-gray-300",
+                !isSelected && status === 'unavailable' && "bg-gray-50 border-gray-200",
+                !isSelected && status === 'blocked' && "bg-red-50 border-red-200",
               )}
             >
               <span className={cn(
                 "text-xs sm:text-sm font-medium",
-                status === 'blocked' && "text-red-400",
-                status === 'unavailable' && "text-gray-400",
-                status === 'has_orders' && "text-green-700 font-bold",
-                status === 'available' && "text-gray-800",
+                isSelected && "text-purple-700 font-bold",
+                !isSelected && status === 'blocked' && "text-red-400",
+                !isSelected && status === 'unavailable' && "text-gray-400",
+                !isSelected && status === 'has_orders' && "text-green-700 font-bold",
+                !isSelected && status === 'available' && "text-gray-800",
               )}>
                 {format(date, 'd')}
               </span>
 
-              {status === 'blocked' && (
+              {isSelected && (
+                <Check className="h-2.5 w-2.5 sm:h-3 sm:w-3 text-purple-600 mt-0.5" />
+              )}
+
+              {!isSelected && status === 'blocked' && (
                 <Lock className="h-2.5 w-2.5 sm:h-3 sm:w-3 text-red-400 mt-0.5" />
               )}
 
-              {status === 'available' && dayMenus.length > 0 && (
+              {!isSelected && status === 'available' && dayMenus.length > 0 && (
                 <UtensilsCrossed className="h-2.5 w-2.5 sm:h-3 sm:w-3 text-blue-500 mt-0.5" />
               )}
 
@@ -745,7 +919,7 @@ export function UnifiedLunchCalendarV2({ userType, userId, userSchoolId }: Unifi
                 </Badge>
               )}
 
-              {dayMenus.length > 0 && status !== 'has_orders' && status !== 'blocked' && (
+              {!isSelected && dayMenus.length > 0 && status !== 'has_orders' && status !== 'blocked' && (
                 <div className="flex gap-0.5 mt-0.5">
                   {Array.from(new Set(dayMenus.map(m => m.category?.color || '#3B82F6'))).slice(0, 3).map((color, idx) => (
                     <div key={idx} className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: color }} />
@@ -1148,12 +1322,44 @@ export function UnifiedLunchCalendarV2({ userType, userId, userSchoolId }: Unifi
                 {MONTHS[currentDate.getMonth()]} {currentDate.getFullYear()}
               </CardTitle>
               <CardDescription className="text-xs sm:text-sm">
-                Toca un día disponible para hacer tu pedido
+                {multiSelectMode
+                  ? `Selecciona los días — ${selectedDates.size} elegido(s)`
+                  : 'Toca un día disponible para hacer tu pedido'
+                }
               </CardDescription>
             </div>
             <Button variant="ghost" size="icon" onClick={() => { setCurrentDate(addMonths(currentDate, 1)); setSelectedDates(new Set()); }}>
               <ChevronRight className="h-5 w-5" />
             </Button>
+          </div>
+
+          {/* Toggle: modo normal / selección múltiple */}
+          <div className="flex items-center justify-center gap-2 mt-2">
+            <Button
+              variant={multiSelectMode ? "default" : "outline"}
+              size="sm"
+              className={cn(
+                "text-xs gap-1.5 h-8",
+                multiSelectMode ? "bg-purple-600 hover:bg-purple-700 text-white" : "text-gray-600"
+              )}
+              onClick={() => {
+                setMultiSelectMode(!multiSelectMode);
+                if (multiSelectMode) setSelectedDates(new Set());
+              }}
+            >
+              <CalendarIcon className="h-3.5 w-3.5" />
+              {multiSelectMode ? '✓ Selección múltiple' : 'Seleccionar varios días'}
+            </Button>
+            {multiSelectMode && selectedDates.size > 0 && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-xs text-gray-500 h-8"
+                onClick={() => setSelectedDates(new Set())}
+              >
+                Limpiar
+              </Button>
+            )}
           </div>
         </CardHeader>
 
@@ -1174,6 +1380,12 @@ export function UnifiedLunchCalendarV2({ userType, userId, userSchoolId }: Unifi
               <Lock className="h-3 w-3 text-red-400" />
               <span>Bloqueado</span>
             </div>
+            {multiSelectMode && (
+              <div className="flex items-center gap-1">
+                <Check className="h-3 w-3 text-purple-600" />
+                <span className="text-purple-600 font-medium">Seleccionado</span>
+              </div>
+            )}
           </div>
 
           {/* Deadline info - Enhanced with concrete example */}
@@ -1225,6 +1437,185 @@ export function UnifiedLunchCalendarV2({ userType, userId, userSchoolId }: Unifi
       {/* VIEW ORDERS MODAL */}
       {renderViewOrdersModal()}
 
+      {/* MULTI-SELECT FLOATING BAR */}
+      {multiSelectMode && selectedDates.size > 0 && (
+        <div className="fixed bottom-4 left-4 right-4 z-50 animate-in slide-in-from-bottom-5 duration-300">
+          <div className="mx-auto max-w-md bg-purple-700 text-white rounded-2xl shadow-2xl p-4 flex items-center justify-between gap-3">
+            <div className="flex-1 min-w-0">
+              <p className="font-semibold text-sm">
+                📋 {selectedDates.size} día{selectedDates.size > 1 ? 's' : ''} seleccionado{selectedDates.size > 1 ? 's' : ''}
+              </p>
+              <p className="text-purple-200 text-xs truncate">
+                {Array.from(selectedDates).sort().slice(0, 3).map(d => {
+                  const date = new Date(d + 'T12:00:00');
+                  return format(date, 'd MMM', { locale: es });
+                }).join(', ')}
+                {selectedDates.size > 3 && ` +${selectedDates.size - 3} más`}
+              </p>
+            </div>
+            <div className="flex gap-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-white/80 hover:text-white hover:bg-purple-600 text-xs h-9"
+                onClick={() => setSelectedDates(new Set())}
+              >
+                Limpiar
+              </Button>
+              <Button
+                size="sm"
+                className="bg-white text-purple-700 hover:bg-purple-100 font-semibold text-xs h-9 gap-1.5"
+                onClick={() => setMultiOrderModalOpen(true)}
+              >
+                <ShoppingCart className="h-3.5 w-3.5" />
+                Ver y Pedir
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MULTI-ORDER CONFIRMATION MODAL */}
+      <Dialog open={multiOrderModalOpen} onOpenChange={(open) => { if (!open && !multiOrderProcessing) closeMultiOrderModal(); }}>
+        <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-lg flex items-center gap-2">
+              <ShoppingCart className="h-5 w-5 text-purple-600" />
+              {multiOrderResults.length > 0 ? 'Resultado del pedido' : 'Confirmar pedido múltiple'}
+            </DialogTitle>
+          </DialogHeader>
+
+          {multiOrderResults.length === 0 ? (
+            <>
+              <div className="space-y-2 mt-2">
+                <p className="text-sm text-gray-600 mb-3">
+                  Se pedirá <strong>1 unidad del primer plato disponible</strong> para cada día:
+                </p>
+                {Array.from(selectedDates).sort().map(dateStr => {
+                  const dayMenus = menus.get(dateStr) || [];
+                  const menu = dayMenus.find(m => m.category_id && m.category);
+                  const date = new Date(dateStr + 'T12:00:00');
+                  return (
+                    <div key={dateStr} className="flex items-center gap-3 p-2.5 bg-gray-50 rounded-lg border">
+                      <div className="flex-shrink-0 text-center bg-purple-100 rounded-lg w-12 h-12 flex flex-col items-center justify-center">
+                        <span className="text-lg font-bold text-purple-700">{format(date, 'd')}</span>
+                        <span className="text-[10px] text-purple-500 -mt-1">{format(date, 'EEE', { locale: es })}</span>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        {menu ? (
+                          <>
+                            <p className="text-sm font-medium text-gray-800 truncate">{menu.main_course}</p>
+                            <p className="text-xs text-gray-500">{menu.category?.name} — S/ {(menu.category?.price || config?.lunch_price || 0).toFixed(2)}</p>
+                          </>
+                        ) : (
+                          <p className="text-xs text-red-500">Sin menú disponible</p>
+                        )}
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7 text-gray-400 hover:text-red-500"
+                        onClick={() => {
+                          setSelectedDates(prev => {
+                            const next = new Set(prev);
+                            next.delete(dateStr);
+                            if (next.size === 0) closeMultiOrderModal();
+                            return next;
+                          });
+                        }}
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                  );
+                })}
+
+                {/* Total */}
+                <div className="mt-3 pt-3 border-t flex items-center justify-between">
+                  <span className="text-sm font-medium text-gray-700">Total estimado:</span>
+                  <span className="text-lg font-bold text-purple-700">
+                    S/ {Array.from(selectedDates).reduce((total, dateStr) => {
+                      const dayMenus = menus.get(dateStr) || [];
+                      const menu = dayMenus.find(m => m.category_id && m.category);
+                      return total + (menu?.category?.price || config?.lunch_price || 0);
+                    }, 0).toFixed(2)}
+                  </span>
+                </div>
+              </div>
+
+              <div className="flex gap-2 mt-4">
+                <Button variant="outline" className="flex-1" onClick={() => setMultiOrderModalOpen(false)}>
+                  Volver
+                </Button>
+                <Button
+                  className="flex-1 bg-green-600 hover:bg-green-700 text-white gap-2"
+                  onClick={handleMultiDayOrder}
+                  disabled={multiOrderProcessing}
+                >
+                  {multiOrderProcessing ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <ShoppingCart className="h-4 w-4" />
+                  )}
+                  {multiOrderProcessing ? 'Procesando...' : `Pedir ${selectedDates.size} día(s)`}
+                </Button>
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="space-y-2 mt-2">
+                {multiOrderResults.map((r, i) => {
+                  const date = new Date(r.date + 'T12:00:00');
+                  return (
+                    <div key={i} className={cn(
+                      "flex items-center gap-3 p-2.5 rounded-lg border",
+                      r.success ? "bg-green-50 border-green-200" : "bg-red-50 border-red-200"
+                    )}>
+                      <div className={cn(
+                        "flex-shrink-0 text-center rounded-lg w-10 h-10 flex flex-col items-center justify-center",
+                        r.success ? "bg-green-100" : "bg-red-100"
+                      )}>
+                        <span className={cn("text-sm font-bold", r.success ? "text-green-700" : "text-red-700")}>
+                          {format(date, 'd')}
+                        </span>
+                      </div>
+                      <div className="flex-1">
+                        {r.success ? (
+                          <>
+                            <p className="text-xs text-green-700 font-medium">✅ Pedido registrado</p>
+                            <p className="text-xs text-green-600">{r.desc}</p>
+                          </>
+                        ) : (
+                          <>
+                            <p className="text-xs text-red-700 font-medium">❌ No se pudo pedir</p>
+                            <p className="text-xs text-red-600">{r.desc}</p>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+
+                <div className="mt-3 pt-3 border-t text-center">
+                  <p className="text-sm font-medium">
+                    ✅ {multiOrderResults.filter(r => r.success).length} exitoso(s)
+                    {multiOrderResults.some(r => !r.success) && (
+                      <span className="text-red-600 ml-2">
+                        ❌ {multiOrderResults.filter(r => !r.success).length} fallido(s)
+                      </span>
+                    )}
+                  </p>
+                </div>
+              </div>
+
+              <Button className="w-full mt-4 bg-purple-600 hover:bg-purple-700" onClick={closeMultiOrderModal}>
+                Cerrar
+              </Button>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
+
       {/* EMPTY STATE */}
       {!loading && menus.size === 0 && (
         <Card className="bg-gray-50">
@@ -1243,8 +1634,8 @@ export function UnifiedLunchCalendarV2({ userType, userId, userSchoolId }: Unifi
             <div className="flex-1 text-xs sm:text-sm">
               <p className="font-medium text-gray-900">¿Cómo pedir?</p>
               <ol className="text-gray-600 mt-1 space-y-0.5 list-decimal list-inside">
-                <li>Toca un día con 🍴 para ver los platos disponibles</li>
-                <li>Selecciona tu plato favorito y presiona <strong>"Pedir"</strong></li>
+                <li>Toca un día con 🍴 para ver los platos y pedir</li>
+                <li>Usa <strong>"Seleccionar varios días"</strong> para pedir varios de una vez</li>
                 <li>Toca días <span className="text-green-600 font-semibold">verdes</span> para ver o cancelar pedidos</li>
               </ol>
             </div>
