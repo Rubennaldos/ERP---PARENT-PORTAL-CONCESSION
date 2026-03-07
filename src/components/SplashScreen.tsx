@@ -152,10 +152,10 @@ export default function SplashScreen({ onComplete }: SplashScreenProps) {
 
         {/* Texto "Bienvenido" con reveal elegante */}
         <p 
-          className="mt-5 font-light tracking-[0.2em] text-xs uppercase animate-text-fade"
+          className="mt-5 font-light tracking-[0.15em] text-[11px] uppercase animate-text-fade text-center"
           style={{ color: 'hsl(338, 25%, 50%)' }}
         >
-          Bienvenido
+          Tiendas & Concesionarias Saludables
         </p>
 
         {/* Powered by sutil */}

@@ -191,7 +191,7 @@ export default function Auth() {
             <CardDescription className="text-stone-500 font-normal text-xs sm:text-sm tracking-wide px-2">
               {isRegisterMode 
                 ? 'Regístrate para gestionar los consumos de tus hijos' 
-                : 'Sistema de Gestión Maracuyá'}
+                : 'Maracuyá — Tiendas & Concesionarias Saludables'}
             </CardDescription>
           </CardHeader>
 

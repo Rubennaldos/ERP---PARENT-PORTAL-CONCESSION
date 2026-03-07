@@ -48,7 +48,7 @@ export const PaymentsTab = ({ userId }: PaymentsTabProps) => {
   const [debts, setDebts] = useState<StudentDebt[]>([]);
   const [voucherStatuses, setVoucherStatuses] = useState<Map<string, VoucherStatus>>(new Map());
 
-  // ── Estado para el modal de pago ──
+  // Modal de pago
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [paymentModalData, setPaymentModalData] = useState<{
     studentName: string;
@@ -61,10 +61,7 @@ export const PaymentsTab = ({ userId }: PaymentsTabProps) => {
     paidTransactionIds: string[];
   } | null>(null);
 
-  // ── Estado para detectar si hay voucher pendiente de tipo debt_payment por estudiante ──
-  const [pendingDebtVoucherStudents, setPendingDebtVoucherStudents] = useState<Set<string>>(new Set());
-
-  // ── Checkboxes por transacción por alumno ──
+  // Checkboxes por transacción por alumno
   const [selectedTxByStudent, setSelectedTxByStudent] = useState<Map<string, Set<string>>>(new Map());
 
   useEffect(() => {
@@ -82,7 +79,6 @@ export const PaymentsTab = ({ userId }: PaymentsTabProps) => {
         .eq('is_active', true);
 
       if (studentsError) throw studentsError;
-
       if (!students || students.length === 0) {
         setDebts([]);
         return;
@@ -127,14 +123,9 @@ export const PaymentsTab = ({ userId }: PaymentsTabProps) => {
 
       setDebts(debtsData);
 
-      // ── Inicializar checkboxes: todas seleccionadas por defecto ──
-      const initialSelection = new Map<string, Set<string>>();
-      debtsData.forEach(d => {
-        initialSelection.set(d.student_id, new Set(d.pending_transactions.map(tx => tx.id)));
-      });
-      setSelectedTxByStudent(initialSelection);
-
       // ── Obtener estados de vouchers enviados por este padre ──
+      const statusMap = new Map<string, VoucherStatus>();
+
       if (debtsData.length > 0) {
         const studentIds = debtsData.map(d => d.student_id);
 
@@ -148,14 +139,7 @@ export const PaymentsTab = ({ userId }: PaymentsTabProps) => {
           .order('created_at', { ascending: false });
 
         if (rechargeRequests && rechargeRequests.length > 0) {
-          const statusMap = new Map<string, VoucherStatus>();
-          const pendingDebtStudents = new Set<string>();
-
           rechargeRequests.forEach(req => {
-            if (req.status === 'pending' && req.request_type === 'debt_payment') {
-              pendingDebtStudents.add(req.student_id);
-            }
-
             // Mapear paid_transaction_ids directamente
             if (req.paid_transaction_ids) {
               req.paid_transaction_ids.forEach((txId: string) => {
@@ -190,18 +174,27 @@ export const PaymentsTab = ({ userId }: PaymentsTabProps) => {
               });
             }
           });
-
-          setVoucherStatuses(statusMap);
-          setPendingDebtVoucherStudents(pendingDebtStudents);
         }
       }
+
+      setVoucherStatuses(statusMap);
+
+      // ── Inicializar checkboxes: solo seleccionar las que NO tienen voucher pendiente ──
+      const initialSelection = new Map<string, Set<string>>();
+      debtsData.forEach(d => {
+        const payableTxIds = d.pending_transactions
+          .filter(tx => {
+            const vs = statusMap.get(tx.id);
+            return !vs || vs.status !== 'pending'; // solo seleccionar las que NO están en revisión
+          })
+          .map(tx => tx.id);
+        initialSelection.set(d.student_id, new Set(payableTxIds));
+      });
+      setSelectedTxByStudent(initialSelection);
+
     } catch (error: any) {
       console.error('Error fetching debts:', error);
-      toast({
-        variant: 'destructive',
-        title: 'Error',
-        description: 'No se pudieron cargar las deudas pendientes',
-      });
+      toast({ variant: 'destructive', title: 'Error', description: 'No se pudieron cargar las deudas pendientes' });
     } finally {
       setLoading(false);
     }
@@ -209,38 +202,41 @@ export const PaymentsTab = ({ userId }: PaymentsTabProps) => {
 
   const totalDebt = debts.reduce((sum, d) => sum + d.total_debt, 0);
 
-  // ── Toggle checkbox individual ──
+  /** ¿Esta transacción tiene un voucher pendiente de revisión? */
+  const isTxLocked = (txId: string): boolean => {
+    const vs = voucherStatuses.get(txId);
+    return vs?.status === 'pending';
+  };
+
+  // Toggle checkbox individual (solo si no está bloqueada)
   const toggleTransaction = (studentId: string, txId: string) => {
+    if (isTxLocked(txId)) return;
     setSelectedTxByStudent(prev => {
       const next = new Map(prev);
       const studentSet = new Set(next.get(studentId) || []);
-      if (studentSet.has(txId)) {
-        studentSet.delete(txId);
-      } else {
-        studentSet.add(txId);
-      }
+      if (studentSet.has(txId)) studentSet.delete(txId);
+      else studentSet.add(txId);
       next.set(studentId, studentSet);
       return next;
     });
   };
 
-  // ── Toggle all for a student ──
-  const toggleAllForStudent = (studentId: string, allTxIds: string[]) => {
+  // Toggle all (solo las no bloqueadas)
+  const toggleAllForStudent = (studentId: string, payableTxIds: string[]) => {
     setSelectedTxByStudent(prev => {
       const next = new Map(prev);
       const currentSet = next.get(studentId) || new Set();
-      if (currentSet.size === allTxIds.length) {
-        // Deseleccionar todo
+      const allPayableSelected = payableTxIds.every(id => currentSet.has(id));
+      if (allPayableSelected) {
         next.set(studentId, new Set());
       } else {
-        // Seleccionar todo
-        next.set(studentId, new Set(allTxIds));
+        next.set(studentId, new Set(payableTxIds));
       }
       return next;
     });
   };
 
-  // ── Calcular monto seleccionado para un alumno ──
+  // Monto seleccionado
   const getSelectedAmountForStudent = (debt: StudentDebt): number => {
     const selected = selectedTxByStudent.get(debt.student_id) || new Set();
     return debt.pending_transactions
@@ -248,9 +244,7 @@ export const PaymentsTab = ({ userId }: PaymentsTabProps) => {
       .reduce((sum, tx) => sum + tx.amount, 0);
   };
 
-  /**
-   * Abre el modal de pago para las transacciones seleccionadas de un estudiante
-   */
+  // Abrir modal de pago para las seleccionadas
   const handlePaySelected = (debt: StudentDebt) => {
     const selected = selectedTxByStudent.get(debt.student_id) || new Set();
     if (selected.size === 0) {
@@ -265,13 +259,8 @@ export const PaymentsTab = ({ userId }: PaymentsTabProps) => {
     const transactionIds: string[] = [];
     selectedTxs.forEach(tx => {
       transactionIds.push(tx.id);
-      if (tx.metadata?.lunch_order_id) {
-        lunchOrderIds.push(tx.metadata.lunch_order_id);
-      }
+      if (tx.metadata?.lunch_order_id) lunchOrderIds.push(tx.metadata.lunch_order_id);
     });
-
-    const count = selectedTxs.length;
-    const description = `Pago de deuda: ${count} compra(s) pendiente(s) — ${debt.student_name}`;
 
     setPaymentModalData({
       studentName: debt.student_name,
@@ -279,36 +268,36 @@ export const PaymentsTab = ({ userId }: PaymentsTabProps) => {
       currentBalance: debt.student_balance,
       amount: selectedAmount,
       requestType: 'debt_payment',
-      description,
+      description: `Pago de deuda: ${selectedTxs.length} compra(s) — ${debt.student_name}`,
       lunchOrderIds: lunchOrderIds.length > 0 ? lunchOrderIds : undefined,
       paidTransactionIds: transactionIds,
     });
     setShowPaymentModal(true);
   };
 
-  /**
-   * Abre el modal combinado para pagar TODOS los hijos juntos
-   */
+  // Pagar todo junto (varios hijos)
   const handlePayAllCombined = () => {
-    // Usar el primer estudiante como "portador" del voucher
-    // pero incluir transacciones de todos
     const allTransactionIds: string[] = [];
     const allLunchOrderIds: string[] = [];
     let totalAmount = 0;
 
     debts.forEach(debt => {
       debt.pending_transactions.forEach(tx => {
-        allTransactionIds.push(tx.id);
-        totalAmount += tx.amount;
-        if (tx.metadata?.lunch_order_id) {
-          allLunchOrderIds.push(tx.metadata.lunch_order_id);
+        if (!isTxLocked(tx.id)) {
+          allTransactionIds.push(tx.id);
+          totalAmount += tx.amount;
+          if (tx.metadata?.lunch_order_id) allLunchOrderIds.push(tx.metadata.lunch_order_id);
         }
       });
     });
 
+    if (allTransactionIds.length === 0) {
+      toast({ title: 'Todas las deudas ya tienen comprobante en revisión', variant: 'destructive' });
+      return;
+    }
+
     const firstDebt = debts[0];
     const childNames = debts.map(d => d.student_name).join(', ');
-    const description = `Pago combinado de deudas: ${childNames}`;
 
     setPaymentModalData({
       studentName: childNames,
@@ -316,16 +305,14 @@ export const PaymentsTab = ({ userId }: PaymentsTabProps) => {
       currentBalance: firstDebt.student_balance,
       amount: totalAmount,
       requestType: 'debt_payment',
-      description,
+      description: `Pago combinado: ${childNames}`,
       lunchOrderIds: allLunchOrderIds.length > 0 ? allLunchOrderIds : undefined,
       paidTransactionIds: allTransactionIds,
     });
     setShowPaymentModal(true);
   };
 
-  /**
-   * Renderiza un badge de estado del voucher para la transacción
-   */
+  // Renderizar badge de voucher status
   const renderVoucherStatus = (transaction: PendingTransaction) => {
     const vStatus = voucherStatuses.get(transaction.id);
     const wasRejected = transaction.metadata?.last_payment_rejected;
@@ -350,7 +337,7 @@ export const PaymentsTab = ({ userId }: PaymentsTabProps) => {
             <span className="text-[10px] sm:text-xs font-semibold">Pago rechazado</span>
           </div>
           <p className="text-[10px] text-red-600 mt-0.5 ml-[18px]">
-            Motivo: {reason}. Puedes enviar un nuevo comprobante.
+            {reason}. Puedes enviar un nuevo comprobante.
           </p>
         </div>
       );
@@ -377,9 +364,7 @@ export const PaymentsTab = ({ userId }: PaymentsTabProps) => {
           <div className="text-center">
             <Check className="h-16 w-16 text-emerald-500 mx-auto mb-4" />
             <h3 className="text-xl font-bold text-gray-900 mb-2">¡Todo al día!</h3>
-            <p className="text-gray-500">
-              No tienes deudas pendientes con el kiosco escolar.
-            </p>
+            <p className="text-gray-500">No tienes deudas pendientes.</p>
           </div>
         </CardContent>
       </Card>
@@ -388,7 +373,7 @@ export const PaymentsTab = ({ userId }: PaymentsTabProps) => {
 
   return (
     <div className="space-y-6">
-      {/* 💳 AVISO: Cómo pagar */}
+      {/* Aviso */}
       <Card className="border-2 border-blue-300 bg-gradient-to-r from-blue-50 to-indigo-50">
         <CardContent className="pt-5 pb-4">
           <div className="flex items-start gap-3">
@@ -398,14 +383,14 @@ export const PaymentsTab = ({ userId }: PaymentsTabProps) => {
             <div>
               <p className="text-sm font-semibold text-blue-800">💳 ¿Cómo pagar?</p>
               <p className="text-xs text-blue-600 mt-1">
-                Puedes pagar tus deudas <strong>presencialmente en caja</strong> o enviando un <strong>comprobante de pago</strong> (Yape, Plin, transferencia) desde aquí. Selecciona las deudas que deseas pagar.
+                Puedes pagar <strong>presencialmente en caja</strong> o enviando un <strong>comprobante de pago</strong> (Yape, Plin, transferencia). Selecciona las deudas que deseas pagar.
               </p>
             </div>
           </div>
         </CardContent>
       </Card>
 
-      {/* Resumen de Deuda Total */}
+      {/* Resumen */}
       <Card className="border-2 border-amber-300 bg-gradient-to-r from-amber-50 to-orange-50">
         <CardContent className="pt-6 pb-5">
           <div className="flex items-center gap-4">
@@ -421,13 +406,11 @@ export const PaymentsTab = ({ userId }: PaymentsTabProps) => {
             </div>
           </div>
 
-          {/* 🔗 Botón pagar todo junto (si hay más de 1 hijo) */}
           {debts.length > 1 && (
             <div className="mt-4">
               <Button
                 onClick={handlePayAllCombined}
                 className="w-full h-11 bg-indigo-600 hover:bg-indigo-700 font-semibold gap-2 text-sm shadow-md"
-                disabled={[...pendingDebtVoucherStudents].some(id => debts.find(d => d.student_id === id))}
               >
                 <Link2 className="h-5 w-5" />
                 Pagar todo junto — S/ {totalDebt.toFixed(2)}
@@ -442,11 +425,12 @@ export const PaymentsTab = ({ userId }: PaymentsTabProps) => {
 
       {/* Deudas por Estudiante */}
       {debts.map((debt) => {
-        const hasPendingVoucher = pendingDebtVoucherStudents.has(debt.student_id);
         const selectedSet = selectedTxByStudent.get(debt.student_id) || new Set();
-        const allTxIds = debt.pending_transactions.map(tx => tx.id);
-        const allSelected = selectedSet.size === allTxIds.length && allTxIds.length > 0;
-        const someSelected = selectedSet.size > 0;
+        // IDs de transacciones que se pueden pagar (no bloqueadas)
+        const payableTxIds = debt.pending_transactions.filter(tx => !isTxLocked(tx.id)).map(tx => tx.id);
+        const lockedCount = debt.pending_transactions.length - payableTxIds.length;
+        const allPayableSelected = payableTxIds.length > 0 && payableTxIds.every(id => selectedSet.has(id));
+        const someSelected = payableTxIds.some(id => selectedSet.has(id));
         const selectedAmount = getSelectedAmountForStudent(debt);
 
         return (
@@ -464,61 +448,73 @@ export const PaymentsTab = ({ userId }: PaymentsTabProps) => {
                   <CardTitle className="text-lg">{debt.student_name}</CardTitle>
                   <CardDescription className="text-sm">
                     Deuda: <span className="font-bold text-red-600">S/ {(debt.total_debt || 0).toFixed(2)}</span>
-                    {' • '}
-                    {debt.pending_transactions.length} compra(s)
+                    {' • '}{debt.pending_transactions.length} compra(s)
                   </CardDescription>
                 </div>
               </div>
 
-              {/* ── Botón de Pagar ── */}
+              {/* Botón de Pagar */}
               <div className="mt-3 space-y-2">
-                {hasPendingVoucher ? (
-                  <div className="w-full bg-blue-50 border border-blue-200 rounded-lg px-4 py-2.5 flex items-center gap-2">
-                    <Send className="h-4 w-4 text-blue-600" />
-                    <div>
-                      <p className="text-xs font-semibold text-blue-800">Comprobante en revisión</p>
-                      <p className="text-[10px] text-blue-600">Un administrador verificará tu pago pronto.</p>
-                    </div>
+                {/* Info si hay comprobantes en revisión */}
+                {lockedCount > 0 && (
+                  <div className="w-full bg-blue-50 border border-blue-200 rounded-lg px-3 py-2 flex items-center gap-2">
+                    <Send className="h-3.5 w-3.5 text-blue-600 shrink-0" />
+                    <p className="text-[10px] sm:text-xs text-blue-700">
+                      <strong>{lockedCount}</strong> compra(s) con comprobante en revisión
+                    </p>
                   </div>
-                ) : (
-                  <div className="flex gap-2">
-                    <Button
-                      onClick={() => handlePaySelected(debt)}
-                      disabled={!someSelected}
-                      className="flex-1 h-11 bg-green-600 hover:bg-green-700 font-semibold gap-2 text-sm shadow-md"
-                    >
-                      <Banknote className="h-5 w-5" />
-                      {selectedSet.size === allTxIds.length
-                        ? `Pagar todo — S/ ${debt.total_debt.toFixed(2)}`
-                        : `Pagar seleccionados — S/ ${selectedAmount.toFixed(2)}`
-                      }
-                    </Button>
+                )}
+
+                {/* Botón pagar (siempre visible si hay deudas pagables) */}
+                {payableTxIds.length > 0 && (
+                  <Button
+                    onClick={() => handlePaySelected(debt)}
+                    disabled={!someSelected}
+                    className="w-full h-11 bg-green-600 hover:bg-green-700 font-semibold gap-2 text-sm shadow-md"
+                  >
+                    <Banknote className="h-5 w-5" />
+                    {allPayableSelected && selectedSet.size === payableTxIds.length
+                      ? `Pagar ${payableTxIds.length === debt.pending_transactions.length ? 'todo' : 'disponibles'} — S/ ${selectedAmount.toFixed(2)}`
+                      : `Pagar seleccionados — S/ ${selectedAmount.toFixed(2)}`
+                    }
+                  </Button>
+                )}
+
+                {/* Si TODAS están bloqueadas */}
+                {payableTxIds.length === 0 && (
+                  <div className="w-full bg-green-50 border border-green-200 rounded-lg px-4 py-2.5 flex items-center gap-2">
+                    <Check className="h-4 w-4 text-green-600" />
+                    <p className="text-xs text-green-700 font-medium">Todas las deudas ya tienen comprobante enviado</p>
                   </div>
                 )}
               </div>
             </CardHeader>
 
             <CardContent className="pt-3">
-              {/* Seleccionar/deseleccionar todo */}
-              <div className="flex items-center gap-2 mb-2 pb-2 border-b border-gray-100">
-                <Checkbox
-                  checked={allSelected}
-                  onCheckedChange={() => toggleAllForStudent(debt.student_id, allTxIds)}
-                  className="h-4 w-4"
-                />
-                <span className="text-xs text-gray-500 font-medium">
-                  {allSelected ? 'Deseleccionar todo' : 'Seleccionar todo'}
-                  {someSelected && !allSelected && ` (${selectedSet.size} de ${allTxIds.length})`}
-                </span>
-              </div>
+              {/* Seleccionar/deseleccionar todo (solo pagables) */}
+              {payableTxIds.length > 1 && (
+                <div className="flex items-center gap-2 mb-2 pb-2 border-b border-gray-100">
+                  <Checkbox
+                    checked={allPayableSelected}
+                    onCheckedChange={() => toggleAllForStudent(debt.student_id, payableTxIds)}
+                    className="h-4 w-4"
+                  />
+                  <span className="text-xs text-gray-500 font-medium">
+                    {allPayableSelected ? 'Deseleccionar todo' : 'Seleccionar todo'}
+                    {someSelected && !allPayableSelected && ` (${selectedSet.size} de ${payableTxIds.length})`}
+                  </span>
+                </div>
+              )}
 
               <div className="space-y-2">
                 {debt.pending_transactions.map((transaction) => {
+                  const locked = isTxLocked(transaction.id);
                   const isChecked = selectedSet.has(transaction.id);
                   return (
                     <div
                       key={transaction.id}
                       className={`p-3 rounded-lg border transition-colors ${
+                        locked ? 'bg-blue-50/30 border-blue-200 opacity-70' :
                         isChecked ? 'bg-blue-50/50 border-blue-200' : 'bg-white border-gray-200'
                       }`}
                     >
@@ -526,6 +522,7 @@ export const PaymentsTab = ({ userId }: PaymentsTabProps) => {
                         <Checkbox
                           checked={isChecked}
                           onCheckedChange={() => toggleTransaction(debt.student_id, transaction.id)}
+                          disabled={locked}
                           className="h-4 w-4 flex-shrink-0"
                         />
                         <Receipt className="h-4 w-4 text-gray-400 flex-shrink-0" />
@@ -554,7 +551,7 @@ export const PaymentsTab = ({ userId }: PaymentsTabProps) => {
         );
       })}
 
-      {/* ── Modal de Pago ── */}
+      {/* Modal de Pago */}
       {paymentModalData && (
         <RechargeModal
           isOpen={showPaymentModal}

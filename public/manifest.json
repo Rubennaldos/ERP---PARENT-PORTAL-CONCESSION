@@ -1,7 +1,7 @@
 {
-  "name": "Maracuyá - Tiendas Concesionarias Saludables",
+  "name": "Maracuyá — Tiendas & Concesionarias Saludables",
   "short_name": "Maracuyá",
-  "description": "Sistema de Gestión de Tiendas y Concesionarias Saludables - Portal para Padres, Profesores y Administradores",
+  "description": "Maracuyá — Tiendas & Concesionarias Saludables. Portal para Padres, Profesores y Administradores.",
   "start_url": "/",
   "display": "standalone",
   "orientation": "portrait",

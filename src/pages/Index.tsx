@@ -5,7 +5,6 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
-  GraduationCap, 
   Plus,
   Menu as MenuIcon,
   Home,
@@ -13,6 +12,7 @@ import {
   UtensilsCrossed,
   Calendar
 } from 'lucide-react';
+import maracuyaLogo from '@/assets/maracuya-logo.png';
 import { supabase } from '@/lib/supabase';
 import { useToast } from '@/hooks/use-toast';
 import { AddStudentModal } from '@/components/AddStudentModal';
@@ -373,12 +373,14 @@ const Index = () => {
         <div className="max-w-7xl mx-auto px-3 sm:px-4 md:px-6 py-3 sm:py-4 md:py-5">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2 sm:gap-3 md:gap-4">
-              <div className="w-9 h-9 sm:w-10 sm:h-10 md:w-11 md:h-11 bg-gradient-to-br from-emerald-600/90 via-[#A3566E] to-[#8B4060] rounded-xl sm:rounded-2xl flex items-center justify-center shadow-sm">
-                <GraduationCap className="h-5 w-5 sm:h-5.5 sm:w-5.5 md:h-6 md:w-6 text-white" />
-              </div>
+              <img 
+                src={maracuyaLogo} 
+                alt="Maracuyá" 
+                className="w-9 h-9 sm:w-10 sm:h-10 md:w-11 md:h-11 object-contain rounded-xl sm:rounded-2xl"
+              />
               <div>
                 <h1 className="text-base sm:text-lg md:text-xl font-light text-[#8B4060] tracking-wide">Maracuyá</h1>
-                <p className="text-[9px] sm:text-[10px] font-medium text-stone-400 uppercase tracking-[0.2em] sm:tracking-[0.25em]">Portal de Padres</p>
+                <p className="text-[8px] sm:text-[9px] font-medium text-stone-400 uppercase tracking-[0.15em] sm:tracking-[0.2em]">Tiendas & Concesionarias Saludables</p>
               </div>
             </div>
             
@@ -408,7 +410,7 @@ const Index = () => {
             {students.length === 0 ? (
               <Card className="border border-dashed border-stone-300/50 bg-white shadow-sm">
                 <CardContent className="flex flex-col items-center justify-center py-12 sm:py-16 md:py-20 px-4">
-                  <GraduationCap className="h-12 w-12 sm:h-13 sm:w-13 md:h-14 md:w-14 text-stone-300 mb-4 sm:mb-5 md:mb-6" />
+                  <img src={maracuyaLogo} alt="Maracuyá" className="h-14 w-14 sm:h-16 sm:w-16 object-contain opacity-40 mb-4 sm:mb-5 md:mb-6" />
                   <h3 className="text-lg sm:text-xl font-normal text-stone-800 mb-2 sm:mb-3 tracking-wide text-center">
                     No hay estudiantes registrados
                   </h3>
