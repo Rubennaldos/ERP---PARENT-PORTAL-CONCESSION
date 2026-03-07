@@ -163,12 +163,12 @@ export default function Auth() {
   return (
     <div className="min-h-screen flex flex-col" style={{ background: 'linear-gradient(160deg, #faf7f5 0%, #fff 35%, #fdf2f0 65%, #f9f5f3 100%)' }}>
       {/* Header - Logo */}
-      <header className="w-full pt-8 sm:pt-12 pb-0 px-4 flex justify-center">
+      <header className="w-full pt-6 sm:pt-10 pb-0 px-4 flex justify-center">
         <img 
           src={maracuyaLogo} 
           alt="Maracuyá" 
-          className="h-20 sm:h-24 md:h-28 w-auto object-contain transition-all mix-blend-multiply" 
-          style={{ filter: 'drop-shadow(0 2px 12px hsla(338, 40%, 45%, 0.08))' }}
+          className="h-36 sm:h-44 md:h-52 w-auto object-contain transition-all" 
+          style={{ filter: 'drop-shadow(0 4px 18px hsla(338, 40%, 45%, 0.15))' }}
         />
       </header>
 

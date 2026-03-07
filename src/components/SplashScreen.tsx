@@ -114,9 +114,9 @@ export default function SplashScreen({ onComplete }: SplashScreenProps) {
           <img 
             src={maracuyaLogo} 
             alt="Maracuyá Tiendas Concesionarias Saludables" 
-            className="w-64 h-64 sm:w-72 sm:h-72 object-contain drop-shadow-sm mix-blend-multiply"
+            className="w-72 h-72 sm:w-80 sm:h-80 md:w-96 md:h-96 object-contain"
             style={{
-              filter: 'drop-shadow(0 4px 20px hsla(338, 40%, 45%, 0.10))',
+              filter: 'drop-shadow(0 6px 28px hsla(338, 40%, 45%, 0.18))',
             }}
           />
           
