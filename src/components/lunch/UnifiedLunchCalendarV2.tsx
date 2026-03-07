@@ -198,6 +198,9 @@ export function UnifiedLunchCalendarV2({ userType, userId, userSchoolId }: Unifi
   const [multiOrderProcessing, setMultiOrderProcessing] = useState(false);
   const [multiOrderResults, setMultiOrderResults] = useState<{ date: string; success: boolean; desc?: string }[]>([]);
 
+  // ── PREVIEW en multi-select: ver menú antes de agregar ──
+  const [previewDate, setPreviewDate] = useState<string | null>(null);
+
   // View existing orders modal
   const [viewOrdersModal, setViewOrdersModal] = useState(false);
   const [viewOrdersDate, setViewOrdersDate] = useState<string | null>(null);
@@ -479,19 +482,15 @@ export function UnifiedLunchCalendarV2({ userType, userId, userSchoolId }: Unifi
       return;
     }
 
-    // ── MULTI-SELECT MODE: toggle selección ──
+    // ── MULTI-SELECT MODE: abrir preview para ver y decidir ──
     if (multiSelectMode) {
       // No seleccionar días que ya tienen pedido
       if (dayOrders.length > 0) {
         toast({ title: '⚠️ Ya tienes pedido', description: 'Este día ya tiene un pedido registrado.' });
         return;
       }
-      setSelectedDates(prev => {
-        const next = new Set(prev);
-        if (next.has(dateStr)) next.delete(dateStr);
-        else next.add(dateStr);
-        return next;
-      });
+      // Abrir preview del menú del día
+      setPreviewDate(dateStr);
       return;
     }
 
@@ -943,6 +942,173 @@ export function UnifiedLunchCalendarV2({ userType, userId, userSchoolId }: Unifi
           );
         })}
       </div>
+    );
+  };
+
+  // ==========================================
+  // PREVIEW MODAL (ver menú + agregar/quitar en multi-select)
+  // ==========================================
+
+  const renderPreviewModal = () => {
+    if (!previewDate) return null;
+
+    const dayMenus = menus.get(previewDate) || [];
+    const dateLabel = format(getPeruDateOnly(previewDate), "EEEE d 'de' MMMM", { locale: es });
+    const isAlreadySelected = selectedDates.has(previewDate);
+
+    // Agrupar por categoría
+    const byCategory = new Map<string, { category: LunchCategory; menus: LunchMenu[] }>();
+    dayMenus.forEach(menu => {
+      if (!menu.category_id || !menu.category) return;
+      if (!byCategory.has(menu.category_id)) {
+        byCategory.set(menu.category_id, { category: menu.category, menus: [] });
+      }
+      byCategory.get(menu.category_id)!.menus.push(menu);
+    });
+
+    const sortedDatesArray = Array.from(selectedDates).sort();
+    const allAvailableDays = Array.from(menus.keys())
+      .filter(d => {
+        const orders = existingOrders.filter(o => o.date === d && !o.is_cancelled);
+        if (orders.length > 0) return false;
+        const v = canOrderForDate(d);
+        return v.canOrder;
+      })
+      .sort();
+
+    const currentIdx = allAvailableDays.indexOf(previewDate);
+
+    const goToPrev = () => {
+      if (currentIdx > 0) setPreviewDate(allAvailableDays[currentIdx - 1]);
+    };
+    const goToNext = () => {
+      if (currentIdx < allAvailableDays.length - 1) setPreviewDate(allAvailableDays[currentIdx + 1]);
+    };
+
+    const toggleSelection = () => {
+      setSelectedDates(prev => {
+        const next = new Set(prev);
+        if (next.has(previewDate!)) next.delete(previewDate!);
+        else next.add(previewDate!);
+        return next;
+      });
+    };
+
+    return (
+      <Dialog open={!!previewDate} onOpenChange={(open) => { if (!open) setPreviewDate(null); }}>
+        <DialogContent className="max-w-sm p-0 overflow-hidden rounded-2xl">
+          {/* Header con navegación */}
+          <div className={cn(
+            "px-4 py-3 flex items-center justify-between",
+            isAlreadySelected
+              ? "bg-gradient-to-r from-purple-600 to-purple-700 text-white"
+              : "bg-gradient-to-r from-blue-500 to-purple-600 text-white"
+          )}>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 text-white/70 hover:text-white hover:bg-white/20"
+              onClick={goToPrev}
+              disabled={currentIdx <= 0}
+            >
+              <ChevronLeft className="h-5 w-5" />
+            </Button>
+            <div className="text-center flex-1">
+              <p className="text-sm font-semibold capitalize">{dateLabel}</p>
+              <p className="text-[10px] text-white/70">
+                {currentIdx + 1} de {allAvailableDays.length} días disponibles
+              </p>
+            </div>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 text-white/70 hover:text-white hover:bg-white/20"
+              onClick={goToNext}
+              disabled={currentIdx >= allAvailableDays.length - 1}
+            >
+              <ChevronRight className="h-5 w-5" />
+            </Button>
+          </div>
+
+          {/* Menú del día */}
+          <div className="px-4 py-3 space-y-3 max-h-[50vh] overflow-y-auto">
+            {Array.from(byCategory.entries()).map(([catId, { category, menus: catMenus }]) => (
+              <div key={catId}>
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: category.color || '#3B82F6' }} />
+                  <span className="text-xs font-semibold text-gray-700">{category.name}</span>
+                  <span className="text-xs text-gray-400 ml-auto">S/ {(category.price || config?.lunch_price || 0).toFixed(2)}</span>
+                </div>
+                {catMenus.map(menu => (
+                  <div key={menu.id} className="ml-5 mb-1.5 p-2 bg-gray-50 rounded-lg">
+                    <p className="text-sm font-medium text-gray-800">{menu.main_course}</p>
+                    <div className="flex flex-wrap gap-2 mt-1">
+                      {menu.starter && <span className="text-[10px] text-gray-500">🥗 {menu.starter}</span>}
+                      {menu.beverage && <span className="text-[10px] text-gray-500">🥤 {menu.beverage}</span>}
+                      {menu.dessert && <span className="text-[10px] text-gray-500">🍎 {menu.dessert}</span>}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ))}
+
+            {byCategory.size === 0 && (
+              <p className="text-center text-sm text-gray-400 py-4">Sin menú disponible</p>
+            )}
+          </div>
+
+          {/* Footer: Agregar/Quitar + Navegar */}
+          <div className="px-4 py-3 border-t bg-gray-50 flex gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              className="flex-1 text-xs h-10"
+              onClick={() => setPreviewDate(null)}
+            >
+              Cerrar
+            </Button>
+            <Button
+              size="sm"
+              className={cn(
+                "flex-1 text-xs h-10 gap-1.5 font-semibold",
+                isAlreadySelected
+                  ? "bg-red-500 hover:bg-red-600 text-white"
+                  : "bg-purple-600 hover:bg-purple-700 text-white"
+              )}
+              onClick={toggleSelection}
+            >
+              {isAlreadySelected ? (
+                <>
+                  <Minus className="h-3.5 w-3.5" />
+                  Quitar
+                </>
+              ) : (
+                <>
+                  <Plus className="h-3.5 w-3.5" />
+                  Agregar
+                </>
+              )}
+            </Button>
+            {currentIdx < allAvailableDays.length - 1 && (
+              <Button
+                size="sm"
+                variant="outline"
+                className="text-xs h-10 gap-1 text-purple-600 border-purple-300 hover:bg-purple-50"
+                onClick={() => {
+                  // Agregar y avanzar al siguiente
+                  if (!isAlreadySelected) {
+                    setSelectedDates(prev => new Set([...prev, previewDate!]));
+                  }
+                  goToNext();
+                }}
+              >
+                {isAlreadySelected ? 'Sig.' : '+Sig.'}
+                <ChevronRight className="h-3.5 w-3.5" />
+              </Button>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     );
   };
 
@@ -1443,6 +1609,9 @@ export function UnifiedLunchCalendarV2({ userType, userId, userSchoolId }: Unifi
           )}
         </CardContent>
       </Card>
+
+      {/* PREVIEW MODAL (multi-select: ver antes de agregar) */}
+      {renderPreviewModal()}
 
       {/* TAP & ORDER MODAL */}
       {renderOrderModal()}
