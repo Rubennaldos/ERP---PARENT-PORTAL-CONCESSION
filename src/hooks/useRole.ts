@@ -76,12 +76,33 @@ export function useRole(): UseRoleReturn {
           throw error;
         }
         
-        console.log('✅ useRole: Rol encontrado:', data?.role);
-        setRole(data?.role || 'parent');
+        // 🔥 Si el rol en profiles es 'parent' pero el user_metadata dice 'teacher',
+        // usar el metadata como fuente de verdad (el trigger puede haber fallado)
+        let resolvedRole = data?.role || 'parent';
+        const metadataRole = user.user_metadata?.role;
+        
+        if (resolvedRole === 'parent' && metadataRole === 'teacher') {
+          console.warn('⚠️ useRole: Rol en profiles es "parent" pero metadata dice "teacher". Usando "teacher".');
+          resolvedRole = 'teacher';
+          
+          // Intentar corregir el perfil en background
+          supabase.from('profiles').update({ role: 'teacher' }).eq('id', user.id)
+            .then(({ error: fixErr }) => {
+              if (fixErr) console.warn('⚠️ No se pudo auto-corregir rol:', fixErr.message);
+              else console.log('✅ Rol auto-corregido a teacher en profiles');
+            });
+        }
+        
+        console.log('✅ useRole: Rol final:', resolvedRole);
+        setRole(resolvedRole as UserRole);
       } catch (err) {
         console.error('Error al obtener rol:', err);
         setError(err instanceof Error ? err : new Error('Error desconocido'));
-        setRole('parent');
+        // 🔥 Usar metadata como fallback en vez de siempre 'parent'
+        const metadataRole = user.user_metadata?.role;
+        const fallbackRole = (metadataRole === 'teacher' ? 'teacher' : 'parent') as UserRole;
+        console.warn('⚠️ useRole: Usando fallback del metadata:', fallbackRole);
+        setRole(fallbackRole);
       } finally {
         setLoading(false);
       }

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRole } from '@/hooks/useRole';
+import { supabase } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -89,6 +90,29 @@ export default function Auth() {
         }
 
         if (data.user && data.session) {
+          // 🔥 SAFEGUARD: Forzar el rol correcto en profiles
+          // (el trigger a veces no lee el metadata correctamente)
+          try {
+            const { error: roleFixError } = await supabase
+              .from('profiles')
+              .update({ role: selectedRole })
+              .eq('id', data.user.id);
+
+            if (roleFixError) {
+              console.warn('⚠️ No se pudo forzar rol en profiles:', roleFixError.message);
+            }
+
+            // Si es profesor, eliminar parent_profiles creado por error
+            if (selectedRole === 'teacher') {
+              await supabase
+                .from('parent_profiles')
+                .delete()
+                .eq('user_id', data.user.id);
+            }
+          } catch (safeguardErr) {
+            console.warn('⚠️ Safeguard de rol falló:', safeguardErr);
+          }
+
           // ✅ Sesión activa — el usuario entra directo al portal
           toast({ 
             title: '✅ ¡Bienvenido!', 
