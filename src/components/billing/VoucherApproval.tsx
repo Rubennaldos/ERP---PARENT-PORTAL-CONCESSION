@@ -24,6 +24,9 @@ import {
   X,
   Ticket,
   AlertTriangle,
+  Search,
+  Building2,
+  Edit3,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -56,6 +59,11 @@ interface RechargeRequest {
   _ticket_codes?: string[];
 }
 
+interface SchoolOption {
+  id: string;
+  name: string;
+}
+
 const METHOD_LABELS: Record<string, string> = {
   yape: '💜 Yape',
   plin: '💚 Plin',
@@ -82,15 +90,27 @@ export const VoucherApproval = () => {
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [userSchoolId, setUserSchoolId] = useState<string | null>(null);
 
-  const canViewAll = role === 'admin_general';
+  // ── Búsqueda ──
+  const [searchTerm, setSearchTerm] = useState('');
+
+  // ── Filtro por sede (admin_general) ──
+  const [schools, setSchools] = useState<SchoolOption[]>([]);
+  const [selectedSchoolFilter, setSelectedSchoolFilter] = useState<string>('all');
+
+  // ── Admin override code ──
+  const [overrideCode, setOverrideCode] = useState<Record<string, string>>({});
+  const [showOverrideInput, setShowOverrideInput] = useState<Record<string, boolean>>({});
+
+  const canViewAll = role === 'admin_general' || role === 'superadmin';
 
   useEffect(() => {
     fetchUserSchool();
+    if (canViewAll) fetchSchools();
   }, [user]);
 
   useEffect(() => {
     if (userSchoolId !== undefined) fetchRequests();
-  }, [filter, userSchoolId]);
+  }, [filter, userSchoolId, selectedSchoolFilter]);
 
   const fetchUserSchool = async () => {
     if (!user) return;
@@ -100,6 +120,11 @@ export const VoucherApproval = () => {
     }
     const { data } = await supabase.from('profiles').select('school_id').eq('id', user.id).single();
     setUserSchoolId(data?.school_id || null);
+  };
+
+  const fetchSchools = async () => {
+    const { data } = await supabase.from('schools').select('id, name').order('name');
+    setSchools(data || []);
   };
 
   const fetchRequests = async () => {
@@ -116,7 +141,13 @@ export const VoucherApproval = () => {
         .order('created_at', { ascending: false });
 
       if (filter !== 'all') query = query.eq('status', filter);
-      if (!canViewAll && userSchoolId) query = query.eq('school_id', userSchoolId);
+
+      // Filtro por sede
+      if (canViewAll && selectedSchoolFilter !== 'all') {
+        query = query.eq('school_id', selectedSchoolFilter);
+      } else if (!canViewAll && userSchoolId) {
+        query = query.eq('school_id', userSchoolId);
+      }
 
       const { data, error } = await query;
       if (error) throw error;
@@ -140,7 +171,7 @@ export const VoucherApproval = () => {
               codes.push(tx.ticket_code);
             }
           } catch (e) {
-            console.warn('No se pudo obtener ticket para order:', orderId, e);
+            // silently ignore
           }
         }
         (req as any)._ticket_codes = codes;
@@ -162,7 +193,7 @@ export const VoucherApproval = () => {
               existingCodes.push(tx.ticket_code);
             }
           } catch (e) {
-            console.warn('No se pudo obtener ticket para tx:', txId, e);
+            // silently ignore
           }
         }
         (req as any)._ticket_codes = existingCodes;
@@ -177,12 +208,43 @@ export const VoucherApproval = () => {
     }
   };
 
+  // ── Filtrar por búsqueda ──
+  const filteredRequests = requests.filter(req => {
+    if (!searchTerm.trim()) return true;
+    const term = searchTerm.toLowerCase();
+    return (
+      (req.students?.full_name || '').toLowerCase().includes(term) ||
+      (req.profiles?.full_name || '').toLowerCase().includes(term) ||
+      (req.profiles?.email || '').toLowerCase().includes(term) ||
+      (req.reference_code || '').toLowerCase().includes(term) ||
+      (req.schools?.name || '').toLowerCase().includes(term) ||
+      ((req as any)._ticket_codes || []).some((c: string) => c.toLowerCase().includes(term))
+    );
+  });
+
   const handleApprove = async (req: RechargeRequest) => {
     if (!user) return;
+
+    // ── Validar que haya código de operación (obligatorio) ──
+    const finalCode = overrideCode[req.id]?.trim() || req.reference_code;
+    if (!finalCode) {
+      // Mostrar input para que admin ingrese código
+      setShowOverrideInput(prev => ({ ...prev, [req.id]: true }));
+      toast({
+        variant: 'destructive',
+        title: '⚠️ Código de operación requerido',
+        description: 'El padre no ingresó código. Ingresa el código manualmente para poder aprobar.',
+      });
+      return;
+    }
+
     setProcessingId(req.id);
     try {
       const isLunchPayment = req.request_type === 'lunch_payment';
       const isDebtPayment = req.request_type === 'debt_payment';
+
+      // ── Si admin puso override code → guardarlo ──
+      const adminOverride = overrideCode[req.id]?.trim();
 
       // ── VALIDAR pedidos de almuerzo (si los hay) ──
       if ((isLunchPayment || isDebtPayment) && req.lunch_order_ids && req.lunch_order_ids.length > 0) {
@@ -198,7 +260,6 @@ export const VoucherApproval = () => {
             title: '⚠️ Pedidos cancelados',
             description: `${cancelledOrders.length} pedido(s) de almuerzo fueron cancelados. Verifica antes de aprobar.`,
           });
-          // No bloqueamos completamente para debt_payment que puede incluir no-lunch transactions
           if (isLunchPayment) {
             setProcessingId(null);
             return;
@@ -207,13 +268,19 @@ export const VoucherApproval = () => {
       }
 
       // 1. Actualizar estado de la solicitud
+      const updatePayload: any = {
+        status: 'approved',
+        approved_by: user.id,
+        approved_at: new Date().toISOString(),
+      };
+      // Si admin ingresó código override, guardarlo
+      if (adminOverride) {
+        updatePayload.reference_code = adminOverride;
+      }
+
       const { error: reqErr } = await supabase
         .from('recharge_requests')
-        .update({
-          status: 'approved',
-          approved_by: user.id,
-          approved_at: new Date().toISOString(),
-        })
+        .update(updatePayload)
         .eq('id', req.id);
 
       if (reqErr) throw reqErr;
@@ -224,72 +291,126 @@ export const VoucherApproval = () => {
           payment_approved: true,
           payment_source: isDebtPayment ? 'debt_voucher_payment' : 'lunch_voucher_payment',
           recharge_request_id: req.id,
-          reference_code: req.reference_code,
+          reference_code: finalCode,
           approved_by: user.id,
           approved_at: new Date().toISOString(),
           voucher_url: req.voucher_url,
         };
 
-        // A) Manejar lunch_order_ids (si hay)
+        // ── Calcular pago parcial vs completo ──
+        let totalDebt = 0;
+        let totalApproved = req.amount; // El monto de este voucher
+
+        // Obtener deuda total de los pedidos
         if (req.lunch_order_ids && req.lunch_order_ids.length > 0) {
-          // Obtener estado real de las órdenes para no reactivar canceladas
-          const { data: currentOrders } = await supabase
+          const { data: lunchOrders } = await supabase
             .from('lunch_orders')
-            .select('id, status, is_cancelled')
+            .select('id, final_price, status, is_cancelled')
             .in('id', req.lunch_order_ids);
 
-          const activeOrderIds = (currentOrders || [])
-            .filter(o => !o.is_cancelled && o.status !== 'cancelled')
-            .map(o => o.id);
+          const activeOrders = (lunchOrders || []).filter(o => !o.is_cancelled && o.status !== 'cancelled');
+          totalDebt = activeOrders.reduce((sum, o) => sum + (o.final_price || 0), 0);
+        }
 
-          for (const orderId of req.lunch_order_ids) {
-            const { data: existingTx } = await supabase
-              .from('transactions')
-              .select('id, metadata')
-              .eq('type', 'purchase')
-              .contains('metadata', { lunch_order_id: orderId })
-              .maybeSingle();
-
-            if (existingTx) {
-              await supabase
-                .from('transactions')
-                .update({
-                  payment_status: 'paid',
-                  payment_method: req.payment_method,
-                  metadata: { ...(existingTx.metadata || {}), ...paymentMeta, last_payment_rejected: false },
-                })
-                .eq('id', existingTx.id);
-            }
-          }
-
-          // Solo confirmar órdenes que NO están canceladas
-          if (activeOrderIds.length > 0) {
-            await supabase
-              .from('lunch_orders')
-              .update({ status: 'confirmed' })
-              .in('id', activeOrderIds);
+        // Obtener deuda de paid_transaction_ids
+        if (req.paid_transaction_ids && req.paid_transaction_ids.length > 0) {
+          const { data: txData } = await supabase
+            .from('transactions')
+            .select('id, amount')
+            .in('id', req.paid_transaction_ids);
+          if (txData) {
+            const txDebt = txData.reduce((sum, t) => sum + Math.abs(t.amount), 0);
+            if (totalDebt === 0) totalDebt = txDebt; // usar tx debt si no hay lunch orders
           }
         }
 
-        // B) Manejar paid_transaction_ids (transacciones directas sin lunch_order)
-        if (req.paid_transaction_ids && req.paid_transaction_ids.length > 0) {
-          // Filtrar IDs que ya fueron manejados por lunch_order_ids
-          const alreadyHandled = new Set<string>();
-          if (req.lunch_order_ids) {
+        // Buscar otros vouchers YA aprobados para los mismos pedidos
+        if (req.lunch_order_ids && req.lunch_order_ids.length > 0) {
+          const { data: otherApproved } = await supabase
+            .from('recharge_requests')
+            .select('id, amount')
+            .eq('student_id', req.student_id)
+            .eq('status', 'approved')
+            .neq('id', req.id)
+            .overlaps('lunch_order_ids', req.lunch_order_ids);
+
+          if (otherApproved) {
+            totalApproved += otherApproved.reduce((sum, r) => sum + r.amount, 0);
+          }
+        } else if (req.paid_transaction_ids && req.paid_transaction_ids.length > 0) {
+          const { data: otherApproved } = await supabase
+            .from('recharge_requests')
+            .select('id, amount')
+            .eq('student_id', req.student_id)
+            .eq('status', 'approved')
+            .neq('id', req.id)
+            .overlaps('paid_transaction_ids', req.paid_transaction_ids);
+
+          if (otherApproved) {
+            totalApproved += otherApproved.reduce((sum, r) => sum + r.amount, 0);
+          }
+        }
+
+        const fullyPaid = totalDebt === 0 || totalApproved >= (totalDebt - 0.50);
+
+        if (fullyPaid) {
+          // ── PAGO COMPLETO → marcar transactions como paid y orders como confirmed ──
+
+          // A) Manejar lunch_order_ids
+          if (req.lunch_order_ids && req.lunch_order_ids.length > 0) {
+            const { data: currentOrders } = await supabase
+              .from('lunch_orders')
+              .select('id, status, is_cancelled')
+              .in('id', req.lunch_order_ids);
+
+            const activeOrderIds = (currentOrders || [])
+              .filter(o => !o.is_cancelled && o.status !== 'cancelled')
+              .map(o => o.id);
+
             for (const orderId of req.lunch_order_ids) {
-              const { data: ltx } = await supabase
+              const { data: existingTx } = await supabase
                 .from('transactions')
-                .select('id')
+                .select('id, metadata')
+                .eq('type', 'purchase')
                 .contains('metadata', { lunch_order_id: orderId })
                 .maybeSingle();
-              if (ltx) alreadyHandled.add(ltx.id);
+
+              if (existingTx) {
+                await supabase
+                  .from('transactions')
+                  .update({
+                    payment_status: 'paid',
+                    payment_method: req.payment_method,
+                    metadata: { ...(existingTx.metadata || {}), ...paymentMeta, last_payment_rejected: false },
+                  })
+                  .eq('id', existingTx.id);
+              }
+            }
+
+            if (activeOrderIds.length > 0) {
+              await supabase
+                .from('lunch_orders')
+                .update({ status: 'confirmed' })
+                .in('id', activeOrderIds);
             }
           }
 
-          const remainingTxIds = req.paid_transaction_ids.filter(id => !alreadyHandled.has(id));
+          // B) Manejar paid_transaction_ids
+          if (req.paid_transaction_ids && req.paid_transaction_ids.length > 0) {
+            const alreadyHandled = new Set<string>();
+            if (req.lunch_order_ids) {
+              for (const orderId of req.lunch_order_ids) {
+                const { data: ltx } = await supabase
+                  .from('transactions')
+                  .select('id')
+                  .contains('metadata', { lunch_order_id: orderId })
+                  .maybeSingle();
+                if (ltx) alreadyHandled.add(ltx.id);
+              }
+            }
 
-          if (remainingTxIds.length > 0) {
-            // Obtener metadata existente y actualizar cada transacción
+            const remainingTxIds = req.paid_transaction_ids.filter(id => !alreadyHandled.has(id));
+
             for (const txId of remainingTxIds) {
               const { data: existingTx } = await supabase
                 .from('transactions')
@@ -309,27 +430,43 @@ export const VoucherApproval = () => {
               }
             }
           }
-        }
 
-        const label = isDebtPayment ? 'Pago de deuda aprobado' : 'Pago de almuerzo aprobado';
-        toast({
-          title: `✅ ${label}`,
-          description: `Se confirmó el pago de S/ ${req.amount.toFixed(2)} de ${req.students?.full_name || 'el alumno'}.`,
-        });
+          const label = isDebtPayment ? 'Pago de deuda aprobado — COMPLETO' : 'Pago de almuerzo aprobado — COMPLETO';
+          toast({
+            title: `✅ ${label}`,
+            description: `Se confirmó el pago de S/ ${req.amount.toFixed(2)} de ${req.students?.full_name || 'el alumno'}. Deuda saldada.`,
+          });
+        } else {
+          // ── PAGO PARCIAL → voucher aprobado pero orders siguen pending ──
+          toast({
+            title: '⚠️ Pago parcial aprobado',
+            description: `Se aprobó S/ ${req.amount.toFixed(2)} pero la deuda total es S/ ${totalDebt.toFixed(2)}. Faltan S/ ${(totalDebt - totalApproved).toFixed(2)} más para confirmar los pedidos.`,
+          });
+        }
       } else {
         // ── RECARGA DE SALDO ──
+
+        // Leer balance FRESCO del estudiante (no stale)
+        const { data: freshStudent } = await supabase
+          .from('students')
+          .select('balance')
+          .eq('id', req.student_id)
+          .single();
+
+        const currentBalance = freshStudent?.balance || 0;
+
         const { error: txErr } = await supabase.from('transactions').insert({
           student_id: req.student_id,
           school_id: req.school_id,
           type: 'recharge',
           amount: req.amount,
-          description: `Recarga aprobada — ${METHOD_LABELS[req.payment_method] || req.payment_method}${req.reference_code ? ` (Ref: ${req.reference_code})` : ''}`,
+          description: `Recarga aprobada — ${METHOD_LABELS[req.payment_method] || req.payment_method}${finalCode ? ` (Ref: ${finalCode})` : ''}`,
           payment_status: 'paid',
           payment_method: req.payment_method,
           metadata: {
             source: 'voucher_recharge',
             recharge_request_id: req.id,
-            reference_code: req.reference_code,
+            reference_code: finalCode,
             approved_by: user.id,
             voucher_url: req.voucher_url,
           },
@@ -337,19 +474,65 @@ export const VoucherApproval = () => {
 
         if (txErr) throw txErr;
 
-        const newBalance = (req.students?.balance || 0) + req.amount;
+        let newBalance = currentBalance + req.amount;
+
+        // ── Auto-saldar deudas kiosco antiguas si el saldo alcanza ──
+        const { data: pendingDebts } = await supabase
+          .from('transactions')
+          .select('id, amount, description')
+          .eq('student_id', req.student_id)
+          .eq('type', 'purchase')
+          .eq('payment_status', 'pending')
+          .order('created_at', { ascending: true });
+
+        let autoSettledCount = 0;
+        if (pendingDebts && pendingDebts.length > 0) {
+          for (const debt of pendingDebts) {
+            const debtAmount = Math.abs(debt.amount);
+            if (newBalance >= debtAmount) {
+              // Auto-pagar esta deuda
+              await supabase
+                .from('transactions')
+                .update({
+                  payment_status: 'paid',
+                  payment_method: 'balance',
+                  metadata: {
+                    auto_settled: true,
+                    settled_from_recharge: req.id,
+                    settled_at: new Date().toISOString(),
+                  },
+                })
+                .eq('id', debt.id);
+              newBalance -= debtAmount;
+              autoSettledCount++;
+            } else {
+              break; // No alcanza para más
+            }
+          }
+        }
+
+        // Actualizar balance y quitar free_account si tenía
         const { error: stuErr } = await supabase
           .from('students')
-          .update({ balance: newBalance })
+          .update({ balance: newBalance, free_account: false })
           .eq('id', req.student_id);
 
         if (stuErr) throw stuErr;
 
+        let successMsg = `Se acreditaron S/ ${req.amount.toFixed(2)} a ${req.students?.full_name || 'el alumno'}. Saldo: S/ ${newBalance.toFixed(2)}`;
+        if (autoSettledCount > 0) {
+          successMsg += `. Se saldaron automáticamente ${autoSettledCount} deuda(s) pendiente(s).`;
+        }
+
         toast({
           title: '✅ Recarga aprobada',
-          description: `Se acreditaron S/ ${req.amount.toFixed(2)} a ${req.students?.full_name || 'el alumno'}.`,
+          description: successMsg,
         });
       }
+
+      // Limpiar estados de override
+      setOverrideCode(prev => { const n = { ...prev }; delete n[req.id]; return n; });
+      setShowOverrideInput(prev => { const n = { ...prev }; delete n[req.id]; return n; });
 
       fetchRequests();
     } catch (err: any) {
@@ -467,6 +650,31 @@ export const VoucherApproval = () => {
         </Button>
       </div>
 
+      {/* ── Búsqueda + Filtro Sede ── */}
+      <div className="flex flex-col sm:flex-row gap-2">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+          <Input
+            placeholder="Buscar por nombre, email, código, ticket..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="pl-10 h-10"
+          />
+        </div>
+        {canViewAll && schools.length > 0 && (
+          <select
+            value={selectedSchoolFilter}
+            onChange={(e) => setSelectedSchoolFilter(e.target.value)}
+            className="h-10 px-3 rounded-md border border-gray-200 text-sm bg-white"
+          >
+            <option value="all">Todas las sedes</option>
+            {schools.map(s => (
+              <option key={s.id} value={s.id}>{s.name}</option>
+            ))}
+          </select>
+        )}
+      </div>
+
       {/* Filtros */}
       <div className="flex flex-wrap gap-2">
         {([
@@ -499,17 +707,19 @@ export const VoucherApproval = () => {
         <div className="flex items-center justify-center py-16">
           <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
         </div>
-      ) : requests.length === 0 ? (
+      ) : filteredRequests.length === 0 ? (
         <div className="text-center py-16 text-gray-400">
           <Wallet className="h-12 w-12 mx-auto mb-3 opacity-30" />
-          <p className="text-lg font-medium">Sin solicitudes {filter !== 'all' ? `"${filter}"` : ''}</p>
+          <p className="text-lg font-medium">Sin solicitudes {filter !== 'all' ? `"${filter}"` : ''}{searchTerm ? ` que coincidan con "${searchTerm}"` : ''}</p>
           <p className="text-sm">Cuando los padres envíen comprobantes aparecerán aquí.</p>
         </div>
       ) : (
         <div className="grid gap-4">
-          {requests.map((req) => {
+          {filteredRequests.map((req) => {
             const statusInfo = STATUS_BADGES[req.status];
             const isProcessing = processingId === req.id;
+            const hasNoCode = !req.reference_code;
+            const showOverride = showOverrideInput[req.id] || false;
 
             return (
               <Card key={req.id} className={`border-l-4 ${
@@ -583,7 +793,7 @@ export const VoucherApproval = () => {
                         )}
                       </div>
 
-                      {/* Tickets asociados (para pagos de almuerzo) */}
+                      {/* Tickets asociados */}
                       {(req as any)._ticket_codes && (req as any)._ticket_codes.length > 0 && (
                         <div className="flex items-center gap-2 bg-indigo-50 border border-indigo-200 rounded-lg px-3 py-2">
                           <Ticket className="h-4 w-4 text-indigo-500" />
@@ -595,11 +805,29 @@ export const VoucherApproval = () => {
                       )}
 
                       {/* Código de referencia */}
-                      {req.reference_code && (
+                      {req.reference_code ? (
                         <div className="flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2">
                           <Hash className="h-4 w-4 text-gray-400" />
                           <span className="text-xs text-gray-500">N° Operación:</span>
                           <span className="text-sm font-mono font-semibold text-gray-800">{req.reference_code}</span>
+                        </div>
+                      ) : req.status === 'pending' && (
+                        <div className="flex items-center gap-2 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                          <AlertTriangle className="h-4 w-4 text-amber-500" />
+                          <span className="text-xs text-amber-700 font-medium">Sin código de operación — ingresa uno para aprobar</span>
+                        </div>
+                      )}
+
+                      {/* ── Admin override code input ── */}
+                      {req.status === 'pending' && (showOverride || hasNoCode) && (
+                        <div className="flex items-center gap-2 bg-blue-50 border border-blue-200 rounded-lg px-3 py-2">
+                          <Edit3 className="h-4 w-4 text-blue-500 flex-shrink-0" />
+                          <Input
+                            placeholder="Ingresar código de operación..."
+                            value={overrideCode[req.id] || ''}
+                            onChange={(e) => setOverrideCode(prev => ({ ...prev, [req.id]: e.target.value }))}
+                            className="text-xs h-7 font-mono"
+                          />
                         </div>
                       )}
 
