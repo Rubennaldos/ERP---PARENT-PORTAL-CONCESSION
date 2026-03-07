@@ -997,6 +997,10 @@ export function UnifiedLunchCalendarV2({ userType, userId, userSchoolId }: Unifi
     return (
       <Dialog open={!!previewDate} onOpenChange={(open) => { if (!open) setPreviewDate(null); }}>
         <DialogContent className="max-w-sm p-0 overflow-hidden rounded-2xl">
+          <DialogHeader className="sr-only">
+            <DialogTitle>Vista previa del menú</DialogTitle>
+            <DialogDescription>Menú del día seleccionado</DialogDescription>
+          </DialogHeader>
           {/* Header con navegación */}
           <div className={cn(
             "px-4 py-3 flex items-center justify-between",
