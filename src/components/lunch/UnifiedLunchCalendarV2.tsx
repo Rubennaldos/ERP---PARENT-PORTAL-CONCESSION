@@ -865,9 +865,9 @@ export function UnifiedLunchCalendarV2({ userType, userId, userSchoolId }: Unifi
     const peruTodayStr = getPeruTodayStr();
 
     return (
-      <div className="grid grid-cols-7 gap-1 sm:gap-2">
+      <div className="grid grid-cols-7 gap-[3px]">
         {WEEKDAYS.map(day => (
-          <div key={day} className="text-center text-[10px] sm:text-xs font-medium text-gray-500 p-1 sm:p-2">{day}</div>
+          <div key={day} className="text-center text-[9px] font-semibold text-gray-400 py-0.5">{day}</div>
         ))}
 
         {Array.from({ length: startDayOfWeek }).map((_, i) => (
@@ -891,51 +891,43 @@ export function UnifiedLunchCalendarV2({ userType, userId, userSchoolId }: Unifi
               onClick={() => handleDateClick(dateStr)}
               disabled={isDisabled}
               className={cn(
-                "aspect-square p-0.5 sm:p-1 rounded-lg border-2 transition-all relative flex flex-col items-center justify-start",
-                "hover:shadow-md active:scale-95 disabled:cursor-not-allowed disabled:opacity-40",
-                isToday && "ring-2 ring-blue-400",
-                isSelected && "bg-purple-100 border-purple-500 ring-2 ring-purple-300",
-                !isSelected && status === 'available' && "bg-white border-gray-200 hover:border-blue-400 hover:bg-blue-50",
-                !isSelected && status === 'has_orders' && "bg-green-50 border-green-300 hover:border-green-400",
-                !isSelected && status === 'special' && "bg-gray-100 border-gray-300",
-                !isSelected && status === 'unavailable' && "bg-gray-50 border-gray-200",
-                !isSelected && status === 'blocked' && "bg-red-50 border-red-200",
+                "aspect-square rounded-lg border transition-all relative flex flex-col items-center justify-center",
+                "active:scale-90 disabled:cursor-not-allowed disabled:opacity-30",
+                isToday && "ring-2 ring-blue-400 ring-offset-1",
+                isSelected && "bg-purple-100 border-purple-500 ring-1 ring-purple-300",
+                !isSelected && status === 'available' && "bg-white border-gray-200 active:bg-blue-50",
+                !isSelected && status === 'has_orders' && "bg-green-50 border-green-400",
+                !isSelected && status === 'special' && "bg-gray-100 border-gray-200",
+                !isSelected && status === 'unavailable' && "bg-gray-50 border-transparent",
+                !isSelected && status === 'blocked' && "bg-red-50/50 border-red-200",
               )}
             >
               <span className={cn(
-                "text-xs sm:text-sm font-medium",
-                isSelected && "text-purple-700 font-bold",
-                !isSelected && status === 'blocked' && "text-red-400",
-                !isSelected && status === 'unavailable' && "text-gray-400",
+                "text-[11px] font-semibold leading-none",
+                isSelected && "text-purple-700",
+                !isSelected && status === 'blocked' && "text-red-300",
+                !isSelected && status === 'unavailable' && "text-gray-300",
                 !isSelected && status === 'has_orders' && "text-green-700 font-bold",
-                !isSelected && status === 'available' && "text-gray-800",
+                !isSelected && status === 'available' && "text-gray-700",
               )}>
                 {format(date, 'd')}
               </span>
 
-              {isSelected && (
-                <Check className="h-2.5 w-2.5 sm:h-3 sm:w-3 text-purple-600 mt-0.5" />
-              )}
-
-              {!isSelected && status === 'blocked' && (
-                <Lock className="h-2.5 w-2.5 sm:h-3 sm:w-3 text-red-400 mt-0.5" />
-              )}
-
+              {/* Indicadores debajo del número */}
+              {isSelected && <Check className="h-2 w-2 text-purple-600" />}
               {!isSelected && status === 'available' && dayMenus.length > 0 && (
-                <UtensilsCrossed className="h-2.5 w-2.5 sm:h-3 sm:w-3 text-blue-500 mt-0.5" />
-              )}
-
-              {dayOrders.length > 0 && (
-                <Badge className="absolute top-0 right-0 h-3.5 w-3.5 sm:h-4 sm:w-4 p-0 flex items-center justify-center text-[8px] sm:text-[9px] bg-green-500">
-                  {dayOrders.reduce((sum, o) => sum + o.quantity, 0)}
-                </Badge>
-              )}
-
-              {!isSelected && dayMenus.length > 0 && status !== 'has_orders' && status !== 'blocked' && (
-                <div className="flex gap-0.5 mt-0.5">
+                <div className="flex gap-[2px] mt-[1px]">
                   {Array.from(new Set(dayMenus.map(m => m.category?.color || '#3B82F6'))).slice(0, 3).map((color, idx) => (
-                    <div key={idx} className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: color }} />
+                    <div key={idx} className="w-[4px] h-[4px] rounded-full" style={{ backgroundColor: color }} />
                   ))}
+                </div>
+              )}
+              {!isSelected && status === 'blocked' && <Lock className="h-2 w-2 text-red-300" />}
+
+              {/* Badge pedidos */}
+              {dayOrders.length > 0 && (
+                <div className="absolute -top-0.5 -right-0.5 h-3.5 w-3.5 rounded-full bg-green-500 flex items-center justify-center">
+                  <span className="text-[7px] font-bold text-white">{dayOrders.reduce((sum, o) => sum + o.quantity, 0)}</span>
                 </div>
               )}
             </button>
@@ -994,62 +986,62 @@ export function UnifiedLunchCalendarV2({ userType, userId, userSchoolId }: Unifi
       });
     };
 
+    const shortDate = format(getPeruDateOnly(previewDate), "EEE d MMM", { locale: es });
+
     return (
       <Dialog open={!!previewDate} onOpenChange={(open) => { if (!open) setPreviewDate(null); }}>
-        <DialogContent className="max-w-sm p-0 overflow-hidden rounded-2xl">
+        <DialogContent className="max-w-[340px] p-0 overflow-hidden rounded-2xl gap-0">
           <DialogHeader className="sr-only">
             <DialogTitle>Vista previa del menú</DialogTitle>
             <DialogDescription>Menú del día seleccionado</DialogDescription>
           </DialogHeader>
-          {/* Header con navegación */}
+
+          {/* Header compacto: ← fecha → */}
           <div className={cn(
-            "px-4 py-3 flex items-center justify-between",
+            "px-2 py-2 flex items-center gap-1",
             isAlreadySelected
-              ? "bg-gradient-to-r from-purple-600 to-purple-700 text-white"
+              ? "bg-purple-600 text-white"
               : "bg-gradient-to-r from-blue-500 to-purple-600 text-white"
           )}>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8 text-white/70 hover:text-white hover:bg-white/20"
+            <button
               onClick={goToPrev}
               disabled={currentIdx <= 0}
+              className="p-1.5 rounded-full hover:bg-white/20 disabled:opacity-30 transition-colors"
             >
-              <ChevronLeft className="h-5 w-5" />
-            </Button>
-            <div className="text-center flex-1">
-              <p className="text-sm font-semibold capitalize">{dateLabel}</p>
-              <p className="text-[10px] text-white/70">
-                {currentIdx + 1} de {allAvailableDays.length} días disponibles
-              </p>
+              <ChevronLeft className="h-4 w-4" />
+            </button>
+            <div className="text-center flex-1 min-w-0">
+              <p className="text-[13px] font-bold capitalize truncate">{shortDate}</p>
+              <p className="text-[9px] text-white/60">{currentIdx + 1}/{allAvailableDays.length}</p>
             </div>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8 text-white/70 hover:text-white hover:bg-white/20"
+            <button
               onClick={goToNext}
               disabled={currentIdx >= allAvailableDays.length - 1}
+              className="p-1.5 rounded-full hover:bg-white/20 disabled:opacity-30 transition-colors"
             >
-              <ChevronRight className="h-5 w-5" />
-            </Button>
+              <ChevronRight className="h-4 w-4" />
+            </button>
+            {isAlreadySelected && (
+              <span className="text-[9px] bg-white/20 px-1.5 py-0.5 rounded-full">✓</span>
+            )}
           </div>
 
-          {/* Menú del día */}
-          <div className="px-4 py-3 space-y-3 max-h-[50vh] overflow-y-auto">
+          {/* Contenido: platos */}
+          <div className="px-3 py-2 space-y-1.5">
             {Array.from(byCategory.entries()).map(([catId, { category, menus: catMenus }]) => (
               <div key={catId}>
-                <div className="flex items-center gap-2 mb-2">
-                  <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: category.color || '#3B82F6' }} />
-                  <span className="text-xs font-semibold text-gray-700">{category.name}</span>
-                  <span className="text-xs text-gray-400 ml-auto">S/ {(category.price || config?.lunch_price || 0).toFixed(2)}</span>
+                <div className="flex items-center gap-1.5 mb-1">
+                  <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: category.color || '#3B82F6' }} />
+                  <span className="text-[11px] font-bold text-gray-600 truncate">{category.name}</span>
+                  <span className="text-[11px] font-bold text-gray-800 ml-auto">S/{(category.price || config?.lunch_price || 0).toFixed(2)}</span>
                 </div>
                 {catMenus.map(menu => (
-                  <div key={menu.id} className="ml-5 mb-1.5 p-2 bg-gray-50 rounded-lg">
-                    <p className="text-sm font-medium text-gray-800">{menu.main_course}</p>
-                    <div className="flex flex-wrap gap-2 mt-1">
-                      {menu.starter && <span className="text-[10px] text-gray-500">🥗 {menu.starter}</span>}
-                      {menu.beverage && <span className="text-[10px] text-gray-500">🥤 {menu.beverage}</span>}
-                      {menu.dessert && <span className="text-[10px] text-gray-500">🍎 {menu.dessert}</span>}
+                  <div key={menu.id} className="ml-3.5 mb-1 px-2 py-1.5 bg-gray-50 rounded-lg">
+                    <p className="text-[12px] font-semibold text-gray-800 leading-tight">{menu.main_course}</p>
+                    <div className="flex flex-wrap gap-x-2 mt-0.5">
+                      {menu.starter && <span className="text-[9px] text-gray-400">{menu.starter}</span>}
+                      {menu.beverage && <span className="text-[9px] text-gray-400">{menu.beverage}</span>}
+                      {menu.dessert && <span className="text-[9px] text-gray-400">{menu.dessert}</span>}
                     </div>
                   </div>
                 ))}
@@ -1057,58 +1049,39 @@ export function UnifiedLunchCalendarV2({ userType, userId, userSchoolId }: Unifi
             ))}
 
             {byCategory.size === 0 && (
-              <p className="text-center text-sm text-gray-400 py-4">Sin menú disponible</p>
+              <p className="text-center text-[11px] text-gray-400 py-3">Sin menú</p>
             )}
           </div>
 
-          {/* Footer: Agregar/Quitar + Navegar */}
-          <div className="px-4 py-3 border-t bg-gray-50 flex gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              className="flex-1 text-xs h-10"
+          {/* Footer: acciones — botones táctiles */}
+          <div className="px-3 py-2 border-t bg-gray-50/80 flex gap-1.5">
+            <button
               onClick={() => setPreviewDate(null)}
+              className="flex-1 h-9 rounded-lg border border-gray-300 text-[11px] font-medium text-gray-500 active:bg-gray-100 transition-colors"
             >
-              Cerrar
-            </Button>
-            <Button
-              size="sm"
-              className={cn(
-                "flex-1 text-xs h-10 gap-1.5 font-semibold",
-                isAlreadySelected
-                  ? "bg-red-500 hover:bg-red-600 text-white"
-                  : "bg-purple-600 hover:bg-purple-700 text-white"
-              )}
+              ✕
+            </button>
+            <button
               onClick={toggleSelection}
-            >
-              {isAlreadySelected ? (
-                <>
-                  <Minus className="h-3.5 w-3.5" />
-                  Quitar
-                </>
-              ) : (
-                <>
-                  <Plus className="h-3.5 w-3.5" />
-                  Agregar
-                </>
+              className={cn(
+                "flex-[2] h-9 rounded-lg text-[12px] font-bold text-white flex items-center justify-center gap-1 active:scale-[0.97] transition-all",
+                isAlreadySelected ? "bg-red-500 active:bg-red-600" : "bg-purple-600 active:bg-purple-700"
               )}
-            </Button>
+            >
+              {isAlreadySelected ? '− Quitar' : '+ Agregar'}
+            </button>
             {currentIdx < allAvailableDays.length - 1 && (
-              <Button
-                size="sm"
-                variant="outline"
-                className="text-xs h-10 gap-1 text-purple-600 border-purple-300 hover:bg-purple-50"
+              <button
                 onClick={() => {
-                  // Agregar y avanzar al siguiente
                   if (!isAlreadySelected) {
                     setSelectedDates(prev => new Set([...prev, previewDate!]));
                   }
                   goToNext();
                 }}
+                className="flex-[1.5] h-9 rounded-lg border-2 border-purple-400 text-[11px] font-bold text-purple-600 flex items-center justify-center gap-0.5 active:bg-purple-50 transition-colors"
               >
-                {isAlreadySelected ? 'Sig.' : '+Sig.'}
-                <ChevronRight className="h-3.5 w-3.5" />
-              </Button>
+                {isAlreadySelected ? 'Sig' : '+Sig'} →
+              </button>
             )}
           </div>
         </DialogContent>
@@ -1146,51 +1119,45 @@ export function UnifiedLunchCalendarV2({ userType, userId, userSchoolId }: Unifi
     const unitPrice = selectedCategory?.price || config?.lunch_price || 0;
     const totalPrice = unitPrice * quantity;
 
+    const shortDateLabel = format(getPeruDateOnly(orderModalDate), "EEE d MMM", { locale: es });
+
     return (
       <Dialog open={!!orderModalDate} onOpenChange={(open) => !open && closeOrderModal()}>
-        <DialogContent className="max-w-md sm:max-w-lg max-h-[85vh] overflow-y-auto p-0">
-          {/* Header compacto */}
-          <div className="sticky top-0 z-10 bg-gradient-to-r from-purple-600 to-blue-600 text-white p-4 rounded-t-lg">
+        <DialogContent className="max-w-[360px] p-0 overflow-hidden rounded-2xl gap-0">
+          {/* Header mini */}
+          <div className="bg-gradient-to-r from-purple-600 to-blue-600 text-white px-3 py-2">
             <DialogHeader>
-              <DialogTitle className="text-white text-base sm:text-lg flex items-center gap-2">
-                <CalendarIcon className="h-5 w-5 flex-shrink-0" />
-                {dateLabel}
+              <DialogTitle className="text-white text-[13px] font-bold flex items-center gap-1.5 capitalize">
+                📅 {shortDateLabel}
               </DialogTitle>
-              <DialogDescription className="text-purple-100 text-xs sm:text-sm">
+              <DialogDescription className="text-purple-200 text-[10px]">
                 {selectedMenu ? 'Confirma tu pedido' : 'Elige tu plato'}
               </DialogDescription>
             </DialogHeader>
           </div>
 
-          <div className="p-4 space-y-3">
+          <div className="px-3 py-2 space-y-1.5">
             {categories.length === 0 ? (
-              <div className="text-center py-8 text-gray-500">
-                <AlertCircle className="h-10 w-10 mx-auto mb-2 opacity-50" />
-                <p className="text-sm">No hay menús disponibles para este día</p>
+              <div className="text-center py-4 text-gray-400">
+                <p className="text-[11px]">Sin menús disponibles</p>
               </div>
             ) : (
               categories.map(({ category, menuItems }) => {
-                const IconComponent = ICON_MAP[category.icon || 'utensils'] || UtensilsCrossed;
                 const catPrice = category.price || config?.lunch_price || 0;
 
                 return (
                   <div key={category.id}>
-                    {/* Header de categoría (solo si hay más de 1 categoría) */}
+                    {/* Header de categoría (solo si +1) */}
                     {categories.length > 1 && (
-                      <div className="flex items-center gap-2 mb-2 px-1">
-                        <div
-                          className="h-7 w-7 rounded-md flex items-center justify-center flex-shrink-0"
-                          style={{ backgroundColor: (category.color || '#8B5CF6') + '20' }}
-                        >
-                          <IconComponent className="h-4 w-4" style={{ color: category.color || '#8B5CF6' }} />
-                        </div>
-                        <span className="font-bold text-sm text-gray-800">{category.name}</span>
-                        <span className="text-xs text-gray-500 ml-auto font-semibold">S/ {catPrice.toFixed(2)}</span>
+                      <div className="flex items-center gap-1.5 mb-1 px-0.5">
+                        <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: category.color || '#8B5CF6' }} />
+                        <span className="font-bold text-[11px] text-gray-700">{category.name}</span>
+                        <span className="text-[11px] text-gray-400 ml-auto font-bold">S/{catPrice.toFixed(2)}</span>
                       </div>
                     )}
 
-                    {/* Lista de platos */}
-                    <div className="space-y-2">
+                    {/* Platos */}
+                    <div className="space-y-1">
                       {menuItems.map(menu => {
                         const isSelected = selectedMenu?.id === menu.id;
                         return (
@@ -1198,49 +1165,43 @@ export function UnifiedLunchCalendarV2({ userType, userId, userSchoolId }: Unifi
                             key={menu.id}
                             onClick={() => setSelectedMenu(isSelected ? null : menu)}
                             className={cn(
-                              "w-full text-left p-3 rounded-xl border-2 transition-all",
+                              "w-full text-left px-2.5 py-2 rounded-xl border-2 transition-all active:scale-[0.98]",
                               isSelected
-                                ? "border-purple-500 bg-purple-50 ring-2 ring-purple-300 shadow-md"
-                                : "border-gray-200 hover:border-purple-300 hover:bg-gray-50 active:bg-purple-50"
+                                ? "border-purple-500 bg-purple-50 shadow-sm"
+                                : "border-gray-200 active:bg-purple-50"
                             )}
                           >
-                            <div className="flex items-start gap-3">
-                              {/* Radio visual */}
+                            <div className="flex items-center gap-2">
+                              {/* Radio */}
                               <div className={cn(
-                                "mt-0.5 h-5 w-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-colors",
+                                "h-4 w-4 rounded-full border-2 flex items-center justify-center flex-shrink-0",
                                 isSelected ? "border-purple-600 bg-purple-600" : "border-gray-300"
                               )}>
-                                {isSelected && <Check className="h-3 w-3 text-white" />}
+                                {isSelected && <Check className="h-2.5 w-2.5 text-white" />}
                               </div>
 
-                              {/* Info del plato */}
+                              {/* Info */}
                               <div className="flex-1 min-w-0">
                                 <p className={cn(
-                                  "font-bold text-sm sm:text-base leading-tight",
-                                  isSelected ? "text-purple-800" : "text-gray-900"
+                                  "font-bold text-[12px] leading-tight truncate",
+                                  isSelected ? "text-purple-800" : "text-gray-800"
                                 )}>
                                   {menu.main_course}
                                 </p>
-                                <div className="flex flex-wrap gap-x-2 gap-y-0.5 mt-1">
-                                  {menu.starter && (
-                                    <span className="text-xs text-gray-500">🥣 {menu.starter}</span>
-                                  )}
-                                  {menu.beverage && (
-                                    <span className="text-xs text-gray-500">🥤 {menu.beverage}</span>
-                                  )}
-                                  {menu.dessert && (
-                                    <span className="text-xs text-gray-500">🍮 {menu.dessert}</span>
-                                  )}
+                                <div className="flex flex-wrap gap-x-1.5 mt-0.5">
+                                  {menu.starter && <span className="text-[9px] text-gray-400">{menu.starter}</span>}
+                                  {menu.beverage && <span className="text-[9px] text-gray-400">• {menu.beverage}</span>}
+                                  {menu.dessert && <span className="text-[9px] text-gray-400">• {menu.dessert}</span>}
                                 </div>
                               </div>
 
                               {/* Precio */}
                               {categories.length <= 1 && (
                                 <span className={cn(
-                                  "font-bold text-sm flex-shrink-0",
-                                  isSelected ? "text-purple-700" : "text-gray-700"
+                                  "font-bold text-[12px] flex-shrink-0",
+                                  isSelected ? "text-purple-700" : "text-gray-600"
                                 )}>
-                                  S/ {catPrice.toFixed(2)}
+                                  S/{catPrice.toFixed(2)}
                                 </span>
                               )}
                             </div>
@@ -1253,54 +1214,59 @@ export function UnifiedLunchCalendarV2({ userType, userId, userSchoolId }: Unifi
               })
             )}
 
-            {/* ── Zona de confirmación (aparece al seleccionar un plato) ── */}
+            {/* Zona de confirmación — compacta */}
             {selectedMenu && (
-              <div className="pt-2 space-y-3 border-t border-gray-200">
-                {/* Cantidad + Nota (compacto, en una línea) */}
-                <div className="flex items-center justify-between gap-3">
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs text-gray-500 font-medium">Cantidad:</span>
-                    <Button variant="outline" size="sm" className="h-7 w-7 p-0" onClick={() => setQuantity(Math.max(1, quantity - 1))} disabled={quantity <= 1}>
-                      <Minus className="h-3 w-3" />
-                    </Button>
-                    <span className="font-bold text-base w-6 text-center">{quantity}</span>
-                    <Button variant="outline" size="sm" className="h-7 w-7 p-0" onClick={() => setQuantity(Math.min(10, quantity + 1))}>
-                      <Plus className="h-3 w-3" />
-                    </Button>
+              <div className="pt-1.5 space-y-1.5 border-t border-gray-100">
+                {/* Cantidad + Nota en 1 línea */}
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[10px] text-gray-400">Cant:</span>
+                    <button
+                      onClick={() => setQuantity(Math.max(1, quantity - 1))}
+                      disabled={quantity <= 1}
+                      className="h-6 w-6 rounded-md border border-gray-300 flex items-center justify-center text-gray-500 disabled:opacity-30 active:bg-gray-100"
+                    >
+                      <Minus className="h-2.5 w-2.5" />
+                    </button>
+                    <span className="font-bold text-sm w-4 text-center">{quantity}</span>
+                    <button
+                      onClick={() => setQuantity(Math.min(10, quantity + 1))}
+                      className="h-6 w-6 rounded-md border border-gray-300 flex items-center justify-center text-gray-500 active:bg-gray-100"
+                    >
+                      <Plus className="h-2.5 w-2.5" />
+                    </button>
                   </div>
-
                   <button
                     onClick={() => setShowComments(!showComments)}
-                    className="text-xs text-purple-600 hover:text-purple-800 font-medium flex items-center gap-1"
+                    className="text-[10px] text-purple-500 font-medium"
                   >
-                    📝 {showComments ? 'Ocultar nota' : '¿Agregar nota?'}
+                    📝 {showComments ? 'Ocultar' : 'Nota'}
                   </button>
                 </div>
 
-                {/* Comentarios (colapsable) */}
                 {showComments && (
                   <Textarea
-                    placeholder="Ej: Sin ensalada, alergia al maní..."
+                    placeholder="Ej: Sin ensalada..."
                     value={orderComments}
                     onChange={(e) => setOrderComments(e.target.value)}
                     rows={2}
-                    className="resize-none text-sm"
+                    className="resize-none text-[11px] h-14"
                     autoFocus
                   />
                 )}
 
-                {/* Botón PEDIR (grande, prominente) */}
-                <Button
+                {/* Botón PEDIR */}
+                <button
                   onClick={handleConfirmOrder}
                   disabled={submitting}
-                  className="w-full h-12 bg-green-600 hover:bg-green-700 text-white font-bold text-base rounded-xl shadow-lg active:scale-[0.98] transition-transform"
+                  className="w-full h-10 bg-green-600 active:bg-green-700 text-white font-bold text-[13px] rounded-xl shadow-md active:scale-[0.97] transition-all flex items-center justify-center gap-1.5 disabled:opacity-60"
                 >
                   {submitting ? (
-                    <><Loader2 className="h-5 w-5 mr-2 animate-spin" />Registrando...</>
+                    <><Loader2 className="h-4 w-4 animate-spin" />Registrando...</>
                   ) : (
-                    <>🛒 Pedir — S/ {totalPrice.toFixed(2)}</>
+                    <>🛒 Pedir — S/{totalPrice.toFixed(2)}</>
                   )}
-                </Button>
+                </button>
               </div>
             )}
           </div>
@@ -1455,162 +1421,84 @@ export function UnifiedLunchCalendarV2({ userType, userId, userSchoolId }: Unifi
   }
 
   return (
-    <div className="space-y-4">
-      {/* DEBUG INFO BANNER - Shows config being used (helps diagnose issues) */}
-      {config && (
-        <div className="text-[10px] text-gray-400 bg-gray-50 rounded px-2 py-1 flex flex-wrap gap-x-3">
-          <span>🏫 Sede: {effectiveSchoolId?.substring(0, 8)}...</span>
-          <span>⏰ Límite: {config.order_deadline_time?.substring(0, 5)} | {config.order_deadline_days ?? '?'}d antes</span>
-          <span>🕐 Perú: {format(getPeruNow(), 'dd/MM HH:mm')}</span>
-          <span>📋 Menús: {menus.size} días</span>
+    <div className="space-y-2">
+      {/* STUDENT SELECTOR (parents only) - compacto */}
+      {userType === 'parent' && students.length > 0 && (
+        <div className="flex gap-1.5 flex-wrap px-1">
+          {students.map(student => (
+            <Button
+              key={student.id}
+              variant={selectedStudent?.id === student.id ? "default" : "outline"}
+              size="sm"
+              className={cn(
+                "gap-1.5 h-7 text-[11px] px-2.5 rounded-full",
+                selectedStudent?.id === student.id && "bg-purple-600 hover:bg-purple-700"
+              )}
+              onClick={() => {
+                setSelectedStudent(student);
+                setExistingOrders([]);
+                setSelectedDates(new Set());
+              }}
+            >
+              <Users className="h-3 w-3" />
+              {student.full_name}
+            </Button>
+          ))}
         </div>
       )}
 
-      {/* STUDENT SELECTOR (parents only) */}
-      {userType === 'parent' && students.length > 0 && (
-        <Card>
-          <CardContent className="p-3">
-            <p className="text-xs font-medium text-gray-500 mb-2">Selecciona tu hijo(a):</p>
-            <div className="flex gap-2 flex-wrap">
-              {students.map(student => (
-                <Button
-                  key={student.id}
-                  variant={selectedStudent?.id === student.id ? "default" : "outline"}
-                  size="sm"
-                  className={cn("gap-2", selectedStudent?.id === student.id && "bg-purple-600 hover:bg-purple-700")}
-                  onClick={() => {
-                    setSelectedStudent(student);
-                    setExistingOrders([]);
-                    setSelectedDates(new Set());
-                  }}
-                >
-                  <Users className="h-3.5 w-3.5" />
-                  {student.full_name}
-                </Button>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      )}
+      {/* CALENDAR - ultra compacto */}
+      <Card className="overflow-hidden">
+        {/* Header: mes + flechas + toggle multi-select — todo en 1 línea */}
+        <div className="flex items-center justify-between px-2 py-1.5 bg-gray-50 border-b">
+          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => { setCurrentDate(subMonths(currentDate, 1)); setSelectedDates(new Set()); }}>
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
 
-      {/* CALENDAR */}
-      <Card>
-        <CardHeader className="pb-3">
-          <div className="flex items-center justify-between">
-            <Button variant="ghost" size="icon" onClick={() => { setCurrentDate(subMonths(currentDate, 1)); setSelectedDates(new Set()); }}>
-              <ChevronLeft className="h-5 w-5" />
-            </Button>
-            <div className="text-center">
-              <CardTitle className="text-base sm:text-lg">
-                {MONTHS[currentDate.getMonth()]} {currentDate.getFullYear()}
-              </CardTitle>
-              <CardDescription className="text-xs sm:text-sm">
-                {multiSelectMode
-                  ? `Selecciona los días — ${selectedDates.size} elegido(s)`
-                  : 'Toca un día disponible para hacer tu pedido'
-                }
-              </CardDescription>
-            </div>
-            <Button variant="ghost" size="icon" onClick={() => { setCurrentDate(addMonths(currentDate, 1)); setSelectedDates(new Set()); }}>
-              <ChevronRight className="h-5 w-5" />
-            </Button>
-          </div>
-
-          {/* Toggle: modo normal / selección múltiple */}
-          <div className="flex items-center justify-center gap-2 mt-2">
-            <Button
-              variant={multiSelectMode ? "default" : "outline"}
-              size="sm"
-              className={cn(
-                "text-xs gap-1.5 h-8",
-                multiSelectMode ? "bg-purple-600 hover:bg-purple-700 text-white" : "text-gray-600"
-              )}
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-bold text-gray-800">
+              {MONTHS[currentDate.getMonth()]} {currentDate.getFullYear()}
+            </span>
+            <button
               onClick={() => {
                 setMultiSelectMode(!multiSelectMode);
                 if (multiSelectMode) setSelectedDates(new Set());
               }}
+              className={cn(
+                "text-[10px] px-2 py-0.5 rounded-full font-medium transition-colors",
+                multiSelectMode
+                  ? "bg-purple-600 text-white"
+                  : "bg-gray-200 text-gray-500 hover:bg-gray-300"
+              )}
             >
-              <CalendarIcon className="h-3.5 w-3.5" />
-              {multiSelectMode ? '✓ Selección múltiple' : 'Seleccionar varios días'}
-            </Button>
-            {multiSelectMode && selectedDates.size > 0 && (
-              <Button
-                variant="ghost"
-                size="sm"
-                className="text-xs text-gray-500 h-8"
-                onClick={() => setSelectedDates(new Set())}
-              >
-                Limpiar
-              </Button>
-            )}
+              {multiSelectMode ? `✓ ${selectedDates.size} sel.` : '📋 Multi'}
+            </button>
           </div>
-        </CardHeader>
 
-        <CardContent className="pt-0">
+          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => { setCurrentDate(addMonths(currentDate, 1)); setSelectedDates(new Set()); }}>
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+        </div>
+
+        {/* Calendario grid */}
+        <CardContent className="p-1.5 pb-2">
           {renderCalendar()}
 
-          {/* Legend */}
-          <div className="mt-4 flex flex-wrap gap-3 text-[10px] sm:text-xs text-gray-600">
-            <div className="flex items-center gap-1">
-              <UtensilsCrossed className="h-3 w-3 text-blue-500" />
-              <span>Disponible</span>
+          {/* Leyenda + info compacta en 1 línea */}
+          <div className="mt-1.5 flex items-center justify-between px-1">
+            <div className="flex gap-2 text-[9px] text-gray-500">
+              <span className="flex items-center gap-0.5"><span className="text-blue-500">🍴</span>Disponible</span>
+              <span className="flex items-center gap-0.5"><span className="inline-block w-2 h-2 rounded-full bg-green-500" />Pedido</span>
+              <span className="flex items-center gap-0.5"><Lock className="h-2 w-2 text-red-400" />Bloqueado</span>
+              {multiSelectMode && <span className="flex items-center gap-0.5 text-purple-600 font-medium"><Check className="h-2 w-2" />Selec.</span>}
             </div>
-            <div className="flex items-center gap-1">
-              <Badge className="h-3.5 w-3.5 p-0 flex items-center justify-center text-[7px] bg-green-500">1</Badge>
-              <span>Ya pedido</span>
-            </div>
-            <div className="flex items-center gap-1">
-              <Lock className="h-3 w-3 text-red-400" />
-              <span>Bloqueado</span>
-            </div>
-            {multiSelectMode && (
-              <div className="flex items-center gap-1">
-                <Check className="h-3 w-3 text-purple-600" />
-                <span className="text-purple-600 font-medium">Seleccionado</span>
-              </div>
+            {config?.order_deadline_time && (
+              <span className="text-[9px] text-amber-600">
+                ⏰ Límite: {config.order_deadline_time.substring(0, 5)}
+                {(config.order_deadline_days ?? 0) > 0 && ` (${config.order_deadline_days}d antes)`}
+              </span>
             )}
           </div>
-
-          {/* Deadline info - Enhanced with concrete example */}
-          {config?.order_deadline_time && (
-            <div className="mt-3 flex items-start gap-2 text-xs text-amber-700 bg-amber-50 rounded-lg p-2.5 border border-amber-200">
-              <Clock className="h-3.5 w-3.5 flex-shrink-0 mt-0.5" />
-              <div>
-                <p>
-                  Hora límite para pedir: <strong>{config.order_deadline_time.substring(0, 5)}</strong>
-                  {(config.order_deadline_days ?? 0) > 0
-                    ? <>, <strong>{config.order_deadline_days} día(s) antes</strong> del día del pedido</>
-                    : <> <strong>del mismo día</strong></>
-                  }
-                </p>
-                <p className="text-amber-600 mt-0.5">
-                  {(() => {
-                    const peruNow = getPeruNow();
-                    const tomorrow = new Date(peruNow.getFullYear(), peruNow.getMonth(), peruNow.getDate() + 1);
-                    const tomorrowStr = format(tomorrow, "EEEE d", { locale: es });
-                    const deadlineDays = config.order_deadline_days ?? 0;
-                    const deadlineForTomorrow = new Date(
-                      tomorrow.getFullYear(), tomorrow.getMonth(), tomorrow.getDate() - deadlineDays,
-                      ...config.order_deadline_time.split(':').slice(0, 2).map(Number), 0
-                    );
-                    return `Ej: Para pedir el ${tomorrowStr}, el límite es ${format(deadlineForTomorrow, "EEEE d 'a las' HH:mm", { locale: es })}`;
-                  })()}
-                </p>
-              </div>
-            </div>
-          )}
-
-          {/* Cancellation info */}
-          {config?.cancellation_deadline_time && (
-            <div className="mt-2 flex items-center gap-2 text-xs text-blue-700 bg-blue-50 rounded-lg p-2.5 border border-blue-200">
-              <XCircle className="h-3.5 w-3.5 flex-shrink-0" />
-              <span>
-                Cancelar hasta: <strong>{config.cancellation_deadline_time.substring(0, 5)}</strong>
-                {config.cancellation_deadline_days > 0 && <>, {config.cancellation_deadline_days} día(s) antes</>}
-                {' '}del día del pedido
-              </span>
-            </div>
-          )}
         </CardContent>
       </Card>
 
@@ -1623,40 +1511,35 @@ export function UnifiedLunchCalendarV2({ userType, userId, userSchoolId }: Unifi
       {/* VIEW ORDERS MODAL */}
       {renderViewOrdersModal()}
 
-      {/* MULTI-SELECT FLOATING BAR */}
+      {/* MULTI-SELECT FLOATING BAR — compacto para móvil */}
       {multiSelectMode && selectedDates.size > 0 && (
-        <div className="fixed bottom-4 left-4 right-4 z-50 animate-in slide-in-from-bottom-5 duration-300">
-          <div className="mx-auto max-w-md bg-purple-700 text-white rounded-2xl shadow-2xl p-4 flex items-center justify-between gap-3">
+        <div className="fixed bottom-16 left-2 right-2 z-50 animate-in slide-in-from-bottom-3 duration-200">
+          <div className="mx-auto max-w-sm bg-purple-700 text-white rounded-xl shadow-2xl px-3 py-2 flex items-center gap-2">
             <div className="flex-1 min-w-0">
-              <p className="font-semibold text-sm">
-                📋 {selectedDates.size} día{selectedDates.size > 1 ? 's' : ''} seleccionado{selectedDates.size > 1 ? 's' : ''}
+              <p className="font-bold text-[12px]">
+                📋 {selectedDates.size} día{selectedDates.size > 1 ? 's' : ''}
               </p>
-              <p className="text-purple-200 text-xs truncate">
-                {Array.from(selectedDates).sort().slice(0, 3).map(d => {
+              <p className="text-purple-300 text-[9px] truncate">
+                {Array.from(selectedDates).sort().slice(0, 4).map(d => {
                   const date = new Date(d + 'T12:00:00');
-                  return format(date, 'd MMM', { locale: es });
-                }).join(', ')}
-                {selectedDates.size > 3 && ` +${selectedDates.size - 3} más`}
+                  return format(date, 'd/MM', { locale: es });
+                }).join(' · ')}
+                {selectedDates.size > 4 && ` +${selectedDates.size - 4}`}
               </p>
             </div>
-            <div className="flex gap-2">
-              <Button
-                variant="ghost"
-                size="sm"
-                className="text-white/80 hover:text-white hover:bg-purple-600 text-xs h-9"
-                onClick={() => setSelectedDates(new Set())}
-              >
-                Limpiar
-              </Button>
-              <Button
-                size="sm"
-                className="bg-white text-purple-700 hover:bg-purple-100 font-semibold text-xs h-9 gap-1.5"
-                onClick={() => setMultiOrderModalOpen(true)}
-              >
-                <ShoppingCart className="h-3.5 w-3.5" />
-                Ver y Pedir
-              </Button>
-            </div>
+            <button
+              onClick={() => setSelectedDates(new Set())}
+              className="text-[10px] text-white/60 px-2 py-1 rounded-md hover:bg-white/10"
+            >
+              ✕
+            </button>
+            <button
+              onClick={() => setMultiOrderModalOpen(true)}
+              className="bg-white text-purple-700 font-bold text-[11px] h-8 px-3 rounded-lg flex items-center gap-1 active:scale-95 transition-transform"
+            >
+              <ShoppingCart className="h-3 w-3" />
+              Pedir
+            </button>
           </div>
         </div>
       )}
@@ -1804,30 +1687,18 @@ export function UnifiedLunchCalendarV2({ userType, userId, userSchoolId }: Unifi
 
       {/* EMPTY STATE */}
       {!loading && menus.size === 0 && (
-        <Card className="bg-gray-50">
-          <CardContent className="py-8 text-center">
-            <CalendarIcon className="h-12 w-12 text-gray-400 mx-auto mb-3" />
-            <p className="text-gray-600 font-medium">No hay menús disponibles este mes</p>
-          </CardContent>
-        </Card>
+        <div className="text-center py-4 text-gray-400">
+          <CalendarIcon className="h-8 w-8 mx-auto mb-1 opacity-50" />
+          <p className="text-[11px]">No hay menús este mes</p>
+        </div>
       )}
 
-      {/* INFO CARD */}
-      <Card className="bg-gradient-to-r from-purple-50 to-blue-50 border-purple-200">
-        <CardContent className="pt-4 pb-4">
-          <div className="flex items-start gap-3">
-            <AlertCircle className="h-5 w-5 text-purple-600 mt-0.5 flex-shrink-0" />
-            <div className="flex-1 text-xs sm:text-sm">
-              <p className="font-medium text-gray-900">¿Cómo pedir?</p>
-              <ol className="text-gray-600 mt-1 space-y-0.5 list-decimal list-inside">
-                <li>Toca un día con 🍴 para ver los platos y pedir</li>
-                <li>Usa <strong>"Seleccionar varios días"</strong> para pedir varios de una vez</li>
-                <li>Toca días <span className="text-green-600 font-semibold">verdes</span> para ver o cancelar pedidos</li>
-              </ol>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+      {/* INFO COMPACTO */}
+      <div className="px-2 py-1.5 bg-purple-50/60 rounded-lg border border-purple-100">
+        <p className="text-[10px] text-gray-500 text-center">
+          🍴 Toca un día para pedir · 📋 <strong>Multi</strong> para varios · <span className="text-green-600">●</span> = ya pedido
+        </p>
+      </div>
 
       {/* PAYMENT MODAL (parents only) */}
       {userType === 'parent' && selectedStudent && (
