@@ -481,42 +481,70 @@ export default function Teacher() {
   const checkOnboardingStatus = async () => {
     try {
       setLoading(true);
-      console.log('🔍 Verificando perfil del profesor:', user?.id);
 
-      // Verificar si existe el perfil del profesor
-      const { data: profile, error } = await supabase
+      // Intento 1: usar la vista con joins de sedes
+      let profile: any = null;
+      const { data: profileView, error: viewError } = await supabase
         .from('teacher_profiles_with_schools')
         .select('*')
         .eq('id', user?.id)
         .maybeSingle();
 
-      if (error) {
-        console.error('❌ Error cargando perfil:', error);
-        throw error;
+      if (viewError) {
+        // Intento 2: fallback a la tabla directa + JOIN manual
+        const { data: rawProfile, error: rawError } = await supabase
+          .from('teacher_profiles')
+          .select(`
+            *,
+            school1:schools!teacher_profiles_school_id_1_fkey(id, name, code),
+            school2:schools!teacher_profiles_school_id_2_fkey(id, name, code)
+          `)
+          .eq('id', user?.id)
+          .maybeSingle();
+
+        if (rawError) {
+          // Intento 3: solo la tabla sin joins
+          const { data: minProfile } = await supabase
+            .from('teacher_profiles')
+            .select('*')
+            .eq('id', user?.id)
+            .maybeSingle();
+          profile = minProfile ? {
+            ...minProfile,
+            school_1_id: minProfile.school_id_1,
+            school_2_id: minProfile.school_id_2,
+            school_1_name: null,
+            school_2_name: null,
+          } : null;
+        } else if (rawProfile) {
+          profile = {
+            ...rawProfile,
+            school_1_id: rawProfile.school_id_1,
+            school_2_id: rawProfile.school_id_2,
+            school_1_name: rawProfile.school1?.name || null,
+            school_2_name: rawProfile.school2?.name || null,
+          };
+        }
+      } else {
+        profile = profileView;
       }
 
-      // Si no hay perfil, mostrar onboarding
+      // Sin perfil → onboarding
       if (!profile) {
-        console.log('📝 Profesor sin perfil, mostrando onboarding');
         setShowOnboarding(true);
         setLoading(false);
         return;
       }
 
-      console.log('✅ Perfil encontrado:', profile);
       setTeacherProfile(profile);
 
-      // Si el perfil no está completo, mostrar onboarding
       if (!profile.onboarding_completed) {
-        console.log('📝 Onboarding incompleto, mostrando modal');
         setShowOnboarding(true);
       }
 
       setLoading(false);
     } catch (error: any) {
-      console.error('❌ Error verificando perfil:', error);
-      // Si no pudimos verificar el perfil, mostramos el onboarding
-      // Es mejor que dejar al usuario en una pantalla vacía
+      console.error('Error verificando perfil del profesor:', error);
       setShowOnboarding(true);
       toast({
         variant: 'destructive',
