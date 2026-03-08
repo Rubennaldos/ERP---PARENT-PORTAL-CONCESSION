@@ -39,6 +39,10 @@ interface RechargeModalProps {
   requestDescription?: string;
   lunchOrderIds?: string[];
   paidTransactionIds?: string[];
+  /** Si se proporciona, se usa directamente en vez de buscar school_id desde students */
+  schoolId?: string;
+  /** Si true, el student_id se omite (para pagos de profesores) */
+  isTeacherPayment?: boolean;
 }
 
 interface PaymentConfig {
@@ -81,6 +85,8 @@ export function RechargeModal({
   requestDescription,
   lunchOrderIds,
   paidTransactionIds,
+  schoolId: propSchoolId,
+  isTeacherPayment = false,
 }: RechargeModalProps) {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -142,13 +148,18 @@ export function RechargeModal({
   const fetchPaymentConfig = async () => {
     setLoadingConfig(true);
     try {
-      const { data: student } = await supabase
-        .from('students').select('school_id').eq('id', studentId).single();
-      if (!student?.school_id) return;
+      let resolvedSchoolId = propSchoolId || null;
+      // Si no se pasó schoolId directamente, buscarlo desde la tabla students
+      if (!resolvedSchoolId) {
+        const { data: student } = await supabase
+          .from('students').select('school_id').eq('id', studentId).single();
+        resolvedSchoolId = student?.school_id || null;
+      }
+      if (!resolvedSchoolId) return;
       const { data: config } = await supabase
         .from('billing_config')
         .select('yape_number, yape_holder, yape_enabled, plin_number, plin_holder, plin_enabled, bank_account_info, bank_account_holder, transferencia_enabled, bank_name, bank_account_number, bank_cci, show_payment_info')
-        .eq('school_id', student.school_id)
+        .eq('school_id', resolvedSchoolId)
         .single();
       setPaymentConfig(config || null);
     } catch (err) {
@@ -325,9 +336,12 @@ export function RechargeModal({
         }
       }
 
-      // school_id
-      const { data: student } = await supabase.from('students').select('school_id').eq('id', studentId).single();
-      const schoolId = student?.school_id || null;
+      // school_id — usar el prop si fue proporcionado, sino buscar de students
+      let schoolId = propSchoolId || null;
+      if (!schoolId) {
+        const { data: student } = await supabase.from('students').select('school_id').eq('id', studentId).single();
+        schoolId = student?.school_id || null;
+      }
 
       // Upload helper — guarda el path para poder generar signed URLs
       const uploadVoucher = async (file: File): Promise<string | null> => {
@@ -342,9 +356,10 @@ export function RechargeModal({
       };
 
       const basePayload = {
-        student_id: studentId,
+        student_id: isTeacherPayment ? null : studentId,
         parent_id: user.id,
         school_id: schoolId,
+        teacher_id: isTeacherPayment ? studentId : null,
         payment_method: selectedMethod,
         notes: notes.trim() || null,
         status: 'pending' as const,
