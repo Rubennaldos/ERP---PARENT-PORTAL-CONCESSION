@@ -914,8 +914,13 @@ export default function Teacher() {
                 </div>
 
                 {/* Footer */}
-                <div className="text-center py-3">
-                  <p className="text-[9px] text-gray-300">© 2026 ERP Profesional • ARQUISIA Soluciones para Maracuyá</p>
+                <div className="text-center py-4 space-y-1">
+                  <p className="text-[9px] text-gray-400">
+                    © 2026 ERP Profesional diseñado por <span className="font-semibold text-purple-400">ARQUISIA Soluciones</span> para <span className="font-semibold text-blue-400">Maracuyá Tiendas y Concesionarias Saludables</span>
+                  </p>
+                  <p className="text-[8px] text-gray-300">
+                    Versión 1.9.1 • PRODUCTION
+                  </p>
                 </div>
               </div>
             )}
