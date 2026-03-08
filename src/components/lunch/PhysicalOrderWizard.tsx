@@ -530,7 +530,7 @@ export function PhysicalOrderWizard({ isOpen, onClose, schoolId, selectedDate, o
       if (totalPrice > 0) {
         try {
           const { data: ticketNumber, error: ticketErr } = await supabase
-            .rpc('get_next_ticket_number', { p_user_id: null });
+            .rpc('generate_ticket_number', { p_prefix: 'ALM' });
           if (!ticketErr && ticketNumber) {
             ticketCode = ticketNumber;
           }

@@ -290,7 +290,7 @@ export function TeacherLunchCalendar({ teacherId, schoolId }: TeacherLunchCalend
       let ticketCode: string | null = null;
       try {
         const { data: ticketNumber, error: ticketError } = await supabase
-          .rpc('get_next_ticket_number', { p_user_id: teacherId });
+          .rpc('generate_ticket_number', { p_prefix: 'ALM' });
         if (!ticketError && ticketNumber) {
           ticketCode = ticketNumber;
         }

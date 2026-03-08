@@ -576,9 +576,11 @@ export function UnifiedLunchCalendarV2({ userType, userId, userSchoolId }: Unifi
       let ticketCode: string | null = null;
       try {
         const { data: ticketNumber, error: ticketErr } = await supabase
-          .rpc('get_next_ticket_number', { p_user_id: userId });
+          .rpc('generate_ticket_number', { p_prefix: 'ALM' });
         if (!ticketErr && ticketNumber) ticketCode = ticketNumber;
-      } catch {}
+      } catch {
+        // Fallback silencioso — el ticket se asignará en el backfill
+      }
 
       const { error: txError } = await supabase
         .from('transactions')

@@ -866,7 +866,7 @@ export default function LunchOrders() {
       let ticketCode: string | null = null;
       try {
         const { data: ticketNumber, error: ticketErr } = await supabase
-          .rpc('get_next_ticket_number', { p_user_id: user?.id });
+          .rpc('generate_ticket_number', { p_prefix: 'ALM' });
         if (!ticketErr && ticketNumber) {
           ticketCode = ticketNumber;
         }
