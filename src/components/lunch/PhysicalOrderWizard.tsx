@@ -11,7 +11,10 @@ import { useToast } from '@/hooks/use-toast';
 import { Users, CreditCard, Search, ArrowRight, ArrowLeft, Check, Loader2, AlertTriangle, AlertCircle, Plus, Minus } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { useRole } from '@/hooks/useRole';
 import { MenuFieldOptionSelector, hasAnyAlternatives } from './MenuFieldOptionSelector';
+
+const ADMIN_ROLES_NO_CASH_GUARD = ['superadmin', 'admin_general', 'supervisor_red'];
 
 interface PhysicalOrderWizardProps {
   isOpen: boolean;
@@ -51,6 +54,8 @@ interface Person {
 
 export function PhysicalOrderWizard({ isOpen, onClose, schoolId, selectedDate, onSuccess }: PhysicalOrderWizardProps) {
   const { toast } = useToast();
+  const { role } = useRole();
+  const isAdminBypass = ADMIN_ROLES_NO_CASH_GUARD.includes(role || '');
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
 
@@ -405,7 +410,8 @@ export function PhysicalOrderWizard({ isOpen, onClose, schoolId, selectedDate, o
       cashPaymentMethod &&
       cashPaymentMethod !== 'pagar_luego';
 
-    if (isImmediatePayment && schoolId) {
+    // Guard de caja: admins generales no tienen esta restricción
+    if (isImmediatePayment && schoolId && !isAdminBypass) {
       const todayStart = new Date();
       todayStart.setHours(0, 0, 0, 0);
 
