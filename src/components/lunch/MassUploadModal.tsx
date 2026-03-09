@@ -127,7 +127,6 @@ export const MassUploadModal = ({
   useEffect(() => {
     if (!isOpen || selectedSchools.length === 0) {
       setCategories([]);
-      setSelectedCategoryId('none');
       return;
     }
     const loadCategories = async () => {
