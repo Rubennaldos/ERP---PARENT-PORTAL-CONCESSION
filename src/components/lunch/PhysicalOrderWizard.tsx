@@ -11,6 +11,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Users, CreditCard, Search, ArrowRight, ArrowLeft, Check, Loader2, AlertTriangle, AlertCircle, Plus, Minus } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { MenuFieldOptionSelector, hasAnyAlternatives } from './MenuFieldOptionSelector';
 
 interface PhysicalOrderWizardProps {
   isOpen: boolean;
@@ -37,6 +38,10 @@ interface LunchMenu {
   beverage: string | null;
   dessert: string | null;
   category_id: string;
+  starter_alternatives?: string[];
+  main_course_alternatives?: string[];
+  beverage_alternatives?: string[];
+  dessert_alternatives?: string[];
 }
 
 interface Person {
@@ -59,6 +64,10 @@ export function PhysicalOrderWizard({ isOpen, onClose, schoolId, selectedDate, o
   const [quantity, setQuantity] = useState(1); // 🆕 CANTIDAD DE MENÚS
   const [existingOrders, setExistingOrders] = useState<any[]>([]); // 🆕 PEDIDOS EXISTENTES
   const [orderComments, setOrderComments] = useState(''); // 💬 COMENTARIOS DEL PEDIDO
+  const [chosenStarter, setChosenStarter] = useState<string | null>(null);
+  const [chosenMainCourse, setChosenMainCourse] = useState<string | null>(null);
+  const [chosenBeverage, setChosenBeverage] = useState<string | null>(null);
+  const [chosenDessert, setChosenDessert] = useState<string | null>(null);
   const [cashPaymentMethod, setCashPaymentMethod] = useState<'efectivo' | 'tarjeta' | 'yape' | 'transferencia' | null>(null);
   
   // Detalles de pago
@@ -93,6 +102,10 @@ export function PhysicalOrderWizard({ isOpen, onClose, schoolId, selectedDate, o
     setQuantity(1); // 🆕 RESETEAR CANTIDAD
     setExistingOrders([]); // 🆕 LIMPIAR PEDIDOS EXISTENTES
     setOrderComments(''); // 💬 LIMPIAR COMENTARIOS
+    setChosenStarter(null);
+    setChosenMainCourse(null);
+    setChosenBeverage(null);
+    setChosenDessert(null);
     setCashPaymentMethod(null);
     setPaymentDetails({
       currency: 'soles',
@@ -493,6 +506,10 @@ export function PhysicalOrderWizard({ isOpen, onClose, schoolId, selectedDate, o
           quantity,
           base_price: selectedCategory.price || 0,
           final_price: totalPrice,
+          chosen_starter: chosenStarter,
+          chosen_main_course: chosenMainCourse,
+          chosen_beverage: chosenBeverage,
+          chosen_dessert: chosenDessert,
         };
 
         // 💬 Agregar comentarios si existen
@@ -977,7 +994,13 @@ export function PhysicalOrderWizard({ isOpen, onClose, schoolId, selectedDate, o
                     className={`p-4 cursor-pointer hover:shadow-lg transition-all ${
                       selectedMenu?.id === menu.id ? 'ring-2 ring-green-500' : ''
                     }`}
-                    onClick={() => setSelectedMenu(menu)}
+                    onClick={() => {
+                      setSelectedMenu(menu);
+                      setChosenStarter(null);
+                      setChosenMainCourse(null);
+                      setChosenBeverage(null);
+                      setChosenDessert(null);
+                    }}
                   >
                     <p className="font-bold mb-2">
                       {format(new Date(menu.date + 'T00:00:00'), "EEEE d 'de' MMMM", { locale: es })}
@@ -988,6 +1011,55 @@ export function PhysicalOrderWizard({ isOpen, onClose, schoolId, selectedDate, o
                       {menu.beverage && <p>• Bebida: {menu.beverage}</p>}
                       {menu.dessert && <p>• Postre: {menu.dessert}</p>}
                     </div>
+                    {selectedMenu?.id === menu.id && hasAnyAlternatives(menu) && (
+                      <div className="mt-3 pt-3 border-t border-dashed space-y-2">
+                        <p className="text-xs font-bold text-purple-700">Elegir alternativas:</p>
+                        {menu.starter && (menu.starter_alternatives?.length ?? 0) > 0 && (
+                          <MenuFieldOptionSelector
+                            fieldLabel="Entrada"
+                            icon="🥗"
+                            defaultValue={menu.starter}
+                            alternatives={menu.starter_alternatives || []}
+                            selectedValue={chosenStarter}
+                            onChange={setChosenStarter}
+                            compact
+                          />
+                        )}
+                        {(menu.main_course_alternatives?.length ?? 0) > 0 && (
+                          <MenuFieldOptionSelector
+                            fieldLabel="Segundo"
+                            icon="🍲"
+                            defaultValue={menu.main_course}
+                            alternatives={menu.main_course_alternatives || []}
+                            selectedValue={chosenMainCourse}
+                            onChange={setChosenMainCourse}
+                            compact
+                          />
+                        )}
+                        {menu.beverage && (menu.beverage_alternatives?.length ?? 0) > 0 && (
+                          <MenuFieldOptionSelector
+                            fieldLabel="Bebida"
+                            icon="🥤"
+                            defaultValue={menu.beverage}
+                            alternatives={menu.beverage_alternatives || []}
+                            selectedValue={chosenBeverage}
+                            onChange={setChosenBeverage}
+                            compact
+                          />
+                        )}
+                        {menu.dessert && (menu.dessert_alternatives?.length ?? 0) > 0 && (
+                          <MenuFieldOptionSelector
+                            fieldLabel="Postre"
+                            icon="🍰"
+                            defaultValue={menu.dessert}
+                            alternatives={menu.dessert_alternatives || []}
+                            selectedValue={chosenDessert}
+                            onChange={setChosenDessert}
+                            compact
+                          />
+                        )}
+                      </div>
+                    )}
                   </Card>
                 ))}
               </div>

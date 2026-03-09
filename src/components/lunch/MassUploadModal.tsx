@@ -21,7 +21,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Loader2, Plus, Trash2, Calendar } from 'lucide-react';
+import { Loader2, Plus, Trash2, Calendar, Copy, CopyCheck } from 'lucide-react';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Card, CardContent } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 
@@ -108,6 +109,48 @@ export const MassUploadModal = ({
         entry.id === id ? { ...entry, [field]: value } : entry
       )
     );
+  };
+
+  const copyFromPrevious = (index: number) => {
+    if (index <= 0) return;
+    setEntries((prev) => {
+      const updated = [...prev];
+      const source = updated[index - 1];
+      updated[index] = {
+        ...updated[index],
+        starter: source.starter,
+        main_course: source.main_course,
+        beverage: source.beverage,
+        dessert: source.dessert,
+        notes: source.notes,
+      };
+      return updated;
+    });
+    toast({ title: 'Copiado', description: 'Menú copiado del día anterior' });
+  };
+
+  const fillAllFromFirst = () => {
+    if (entries.length < 2) return;
+    const source = entries[0];
+    if (!source.main_course.trim()) {
+      toast({ title: 'Sin datos', description: 'Primero completa el menú del primer día', variant: 'destructive' });
+      return;
+    }
+    setEntries((prev) =>
+      prev.map((entry, i) =>
+        i === 0
+          ? entry
+          : {
+              ...entry,
+              starter: source.starter,
+              main_course: source.main_course,
+              beverage: source.beverage,
+              dessert: source.dessert,
+              notes: source.notes,
+            }
+      )
+    );
+    toast({ title: 'Rellenado', description: `Se copió el menú del primer día a los otros ${entries.length - 1} días` });
   };
 
   const generateDateRange = () => {
@@ -201,8 +244,12 @@ export const MassUploadModal = ({
             beverage: entry.beverage.trim() || null,
             dessert: entry.dessert.trim() || null,
             notes: entry.notes.trim() || null,
-            target_type: 'both', // Visible para alumnos Y profesores
+            target_type: 'both',
             created_by: user?.id,
+            starter_alternatives: [],
+            main_course_alternatives: [],
+            beverage_alternatives: [],
+            dessert_alternatives: [],
           });
         }
       }
@@ -325,14 +372,22 @@ export const MassUploadModal = ({
 
           {/* Listado de menús */}
           <div className="space-y-3">
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between flex-wrap gap-2">
               <Label className="text-sm font-medium">
                 Menús a cargar ({entries.length})
               </Label>
-              <Button type="button" variant="outline" size="sm" onClick={addEntry}>
-                <Plus className="h-4 w-4 mr-2" />
-                Agregar entrada manual
-              </Button>
+              <div className="flex gap-2">
+                {entries.length >= 2 && (
+                  <Button type="button" variant="outline" size="sm" onClick={fillAllFromFirst} className="text-blue-600 border-blue-300 hover:bg-blue-50">
+                    <CopyCheck className="h-4 w-4 mr-2" />
+                    Rellenar todos igual al primero
+                  </Button>
+                )}
+                <Button type="button" variant="outline" size="sm" onClick={addEntry}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Agregar entrada manual
+                </Button>
+              </div>
             </div>
 
             <div className="space-y-3 max-h-96 overflow-y-auto pr-2">
@@ -412,15 +467,35 @@ export const MassUploadModal = ({
                           placeholder="Postre"
                         />
                       </div>
-                      <div className="col-span-1 flex items-end">
+                      <div className="col-span-1 flex items-end gap-0.5">
+                        {index > 0 && (
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => copyFromPrevious(index)}
+                                  disabled={loading}
+                                  className="h-8 w-8"
+                                >
+                                  <Copy className="h-3.5 w-3.5 text-blue-500" />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>Copiar del día anterior</TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        )}
                         <Button
                           type="button"
                           variant="ghost"
                           size="icon"
                           onClick={() => removeEntry(entry.id)}
                           disabled={loading || entries.length === 1}
+                          className="h-8 w-8"
                         >
-                          <Trash2 className="h-4 w-4 text-red-500" />
+                          <Trash2 className="h-3.5 w-3.5 text-red-500" />
                         </Button>
                       </div>
                     </div>

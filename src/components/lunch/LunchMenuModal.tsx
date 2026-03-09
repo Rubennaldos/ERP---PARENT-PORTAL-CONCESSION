@@ -25,6 +25,7 @@ import { Loader2, Save, Tag } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { MenuAlternativesEditor } from './MenuAlternativesEditor';
 
 interface School {
   id: string;
@@ -73,9 +74,12 @@ export const LunchMenuModal = ({
     notes: '',
     category_id: preSelectedCategoryId || '',
     target_type: preSelectedTargetType || 'students',
-    // Campos para productos de cocina
     product_name: '',
     product_price: '',
+    starter_alternatives: [] as string[],
+    main_course_alternatives: [] as string[],
+    beverage_alternatives: [] as string[],
+    dessert_alternatives: [] as string[],
   });
 
   // Cargar datos del menú si es edición o inicializar formulario para creación
@@ -105,6 +109,10 @@ export const LunchMenuModal = ({
         target_type: preSelectedTargetType || 'students',
         product_name: '',
         product_price: '',
+        starter_alternatives: [],
+        main_course_alternatives: [],
+        beverage_alternatives: [],
+        dessert_alternatives: [],
       });
       
       // Verificar si es una categoría de venta de cocina
@@ -184,6 +192,12 @@ export const LunchMenuModal = ({
         notes: data.notes || '',
         category_id: data.category_id || '',
         target_type: data.target_type || 'students',
+        product_name: data.product_name || '',
+        product_price: data.product_price ? String(data.product_price) : '',
+        starter_alternatives: data.starter_alternatives || [],
+        main_course_alternatives: data.main_course_alternatives || [],
+        beverage_alternatives: data.beverage_alternatives || [],
+        dessert_alternatives: data.dessert_alternatives || [],
       });
     } catch (error) {
       console.error('Error loading menu:', error);
@@ -270,6 +284,10 @@ export const LunchMenuModal = ({
         payload.notes = formData.notes.trim() || null;
         payload.product_name = null;
         payload.product_price = null;
+        payload.starter_alternatives = formData.starter_alternatives.filter(a => a.trim());
+        payload.main_course_alternatives = formData.main_course_alternatives.filter(a => a.trim());
+        payload.beverage_alternatives = formData.beverage_alternatives.filter(a => a.trim());
+        payload.dessert_alternatives = formData.dessert_alternatives.filter(a => a.trim());
       }
 
       // Agregar category_id y target_type
@@ -502,7 +520,7 @@ export const LunchMenuModal = ({
             ) : (
               // Formulario para menús normales
               <>
-                <div>
+                <div className="space-y-1">
                   <Label htmlFor="starter">🥗 Entrada</Label>
                   <Input
                     id="starter"
@@ -512,9 +530,17 @@ export const LunchMenuModal = ({
                     disabled={loading}
                     className="mt-2"
                   />
+                  <MenuAlternativesEditor
+                    label="Entrada"
+                    icon="🥗"
+                    alternatives={formData.starter_alternatives}
+                    onChange={(alts) => setFormData(p => ({ ...p, starter_alternatives: alts }))}
+                    defaultValue={formData.starter}
+                    placeholder="Ej: Choclo con queso"
+                  />
                 </div>
 
-                <div>
+                <div className="space-y-1">
                   <Label htmlFor="main_course">🍲 Segundo Plato *</Label>
                   <Input
                     id="main_course"
@@ -524,9 +550,17 @@ export const LunchMenuModal = ({
                     disabled={loading}
                     className="mt-2"
                   />
+                  <MenuAlternativesEditor
+                    label="Segundo"
+                    icon="🍲"
+                    alternatives={formData.main_course_alternatives}
+                    onChange={(alts) => setFormData(p => ({ ...p, main_course_alternatives: alts }))}
+                    defaultValue={formData.main_course}
+                    placeholder="Ej: Pechuga a la plancha"
+                  />
                 </div>
 
-                <div>
+                <div className="space-y-1">
                   <Label htmlFor="beverage">🥤 Bebida</Label>
                   <Input
                     id="beverage"
@@ -536,9 +570,17 @@ export const LunchMenuModal = ({
                     disabled={loading}
                     className="mt-2"
                   />
+                  <MenuAlternativesEditor
+                    label="Bebida"
+                    icon="🥤"
+                    alternatives={formData.beverage_alternatives}
+                    onChange={(alts) => setFormData(p => ({ ...p, beverage_alternatives: alts }))}
+                    defaultValue={formData.beverage}
+                    placeholder="Ej: Limonada"
+                  />
                 </div>
 
-                <div>
+                <div className="space-y-1">
                   <Label htmlFor="dessert">🍰 Postre</Label>
                   <Input
                     id="dessert"
@@ -547,6 +589,14 @@ export const LunchMenuModal = ({
                     placeholder="Ej: Gelatina de fresa"
                     disabled={loading}
                     className="mt-2"
+                  />
+                  <MenuAlternativesEditor
+                    label="Postre"
+                    icon="🍰"
+                    alternatives={formData.dessert_alternatives}
+                    onChange={(alts) => setFormData(p => ({ ...p, dessert_alternatives: alts }))}
+                    defaultValue={formData.dessert}
+                    placeholder="Ej: Flan"
                   />
                 </div>
               </>

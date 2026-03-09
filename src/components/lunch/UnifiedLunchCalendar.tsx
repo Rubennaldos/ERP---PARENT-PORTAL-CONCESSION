@@ -26,6 +26,7 @@ import {
 } from 'lucide-react';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isToday, addMonths, subMonths, isBefore, startOfDay } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { MenuFieldOptionSelector, hasAnyAlternatives } from '@/components/lunch/MenuFieldOptionSelector';
 
 // ==========================================
 // INTERFACES
@@ -56,6 +57,10 @@ interface LunchMenu {
   dessert: string | null;
   notes: string | null;
   category_id: string | null;
+  starter_alternatives?: string[];
+  main_course_alternatives?: string[];
+  beverage_alternatives?: string[];
+  dessert_alternatives?: string[];
   category?: LunchCategory | null;
 }
 
@@ -90,6 +95,10 @@ interface CartItem {
   price: number;
   quantity: number;
   menuDescription: string; // "Entrada + Segundo + ..."
+  chosenStarter: string | null;
+  chosenMainCourse: string | null;
+  chosenBeverage: string | null;
+  chosenDessert: string | null;
 }
 
 interface ExistingOrder {
@@ -144,6 +153,10 @@ export function UnifiedLunchCalendar({ userType, userId, userSchoolId }: Unified
   const [selectedDates, setSelectedDates] = useState<Set<string>>(new Set());
   const [cart, setCart] = useState<CartItem[]>([]);
   const [orderComments, setOrderComments] = useState(''); // 💬 COMENTARIOS DEL PEDIDO
+  const [chosenStarter, setChosenStarter] = useState<string | null>(null);
+  const [chosenMainCourse, setChosenMainCourse] = useState<string | null>(null);
+  const [chosenBeverage, setChosenBeverage] = useState<string | null>(null);
+  const [chosenDessert, setChosenDessert] = useState<string | null>(null);
 
   // UI State
   const [loading, setLoading] = useState(true);
@@ -218,7 +231,7 @@ export function UnifiedLunchCalendar({ userType, userId, userSchoolId }: Unified
       const targetType = userType === 'parent' ? 'students' : 'teachers';
       const { data: menusData, error: menusError } = await supabase
         .from('lunch_menus')
-        .select('id, date, starter, main_course, beverage, dessert, notes, category_id, target_type')
+        .select('id, date, starter, main_course, beverage, dessert, notes, category_id, target_type, starter_alternatives, main_course_alternatives, beverage_alternatives, dessert_alternatives')
         .eq('school_id', effectiveSchoolId)
         .or(`target_type.eq.${targetType},target_type.eq.both,target_type.is.null`)
         .gte('date', startStr)
@@ -412,6 +425,10 @@ export function UnifiedLunchCalendar({ userType, userId, userSchoolId }: Unified
         price: menu.category!.price || config?.lunch_price || 0,
         quantity: 1,
         menuDescription: menuDesc,
+        chosenStarter: null,
+        chosenMainCourse: null,
+        chosenBeverage: null,
+        chosenDessert: null,
       }];
     });
   };
@@ -434,6 +451,14 @@ export function UnifiedLunchCalendar({ userType, userId, userSchoolId }: Unified
         item => !(item.date === dateStr && item.categoryId === categoryId)
       );
     });
+  };
+
+  const updateCartChosenValue = (dateStr: string, categoryId: string, field: string, value: string | null) => {
+    setCart(prev => prev.map(item =>
+      item.date === dateStr && item.categoryId === categoryId
+        ? { ...item, [field]: value }
+        : item
+    ));
   };
 
   const getCartQuantity = (dateStr: string, categoryId: string): number => {
@@ -501,6 +526,10 @@ export function UnifiedLunchCalendar({ userType, userId, userSchoolId }: Unified
             base_price: item.price,
             addons_total: 0,
             final_price: item.price,
+            chosen_starter: item.chosenStarter,
+            chosen_main_course: item.chosenMainCourse,
+            chosen_beverage: item.chosenBeverage,
+            chosen_dessert: item.chosenDessert,
           };
           // 💬 Agregar comentarios si existen
           if (orderComments.trim()) {
@@ -573,6 +602,10 @@ export function UnifiedLunchCalendar({ userType, userId, userSchoolId }: Unified
       // Clear selection and cart, reload data
       setSelectedDates(new Set());
       setCart([]);
+      setChosenStarter(null);
+      setChosenMainCourse(null);
+      setChosenBeverage(null);
+      setChosenDessert(null);
       await fetchMonthlyData();
 
     } catch (error: any) {
@@ -761,79 +794,129 @@ export function UnifiedLunchCalendar({ userType, userId, userSchoolId }: Unified
                   dayMenus.map(menu => {
                     if (!menu.category) return null;
                     const qty = getCartQuantity(dateStr, menu.category.id);
+                    const cartItem = cart.find(item => item.date === dateStr && item.categoryId === menu.category!.id);
                     const IconComponent = ICON_MAP[menu.category.icon || 'utensils'] || UtensilsCrossed;
 
                     return (
                       <div
                         key={menu.id}
                         className={cn(
-                          "flex items-center gap-3 p-2.5 rounded-lg border-2 transition-all",
+                          "p-2.5 rounded-lg border-2 transition-all",
                           qty > 0
                             ? "border-purple-400 bg-white shadow-sm"
                             : "border-gray-200 bg-white hover:border-gray-300"
                         )}
                       >
-                        {/* Category icon */}
-                        <div
-                          className="h-9 w-9 rounded-lg flex items-center justify-center flex-shrink-0"
-                          style={{ backgroundColor: menu.category.color + '20' }}
-                        >
-                          <IconComponent
-                            className="h-4 w-4"
-                            style={{ color: menu.category.color }}
-                          />
-                        </div>
+                        <div className="flex items-center gap-3">
+                          {/* Category icon */}
+                          <div
+                            className="h-9 w-9 rounded-lg flex items-center justify-center flex-shrink-0"
+                            style={{ backgroundColor: menu.category.color + '20' }}
+                          >
+                            <IconComponent
+                              className="h-4 w-4"
+                              style={{ color: menu.category.color }}
+                            />
+                          </div>
 
-                        {/* Info */}
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium truncate">{menu.category.name}</p>
-                          <p className="text-[10px] sm:text-xs text-gray-500 truncate">
-                            {[menu.starter, menu.main_course, menu.beverage, menu.dessert]
-                              .filter(Boolean)
-                              .join(' • ')}
-                          </p>
-                        </div>
+                          {/* Info */}
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium truncate">{menu.category.name}</p>
+                            <p className="text-[10px] sm:text-xs text-gray-500 truncate">
+                              {[menu.starter, menu.main_course, menu.beverage, menu.dessert]
+                                .filter(Boolean)
+                                .join(' • ')}
+                            </p>
+                          </div>
 
-                        {/* Price */}
-                        <div className="text-sm font-bold text-gray-700 whitespace-nowrap">
-                          S/ {(menu.category.price || config?.lunch_price || 0).toFixed(2)}
-                        </div>
+                          {/* Price */}
+                          <div className="text-sm font-bold text-gray-700 whitespace-nowrap">
+                            S/ {(menu.category.price || config?.lunch_price || 0).toFixed(2)}
+                          </div>
 
-                        {/* Quantity selector */}
-                        <div className="flex items-center gap-1">
-                          {qty > 0 && (
+                          {/* Quantity selector */}
+                          <div className="flex items-center gap-1">
+                            {qty > 0 && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="h-7 w-7 p-0"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  removeFromCart(dateStr, menu.category!.id);
+                                }}
+                              >
+                                <Minus className="h-3 w-3" />
+                              </Button>
+                            )}
+
+                            {qty > 0 && (
+                              <span className="w-6 text-center text-sm font-bold text-purple-700">{qty}</span>
+                            )}
+
                             <Button
-                              variant="outline"
+                              variant={qty > 0 ? "outline" : "default"}
                               size="sm"
-                              className="h-7 w-7 p-0"
+                              className={cn(
+                                "h-7 p-0",
+                                qty > 0 ? "w-7" : "w-7 bg-purple-600 hover:bg-purple-700"
+                              )}
                               onClick={(e) => {
                                 e.stopPropagation();
-                                removeFromCart(dateStr, menu.category!.id);
+                                addToCart(dateStr, menu);
                               }}
                             >
-                              <Minus className="h-3 w-3" />
+                              <Plus className="h-3 w-3" />
                             </Button>
-                          )}
-
-                          {qty > 0 && (
-                            <span className="w-6 text-center text-sm font-bold text-purple-700">{qty}</span>
-                          )}
-
-                          <Button
-                            variant={qty > 0 ? "outline" : "default"}
-                            size="sm"
-                            className={cn(
-                              "h-7 p-0",
-                              qty > 0 ? "w-7" : "w-7 bg-purple-600 hover:bg-purple-700"
-                            )}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              addToCart(dateStr, menu);
-                            }}
-                          >
-                            <Plus className="h-3 w-3" />
-                          </Button>
+                          </div>
                         </div>
+
+                        {qty > 0 && hasAnyAlternatives(menu) && (
+                          <div className="mt-2 pt-2 border-t border-gray-100 space-y-2">
+                            {menu.starter && (
+                              <MenuFieldOptionSelector
+                                fieldLabel="Entrada"
+                                icon="🥗"
+                                defaultValue={menu.starter}
+                                alternatives={menu.starter_alternatives || []}
+                                selectedValue={cartItem?.chosenStarter ?? null}
+                                onChange={(val) => updateCartChosenValue(dateStr, menu.category!.id, 'chosenStarter', val)}
+                                compact
+                              />
+                            )}
+                            <MenuFieldOptionSelector
+                              fieldLabel="Segundo"
+                              icon="🍽️"
+                              defaultValue={menu.main_course}
+                              alternatives={menu.main_course_alternatives || []}
+                              selectedValue={cartItem?.chosenMainCourse ?? null}
+                              onChange={(val) => updateCartChosenValue(dateStr, menu.category!.id, 'chosenMainCourse', val)}
+                              compact
+                            />
+                            {menu.beverage && (
+                              <MenuFieldOptionSelector
+                                fieldLabel="Bebida"
+                                icon="🥤"
+                                defaultValue={menu.beverage}
+                                alternatives={menu.beverage_alternatives || []}
+                                selectedValue={cartItem?.chosenBeverage ?? null}
+                                onChange={(val) => updateCartChosenValue(dateStr, menu.category!.id, 'chosenBeverage', val)}
+                                compact
+                              />
+                            )}
+                            {menu.dessert && (
+                              <MenuFieldOptionSelector
+                                fieldLabel="Postre"
+                                icon="🍰"
+                                defaultValue={menu.dessert}
+                                alternatives={menu.dessert_alternatives || []}
+                                selectedValue={cartItem?.chosenDessert ?? null}
+                                onChange={(val) => updateCartChosenValue(dateStr, menu.category!.id, 'chosenDessert', val)}
+                                compact
+                              />
+                            )}
+                          </div>
+                        )}
                       </div>
                     );
                   })
@@ -879,6 +962,10 @@ export function UnifiedLunchCalendar({ userType, userId, userSchoolId }: Unified
                     setSelectedStudent(student);
                     setSelectedDates(new Set());
                     setCart([]);
+                    setChosenStarter(null);
+                    setChosenMainCourse(null);
+                    setChosenBeverage(null);
+                    setChosenDessert(null);
                   }}
                 >
                   <Users className="h-3.5 w-3.5" />
@@ -901,6 +988,10 @@ export function UnifiedLunchCalendar({ userType, userId, userSchoolId }: Unified
                 setCurrentDate(subMonths(currentDate, 1));
                 setSelectedDates(new Set());
                 setCart([]);
+                setChosenStarter(null);
+                setChosenMainCourse(null);
+                setChosenBeverage(null);
+                setChosenDessert(null);
               }}
             >
               <ChevronLeft className="h-5 w-5" />
@@ -922,6 +1013,10 @@ export function UnifiedLunchCalendar({ userType, userId, userSchoolId }: Unified
                 setCurrentDate(addMonths(currentDate, 1));
                 setSelectedDates(new Set());
                 setCart([]);
+                setChosenStarter(null);
+                setChosenMainCourse(null);
+                setChosenBeverage(null);
+                setChosenDessert(null);
               }}
             >
               <ChevronRight className="h-5 w-5" />

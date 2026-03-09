@@ -1,4 +1,4 @@
-﻿import { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -649,8 +649,8 @@ const Index = () => {
 
       {/* Modal de Formulario de Datos del Padre */}
       {showParentDataForm && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-start justify-center p-4 overflow-y-auto">
-          <div className="w-full max-w-2xl my-4">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-3 sm:p-4">
+          <div className="w-full max-w-md">
             <ParentDataForm
               onSuccess={() => {
                 setShowParentDataForm(false);

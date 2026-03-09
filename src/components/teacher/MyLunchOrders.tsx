@@ -6,6 +6,7 @@ import { useToast } from '@/hooks/use-toast';
 import { UtensilsCrossed, Calendar, Loader2, CheckCircle2, Clock, XCircle } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { getDisplayValue } from '@/components/lunch/MenuFieldOptionSelector';
 
 interface LunchOrder {
   id: string;
@@ -16,7 +17,11 @@ interface LunchOrder {
   category_id: string | null;
   delivered_by?: string | null;
   delivered_at?: string | null;
-  comments?: string | null; // 💬 Comentarios del pedido
+  comments?: string | null;
+  chosen_starter?: string | null;
+  chosen_main_course?: string | null;
+  chosen_beverage?: string | null;
+  chosen_dessert?: string | null;
   lunch_menus: {
     starter: string | null;
     main_course: string;
@@ -70,6 +75,10 @@ export function MyLunchOrders({ teacherId }: MyLunchOrdersProps) {
           delivered_by,
           delivered_at,
           comments,
+          chosen_starter,
+          chosen_main_course,
+          chosen_beverage,
+          chosen_dessert,
           lunch_menus (
             starter,
             main_course,
@@ -207,26 +216,26 @@ export function MyLunchOrders({ teacherId }: MyLunchOrdersProps) {
 
               {/* Menú */}
               <div className="space-y-1 text-sm">
-                {order.lunch_menus.starter && (
+                {(order.chosen_starter || order.lunch_menus?.starter) && (
                   <div>
                     <span className="font-medium text-gray-600">Entrada:</span>
-                    <p className="text-gray-900">{order.lunch_menus.starter}</p>
+                    <p className="text-gray-900">{getDisplayValue(order.chosen_starter, order.lunch_menus?.starter)}</p>
                   </div>
                 )}
                 <div>
                   <span className="font-medium text-green-700">Segundo:</span>
-                  <p className="font-bold text-green-800">{order.lunch_menus.main_course}</p>
+                  <p className="font-bold text-green-800">{getDisplayValue(order.chosen_main_course, order.lunch_menus?.main_course)}</p>
                 </div>
-                {order.lunch_menus.beverage && (
+                {(order.chosen_beverage || order.lunch_menus?.beverage) && (
                   <div>
                     <span className="font-medium text-gray-600">Bebida:</span>
-                    <p className="text-gray-900">{order.lunch_menus.beverage}</p>
+                    <p className="text-gray-900">{getDisplayValue(order.chosen_beverage, order.lunch_menus?.beverage)}</p>
                   </div>
                 )}
-                {order.lunch_menus.dessert && (
+                {(order.chosen_dessert || order.lunch_menus?.dessert) && (
                   <div>
                     <span className="font-medium text-gray-600">Postre:</span>
-                    <p className="text-gray-900">{order.lunch_menus.dessert}</p>
+                    <p className="text-gray-900">{getDisplayValue(order.chosen_dessert, order.lunch_menus?.dessert)}</p>
                   </div>
                 )}
               </div>

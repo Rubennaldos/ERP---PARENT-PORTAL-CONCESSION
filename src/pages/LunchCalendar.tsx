@@ -20,7 +20,10 @@ import {
   UtensilsCrossed,
   Eye,
   Tag,
-  ShoppingCart
+  ShoppingCart,
+  Copy,
+  Check,
+  Loader2,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
@@ -86,6 +89,10 @@ interface LunchMenu {
   beverage: string | null;
   dessert: string | null;
   notes: string | null;
+  starter_alternatives?: string[];
+  main_course_alternatives?: string[];
+  beverage_alternatives?: string[];
+  dessert_alternatives?: string[];
   is_special_day: boolean;
   special_day_type?: string;
   special_day_title?: string;
@@ -153,6 +160,12 @@ const LunchCalendar = () => {
   const [wizardCategoryId, setWizardCategoryId] = useState<string | null>(null);
   const [wizardTargetType, setWizardTargetType] = useState<'students' | 'teachers' | 'both' | null>(null);
   const [wizardCategoryName, setWizardCategoryName] = useState<string | null>(null);
+
+  // Estado para "Repetir menú en otros días"
+  const [isRepeatModalOpen, setIsRepeatModalOpen] = useState(false);
+  const [menuToRepeat, setMenuToRepeat] = useState<LunchMenu | null>(null);
+  const [repeatTargetDates, setRepeatTargetDates] = useState<Set<string>>(new Set());
+  const [repeatLoading, setRepeatLoading] = useState(false);
 
   // Cargar permisos y datos del usuario
   useEffect(() => {
@@ -355,6 +368,67 @@ const LunchCalendar = () => {
 
   const handleNextMonth = () => {
     setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1));
+  };
+
+  const handleRepeatMenu = (menu: LunchMenu) => {
+    setMenuToRepeat(menu);
+    setRepeatTargetDates(new Set());
+    setIsRepeatModalOpen(true);
+  };
+
+  const toggleRepeatDate = (dateStr: string) => {
+    setRepeatTargetDates(prev => {
+      const next = new Set(prev);
+      if (next.has(dateStr)) next.delete(dateStr);
+      else next.add(dateStr);
+      return next;
+    });
+  };
+
+  const confirmRepeatMenu = async () => {
+    if (!menuToRepeat || repeatTargetDates.size === 0) return;
+    setRepeatLoading(true);
+    try {
+      const menusToInsert = Array.from(repeatTargetDates).map(date => ({
+        school_id: menuToRepeat.school_id,
+        date,
+        starter: menuToRepeat.starter,
+        main_course: menuToRepeat.main_course,
+        beverage: menuToRepeat.beverage,
+        dessert: menuToRepeat.dessert,
+        notes: menuToRepeat.notes,
+        category_id: menuToRepeat.category_id || null,
+        target_type: menuToRepeat.target_type || 'both',
+        starter_alternatives: menuToRepeat.starter_alternatives || [],
+        main_course_alternatives: menuToRepeat.main_course_alternatives || [],
+        beverage_alternatives: menuToRepeat.beverage_alternatives || [],
+        dessert_alternatives: menuToRepeat.dessert_alternatives || [],
+        created_by: user?.id,
+      }));
+
+      const { error } = await supabase
+        .from('lunch_menus')
+        .insert(menusToInsert);
+
+      if (error) throw error;
+
+      toast({
+        title: 'Menú repetido',
+        description: `Se copió el menú a ${repeatTargetDates.size} día(s)`,
+      });
+      setIsRepeatModalOpen(false);
+      setIsDetailModalOpen(false);
+      loadMonthlyMenus();
+    } catch (error: any) {
+      console.error('Error repeating menu:', error);
+      toast({
+        title: 'Error',
+        description: error.code === '23505' ? 'Ya existe un menú en alguno de los días seleccionados' : 'No se pudo repetir el menú',
+        variant: 'destructive',
+      });
+    } finally {
+      setRepeatLoading(false);
+    }
   };
 
   const handleDayClick = (dayData: DayData) => {
@@ -1197,20 +1271,33 @@ const LunchCalendar = () => {
                           </div>
                         )}
                       </div>
-                      {canEdit && (
-                        <Button 
-                          variant="ghost" 
-                          size="sm" 
-                          className="h-8 text-xs"
-                          onClick={() => {
-                            setSelectedMenuId(menu.id);
-                            setIsDetailModalOpen(false);
-                            setIsMenuModalOpen(true);
-                          }}
-                        >
-                          Editar
-                        </Button>
-                      )}
+                      <div className="flex gap-1">
+                        {canCreate && (
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            className="h-8 text-xs text-blue-600 hover:text-blue-800"
+                            onClick={() => handleRepeatMenu(menu)}
+                          >
+                            <Copy className="h-3.5 w-3.5 mr-1" />
+                            Repetir
+                          </Button>
+                        )}
+                        {canEdit && (
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            className="h-8 text-xs"
+                            onClick={() => {
+                              setSelectedMenuId(menu.id);
+                              setIsDetailModalOpen(false);
+                              setIsMenuModalOpen(true);
+                            }}
+                          >
+                            Editar
+                          </Button>
+                        )}
+                      </div>
                     </CardHeader>
                     <CardContent className="pt-4 space-y-3">
                       <div className="grid grid-cols-2 gap-4 text-sm">
@@ -1314,11 +1401,98 @@ const LunchCalendar = () => {
         schoolId={userSchoolId || selectedSchools[0] || ''}
         selectedDate={selectedDay?.date || undefined}
         onSuccess={() => {
-          // Recargar los menús del mes actual
           loadMonthlyMenus();
           setIsPhysicalOrderOpen(false);
         }}
       />
+
+      {/* Modal Repetir Menú en Otros Días */}
+      <Dialog open={isRepeatModalOpen} onOpenChange={setIsRepeatModalOpen}>
+        <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Copy className="h-5 w-5 text-blue-600" />
+              Repetir menú en otros días
+            </DialogTitle>
+          </DialogHeader>
+
+          {menuToRepeat && (
+            <div className="space-y-4">
+              <div className="bg-green-50 border border-green-200 rounded-lg p-3 text-sm">
+                <p className="font-semibold text-green-800 mb-1">Menú a copiar:</p>
+                {menuToRepeat.starter && <p>Entrada: {menuToRepeat.starter}</p>}
+                <p className="font-bold text-green-700">Segundo: {menuToRepeat.main_course}</p>
+                {menuToRepeat.beverage && <p>Bebida: {menuToRepeat.beverage}</p>}
+                {menuToRepeat.dessert && <p>Postre: {menuToRepeat.dessert}</p>}
+              </div>
+
+              <div>
+                <p className="text-sm font-medium mb-2">Selecciona los días destino ({MONTHS[currentDate.getMonth()]} {currentDate.getFullYear()}):</p>
+                <div className="grid grid-cols-7 gap-1">
+                  {['L', 'M', 'X', 'J', 'V', 'S', 'D'].map(d => (
+                    <div key={d} className="text-center text-[10px] font-bold text-muted-foreground py-1">{d}</div>
+                  ))}
+                  {(() => {
+                    const year = currentDate.getFullYear();
+                    const month = currentDate.getMonth();
+                    const firstDayOfMonth = new Date(year, month, 1).getDay();
+                    const offset = firstDayOfMonth === 0 ? 6 : firstDayOfMonth - 1;
+                    const daysInMonth = new Date(year, month + 1, 0).getDate();
+                    const cells = [];
+                    for (let i = 0; i < offset; i++) {
+                      cells.push(<div key={`empty-${i}`} />);
+                    }
+                    for (let day = 1; day <= daysInMonth; day++) {
+                      const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                      const isSource = dateStr === menuToRepeat.date;
+                      const isSelected = repeatTargetDates.has(dateStr);
+                      const isWeekend = new Date(year, month, day).getDay() === 0 || new Date(year, month, day).getDay() === 6;
+                      cells.push(
+                        <button
+                          key={day}
+                          type="button"
+                          disabled={isSource || isWeekend}
+                          onClick={() => toggleRepeatDate(dateStr)}
+                          className={cn(
+                            'h-8 w-full rounded text-xs font-medium transition-colors',
+                            isSource && 'bg-green-200 text-green-800 cursor-not-allowed',
+                            isSelected && !isSource && 'bg-blue-500 text-white',
+                            !isSelected && !isSource && !isWeekend && 'hover:bg-blue-100 text-gray-700',
+                            isWeekend && 'text-gray-300 cursor-not-allowed',
+                          )}
+                        >
+                          {day}
+                        </button>
+                      );
+                    }
+                    return cells;
+                  })()}
+                </div>
+                <p className="text-xs text-muted-foreground mt-2">
+                  Verde = menú origen | Azul = días destino | {repeatTargetDates.size} día(s) seleccionado(s)
+                </p>
+              </div>
+
+              <div className="flex gap-2 pt-2 border-t">
+                <Button variant="outline" className="flex-1" onClick={() => setIsRepeatModalOpen(false)}>
+                  Cancelar
+                </Button>
+                <Button
+                  className="flex-1 bg-blue-600 hover:bg-blue-700"
+                  disabled={repeatTargetDates.size === 0 || repeatLoading}
+                  onClick={confirmRepeatMenu}
+                >
+                  {repeatLoading ? (
+                    <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Copiando...</>
+                  ) : (
+                    <><Check className="h-4 w-4 mr-2" />Copiar a {repeatTargetDates.size} día(s)</>
+                  )}
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

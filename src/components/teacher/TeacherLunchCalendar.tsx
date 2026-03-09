@@ -4,6 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/lib/supabase';
 import { useToast } from '@/hooks/use-toast';
+import { MenuFieldOptionSelector, hasAnyAlternatives } from '@/components/lunch/MenuFieldOptionSelector';
 import { cn } from '@/lib/utils';
 import {
   ChevronLeft,
@@ -30,6 +31,10 @@ interface LunchMenu {
   beverage: string | null;
   dessert: string | null;
   notes: string | null;
+  starter_alternatives?: string[];
+  main_course_alternatives?: string[];
+  beverage_alternatives?: string[];
+  dessert_alternatives?: string[];
 }
 
 interface SpecialDay {
@@ -69,6 +74,12 @@ export function TeacherLunchCalendar({ teacherId, schoolId }: TeacherLunchCalend
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [selectedMenuDate, setSelectedMenuDate] = useState<string | null>(null);
+
+  // Estados para alternativas de menú elegidas
+  const [chosenStarter, setChosenStarter] = useState<string | null>(null);
+  const [chosenMainCourse, setChosenMainCourse] = useState<string | null>(null);
+  const [chosenBeverage, setChosenBeverage] = useState<string | null>(null);
+  const [chosenDessert, setChosenDessert] = useState<string | null>(null);
 
   useEffect(() => {
     fetchMonthlyData();
@@ -197,6 +208,10 @@ export function TeacherLunchCalendar({ teacherId, schoolId }: TeacherLunchCalend
 
     setSelectedDate(dateStr);
     setSelectedMenuDate(dateStr);
+    setChosenStarter(null);
+    setChosenMainCourse(null);
+    setChosenBeverage(null);
+    setChosenDessert(null);
   };
 
   // ⏰ Validar si se puede hacer pedido según la hora límite
@@ -279,7 +294,11 @@ export function TeacherLunchCalendar({ teacherId, schoolId }: TeacherLunchCalend
         .insert({
           teacher_id: teacherId,
           order_date: selectedDate,
-          status: 'confirmed'
+          status: 'confirmed',
+          chosen_starter: chosenStarter,
+          chosen_main_course: chosenMainCourse,
+          chosen_beverage: chosenBeverage,
+          chosen_dessert: chosenDessert,
         })
         .select('id')
         .single();
@@ -328,6 +347,10 @@ export function TeacherLunchCalendar({ teacherId, schoolId }: TeacherLunchCalend
       // Recargar datos
       setSelectedDate(null);
       setSelectedMenuDate(null);
+      setChosenStarter(null);
+      setChosenMainCourse(null);
+      setChosenBeverage(null);
+      setChosenDessert(null);
       fetchMonthlyData();
 
     } catch (error: any) {
@@ -528,29 +551,45 @@ export function TeacherLunchCalendar({ teacherId, schoolId }: TeacherLunchCalend
             })()}
 
             {selectedMenu.starter && (
-              <div>
-                <p className="text-sm font-medium text-gray-600">Entrada</p>
-                <p className="text-base">{selectedMenu.starter}</p>
-              </div>
+              <MenuFieldOptionSelector
+                fieldLabel="Entrada"
+                icon="🥗"
+                defaultValue={selectedMenu.starter}
+                alternatives={selectedMenu.starter_alternatives || []}
+                selectedValue={chosenStarter}
+                onChange={setChosenStarter}
+              />
             )}
 
-            <div>
-              <p className="text-sm font-medium text-gray-600">Plato Principal</p>
-              <p className="text-base font-semibold">{selectedMenu.main_course}</p>
-            </div>
+            <MenuFieldOptionSelector
+              fieldLabel="Plato Principal"
+              icon="🍲"
+              defaultValue={selectedMenu.main_course}
+              alternatives={selectedMenu.main_course_alternatives || []}
+              selectedValue={chosenMainCourse}
+              onChange={setChosenMainCourse}
+            />
 
             {selectedMenu.beverage && (
-              <div>
-                <p className="text-sm font-medium text-gray-600">Bebida</p>
-                <p className="text-base">{selectedMenu.beverage}</p>
-              </div>
+              <MenuFieldOptionSelector
+                fieldLabel="Bebida"
+                icon="🥤"
+                defaultValue={selectedMenu.beverage}
+                alternatives={selectedMenu.beverage_alternatives || []}
+                selectedValue={chosenBeverage}
+                onChange={setChosenBeverage}
+              />
             )}
 
             {selectedMenu.dessert && (
-              <div>
-                <p className="text-sm font-medium text-gray-600">Postre</p>
-                <p className="text-base">{selectedMenu.dessert}</p>
-              </div>
+              <MenuFieldOptionSelector
+                fieldLabel="Postre"
+                icon="🍰"
+                defaultValue={selectedMenu.dessert}
+                alternatives={selectedMenu.dessert_alternatives || []}
+                selectedValue={chosenDessert}
+                onChange={setChosenDessert}
+              />
             )}
 
             {selectedMenu.notes && (

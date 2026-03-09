@@ -29,6 +29,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from '@/components/ui/dialog';
+import { MenuFieldOptionSelector, hasAnyAlternatives } from './MenuFieldOptionSelector';
 
 interface LunchCategory {
   id: string;
@@ -50,6 +51,10 @@ interface LunchMenu {
   notes: string | null;
   category_id: string | null;
   category?: LunchCategory | null;
+  starter_alternatives?: string[];
+  main_course_alternatives?: string[];
+  beverage_alternatives?: string[];
+  dessert_alternatives?: string[];
 }
 
 interface Student {
@@ -103,6 +108,20 @@ export function OrderLunchMenus({ userType, userId, userSchoolId }: OrderLunchMe
   // ⏰ Estado para configuración de hora límite
   const [lunchConfig, setLunchConfig] = useState<{ order_deadline_time?: string; order_deadline_days?: number } | null>(null);
   const [orderComments, setOrderComments] = useState(''); // 💬 COMENTARIOS DEL PEDIDO
+
+  // Estado para alternativas elegidas
+  const [chosenStarter, setChosenStarter] = useState<string | null>(null);
+  const [chosenMainCourse, setChosenMainCourse] = useState<string | null>(null);
+  const [chosenBeverage, setChosenBeverage] = useState<string | null>(null);
+  const [chosenDessert, setChosenDessert] = useState<string | null>(null);
+
+  // Reset alternativas elegidas al cambiar de menú
+  useEffect(() => {
+    setChosenStarter(null);
+    setChosenMainCourse(null);
+    setChosenBeverage(null);
+    setChosenDessert(null);
+  }, [selectedMenu]);
 
   // Cargar estudiantes (solo para padres)
   useEffect(() => {
@@ -296,7 +315,11 @@ export function OrderLunchMenus({ userType, userId, userSchoolId }: OrderLunchMe
           dessert,
           notes,
           category_id,
-          target_type
+          target_type,
+          starter_alternatives,
+          main_course_alternatives,
+          beverage_alternatives,
+          dessert_alternatives
         `)
         .eq('school_id', schoolId)
         .gte('date', format(currentWeekStart, 'yyyy-MM-dd'))
@@ -451,6 +474,10 @@ export function OrderLunchMenus({ userType, userId, userSchoolId }: OrderLunchMe
         base_price: basePrice,
         addons_total: addonsPrice,
         final_price: totalPrice,
+        chosen_starter: chosenStarter,
+        chosen_main_course: chosenMainCourse,
+        chosen_beverage: chosenBeverage,
+        chosen_dessert: chosenDessert,
       };
 
       // 💬 Agregar comentarios si existen
@@ -812,12 +839,46 @@ export function OrderLunchMenus({ userType, userId, userSchoolId }: OrderLunchMe
                 </div>
               )}
 
-              <div className="space-y-1 text-sm">
+              <div className="space-y-3 text-sm">
                 <p><strong>Menú:</strong></p>
-                {selectedMenu.starter && <p>• Entrada: {selectedMenu.starter}</p>}
-                <p>• Segundo: {selectedMenu.main_course}</p>
-                {selectedMenu.beverage && <p>• Bebida: {selectedMenu.beverage}</p>}
-                {selectedMenu.dessert && <p>• Postre: {selectedMenu.dessert}</p>}
+                {selectedMenu.starter && (
+                  <MenuFieldOptionSelector
+                    fieldLabel="Entrada"
+                    icon="🥗"
+                    defaultValue={selectedMenu.starter}
+                    alternatives={selectedMenu.starter_alternatives || []}
+                    selectedValue={chosenStarter}
+                    onChange={setChosenStarter}
+                  />
+                )}
+                <MenuFieldOptionSelector
+                  fieldLabel="Segundo"
+                  icon="🍽️"
+                  defaultValue={selectedMenu.main_course}
+                  alternatives={selectedMenu.main_course_alternatives || []}
+                  selectedValue={chosenMainCourse}
+                  onChange={setChosenMainCourse}
+                />
+                {selectedMenu.beverage && (
+                  <MenuFieldOptionSelector
+                    fieldLabel="Bebida"
+                    icon="🥤"
+                    defaultValue={selectedMenu.beverage}
+                    alternatives={selectedMenu.beverage_alternatives || []}
+                    selectedValue={chosenBeverage}
+                    onChange={setChosenBeverage}
+                  />
+                )}
+                {selectedMenu.dessert && (
+                  <MenuFieldOptionSelector
+                    fieldLabel="Postre"
+                    icon="🍰"
+                    defaultValue={selectedMenu.dessert}
+                    alternatives={selectedMenu.dessert_alternatives || []}
+                    selectedValue={chosenDessert}
+                    onChange={setChosenDessert}
+                  />
+                )}
               </div>
 
               {/* Sección de agregados */}

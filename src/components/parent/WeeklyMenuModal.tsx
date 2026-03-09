@@ -29,6 +29,10 @@ interface LunchMenu {
   dessert: string | null;
   notes: string | null;
   school_name: string;
+  starter_alternatives?: string[] | null;
+  main_course_alternatives?: string[] | null;
+  beverage_alternatives?: string[] | null;
+  dessert_alternatives?: string[] | null;
 }
 
 interface SpecialDay {
@@ -259,6 +263,11 @@ export const WeeklyMenuModal = ({ isOpen, onClose, studentId }: WeeklyMenuModalP
                                 🥗 Entrada
                               </p>
                               <p className="text-xs">{menu.starter}</p>
+                              {menu.starter_alternatives && menu.starter_alternatives.length > 0 && (
+                                <p className="text-[10px] text-muted-foreground mt-0.5">
+                                  Opciones: {menu.starter_alternatives.join(', ')}
+                                </p>
+                              )}
                             </div>
                           )}
                           <div>
@@ -266,6 +275,11 @@ export const WeeklyMenuModal = ({ isOpen, onClose, studentId }: WeeklyMenuModalP
                               🍲 Segundo
                             </p>
                             <p className="text-xs font-medium">{menu.main_course}</p>
+                            {menu.main_course_alternatives && menu.main_course_alternatives.length > 0 && (
+                              <p className="text-[10px] text-muted-foreground mt-0.5">
+                                Opciones: {menu.main_course_alternatives.join(', ')}
+                              </p>
+                            )}
                           </div>
                           {menu.beverage && (
                             <div>
@@ -273,6 +287,11 @@ export const WeeklyMenuModal = ({ isOpen, onClose, studentId }: WeeklyMenuModalP
                                 🥤 Bebida
                               </p>
                               <p className="text-xs">{menu.beverage}</p>
+                              {menu.beverage_alternatives && menu.beverage_alternatives.length > 0 && (
+                                <p className="text-[10px] text-muted-foreground mt-0.5">
+                                  Opciones: {menu.beverage_alternatives.join(', ')}
+                                </p>
+                              )}
                             </div>
                           )}
                           {menu.dessert && (
@@ -281,6 +300,11 @@ export const WeeklyMenuModal = ({ isOpen, onClose, studentId }: WeeklyMenuModalP
                                 🍰 Postre
                               </p>
                               <p className="text-xs">{menu.dessert}</p>
+                              {menu.dessert_alternatives && menu.dessert_alternatives.length > 0 && (
+                                <p className="text-[10px] text-muted-foreground mt-0.5">
+                                  Opciones: {menu.dessert_alternatives.join(', ')}
+                                </p>
+                              )}
                             </div>
                           )}
                           {menu.notes && (

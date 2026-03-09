@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { supabase } from '@/lib/supabase';
 import { useToast } from '@/hooks/use-toast';
+import { MenuFieldOptionSelector, hasAnyAlternatives } from '@/components/lunch/MenuFieldOptionSelector';
 import { cn } from '@/lib/utils';
 import {
   Calendar,
@@ -47,6 +48,10 @@ interface LunchMenu {
   beverage: string | null;
   dessert: string | null;
   notes: string | null;
+  starter_alternatives?: string[];
+  main_course_alternatives?: string[];
+  beverage_alternatives?: string[];
+  dessert_alternatives?: string[];
 }
 
 interface SpecialDay {
@@ -91,6 +96,12 @@ export function LunchOrderCalendar({ isOpen, onClose, parentId, embedded = false
   const [showMenuDetail, setShowMenuDetail] = useState(false);
   const [selectedMenuDate, setSelectedMenuDate] = useState<string | null>(null);
   
+  // Estados para alternativas de menú elegidas
+  const [chosenStarter, setChosenStarter] = useState<string | null>(null);
+  const [chosenMainCourse, setChosenMainCourse] = useState<string | null>(null);
+  const [chosenBeverage, setChosenBeverage] = useState<string | null>(null);
+  const [chosenDessert, setChosenDessert] = useState<string | null>(null);
+
   // Estados para selector de rango inteligente
   const [showRangeSelector, setShowRangeSelector] = useState(false);
   const [rangeStartDate, setRangeStartDate] = useState<string>('');
@@ -329,6 +340,10 @@ export function LunchOrderCalendar({ isOpen, onClose, parentId, embedded = false
     const menu = menus.get(dateStr);
     if (menu) {
       setSelectedMenuDate(dateStr);
+      setChosenStarter(null);
+      setChosenMainCourse(null);
+      setChosenBeverage(null);
+      setChosenDessert(null);
       setShowMenuDetail(true);
     } else {
       toggleDate(dateStr);
@@ -533,6 +548,10 @@ export function LunchOrderCalendar({ isOpen, onClose, parentId, embedded = false
             order_date: dateStr,
             status: 'confirmed',
             created_at: new Date().toISOString(),
+            chosen_starter: chosenStarter,
+            chosen_main_course: chosenMainCourse,
+            chosen_beverage: chosenBeverage,
+            chosen_dessert: chosenDessert,
           });
         }
       }
@@ -1052,26 +1071,42 @@ export function LunchOrderCalendar({ isOpen, onClose, parentId, embedded = false
                   return (
                     <div className="space-y-3">
                       {menu.starter && (
-                        <div>
-                          <p className="text-xs font-bold text-muted-foreground">🥗 ENTRADA</p>
-                          <p className="text-sm">{menu.starter}</p>
-                        </div>
+                        <MenuFieldOptionSelector
+                          fieldLabel="ENTRADA"
+                          icon="🥗"
+                          defaultValue={menu.starter}
+                          alternatives={menu.starter_alternatives || []}
+                          selectedValue={chosenStarter}
+                          onChange={setChosenStarter}
+                        />
                       )}
-                      <div>
-                        <p className="text-xs font-bold text-green-700">🍲 SEGUNDO</p>
-                        <p className="text-sm font-bold">{menu.main_course}</p>
-                      </div>
+                      <MenuFieldOptionSelector
+                        fieldLabel="SEGUNDO"
+                        icon="🍲"
+                        defaultValue={menu.main_course}
+                        alternatives={menu.main_course_alternatives || []}
+                        selectedValue={chosenMainCourse}
+                        onChange={setChosenMainCourse}
+                      />
                       {menu.beverage && (
-                        <div>
-                          <p className="text-xs font-bold text-muted-foreground">🥤 BEBIDA</p>
-                          <p className="text-sm">{menu.beverage}</p>
-                        </div>
+                        <MenuFieldOptionSelector
+                          fieldLabel="BEBIDA"
+                          icon="🥤"
+                          defaultValue={menu.beverage}
+                          alternatives={menu.beverage_alternatives || []}
+                          selectedValue={chosenBeverage}
+                          onChange={setChosenBeverage}
+                        />
                       )}
                       {menu.dessert && (
-                        <div>
-                          <p className="text-xs font-bold text-muted-foreground">🍰 POSTRE</p>
-                          <p className="text-sm">{menu.dessert}</p>
-                        </div>
+                        <MenuFieldOptionSelector
+                          fieldLabel="POSTRE"
+                          icon="🍰"
+                          defaultValue={menu.dessert}
+                          alternatives={menu.dessert_alternatives || []}
+                          selectedValue={chosenDessert}
+                          onChange={setChosenDessert}
+                        />
                       )}
                       {menu.notes && (
                         <div className="pt-2 border-t">

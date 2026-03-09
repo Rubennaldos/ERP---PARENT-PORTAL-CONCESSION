@@ -30,6 +30,7 @@ import { es } from 'date-fns/locale';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { LunchOrderActionsModal } from '@/components/lunch/LunchOrderActionsModal';
+import { getDisplayValue } from '@/components/lunch/MenuFieldOptionSelector';
 
 interface LunchOrder {
   id: string;
@@ -51,6 +52,10 @@ interface LunchOrder {
   payment_method: string | null;
   payment_details: any;
   menu_id: string | null;
+  chosen_starter?: string | null;
+  chosen_main_course?: string | null;
+  chosen_beverage?: string | null;
+  chosen_dessert?: string | null;
   quantity: number | null;
   base_price: number | null;
   addons_total: number | null;
@@ -287,6 +292,10 @@ export default function LunchOrders() {
           .from('lunch_orders')
           .select(`
             *,
+            chosen_starter,
+            chosen_main_course,
+            chosen_beverage,
+            chosen_dessert,
             school:schools!lunch_orders_school_id_fkey (
               name,
               code
@@ -433,6 +442,10 @@ export default function LunchOrders() {
         .select(`
           *,
           comments,
+          chosen_starter,
+          chosen_main_course,
+          chosen_beverage,
+          chosen_dessert,
           school:schools!lunch_orders_school_id_fkey (
             name,
             code
@@ -1499,14 +1512,18 @@ export default function LunchOrders() {
         const quantity = order.quantity || 1;
         const quantityText = quantity > 1 ? `${quantity}x` : '';
         
-        // 🥗 DETALLE DEL MENÚ (entrada, segundo, postre, bebida)
+        // 🥗 DETALLE DEL MENÚ (entrada, segundo, postre, bebida) - usa chosen_* con fallback al menú default
         let menuDetails = '';
-        if (order.lunch_menus) {
+        if (order.lunch_menus || order.chosen_starter || order.chosen_main_course || order.chosen_dessert || order.chosen_beverage) {
           const parts = [];
-          if (order.lunch_menus.starter) parts.push(`Entrada: ${order.lunch_menus.starter}`);
-          if (order.lunch_menus.main_course) parts.push(`Segundo: ${order.lunch_menus.main_course}`);
-          if (order.lunch_menus.dessert) parts.push(`Postre: ${order.lunch_menus.dessert}`);
-          if (order.lunch_menus.beverage) parts.push(`Bebida: ${order.lunch_menus.beverage}`);
+          const starter = order.chosen_starter || order.lunch_menus?.starter;
+          const mainCourse = order.chosen_main_course || order.lunch_menus?.main_course;
+          const dessert = order.chosen_dessert || order.lunch_menus?.dessert;
+          const beverage = order.chosen_beverage || order.lunch_menus?.beverage;
+          if (starter) parts.push(`Entrada: ${starter}`);
+          if (mainCourse) parts.push(`Segundo: ${mainCourse}`);
+          if (dessert) parts.push(`Postre: ${dessert}`);
+          if (beverage) parts.push(`Bebida: ${beverage}`);
           menuDetails = parts.length > 0 ? parts.join(' | ') : '-';
         } else {
           menuDetails = '-';
@@ -2251,28 +2268,48 @@ export default function LunchOrders() {
                 </CardHeader>
                 <CardContent>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    {selectedMenuOrder.lunch_menus.starter && (
+                    {(selectedMenuOrder.chosen_starter || selectedMenuOrder.lunch_menus?.starter) && (
                       <div className="bg-green-50 p-3 rounded-lg border border-green-200">
-                        <p className="text-xs font-semibold text-green-700 uppercase mb-1">🥗 Entrada</p>
-                        <p className="text-sm font-medium text-gray-900">{selectedMenuOrder.lunch_menus.starter}</p>
+                        <div className="flex items-center gap-2 mb-1">
+                          <p className="text-xs font-semibold text-green-700 uppercase">🥗 Entrada</p>
+                          {selectedMenuOrder.chosen_starter && selectedMenuOrder.chosen_starter !== selectedMenuOrder.lunch_menus?.starter && (
+                            <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-green-400 text-green-700 bg-green-100">Alternativa</Badge>
+                          )}
+                        </div>
+                        <p className="text-sm font-medium text-gray-900">{getDisplayValue(selectedMenuOrder.chosen_starter, selectedMenuOrder.lunch_menus?.starter)}</p>
                       </div>
                     )}
-                    {selectedMenuOrder.lunch_menus.main_course && (
+                    {(selectedMenuOrder.chosen_main_course || selectedMenuOrder.lunch_menus?.main_course) && (
                       <div className="bg-orange-50 p-3 rounded-lg border border-orange-200">
-                        <p className="text-xs font-semibold text-orange-700 uppercase mb-1">🍽️ Plato Principal</p>
-                        <p className="text-sm font-medium text-gray-900">{selectedMenuOrder.lunch_menus.main_course}</p>
+                        <div className="flex items-center gap-2 mb-1">
+                          <p className="text-xs font-semibold text-orange-700 uppercase">🍽️ Plato Principal</p>
+                          {selectedMenuOrder.chosen_main_course && selectedMenuOrder.chosen_main_course !== selectedMenuOrder.lunch_menus?.main_course && (
+                            <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-orange-400 text-orange-700 bg-orange-100">Alternativa</Badge>
+                          )}
+                        </div>
+                        <p className="text-sm font-medium text-gray-900">{getDisplayValue(selectedMenuOrder.chosen_main_course, selectedMenuOrder.lunch_menus?.main_course)}</p>
                       </div>
                     )}
-                    {selectedMenuOrder.lunch_menus.beverage && (
+                    {(selectedMenuOrder.chosen_beverage || selectedMenuOrder.lunch_menus?.beverage) && (
                       <div className="bg-blue-50 p-3 rounded-lg border border-blue-200">
-                        <p className="text-xs font-semibold text-blue-700 uppercase mb-1">🥤 Bebida</p>
-                        <p className="text-sm font-medium text-gray-900">{selectedMenuOrder.lunch_menus.beverage}</p>
+                        <div className="flex items-center gap-2 mb-1">
+                          <p className="text-xs font-semibold text-blue-700 uppercase">🥤 Bebida</p>
+                          {selectedMenuOrder.chosen_beverage && selectedMenuOrder.chosen_beverage !== selectedMenuOrder.lunch_menus?.beverage && (
+                            <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-blue-400 text-blue-700 bg-blue-100">Alternativa</Badge>
+                          )}
+                        </div>
+                        <p className="text-sm font-medium text-gray-900">{getDisplayValue(selectedMenuOrder.chosen_beverage, selectedMenuOrder.lunch_menus?.beverage)}</p>
                       </div>
                     )}
-                    {selectedMenuOrder.lunch_menus.dessert && (
+                    {(selectedMenuOrder.chosen_dessert || selectedMenuOrder.lunch_menus?.dessert) && (
                       <div className="bg-pink-50 p-3 rounded-lg border border-pink-200">
-                        <p className="text-xs font-semibold text-pink-700 uppercase mb-1">🍰 Postre</p>
-                        <p className="text-sm font-medium text-gray-900">{selectedMenuOrder.lunch_menus.dessert}</p>
+                        <div className="flex items-center gap-2 mb-1">
+                          <p className="text-xs font-semibold text-pink-700 uppercase">🍰 Postre</p>
+                          {selectedMenuOrder.chosen_dessert && selectedMenuOrder.chosen_dessert !== selectedMenuOrder.lunch_menus?.dessert && (
+                            <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-pink-400 text-pink-700 bg-pink-100">Alternativa</Badge>
+                          )}
+                        </div>
+                        <p className="text-sm font-medium text-gray-900">{getDisplayValue(selectedMenuOrder.chosen_dessert, selectedMenuOrder.lunch_menus?.dessert)}</p>
                       </div>
                     )}
                   </div>

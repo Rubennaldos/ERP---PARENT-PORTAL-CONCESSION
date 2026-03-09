@@ -26,6 +26,7 @@ import {
 import { RechargeModal } from '@/components/parent/RechargeModal';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, addMonths, subMonths } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { MenuFieldOptionSelector, hasAnyAlternatives } from '@/components/lunch/MenuFieldOptionSelector';
 import {
   Dialog,
   DialogContent,
@@ -65,6 +66,10 @@ interface LunchMenu {
   dessert: string | null;
   notes: string | null;
   category_id: string | null;
+  starter_alternatives?: string[];
+  main_course_alternatives?: string[];
+  beverage_alternatives?: string[];
+  dessert_alternatives?: string[];
   category?: LunchCategory | null;
 }
 
@@ -166,6 +171,10 @@ export function UnifiedLunchCalendarV2({ userType, userId, userSchoolId }: Unifi
   const [quantity, setQuantity] = useState(1);
   const [orderComments, setOrderComments] = useState('');
   const [showComments, setShowComments] = useState(false);
+  const [chosenStarter, setChosenStarter] = useState<string | null>(null);
+  const [chosenMainCourse, setChosenMainCourse] = useState<string | null>(null);
+  const [chosenBeverage, setChosenBeverage] = useState<string | null>(null);
+  const [chosenDessert, setChosenDessert] = useState<string | null>(null);
 
   // ── View existing orders (modal for details) ──
   const [viewOrdersModal, setViewOrdersModal] = useState(false);
@@ -237,6 +246,10 @@ export function UnifiedLunchCalendarV2({ userType, userId, userSchoolId }: Unifi
     setQuantity(1);
     setOrderComments('');
     setShowComments(false);
+    setChosenStarter(null);
+    setChosenMainCourse(null);
+    setChosenBeverage(null);
+    setChosenDessert(null);
   }, [currentDate]);
 
   const fetchStudents = async () => {
@@ -288,7 +301,7 @@ export function UnifiedLunchCalendarV2({ userType, userId, userSchoolId }: Unifi
       const targetType = userType === 'parent' ? 'students' : 'teachers';
       const { data: menusData, error: menusError } = await supabase
         .from('lunch_menus')
-        .select('id, date, starter, main_course, beverage, dessert, notes, category_id, target_type')
+        .select('id, date, starter, main_course, beverage, dessert, notes, category_id, target_type, starter_alternatives, main_course_alternatives, beverage_alternatives, dessert_alternatives')
         .eq('school_id', effectiveSchoolId)
         .or(`target_type.eq.${targetType},target_type.eq.both,target_type.is.null`)
         .gte('date', startStr)
@@ -472,6 +485,10 @@ export function UnifiedLunchCalendarV2({ userType, userId, userSchoolId }: Unifi
     setQuantity(1);
     setOrderComments('');
     setShowComments(false);
+    setChosenStarter(null);
+    setChosenMainCourse(null);
+    setChosenBeverage(null);
+    setChosenDessert(null);
 
     // Auto-select if only 1 menu
     if (status === 'available') {
@@ -549,6 +566,10 @@ export function UnifiedLunchCalendarV2({ userType, userId, userSchoolId }: Unifi
         addons_total: 0,
         final_price: unitPrice * quantity,
         created_by: userId,
+        chosen_starter: chosenStarter,
+        chosen_main_course: chosenMainCourse,
+        chosen_beverage: chosenBeverage,
+        chosen_dessert: chosenDessert,
       };
       if (orderComments.trim()) {
         orderPayload.comments = orderComments.trim();
@@ -622,6 +643,10 @@ export function UnifiedLunchCalendarV2({ userType, userId, userSchoolId }: Unifi
       setQuantity(1);
       setOrderComments('');
       setShowComments(false);
+      setChosenStarter(null);
+      setChosenMainCourse(null);
+      setChosenBeverage(null);
+      setChosenDessert(null);
 
       // Auto-advance to next available day
       const currentIdx = carouselDays.indexOf(carouselDate);
@@ -761,6 +786,10 @@ export function UnifiedLunchCalendarV2({ userType, userId, userSchoolId }: Unifi
                 setExistingOrders([]);
                 setCarouselDate(null);
                 setSelectedMenu(null);
+                setChosenStarter(null);
+                setChosenMainCourse(null);
+                setChosenBeverage(null);
+                setChosenDessert(null);
               }}
             >
               <Users className="h-3 w-3" />
@@ -1025,7 +1054,13 @@ export function UnifiedLunchCalendarV2({ userType, userId, userSchoolId }: Unifi
                     return (
                       <button
                         key={menu.id}
-                        onClick={() => setSelectedMenu(isMenuSelected ? null : menu)}
+                        onClick={() => {
+                          setSelectedMenu(isMenuSelected ? null : menu);
+                          setChosenStarter(null);
+                          setChosenMainCourse(null);
+                          setChosenBeverage(null);
+                          setChosenDessert(null);
+                        }}
                         className={cn(
                           "w-full text-left p-3 rounded-xl border-2 transition-all active:scale-[0.98] touch-manipulation",
                           "flex items-center gap-3",
@@ -1074,6 +1109,53 @@ export function UnifiedLunchCalendarV2({ userType, userId, userSchoolId }: Unifi
                   {/* ── ORDER CONTROLS (appears when menu selected) ── */}
                   {selectedMenu && (
                     <div className="pt-2 space-y-2.5 animate-in fade-in slide-in-from-bottom-1 duration-150">
+                      {hasAnyAlternatives(selectedMenu) && (
+                        <div className="space-y-2 p-2.5 bg-purple-50/50 rounded-xl border border-purple-100">
+                          <p className="text-[10px] font-semibold text-purple-600 uppercase tracking-wide">Elige tus opciones</p>
+                          {selectedMenu.starter && (
+                            <MenuFieldOptionSelector
+                              fieldLabel="Entrada"
+                              icon="🥗"
+                              defaultValue={selectedMenu.starter}
+                              alternatives={selectedMenu.starter_alternatives || []}
+                              selectedValue={chosenStarter}
+                              onChange={setChosenStarter}
+                              compact
+                            />
+                          )}
+                          <MenuFieldOptionSelector
+                            fieldLabel="Segundo"
+                            icon="🍽️"
+                            defaultValue={selectedMenu.main_course}
+                            alternatives={selectedMenu.main_course_alternatives || []}
+                            selectedValue={chosenMainCourse}
+                            onChange={setChosenMainCourse}
+                            compact
+                          />
+                          {selectedMenu.beverage && (
+                            <MenuFieldOptionSelector
+                              fieldLabel="Bebida"
+                              icon="🥤"
+                              defaultValue={selectedMenu.beverage}
+                              alternatives={selectedMenu.beverage_alternatives || []}
+                              selectedValue={chosenBeverage}
+                              onChange={setChosenBeverage}
+                              compact
+                            />
+                          )}
+                          {selectedMenu.dessert && (
+                            <MenuFieldOptionSelector
+                              fieldLabel="Postre"
+                              icon="🍰"
+                              defaultValue={selectedMenu.dessert}
+                              alternatives={selectedMenu.dessert_alternatives || []}
+                              selectedValue={chosenDessert}
+                              onChange={setChosenDessert}
+                              compact
+                            />
+                          )}
+                        </div>
+                      )}
                       {/* Quantity + Note */}
                       <div className="flex items-center justify-between px-1">
                         <div className="flex items-center gap-2">
