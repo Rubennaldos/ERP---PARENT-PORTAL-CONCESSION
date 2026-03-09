@@ -245,10 +245,9 @@ export default function LunchOrders() {
         setDefaultDeliveryDate(formattedDate);
         setSelectedDate(formattedDate);
       } else {
-        // Si no tiene school_id (admin general), usar mañana por defecto
-        const tomorrow = new Date();
-        tomorrow.setDate(tomorrow.getDate() + 1);
-        const formattedDate = format(tomorrow, 'yyyy-MM-dd');
+        // Admin general sin school_id: usar hoy en hora de Perú
+        const peruNow = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Lima' }));
+        const formattedDate = format(peruNow, 'yyyy-MM-dd');
         setDefaultDeliveryDate(formattedDate);
         setSelectedDate(formattedDate);
       }
@@ -256,10 +255,9 @@ export default function LunchOrders() {
       await fetchSchools();
     } catch (error: any) {
       console.error('Error inicializando:', error);
-      // En caso de error, usar mañana como fallback
-      const tomorrow = new Date();
-      tomorrow.setDate(tomorrow.getDate() + 1);
-      const formattedDate = format(tomorrow, 'yyyy-MM-dd');
+      // Fallback: usar hoy en hora de Perú
+      const peruNow = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Lima' }));
+      const formattedDate = format(peruNow, 'yyyy-MM-dd');
       setDefaultDeliveryDate(formattedDate);
       setSelectedDate(formattedDate);
       setLoading(false);
@@ -1459,9 +1457,12 @@ export default function LunchOrders() {
       
       let filterText = '';
       if (isDateRangeMode && startDate && endDate) {
-        filterText = `Período: ${format(new Date(startDate), 'dd/MM/yyyy', { locale: es })} - ${format(new Date(endDate), 'dd/MM/yyyy', { locale: es })}`;
+        const [sy, sm, sd] = startDate.split('-').map(Number);
+        const [ey, em, ed] = endDate.split('-').map(Number);
+        filterText = `Período: ${format(new Date(sy, sm - 1, sd), 'dd/MM/yyyy', { locale: es })} - ${format(new Date(ey, em - 1, ed), 'dd/MM/yyyy', { locale: es })}`;
       } else {
-        filterText = `Fecha: ${format(new Date(selectedDate), 'dd/MM/yyyy', { locale: es })}`;
+        const [y, m, d] = selectedDate.split('-').map(Number);
+        filterText = `Fecha: ${format(new Date(y, m - 1, d), 'dd/MM/yyyy', { locale: es })}`;
       }
       
       if (selectedSchool !== 'all') {
@@ -1487,7 +1488,8 @@ export default function LunchOrders() {
       const tableData = filteredOrders.map(order => {
         const clientName = order.student?.full_name || order.teacher?.full_name || order.manual_name || 'N/A';
         const schoolName = order.school?.name || (order.student?.school_id ? schools.find(s => s.id === order.student?.school_id)?.name : null) || 'N/A';
-        const orderDate = format(new Date(order.order_date), 'dd/MM/yyyy', { locale: es });
+        const [oy, om, od] = order.order_date.split('-').map(Number);
+        const orderDate = format(new Date(oy, om - 1, od), 'dd/MM/yyyy', { locale: es });
         const orderTime = new Date(order.created_at).toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Lima' });
         
         // 📋 Estado del pedido
@@ -1624,8 +1626,8 @@ export default function LunchOrders() {
       
       // Descargar el PDF
       const fileName = isDateRangeMode 
-        ? `Pedidos_Almuerzo_${format(new Date(startDate), 'ddMMyyyy')}_${format(new Date(endDate), 'ddMMyyyy')}.pdf`
-        : `Pedidos_Almuerzo_${format(new Date(selectedDate), 'ddMMyyyy')}.pdf`;
+        ? `Pedidos_Almuerzo_${startDate.replace(/-/g, '')}_${endDate.replace(/-/g, '')}.pdf`
+        : `Pedidos_Almuerzo_${selectedDate.replace(/-/g, '')}.pdf`;
       
       doc.save(fileName);
       
