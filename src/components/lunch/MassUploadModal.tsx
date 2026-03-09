@@ -54,6 +54,7 @@ interface MassUploadModalProps {
 interface MenuEntry {
   id: string;
   date: string;
+  category_id: string;
   starter: string;
   main_course: string;
   beverage: string;
@@ -73,9 +74,10 @@ const FIELD_LABELS: Record<string, string> = {
   dessert: '🍰 Postre',
 };
 
-const emptyEntry = (): MenuEntry => ({
+const emptyEntry = (categoryId = 'none'): MenuEntry => ({
   id: crypto.randomUUID(),
   date: '',
+  category_id: categoryId,
   starter: '',
   main_course: '',
   beverage: '',
@@ -100,7 +102,6 @@ export const MassUploadModal = ({
   const [loading, setLoading] = useState(false);
   const [selectedSchools, setSelectedSchools] = useState<string[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
-  const [selectedCategoryId, setSelectedCategoryId] = useState<string>('none');
   const [dateStart, setDateStart] = useState('');
   const [dateEnd, setDateEnd] = useState('');
   const [entries, setEntries] = useState<MenuEntry[]>([emptyEntry()]);
@@ -114,7 +115,6 @@ export const MassUploadModal = ({
   useEffect(() => {
     if (isOpen) {
       setSelectedSchools([]);
-      setSelectedCategoryId('none');
       setDateStart('');
       setDateEnd('');
       setEntries([emptyEntry()]);
@@ -177,6 +177,7 @@ export const MassUploadModal = ({
       const source = updated[index - 1];
       updated[index] = {
         ...updated[index],
+        category_id: source.category_id,
         starter: source.starter,
         main_course: source.main_course,
         beverage: source.beverage,
@@ -205,6 +206,7 @@ export const MassUploadModal = ({
           ? entry
           : {
               ...entry,
+              category_id: source.category_id,
               starter: source.starter,
               main_course: source.main_course,
               beverage: source.beverage,
@@ -249,6 +251,9 @@ export const MassUploadModal = ({
       return;
     }
 
+    // Tomar la categoría de la primera entrada ya cargada (si existe)
+    const defaultCatId = entries[0]?.category_id || 'none';
+
     const newEntries: MenuEntry[] = [];
     const current = new Date(start);
     while (current <= endDate) {
@@ -257,7 +262,7 @@ export const MassUploadModal = ({
         const y = current.getFullYear();
         const m = String(current.getMonth() + 1).padStart(2, '0');
         const d = String(current.getDate()).padStart(2, '0');
-        newEntries.push({ ...emptyEntry(), date: `${y}-${m}-${d}` });
+        newEntries.push({ ...emptyEntry(defaultCatId), date: `${y}-${m}-${d}` });
       }
       current.setDate(current.getDate() + 1);
     }
@@ -278,8 +283,6 @@ export const MassUploadModal = ({
     return format(date, "EEE d MMM", { locale: es });
   };
 
-  const selectedCategory = categories.find(c => c.id === selectedCategoryId);
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -296,11 +299,11 @@ export const MassUploadModal = ({
 
     setLoading(true);
     try {
-      const targetType = selectedCategory?.target_type || 'both';
-
       const menusToInsert = [];
       for (const schoolId of selectedSchools) {
         for (const entry of entries) {
+          const cat = categories.find(c => c.id === entry.category_id);
+          const targetType = cat?.target_type || 'both';
           menusToInsert.push({
             school_id: schoolId,
             date: entry.date,
@@ -309,7 +312,7 @@ export const MassUploadModal = ({
             beverage: entry.beverage.trim() || null,
             dessert: entry.dessert.trim() || null,
             notes: entry.notes.trim() || null,
-            category_id: selectedCategoryId !== 'none' ? selectedCategoryId : null,
+            category_id: entry.category_id !== 'none' ? entry.category_id : null,
             target_type: targetType,
             created_by: user?.id ?? null,
             starter_alternatives: entry.starter_alternatives.filter(a => a.trim()),
@@ -386,67 +389,11 @@ export const MassUploadModal = ({
             </CardContent>
           </Card>
 
-          {/* PASO 2: CATEGORÍA */}
+          {/* PASO 2: GENERAR DÍAS */}
           <Card>
             <CardHeader className="py-3 px-4">
               <CardTitle className="text-sm font-semibold text-stone-700 flex items-center gap-2">
                 <span className="bg-emerald-600 text-white rounded-full w-5 h-5 flex items-center justify-center text-[11px]">2</span>
-                ¿A qué categoría de menú corresponde?
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="pt-0 px-4 pb-4">
-              {selectedSchools.length === 0 ? (
-                <p className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
-                  Selecciona una sede primero para ver las categorías disponibles.
-                </p>
-              ) : categories.length === 0 ? (
-                <p className="text-xs text-muted-foreground">
-                  No hay categorías activas para la(s) sede(s) seleccionada(s). Puedes crear categorías desde el Calendario de Almuerzos.
-                </p>
-              ) : (
-                <div className="space-y-2">
-                  <Select value={selectedCategoryId} onValueChange={setSelectedCategoryId}>
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Selecciona una categoría..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">Sin categoría (visible para todos)</SelectItem>
-                      {categories.map((cat) => (
-                        <SelectItem key={cat.id} value={cat.id}>
-                          <div className="flex items-center gap-2">
-                            {cat.icon && <span>{cat.icon}</span>}
-                            <span>{cat.name}</span>
-                            <span className="text-xs text-muted-foreground">
-                              — {cat.target_type === 'students' ? 'Alumnos' : cat.target_type === 'teachers' ? 'Profesores' : 'Todos'}
-                              {cat.price ? ` · S/ ${cat.price.toFixed(2)}` : ''}
-                            </span>
-                          </div>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  {selectedCategory && (
-                    <div className="flex items-center gap-2 text-xs text-stone-500 bg-stone-50 border rounded-lg px-3 py-2">
-                      <span>{selectedCategory.icon}</span>
-                      <span className="font-medium" style={{ color: selectedCategory.color || '#10b981' }}>{selectedCategory.name}</span>
-                      <Badge variant="secondary" className="text-[10px]">
-                        {selectedCategory.target_type === 'students' ? 'Alumnos' : selectedCategory.target_type === 'teachers' ? 'Profesores' : 'Todos'}
-                      </Badge>
-                      {selectedCategory.price && (
-                        <Badge variant="outline" className="text-[10px]">S/ {selectedCategory.price.toFixed(2)}</Badge>
-                      )}
-                    </div>
-                  )}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* PASO 3: GENERAR DÍAS */}
-          <Card>
-            <CardHeader className="py-3 px-4">
-              <CardTitle className="text-sm font-semibold text-stone-700 flex items-center gap-2">
-                <span className="bg-emerald-600 text-white rounded-full w-5 h-5 flex items-center justify-center text-[11px]">3</span>
                 ¿Qué días quieres cargar?
               </CardTitle>
             </CardHeader>
@@ -537,12 +484,12 @@ export const MassUploadModal = ({
             </div>
           )}
 
-          {/* PASO 4: LISTA DE MENÚS */}
+          {/* PASO 3: LISTA DE MENÚS */}
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <Label className="text-sm font-semibold text-stone-700 flex items-center gap-2">
-                <span className="bg-emerald-600 text-white rounded-full w-5 h-5 flex items-center justify-center text-[11px]">4</span>
-                Menús del día ({entries.length} {entries.length === 1 ? 'día' : 'días'})
+                <span className="bg-emerald-600 text-white rounded-full w-5 h-5 flex items-center justify-center text-[11px]">3</span>
+                Menús ({entries.length} {entries.length === 1 ? 'fila' : 'filas'}) — la categoría va en cada fila
               </Label>
             </div>
 
@@ -569,20 +516,57 @@ export const MassUploadModal = ({
                         )}
                       </div>
 
+                      {/* Categoría */}
+                      <div className="col-span-3">
+                        <Label className="text-[10px] text-stone-500 uppercase tracking-wider">🗂 Categoría</Label>
+                        {selectedSchools.length === 0 ? (
+                          <p className="text-[10px] text-amber-500 mt-1">Selecciona una sede</p>
+                        ) : categories.length === 0 ? (
+                          <p className="text-[10px] text-stone-400 mt-1">Sin categorías</p>
+                        ) : (
+                          <Select
+                            value={entry.category_id}
+                            onValueChange={(v) => updateEntry(entry.id, 'category_id', v)}
+                            disabled={loading}
+                          >
+                            <SelectTrigger className="h-8 text-xs">
+                              <SelectValue placeholder="Sin categoría" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="none">
+                                <span className="text-stone-400">Sin categoría</span>
+                              </SelectItem>
+                              {categories.map((cat) => {
+                                const targetLabel = cat.target_type === 'students' ? 'Alumnos' : cat.target_type === 'teachers' ? 'Profesores' : 'Todos';
+                                return (
+                                  <SelectItem key={cat.id} value={cat.id}>
+                                    <div className="flex items-center gap-1.5">
+                                      {cat.icon && <span>{cat.icon}</span>}
+                                      <span className="font-medium">{cat.name}</span>
+                                      <span className="text-[10px] text-stone-400">· {targetLabel}</span>
+                                    </div>
+                                  </SelectItem>
+                                );
+                              })}
+                            </SelectContent>
+                          </Select>
+                        )}
+                      </div>
+
                       {/* Entrada */}
-                      <div className="col-span-2">
+                      <div className="col-span-1">
                         <Label className="text-[10px] text-stone-500 uppercase tracking-wider">🥗 Entrada</Label>
                         <Input
                           value={entry.starter}
                           onChange={(e) => updateEntry(entry.id, 'starter', e.target.value)}
                           disabled={loading}
-                          placeholder="Ensalada..."
+                          placeholder="Entrada..."
                           className="h-8 text-xs"
                         />
                       </div>
 
                       {/* Segundo */}
-                      <div className="col-span-3">
+                      <div className="col-span-2">
                         <Label className="text-[10px] text-stone-500 uppercase tracking-wider">🍲 Segundo *</Label>
                         <Input
                           value={entry.main_course}
@@ -595,19 +579,19 @@ export const MassUploadModal = ({
                       </div>
 
                       {/* Bebida */}
-                      <div className="col-span-2">
+                      <div className="col-span-1">
                         <Label className="text-[10px] text-stone-500 uppercase tracking-wider">🥤 Bebida</Label>
                         <Input
                           value={entry.beverage}
                           onChange={(e) => updateEntry(entry.id, 'beverage', e.target.value)}
                           disabled={loading}
-                          placeholder="Refresco..."
+                          placeholder="Bebida..."
                           className="h-8 text-xs"
                         />
                       </div>
 
                       {/* Postre */}
-                      <div className="col-span-2">
+                      <div className="col-span-1">
                         <Label className="text-[10px] text-stone-500 uppercase tracking-wider">🍰 Postre</Label>
                         <Input
                           value={entry.dessert}
