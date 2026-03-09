@@ -1080,8 +1080,9 @@ const LunchCalendar = () => {
           {/* Tab: Configuración */}
           <TabsContent value="config">
             <LunchConfiguration
-              schoolId={userSchoolId || selectedSchools[0] || null}
+              schoolId={userSchoolId}
               canEdit={canEdit || canCreate}
+              schools={schools}
             />
           </TabsContent>
         </Tabs>

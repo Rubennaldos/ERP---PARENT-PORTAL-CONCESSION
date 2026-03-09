@@ -518,10 +518,6 @@ export function UnifiedLunchCalendarV2({ userType, userId, userSchoolId }: Unifi
     if (!carouselDate) return;
 
     const selectedCategory = selectedMenu.category;
-    if (!selectedCategory) {
-      toast({ variant: 'destructive', title: 'Error', description: 'Plato sin categoría.' });
-      return;
-    }
 
     setSubmitting(true);
 
@@ -535,30 +531,36 @@ export function UnifiedLunchCalendarV2({ userType, userId, userSchoolId }: Unifi
         return;
       }
 
-      // Check duplicate
-      const { data: existingOrder } = await supabase
+      // Check duplicate — si tiene categoría, buscar por categoría; si no, por menu_id
+      let duplicateQuery = supabase
         .from('lunch_orders')
         .select('id')
         .eq(personField, personId)
         .eq('order_date', carouselDate)
-        .eq('category_id', selectedCategory.id)
-        .eq('is_cancelled', false)
-        .maybeSingle();
+        .eq('is_cancelled', false);
+
+      if (selectedCategory) {
+        duplicateQuery = duplicateQuery.eq('category_id', selectedCategory.id);
+      } else {
+        duplicateQuery = duplicateQuery.eq('menu_id', selectedMenu.id);
+      }
+
+      const { data: existingOrder } = await duplicateQuery.maybeSingle();
 
       if (existingOrder) {
-        toast({ variant: 'destructive', title: '⚠️ Duplicado', description: `Ya tienes un pedido de "${selectedCategory.name}" para este día.` });
+        toast({ variant: 'destructive', title: '⚠️ Duplicado', description: `Ya tienes un pedido de "${selectedCategory?.name || 'este menú'}" para este día.` });
         setSubmitting(false);
         return;
       }
 
-      const unitPrice = selectedCategory.price || config.lunch_price;
+      const unitPrice = selectedCategory?.price || config.lunch_price;
 
       // 1. Create lunch_order
       const orderPayload: any = {
         [personField]: personId,
         order_date: carouselDate,
         status: 'pending',
-        category_id: selectedCategory.id,
+        category_id: selectedCategory?.id || null,
         menu_id: selectedMenu.id,
         school_id: effectiveSchoolId,
         quantity,
@@ -592,7 +594,8 @@ export function UnifiedLunchCalendarV2({ userType, userId, userSchoolId }: Unifi
 
       // 2. Create transaction
       const dateFormatted = format(getPeruDateOnly(carouselDate), "d 'de' MMMM", { locale: es });
-      const description = `Almuerzo - ${selectedCategory.name} - ${dateFormatted}`;
+      const categoryLabel = selectedCategory?.name || 'Almuerzo';
+      const description = `Almuerzo - ${categoryLabel} - ${dateFormatted}`;
 
       let ticketCode: string | null = null;
       try {
@@ -619,7 +622,7 @@ export function UnifiedLunchCalendarV2({ userType, userId, userSchoolId }: Unifi
             lunch_order_id: insertedOrder.id,
             source: `unified_calendar_v2_${userType}`,
             order_date: carouselDate,
-            category_name: selectedCategory.name,
+            category_name: categoryLabel,
             quantity,
           }
         }]);
@@ -630,7 +633,7 @@ export function UnifiedLunchCalendarV2({ userType, userId, userSchoolId }: Unifi
       if (userType === 'parent' && insertedOrder?.id) {
         setCreatedOrderIds(prev => [...prev, insertedOrder.id]);
         setTotalOrderAmount(prev => prev + (unitPrice * quantity));
-        setOrderDescriptions(prev => [...prev, `${quantity}x ${selectedCategory.name} - ${dateFormatted}`]);
+        setOrderDescriptions(prev => [...prev, `${quantity}x ${categoryLabel} - ${dateFormatted}`]);
       }
 
       toast({

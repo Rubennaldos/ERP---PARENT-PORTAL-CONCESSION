@@ -12,12 +12,27 @@ import {
   AlertCircle,
   Save,
   Settings,
-  CheckCircle2
+  CheckCircle2,
+  Building2,
 } from 'lucide-react';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+
+interface School {
+  id: string;
+  name: string;
+  color?: string;
+}
 
 interface LunchConfigurationProps {
   schoolId: string | null;
   canEdit: boolean;
+  schools?: School[];
 }
 
 interface LunchConfig {
@@ -35,30 +50,41 @@ interface LunchConfig {
   auto_mark_as_delivered?: boolean;
 }
 
-export function LunchConfiguration({ schoolId, canEdit }: LunchConfigurationProps) {
+export function LunchConfiguration({ schoolId, canEdit, schools = [] }: LunchConfigurationProps) {
   const { toast } = useToast();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [config, setConfig] = useState<LunchConfig | null>(null);
+  const [activeSchoolId, setActiveSchoolId] = useState<string | null>(schoolId);
 
+  // Si el admin no tiene sede fija, usar la primera de la lista
   useEffect(() => {
     if (schoolId) {
-      loadConfiguration();
+      setActiveSchoolId(schoolId);
+    } else if (schools.length > 0 && !activeSchoolId) {
+      setActiveSchoolId(schools[0].id);
     }
-  }, [schoolId]);
+  }, [schoolId, schools]);
 
-  const loadConfiguration = async () => {
-    if (!schoolId) return;
+  useEffect(() => {
+    if (activeSchoolId) {
+      loadConfiguration(activeSchoolId);
+    } else {
+      setLoading(false);
+    }
+  }, [activeSchoolId]);
 
+  const loadConfiguration = async (targetSchoolId: string) => {
     setLoading(true);
     try {
+      // Usar maybeSingle en vez de single para evitar error 406 cuando no hay fila
       const { data, error } = await supabase
         .from('lunch_configuration')
         .select('*')
-        .eq('school_id', schoolId)
-        .single();
+        .eq('school_id', targetSchoolId)
+        .maybeSingle();
 
-      if (error && error.code !== 'PGRST116') throw error;
+      if (error) throw error;
 
       if (data) {
         setConfig(data);
@@ -67,7 +93,7 @@ export function LunchConfiguration({ schoolId, canEdit }: LunchConfigurationProp
         const { data: newConfig, error: insertError } = await supabase
           .from('lunch_configuration')
           .insert({
-            school_id: schoolId,
+            school_id: targetSchoolId,
             lunch_price: 7.50,
             order_deadline_time: '20:00:00',
             order_deadline_days: 1,
@@ -90,7 +116,7 @@ export function LunchConfiguration({ schoolId, canEdit }: LunchConfigurationProp
       toast({
         variant: 'destructive',
         title: 'Error',
-        description: 'No se pudo cargar la configuración',
+        description: `No se pudo cargar la configuración: ${error.message || 'Error desconocido'}`,
       });
     } finally {
       setLoading(false);
@@ -152,19 +178,87 @@ export function LunchConfiguration({ schoolId, canEdit }: LunchConfigurationProp
     );
   }
 
-  if (!config) {
+  if (!activeSchoolId && schools.length === 0) {
     return (
       <Card>
         <CardContent className="py-12 text-center">
           <AlertCircle className="h-12 w-12 text-gray-300 mx-auto mb-4" />
-          <p className="text-gray-500">No se pudo cargar la configuración</p>
+          <p className="text-gray-500">No hay sedes disponibles para configurar</p>
         </CardContent>
       </Card>
     );
   }
 
+  if (!config) {
+    return (
+      <div className="max-w-4xl mx-auto space-y-6">
+        {schools.length > 1 && (
+          <Card>
+            <CardContent className="pt-6">
+              <Label className="text-sm font-medium mb-2 block">
+                <Building2 className="inline h-4 w-4 mr-1" /> Selecciona la sede a configurar
+              </Label>
+              <Select value={activeSchoolId || ''} onValueChange={(v) => setActiveSchoolId(v)}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecciona una sede..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {schools.map((s) => (
+                    <SelectItem key={s.id} value={s.id}>
+                      <div className="flex items-center gap-2">
+                        {s.color && <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: s.color }} />}
+                        {s.name}
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </CardContent>
+          </Card>
+        )}
+        <Card>
+          <CardContent className="py-12 text-center">
+            <AlertCircle className="h-12 w-12 text-gray-300 mx-auto mb-4" />
+            <p className="text-gray-500">No se pudo cargar la configuración</p>
+            <Button variant="outline" className="mt-4" onClick={() => activeSchoolId && loadConfiguration(activeSchoolId)}>
+              Reintentar
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  const activeSchool = schools.find(s => s.id === activeSchoolId);
+
   return (
     <div className="max-w-4xl mx-auto space-y-6">
+      {/* Selector de sede para admins multi-sede */}
+      {schools.length > 1 && (
+        <Card className="border-blue-200 bg-blue-50/30">
+          <CardContent className="pt-5 pb-4">
+            <Label className="text-sm font-medium mb-2 block text-blue-800">
+              <Building2 className="inline h-4 w-4 mr-1" /> Sede seleccionada
+            </Label>
+            <Select value={activeSchoolId || ''} onValueChange={(v) => setActiveSchoolId(v)}>
+              <SelectTrigger className="bg-white">
+                <SelectValue placeholder="Selecciona una sede..." />
+              </SelectTrigger>
+              <SelectContent>
+                {schools.map((s) => (
+                  <SelectItem key={s.id} value={s.id}>
+                    <div className="flex items-center gap-2">
+                      {s.color && <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: s.color }} />}
+                      {s.name}
+                    </div>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Header */}
       <div className="text-center">
         <div className="inline-flex items-center justify-center w-16 h-16 bg-green-100 rounded-full mb-4">
@@ -172,7 +266,7 @@ export function LunchConfiguration({ schoolId, canEdit }: LunchConfigurationProp
         </div>
         <h2 className="text-2xl font-bold mb-2">Configuración del Sistema de Almuerzos</h2>
         <p className="text-gray-500">
-          Gestiona los precios, horarios y límites para pedidos de almuerzo
+          {activeSchool ? `Configurando: ${activeSchool.name}` : 'Gestiona los precios, horarios y límites para pedidos de almuerzo'}
         </p>
       </div>
 
