@@ -9,7 +9,10 @@ import { Textarea } from '@/components/ui/textarea';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Separator } from '@/components/ui/separator';
 import { Lock, AlertTriangle, CheckCircle2, Printer, Download, Send } from 'lucide-react';
+import { useRole } from '@/hooks/useRole';
 import type { CashRegisterClosure, CashRegisterSummary } from '@/types/cashRegister';
+
+const ADMIN_ROLES = ['superadmin', 'admin_general', 'supervisor_red'];
 
 interface CashClosureFormProps {
   closure: CashRegisterClosure;
@@ -19,6 +22,8 @@ interface CashClosureFormProps {
 
 export function CashClosureForm({ closure, summary, onClose }: CashClosureFormProps) {
   const { user, profile } = useAuth();
+  const { role } = useRole();
+  const isAdmin = ADMIN_ROLES.includes(role || '');
   const [loading, setLoading] = useState(false);
   const [actualBalance, setActualBalance] = useState('');
   const [pettyCash, setPettyCash] = useState('');
@@ -50,7 +55,8 @@ export function CashClosureForm({ closure, summary, onClose }: CashClosureFormPr
       return false;
     }
 
-    if (!adminPassword) {
+    // Admins no necesitan contraseña
+    if (!isAdmin && !adminPassword) {
       setError('Debe ingresar la contraseña del administrador');
       return false;
     }
@@ -88,9 +94,11 @@ export function CashClosureForm({ closure, summary, onClose }: CashClosureFormPr
       return;
     }
 
-    // Validar contraseña del admin
-    const isValid = await validateAdminPassword();
-    if (!isValid) return;
+    // Validar contraseña del admin (admins no la necesitan)
+    if (!isAdmin) {
+      const isValid = await validateAdminPassword();
+      if (!isValid) return;
+    }
 
     try {
       setLoading(true);
@@ -462,21 +470,30 @@ export function CashClosureForm({ closure, summary, onClose }: CashClosureFormPr
             />
           </div>
 
-          {/* Contraseña del admin */}
-          <div>
-            <Label htmlFor="password">Contraseña del Administrador *</Label>
-            <Input
-              id="password"
-              type="password"
-              value={adminPassword}
-              onChange={(e) => setAdminPassword(e.target.value)}
-              placeholder="Ingrese la contraseña"
-              required
-            />
-            <p className="text-xs text-muted-foreground mt-1">
-              Se requiere autorización del administrador para cerrar la caja
-            </p>
-          </div>
+          {/* Contraseña del admin (no requerida para admins) */}
+          {!isAdmin ? (
+            <div>
+              <Label htmlFor="password">Contraseña del Administrador *</Label>
+              <Input
+                id="password"
+                type="password"
+                value={adminPassword}
+                onChange={(e) => setAdminPassword(e.target.value)}
+                placeholder="Ingrese la contraseña"
+                required
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                Se requiere autorización del administrador para cerrar la caja
+              </p>
+            </div>
+          ) : (
+            <Alert>
+              <CheckCircle2 className="h-4 w-4 text-green-600" />
+              <AlertDescription className="text-sm text-green-800">
+                Como administrador, no necesitas contraseña para cerrar la caja.
+              </AlertDescription>
+            </Alert>
+          )}
 
           {error && (
             <Alert variant="destructive">

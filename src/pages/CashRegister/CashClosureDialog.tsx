@@ -27,9 +27,12 @@ import {
 import { CashRegister, CashMovement, CashRegisterConfig, DailyTotals } from '@/types/cashRegister';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
+import { useRole } from '@/hooks/useRole';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { toast } from 'sonner';
+
+const ADMIN_ROLES = ['superadmin', 'admin_general', 'supervisor_red'];
 
 type WizardStep = 'summary' | 'count' | 'difference' | 'confirm';
 
@@ -43,6 +46,8 @@ interface Props {
 
 export default function CashClosureDialog({ cashRegister, movements, config, onClose, onClosed }: Props) {
   const { user, profile } = useAuth();
+  const { role } = useRole();
+  const isAdmin = ADMIN_ROLES.includes(role || '');
   const [step, setStep] = useState<WizardStep>('summary');
   const [loading, setLoading] = useState(false);
   const [dailyTotals, setDailyTotals] = useState<DailyTotals | null>(null);
@@ -124,7 +129,8 @@ export default function CashClosureDialog({ cashRegister, movements, config, onC
   const performClosure = async () => {
     if (actualFinal === null) { toast.error('Ingresa el monto real'); return; }
     if (hasDifference && !adjustmentReason.trim()) { toast.error('Escribe el motivo de la diferencia'); return; }
-    if (hasDifference) {
+    // Admins no necesitan contraseña para cerrar con diferencia
+    if (hasDifference && !isAdmin) {
       setLoading(true);
       const ok = await validateAdminPassword();
       setLoading(false);
@@ -414,25 +420,36 @@ export default function CashClosureDialog({ cashRegister, movements, config, onC
                   />
                 </div>
 
-                <div>
-                  <Label htmlFor="pwd" className="font-semibold flex items-center gap-2">
-                    <Lock className="h-4 w-4 text-red-600" />
-                    Contraseña del encargado / admin <span className="text-red-500">*</span>
-                  </Label>
-                  <Input
-                    id="pwd"
-                    type="password"
-                    value={adminPassword}
-                    onChange={(e) => { setAdminPassword(e.target.value); setPasswordError(''); }}
-                    placeholder="••••••••"
-                    className={`mt-1 h-11 border-2 ${passwordError ? 'border-red-500' : 'border-red-200 focus:border-red-400'}`}
-                  />
-                  {passwordError && (
-                    <p className="text-red-600 text-xs mt-1 flex items-center gap-1">
-                      <AlertTriangle className="h-3 w-3" /> {passwordError}
-                    </p>
-                  )}
-                </div>
+                {!isAdmin && (
+                  <div>
+                    <Label htmlFor="pwd" className="font-semibold flex items-center gap-2">
+                      <Lock className="h-4 w-4 text-red-600" />
+                      Contraseña del encargado / admin <span className="text-red-500">*</span>
+                    </Label>
+                    <Input
+                      id="pwd"
+                      type="password"
+                      value={adminPassword}
+                      onChange={(e) => { setAdminPassword(e.target.value); setPasswordError(''); }}
+                      placeholder="••••••••"
+                      className={`mt-1 h-11 border-2 ${passwordError ? 'border-red-500' : 'border-red-200 focus:border-red-400'}`}
+                    />
+                    {passwordError && (
+                      <p className="text-red-600 text-xs mt-1 flex items-center gap-1">
+                        <AlertTriangle className="h-3 w-3" /> {passwordError}
+                      </p>
+                    )}
+                  </div>
+                )}
+
+                {isAdmin && (
+                  <Alert className="py-2 border-green-300 bg-green-50">
+                    <CheckCircle2 className="h-4 w-4 text-green-600" />
+                    <AlertDescription className="text-xs text-green-800">
+                      Como administrador, no necesitas contraseña adicional para cerrar con diferencia.
+                    </AlertDescription>
+                  </Alert>
+                )}
 
                 <Alert variant="destructive" className="py-2">
                   <AlertTriangle className="h-4 w-4" />
@@ -450,7 +467,7 @@ export default function CashClosureDialog({ cashRegister, movements, config, onC
               </Button>
               <Button
                 onClick={() => setStep('confirm')}
-                disabled={hasDifference && (!adjustmentReason.trim() || !adminPassword)}
+                disabled={hasDifference && (!adjustmentReason.trim() || (!isAdmin && !adminPassword))}
                 className={`flex-1 ${hasDifference ? 'bg-red-600 hover:bg-red-700' : 'bg-emerald-600 hover:bg-emerald-700'}`}
               >
                 Continuar <ChevronRight className="ml-1 h-4 w-4" />
