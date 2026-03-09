@@ -77,7 +77,6 @@ export function LunchConfiguration({ schoolId, canEdit, schools = [] }: LunchCon
   const loadConfiguration = async (targetSchoolId: string) => {
     setLoading(true);
     try {
-      // Usar maybeSingle en vez de single para evitar error 406 cuando no hay fila
       const { data, error } = await supabase
         .from('lunch_configuration')
         .select('*')
@@ -89,27 +88,25 @@ export function LunchConfiguration({ schoolId, canEdit, schools = [] }: LunchCon
       if (data) {
         setConfig(data);
       } else {
-        // Crear configuración por defecto
-        const { data: newConfig, error: insertError } = await supabase
-          .from('lunch_configuration')
-          .insert({
-            school_id: targetSchoolId,
-            lunch_price: 7.50,
-            order_deadline_time: '20:00:00',
-            order_deadline_days: 1,
-            cancellation_deadline_time: '07:00:00',
-            cancellation_deadline_days: 0,
-            orders_enabled: true,
-            delivery_start_time: '07:00:00',
-            delivery_end_time: '17:00:00',
-            auto_close_day: true,
-            auto_mark_as_delivered: true,
-          })
-          .select()
-          .single();
-
-        if (insertError) throw insertError;
-        setConfig(newConfig);
+        // No existe configuración: cargar valores por defecto en memoria (sin insertar en BD)
+        setConfig({
+          id: '', // vacío indica que es nuevo
+          school_id: targetSchoolId,
+          lunch_price: 7.50,
+          order_deadline_time: '20:00:00',
+          order_deadline_days: 1,
+          cancellation_deadline_time: '07:00:00',
+          cancellation_deadline_days: 0,
+          orders_enabled: true,
+          delivery_start_time: '07:00:00',
+          delivery_end_time: '17:00:00',
+          auto_close_day: true,
+          auto_mark_as_delivered: true,
+        });
+        toast({
+          title: 'Nueva configuración',
+          description: 'Esta sede aún no tiene configuración. Ajusta los valores y guarda.',
+        });
       }
     } catch (error: any) {
       console.error('Error loading configuration:', error);
@@ -124,45 +121,46 @@ export function LunchConfiguration({ schoolId, canEdit, schools = [] }: LunchCon
   };
 
   const handleSave = async () => {
-    if (!config || !canEdit) return;
+    if (!config || !canEdit || !activeSchoolId) return;
 
     setSaving(true);
     try {
-      console.log('💾 Guardando configuración:', config);
-      
-      const { error } = await supabase
+      const payload = {
+        school_id: activeSchoolId,
+        lunch_price: config.lunch_price,
+        order_deadline_time: config.order_deadline_time,
+        order_deadline_days: config.order_deadline_days,
+        cancellation_deadline_time: config.cancellation_deadline_time,
+        cancellation_deadline_days: config.cancellation_deadline_days,
+        orders_enabled: config.orders_enabled,
+        delivery_start_time: config.delivery_start_time,
+        delivery_end_time: config.delivery_end_time,
+        auto_close_day: config.auto_close_day,
+        auto_mark_as_delivered: config.auto_mark_as_delivered,
+      };
+
+      // Usar upsert para crear o actualizar (funciona tanto para config nueva como existente)
+      const { data: savedConfig, error } = await supabase
         .from('lunch_configuration')
-        .update({
-          lunch_price: config.lunch_price,
-          order_deadline_time: config.order_deadline_time,
-          order_deadline_days: config.order_deadline_days,
-          cancellation_deadline_time: config.cancellation_deadline_time,
-          cancellation_deadline_days: config.cancellation_deadline_days,
-          orders_enabled: config.orders_enabled,
-          delivery_start_time: config.delivery_start_time,
-          delivery_end_time: config.delivery_end_time,
-          auto_close_day: config.auto_close_day,
-          auto_mark_as_delivered: config.auto_mark_as_delivered,
-        })
-        .eq('id', config.id);
+        .upsert(payload, { onConflict: 'school_id' })
+        .select()
+        .single();
 
-      if (error) {
-        console.error('❌ ERROR al guardar:', error);
-        throw error;
-      }
+      if (error) throw error;
 
-      console.log('✅ Configuración guardada exitosamente');
+      // Actualizar config local con el ID real de la BD
+      if (savedConfig) setConfig(savedConfig);
       
       toast({
-        title: '✅ Configuración Guardada',
+        title: 'Configuración Guardada',
         description: 'Los cambios se aplicaron correctamente',
       });
     } catch (error: any) {
-      console.error('❌ Error saving configuration:', error);
+      console.error('Error saving configuration:', error);
       toast({
         variant: 'destructive',
-        title: 'Error',
-        description: 'No se pudo guardar la configuración',
+        title: 'Error al guardar',
+        description: error.message || 'No se pudo guardar la configuración',
       });
     } finally {
       setSaving(false);
