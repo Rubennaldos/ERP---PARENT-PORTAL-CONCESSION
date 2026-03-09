@@ -532,10 +532,6 @@ export function PhysicalOrderWizard({ isOpen, onClose, schoolId, selectedDate, o
         } else {
           orderData.manual_name = manualName;
           orderData.payment_method = cashPaymentMethod;
-          
-          if (cashPaymentMethod !== 'pagar_luego') {
-            orderData.payment_details = paymentDetails;
-          }
         }
 
         const { data: insertedOrder, error: orderError } = await supabase
