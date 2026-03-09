@@ -313,6 +313,7 @@ const LunchCalendar = () => {
             ? {
                 type: specialDay.special_day_type || '',
                 title: specialDay.special_day_title || '',
+                school_id: specialDay.school_id || null,
               }
             : undefined,
         });
@@ -337,8 +338,10 @@ const LunchCalendar = () => {
 
   const handleSetDayState = async (date: Date, type: string, schoolIds: string[] | null) => {
     try {
+      // Usar formato local para evitar desfase UTC (evita toISOString que convierte a UTC)
+      const localDate = format(date, 'yyyy-MM-dd');
       const { error } = await supabase.rpc('set_day_state', {
-        p_date: date.toISOString().split('T')[0],
+        p_date: localDate,
         p_type: type,
         p_school_ids: schoolIds,
       });
@@ -403,12 +406,13 @@ const LunchCalendar = () => {
         main_course_alternatives: menuToRepeat.main_course_alternatives || [],
         beverage_alternatives: menuToRepeat.beverage_alternatives || [],
         dessert_alternatives: menuToRepeat.dessert_alternatives || [],
-        created_by: user?.id,
+        created_by: user?.id ?? null,
       }));
 
+      // Usar upsert para que un duplicado no bloquee todos los días válidos
       const { error } = await supabase
         .from('lunch_menus')
-        .insert(menusToInsert);
+        .upsert(menusToInsert, { onConflict: 'school_id,date,category_id', ignoreDuplicates: false });
 
       if (error) throw error;
 
@@ -825,10 +829,16 @@ const LunchCalendar = () => {
                       
                       // Prioridad: días especiales > menús > weekend > default
                       if (isSpecialDay) {
-                        if (dayData.specialDayInfo!.type === 'feriado') {
+                        const stype = dayData.specialDayInfo!.type;
+                        if (stype === 'feriado') {
                           bgClass = 'bg-red-100 hover:bg-red-200 border-red-300';
-                        } else if (dayData.specialDayInfo!.type === 'no_laborable') {
+                        } else if (stype === 'no_laborable') {
                           bgClass = 'bg-gray-300 hover:bg-gray-400 border-gray-500';
+                        } else if (stype === 'suspension') {
+                          bgClass = 'bg-orange-100 hover:bg-orange-200 border-orange-300';
+                        } else {
+                          // 'otro' u otro tipo
+                          bgClass = 'bg-yellow-100 hover:bg-yellow-200 border-yellow-300';
                         }
                       } else if (hasMenus) {
                         bgClass = 'bg-green-100 hover:bg-green-200 border-green-300';
@@ -1190,14 +1200,16 @@ const LunchCalendar = () => {
                 Nuevo Pedido
               </Button>
               
-              <Button 
-                onClick={handleCreateAnotherMenu}
-                className="w-full gap-2 bg-green-600 hover:bg-green-700"
-                size="lg"
-              >
-                <Plus className="h-5 w-5" />
-                Crear un nuevo menú adicional
-              </Button>
+              {canCreate && (
+                <Button 
+                  onClick={handleCreateAnotherMenu}
+                  className="w-full gap-2 bg-green-600 hover:bg-green-700"
+                  size="lg"
+                >
+                  <Plus className="h-5 w-5" />
+                  Crear un nuevo menú adicional
+                </Button>
+              )}
               
               <Button 
                 onClick={handleViewExistingMenus}

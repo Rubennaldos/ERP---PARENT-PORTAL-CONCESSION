@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
@@ -66,7 +66,7 @@ export const LunchMenuModal = ({
   const [categoryToppings, setCategoryToppings] = useState<Array<{name: string, price: number}>>([]);
   const [formData, setFormData] = useState({
     school_id: userSchoolId || '',
-    date: initialDate ? initialDate.toISOString().split('T')[0] : '',
+    date: initialDate ? format(initialDate, 'yyyy-MM-dd') : '',
     starter: '',
     main_course: '',
     beverage: '',
@@ -99,7 +99,7 @@ export const LunchMenuModal = ({
       
       setFormData({
         school_id: userSchoolId || '',
-        date: initialDate ? initialDate.toISOString().split('T')[0] : '',
+        date: initialDate ? format(initialDate, 'yyyy-MM-dd') : '',
         starter: '',
         main_course: '',
         beverage: '',
@@ -407,7 +407,7 @@ export const LunchMenuModal = ({
               <div className="space-y-2">
                 <Badge variant="outline" className="gap-1">
                   <Tag className="h-3 w-3" />
-                  {preSelectedCategoryName} - {preSelectedTargetType === 'students' ? 'Alumnos' : 'Profesores'}
+                  {preSelectedCategoryName} - {preSelectedTargetType === 'students' ? 'Alumnos' : preSelectedTargetType === 'teachers' ? 'Profesores' : 'Todos'}
                 </Badge>
                 
                 {/* Mostrar toppings disponibles */}

@@ -1,19 +1,19 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
+import { Badge } from '@/components/ui/badge';
 import {
   Select,
   SelectContent,
@@ -21,15 +21,27 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Loader2, Plus, Trash2, Calendar, Copy, CopyCheck } from 'lucide-react';
+import { Loader2, Plus, Trash2, Calendar, Copy, CopyCheck, ChevronDown, ChevronUp, Wand2 } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
+import { MenuAlternativesEditor } from './MenuAlternativesEditor';
+import { format, parseISO, getDay } from 'date-fns';
+import { es } from 'date-fns/locale';
 
 interface School {
   id: string;
   name: string;
   color?: string;
+}
+
+interface Category {
+  id: string;
+  name: string;
+  icon?: string;
+  color?: string;
+  target_type: string;
+  price?: number;
 }
 
 interface MassUploadModalProps {
@@ -47,7 +59,34 @@ interface MenuEntry {
   beverage: string;
   dessert: string;
   notes: string;
+  starter_alternatives: string[];
+  main_course_alternatives: string[];
+  beverage_alternatives: string[];
+  dessert_alternatives: string[];
+  showOptions: boolean;
 }
+
+const FIELD_LABELS: Record<string, string> = {
+  starter: '🥗 Entrada',
+  main_course: '🍲 Segundo',
+  beverage: '🥤 Bebida',
+  dessert: '🍰 Postre',
+};
+
+const emptyEntry = (): MenuEntry => ({
+  id: crypto.randomUUID(),
+  date: '',
+  starter: '',
+  main_course: '',
+  beverage: '',
+  dessert: '',
+  notes: '',
+  starter_alternatives: [],
+  main_course_alternatives: [],
+  beverage_alternatives: [],
+  dessert_alternatives: [],
+  showOptions: false,
+});
 
 export const MassUploadModal = ({
   isOpen,
@@ -60,21 +99,49 @@ export const MassUploadModal = ({
 
   const [loading, setLoading] = useState(false);
   const [selectedSchools, setSelectedSchools] = useState<string[]>([]);
-  const [dateRange, setDateRange] = useState({
-    start: '',
-    end: '',
-  });
-  const [entries, setEntries] = useState<MenuEntry[]>([
-    {
-      id: crypto.randomUUID(),
-      date: '',
-      starter: '',
-      main_course: '',
-      beverage: '',
-      dessert: '',
-      notes: '',
-    },
-  ]);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string>('none');
+  const [dateStart, setDateStart] = useState('');
+  const [dateEnd, setDateEnd] = useState('');
+  const [entries, setEntries] = useState<MenuEntry[]>([emptyEntry()]);
+
+  // Propagación de campo: rellenar un campo específico a todos los días
+  const [propagateField, setPropagateField] = useState<keyof MenuEntry>('starter');
+  const [propagateValue, setPropagateValue] = useState('');
+  const [showPropagate, setShowPropagate] = useState(false);
+
+  // Reset completo al abrir/cerrar
+  useEffect(() => {
+    if (isOpen) {
+      setSelectedSchools([]);
+      setSelectedCategoryId('none');
+      setDateStart('');
+      setDateEnd('');
+      setEntries([emptyEntry()]);
+      setPropagateValue('');
+      setShowPropagate(false);
+    }
+  }, [isOpen]);
+
+  // Cargar categorías cuando cambian las sedes seleccionadas
+  useEffect(() => {
+    if (!isOpen || selectedSchools.length === 0) {
+      setCategories([]);
+      setSelectedCategoryId('none');
+      return;
+    }
+    const loadCategories = async () => {
+      const { data } = await supabase
+        .from('lunch_categories')
+        .select('id, name, icon, color, target_type, price')
+        .in('school_id', selectedSchools)
+        .eq('is_active', true)
+        .eq('is_kitchen_sale', false)
+        .order('display_order', { ascending: true });
+      setCategories(data || []);
+    };
+    loadCategories();
+  }, [selectedSchools, isOpen]);
 
   const toggleSchool = (schoolId: string) => {
     setSelectedSchools((prev) =>
@@ -84,30 +151,22 @@ export const MassUploadModal = ({
     );
   };
 
-  const addEntry = () => {
-    setEntries((prev) => [
-      ...prev,
-      {
-        id: crypto.randomUUID(),
-        date: '',
-        starter: '',
-        main_course: '',
-        beverage: '',
-        dessert: '',
-        notes: '',
-      },
-    ]);
-  };
+  const addEntry = () => setEntries((prev) => [...prev, emptyEntry()]);
 
   const removeEntry = (id: string) => {
-    setEntries((prev) => prev.filter((entry) => entry.id !== id));
+    if (entries.length === 1) return;
+    setEntries((prev) => prev.filter((e) => e.id !== id));
   };
 
-  const updateEntry = (id: string, field: keyof MenuEntry, value: string) => {
+  const updateEntry = (id: string, field: keyof MenuEntry, value: string | string[] | boolean) => {
     setEntries((prev) =>
-      prev.map((entry) =>
-        entry.id === id ? { ...entry, [field]: value } : entry
-      )
+      prev.map((entry) => (entry.id === id ? { ...entry, [field]: value } : entry))
+    );
+  };
+
+  const toggleEntryOptions = (id: string) => {
+    setEntries((prev) =>
+      prev.map((e) => (e.id === id ? { ...e, showOptions: !e.showOptions } : e))
     );
   };
 
@@ -123,6 +182,10 @@ export const MassUploadModal = ({
         beverage: source.beverage,
         dessert: source.dessert,
         notes: source.notes,
+        starter_alternatives: [...source.starter_alternatives],
+        main_course_alternatives: [...source.main_course_alternatives],
+        beverage_alternatives: [...source.beverage_alternatives],
+        dessert_alternatives: [...source.dessert_alternatives],
       };
       return updated;
     });
@@ -133,7 +196,7 @@ export const MassUploadModal = ({
     if (entries.length < 2) return;
     const source = entries[0];
     if (!source.main_course.trim()) {
-      toast({ title: 'Sin datos', description: 'Primero completa el menú del primer día', variant: 'destructive' });
+      toast({ title: 'Sin datos', description: 'Completa el segundo plato del primer día antes', variant: 'destructive' });
       return;
     }
     setEntries((prev) =>
@@ -147,93 +210,95 @@ export const MassUploadModal = ({
               beverage: source.beverage,
               dessert: source.dessert,
               notes: source.notes,
+              starter_alternatives: [...source.starter_alternatives],
+              main_course_alternatives: [...source.main_course_alternatives],
+              beverage_alternatives: [...source.beverage_alternatives],
+              dessert_alternatives: [...source.dessert_alternatives],
             }
       )
     );
-    toast({ title: 'Rellenado', description: `Se copió el menú del primer día a los otros ${entries.length - 1} días` });
+    toast({ title: 'Rellenado', description: `Primer día copiado a los otros ${entries.length - 1} días` });
   };
 
-  const generateDateRange = () => {
-    if (!dateRange.start || !dateRange.end) {
-      toast({
-        title: 'Rango incompleto',
-        description: 'Por favor selecciona fecha de inicio y fin',
-        variant: 'destructive',
-      });
+  // Propagar un campo específico a todos los días
+  const applyPropagation = () => {
+    if (!propagateValue.trim()) {
+      toast({ title: 'Sin valor', description: 'Escribe el valor a propagar', variant: 'destructive' });
       return;
     }
+    setEntries((prev) =>
+      prev.map((entry) => ({ ...entry, [propagateField]: propagateValue.trim() }))
+    );
+    toast({ title: 'Propagado', description: `${FIELD_LABELS[propagateField as string]} aplicado a todos los días` });
+    setPropagateValue('');
+  };
 
-    const start = new Date(dateRange.start);
-    const end = new Date(dateRange.end);
+  const generateDays = () => {
+    if (!dateStart || !dateEnd) {
+      toast({ title: 'Fechas incompletas', description: 'Selecciona fecha de inicio y fin', variant: 'destructive' });
+      return;
+    }
+    // Fix UTC: construir fechas con componentes locales
+    const [sy, sm, sd] = dateStart.split('-').map(Number);
+    const [ey, em, ed] = dateEnd.split('-').map(Number);
+    const start = new Date(sy, sm - 1, sd);
+    const endDate = new Date(ey, em - 1, ed);
 
-    if (start > end) {
-      toast({
-        title: 'Rango inválido',
-        description: 'La fecha de inicio debe ser anterior a la fecha de fin',
-        variant: 'destructive',
-      });
+    if (start > endDate) {
+      toast({ title: 'Rango inválido', description: 'La fecha de inicio debe ser anterior al fin', variant: 'destructive' });
       return;
     }
 
     const newEntries: MenuEntry[] = [];
     const current = new Date(start);
-
-    while (current <= end) {
-      // Solo agregar días de semana (lunes a viernes)
-      const dayOfWeek = current.getDay();
-      if (dayOfWeek !== 0 && dayOfWeek !== 6) {
-        newEntries.push({
-          id: crypto.randomUUID(),
-          date: current.toISOString().split('T')[0],
-          starter: '',
-          main_course: '',
-          beverage: '',
-          dessert: '',
-          notes: '',
-        });
+    while (current <= endDate) {
+      const dow = current.getDay();
+      if (dow !== 0 && dow !== 6) { // solo lunes a viernes
+        const y = current.getFullYear();
+        const m = String(current.getMonth() + 1).padStart(2, '0');
+        const d = String(current.getDate()).padStart(2, '0');
+        newEntries.push({ ...emptyEntry(), date: `${y}-${m}-${d}` });
       }
       current.setDate(current.getDate() + 1);
     }
 
-    setEntries(newEntries);
+    if (newEntries.length === 0) {
+      toast({ title: 'Sin días', description: 'No hay días de semana en ese rango', variant: 'destructive' });
+      return;
+    }
 
-    toast({
-      title: 'Fechas generadas',
-      description: `Se generaron ${newEntries.length} días (solo días de semana)`,
-    });
+    setEntries(newEntries);
+    toast({ title: 'Días generados', description: `${newEntries.length} días hábiles (lunes a viernes)` });
   };
+
+  const formatDate = (dateStr: string) => {
+    if (!dateStr) return '';
+    const [y, m, d] = dateStr.split('-').map(Number);
+    const date = new Date(y, m - 1, d);
+    return format(date, "EEE d MMM", { locale: es });
+  };
+
+  const selectedCategory = categories.find(c => c.id === selectedCategoryId);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (selectedSchools.length === 0) {
-      toast({
-        title: 'Sin sedes',
-        description: 'Por favor selecciona al menos una sede',
-        variant: 'destructive',
-      });
+      toast({ title: 'Sin sede', description: 'Selecciona al menos una sede', variant: 'destructive' });
       return;
     }
 
-    // Validar que cada entrada tenga fecha y segundo plato
-    const invalidEntries = entries.filter(
-      (entry) => !entry.date || !entry.main_course.trim()
-    );
-
-    if (invalidEntries.length > 0) {
-      toast({
-        title: 'Entradas incompletas',
-        description: 'Todas las entradas deben tener fecha y segundo plato',
-        variant: 'destructive',
-      });
+    const invalid = entries.filter((e) => !e.date || !e.main_course.trim());
+    if (invalid.length > 0) {
+      toast({ title: 'Faltan datos', description: `${invalid.length} fila(s) sin fecha o segundo plato`, variant: 'destructive' });
       return;
     }
 
     setLoading(true);
     try {
-      // Crear un menú por cada combinación de sede y entrada
-      const menusToInsert = [];
+      const targetType = selectedCategory?.target_type || 'both';
 
+      const menusToInsert = [];
       for (const schoolId of selectedSchools) {
         for (const entry of entries) {
           menusToInsert.push({
@@ -244,279 +309,424 @@ export const MassUploadModal = ({
             beverage: entry.beverage.trim() || null,
             dessert: entry.dessert.trim() || null,
             notes: entry.notes.trim() || null,
-            target_type: 'both',
-            created_by: user?.id,
-            starter_alternatives: [],
-            main_course_alternatives: [],
-            beverage_alternatives: [],
-            dessert_alternatives: [],
+            category_id: selectedCategoryId !== 'none' ? selectedCategoryId : null,
+            target_type: targetType,
+            created_by: user?.id ?? null,
+            starter_alternatives: entry.starter_alternatives.filter(a => a.trim()),
+            main_course_alternatives: entry.main_course_alternatives.filter(a => a.trim()),
+            beverage_alternatives: entry.beverage_alternatives.filter(a => a.trim()),
+            dessert_alternatives: entry.dessert_alternatives.filter(a => a.trim()),
           });
         }
       }
 
-      // Insertar todos los menús (usando upsert para evitar duplicados)
       const { error } = await supabase
         .from('lunch_menus')
         .upsert(menusToInsert, {
-          onConflict: 'school_id,date',
-          ignoreDuplicates: false, // Actualizar si ya existe
+          onConflict: 'school_id,date,category_id',
+          ignoreDuplicates: false,
         });
 
-      if (error) throw error;
+      if (error) {
+        if (error.code === '23505') throw new Error('Ya existen menús para alguna de las fechas seleccionadas. Verifica que no haya duplicados.');
+        if (error.code === '23503') throw new Error('La categoría o sede seleccionada ya no existe. Recarga la página.');
+        throw error;
+      }
 
-      toast({
-        title: 'Carga exitosa',
-        description: `Se cargaron ${menusToInsert.length} menús para ${selectedSchools.length} sede(s)`,
-      });
-
+      toast({ title: 'Menús guardados', description: `${menusToInsert.length} menú(s) para ${selectedSchools.length} sede(s)` });
       onSuccess();
     } catch (error: any) {
-      console.error('Error during mass upload:', error);
-      toast({
-        title: 'Error',
-        description: 'No se pudieron cargar todos los menús',
-        variant: 'destructive',
-      });
+      toast({ title: 'Error al guardar', description: error.message || 'No se pudieron guardar los menús', variant: 'destructive' });
     } finally {
       setLoading(false);
     }
   };
 
+  const totalMenus = entries.length * selectedSchools.length;
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-6xl max-h-[95vh] overflow-y-auto">
+      <DialogContent className="max-w-5xl max-h-[95vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Carga Masiva de Menús</DialogTitle>
+          <DialogTitle className="text-xl">Carga masiva de menús</DialogTitle>
           <DialogDescription>
-            Carga múltiples menús a la vez para una o más sedes
+            Crea varios menús de una vez. Elige la sede, la categoría y los días.
           </DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Selección de sedes */}
+        <form onSubmit={handleSubmit} className="space-y-5">
+
+          {/* PASO 1: SEDES */}
           <Card>
-            <CardContent className="pt-6">
-              <Label className="text-sm font-medium mb-3 block">
-                Sedes a aplicar (selecciona múltiples)
-              </Label>
-              <div className="grid grid-cols-3 gap-3">
-                {schools.map((school) => (
-                  <div key={school.id} className="flex items-center space-x-2">
-                    <Checkbox
-                      id={`mass-school-${school.id}`}
-                      checked={selectedSchools.includes(school.id)}
-                      onCheckedChange={() => toggleSchool(school.id)}
-                    />
-                    <label
-                      htmlFor={`mass-school-${school.id}`}
-                      className="text-sm flex items-center gap-2 cursor-pointer"
-                    >
+            <CardHeader className="py-3 px-4">
+              <CardTitle className="text-sm font-semibold text-stone-700 flex items-center gap-2">
+                <span className="bg-emerald-600 text-white rounded-full w-5 h-5 flex items-center justify-center text-[11px]">1</span>
+                ¿A qué sede(s) aplica?
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="pt-0 px-4 pb-4">
+              {schools.length === 0 ? (
+                <p className="text-xs text-muted-foreground">No hay sedes disponibles.</p>
+              ) : (
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                  {schools.map((school) => (
+                    <label key={school.id} className="flex items-center gap-2 cursor-pointer text-sm p-2 rounded-lg border hover:bg-stone-50 transition-colors">
+                      <Checkbox
+                        checked={selectedSchools.includes(school.id)}
+                        onCheckedChange={() => toggleSchool(school.id)}
+                      />
                       {school.color && (
-                        <div
-                          className="w-3 h-3 rounded-full flex-shrink-0"
-                          style={{ backgroundColor: school.color }}
-                        />
+                        <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: school.color }} />
                       )}
                       <span className="truncate">{school.name}</span>
                     </label>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              )}
             </CardContent>
           </Card>
 
-          {/* Generador de rango de fechas */}
+          {/* PASO 2: CATEGORÍA */}
           <Card>
-            <CardContent className="pt-6">
-              <Label className="text-sm font-medium mb-3 block">
-                <Calendar className="inline h-4 w-4 mr-2" />
-                Generador Rápido (solo días de semana)
-              </Label>
-              <div className="flex gap-3 items-end">
-                <div className="flex-1">
-                  <Label htmlFor="start-date" className="text-xs">
-                    Fecha inicio
-                  </Label>
-                  <Input
-                    id="start-date"
-                    type="date"
-                    value={dateRange.start}
-                    onChange={(e) =>
-                      setDateRange((prev) => ({ ...prev, start: e.target.value }))
-                    }
-                  />
+            <CardHeader className="py-3 px-4">
+              <CardTitle className="text-sm font-semibold text-stone-700 flex items-center gap-2">
+                <span className="bg-emerald-600 text-white rounded-full w-5 h-5 flex items-center justify-center text-[11px]">2</span>
+                ¿A qué categoría de menú corresponde?
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="pt-0 px-4 pb-4">
+              {selectedSchools.length === 0 ? (
+                <p className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                  Selecciona una sede primero para ver las categorías disponibles.
+                </p>
+              ) : categories.length === 0 ? (
+                <p className="text-xs text-muted-foreground">
+                  No hay categorías activas para la(s) sede(s) seleccionada(s). Puedes crear categorías desde el Calendario de Almuerzos.
+                </p>
+              ) : (
+                <div className="space-y-2">
+                  <Select value={selectedCategoryId} onValueChange={setSelectedCategoryId}>
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Selecciona una categoría..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">Sin categoría (visible para todos)</SelectItem>
+                      {categories.map((cat) => (
+                        <SelectItem key={cat.id} value={cat.id}>
+                          <div className="flex items-center gap-2">
+                            {cat.icon && <span>{cat.icon}</span>}
+                            <span>{cat.name}</span>
+                            <span className="text-xs text-muted-foreground">
+                              — {cat.target_type === 'students' ? 'Alumnos' : cat.target_type === 'teachers' ? 'Profesores' : 'Todos'}
+                              {cat.price ? ` · S/ ${cat.price.toFixed(2)}` : ''}
+                            </span>
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {selectedCategory && (
+                    <div className="flex items-center gap-2 text-xs text-stone-500 bg-stone-50 border rounded-lg px-3 py-2">
+                      <span>{selectedCategory.icon}</span>
+                      <span className="font-medium" style={{ color: selectedCategory.color || '#10b981' }}>{selectedCategory.name}</span>
+                      <Badge variant="secondary" className="text-[10px]">
+                        {selectedCategory.target_type === 'students' ? 'Alumnos' : selectedCategory.target_type === 'teachers' ? 'Profesores' : 'Todos'}
+                      </Badge>
+                      {selectedCategory.price && (
+                        <Badge variant="outline" className="text-[10px]">S/ {selectedCategory.price.toFixed(2)}</Badge>
+                      )}
+                    </div>
+                  )}
                 </div>
-                <div className="flex-1">
-                  <Label htmlFor="end-date" className="text-xs">
-                    Fecha fin
-                  </Label>
-                  <Input
-                    id="end-date"
-                    type="date"
-                    value={dateRange.end}
-                    onChange={(e) =>
-                      setDateRange((prev) => ({ ...prev, end: e.target.value }))
-                    }
-                  />
+              )}
+            </CardContent>
+          </Card>
+
+          {/* PASO 3: GENERAR DÍAS */}
+          <Card>
+            <CardHeader className="py-3 px-4">
+              <CardTitle className="text-sm font-semibold text-stone-700 flex items-center gap-2">
+                <span className="bg-emerald-600 text-white rounded-full w-5 h-5 flex items-center justify-center text-[11px]">3</span>
+                ¿Qué días quieres cargar?
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="pt-0 px-4 pb-4 space-y-2">
+              <p className="text-xs text-stone-500">Elige un rango y se generarán automáticamente solo los días de lunes a viernes.</p>
+              <div className="flex gap-2 items-end flex-wrap">
+                <div>
+                  <Label className="text-xs text-stone-500">Desde</Label>
+                  <Input type="date" value={dateStart} onChange={(e) => setDateStart(e.target.value)} className="h-9 text-sm w-40" />
                 </div>
-                <Button
-                  type="button"
-                  variant="secondary"
-                  onClick={generateDateRange}
-                >
-                  Generar Fechas
+                <div>
+                  <Label className="text-xs text-stone-500">Hasta</Label>
+                  <Input type="date" value={dateEnd} onChange={(e) => setDateEnd(e.target.value)} className="h-9 text-sm w-40" />
+                </div>
+                <Button type="button" variant="secondary" onClick={generateDays} className="h-9 gap-2">
+                  <Calendar className="h-4 w-4" />
+                  Generar días
+                </Button>
+                <Button type="button" variant="outline" onClick={addEntry} className="h-9 gap-2">
+                  <Plus className="h-4 w-4" />
+                  Añadir día manualmente
                 </Button>
               </div>
             </CardContent>
           </Card>
 
-          {/* Listado de menús */}
-          <div className="space-y-3">
-            <div className="flex items-center justify-between flex-wrap gap-2">
-              <Label className="text-sm font-medium">
-                Menús a cargar ({entries.length})
+          {/* HERRAMIENTA DE PROPAGACIÓN */}
+          {entries.length >= 2 && (
+            <div className="border border-dashed border-blue-300 rounded-xl p-3 bg-blue-50/40">
+              <button
+                type="button"
+                onClick={() => setShowPropagate(!showPropagate)}
+                className="flex items-center gap-2 text-sm font-medium text-blue-700 w-full"
+              >
+                <Wand2 className="h-4 w-4" />
+                Herramientas rápidas de relleno
+                {showPropagate ? <ChevronUp className="h-4 w-4 ml-auto" /> : <ChevronDown className="h-4 w-4 ml-auto" />}
+              </button>
+
+              {showPropagate && (
+                <div className="mt-3 space-y-3">
+                  {/* Rellenar todos igual al primero */}
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <Button type="button" variant="outline" size="sm" onClick={fillAllFromFirst} className="text-blue-700 border-blue-300 bg-white hover:bg-blue-50 gap-2">
+                      <CopyCheck className="h-4 w-4" />
+                      Copiar primer día a todos los demás
+                    </Button>
+                    <span className="text-xs text-stone-400">— copia entrada, segundo, bebida y postre del día 1 a todos</span>
+                  </div>
+
+                  {/* Propagar un campo específico */}
+                  <div className="bg-white border border-blue-200 rounded-lg p-3 space-y-2">
+                    <p className="text-xs font-semibold text-blue-800">Repetir un campo específico en todos los días:</p>
+                    <div className="flex gap-2 items-end flex-wrap">
+                      <div className="space-y-1">
+                        <Label className="text-[10px] text-stone-500">Campo</Label>
+                        <Select value={propagateField as string} onValueChange={(v) => setPropagateField(v as keyof MenuEntry)}>
+                          <SelectTrigger className="h-8 text-xs w-32">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="starter">🥗 Entrada</SelectItem>
+                            <SelectItem value="main_course">🍲 Segundo</SelectItem>
+                            <SelectItem value="beverage">🥤 Bebida</SelectItem>
+                            <SelectItem value="dessert">🍰 Postre</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-1 flex-1 min-w-40">
+                        <Label className="text-[10px] text-stone-500">Valor</Label>
+                        <Input
+                          value={propagateValue}
+                          onChange={(e) => setPropagateValue(e.target.value)}
+                          placeholder={`Ej: ${propagateField === 'starter' ? 'Ensalada fresca' : propagateField === 'main_course' ? 'Arroz con pollo' : propagateField === 'beverage' ? 'Refresco' : 'Fruta'}`}
+                          className="h-8 text-xs"
+                          onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); applyPropagation(); } }}
+                        />
+                      </div>
+                      <Button type="button" size="sm" onClick={applyPropagation} className="h-8 bg-blue-600 hover:bg-blue-700 text-white gap-1.5">
+                        <Wand2 className="h-3.5 w-3.5" />
+                        Aplicar a todos
+                      </Button>
+                    </div>
+                    <p className="text-[10px] text-stone-400">Presiona Enter o el botón para aplicar este valor a todos los días de la lista.</p>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* PASO 4: LISTA DE MENÚS */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <Label className="text-sm font-semibold text-stone-700 flex items-center gap-2">
+                <span className="bg-emerald-600 text-white rounded-full w-5 h-5 flex items-center justify-center text-[11px]">4</span>
+                Menús del día ({entries.length} {entries.length === 1 ? 'día' : 'días'})
               </Label>
-              <div className="flex gap-2">
-                {entries.length >= 2 && (
-                  <Button type="button" variant="outline" size="sm" onClick={fillAllFromFirst} className="text-blue-600 border-blue-300 hover:bg-blue-50">
-                    <CopyCheck className="h-4 w-4 mr-2" />
-                    Rellenar todos igual al primero
-                  </Button>
-                )}
-                <Button type="button" variant="outline" size="sm" onClick={addEntry}>
-                  <Plus className="h-4 w-4 mr-2" />
-                  Agregar entrada manual
-                </Button>
-              </div>
             </div>
 
-            <div className="space-y-3 max-h-96 overflow-y-auto pr-2">
+            <div className="space-y-2 max-h-[380px] overflow-y-auto pr-1">
               {entries.map((entry, index) => (
-                <Card key={entry.id}>
-                  <CardContent className="pt-4">
-                    <div className="grid grid-cols-12 gap-3">
+                <Card key={entry.id} className="border-stone-200">
+                  <CardContent className="pt-3 pb-2 px-3">
+                    {/* Fila principal */}
+                    <div className="grid grid-cols-12 gap-2 items-end">
+                      {/* Fecha */}
                       <div className="col-span-2">
-                        <Label htmlFor={`date-${entry.id}`} className="text-xs">
-                          Fecha *
-                        </Label>
+                        <Label className="text-[10px] text-stone-500 uppercase tracking-wider">Fecha *</Label>
                         <Input
-                          id={`date-${entry.id}`}
                           type="date"
                           value={entry.date}
-                          onChange={(e) =>
-                            updateEntry(entry.id, 'date', e.target.value)
-                          }
+                          onChange={(e) => updateEntry(entry.id, 'date', e.target.value)}
                           disabled={loading}
-                          required
+                          className="h-8 text-xs"
                         />
+                        {entry.date && (
+                          <p className="text-[10px] text-emerald-700 font-medium mt-0.5 capitalize">
+                            {formatDate(entry.date)}
+                          </p>
+                        )}
                       </div>
+
+                      {/* Entrada */}
                       <div className="col-span-2">
-                        <Label htmlFor={`starter-${entry.id}`} className="text-xs">
-                          🥗 Entrada
-                        </Label>
+                        <Label className="text-[10px] text-stone-500 uppercase tracking-wider">🥗 Entrada</Label>
                         <Input
-                          id={`starter-${entry.id}`}
                           value={entry.starter}
-                          onChange={(e) =>
-                            updateEntry(entry.id, 'starter', e.target.value)
-                          }
+                          onChange={(e) => updateEntry(entry.id, 'starter', e.target.value)}
                           disabled={loading}
-                          placeholder="Entrada"
+                          placeholder="Ensalada..."
+                          className="h-8 text-xs"
                         />
                       </div>
+
+                      {/* Segundo */}
                       <div className="col-span-3">
-                        <Label htmlFor={`main-${entry.id}`} className="text-xs">
-                          🍲 Segundo *
-                        </Label>
+                        <Label className="text-[10px] text-stone-500 uppercase tracking-wider">🍲 Segundo *</Label>
                         <Input
-                          id={`main-${entry.id}`}
                           value={entry.main_course}
-                          onChange={(e) =>
-                            updateEntry(entry.id, 'main_course', e.target.value)
-                          }
+                          onChange={(e) => updateEntry(entry.id, 'main_course', e.target.value)}
                           disabled={loading}
-                          placeholder="Segundo plato"
+                          placeholder="Segundo plato..."
+                          className="h-8 text-xs"
                           required
                         />
                       </div>
+
+                      {/* Bebida */}
                       <div className="col-span-2">
-                        <Label htmlFor={`beverage-${entry.id}`} className="text-xs">
-                          🥤 Bebida
-                        </Label>
+                        <Label className="text-[10px] text-stone-500 uppercase tracking-wider">🥤 Bebida</Label>
                         <Input
-                          id={`beverage-${entry.id}`}
                           value={entry.beverage}
-                          onChange={(e) =>
-                            updateEntry(entry.id, 'beverage', e.target.value)
-                          }
+                          onChange={(e) => updateEntry(entry.id, 'beverage', e.target.value)}
                           disabled={loading}
-                          placeholder="Bebida"
+                          placeholder="Refresco..."
+                          className="h-8 text-xs"
                         />
                       </div>
+
+                      {/* Postre */}
                       <div className="col-span-2">
-                        <Label htmlFor={`dessert-${entry.id}`} className="text-xs">
-                          🍰 Postre
-                        </Label>
+                        <Label className="text-[10px] text-stone-500 uppercase tracking-wider">🍰 Postre</Label>
                         <Input
-                          id={`dessert-${entry.id}`}
                           value={entry.dessert}
-                          onChange={(e) =>
-                            updateEntry(entry.id, 'dessert', e.target.value)
-                          }
+                          onChange={(e) => updateEntry(entry.id, 'dessert', e.target.value)}
                           disabled={loading}
-                          placeholder="Postre"
+                          placeholder="Postre..."
+                          className="h-8 text-xs"
                         />
                       </div>
-                      <div className="col-span-1 flex items-end gap-0.5">
+
+                      {/* Acciones */}
+                      <div className="col-span-1 flex items-end justify-end gap-0.5 pb-0.5">
+                        <button
+                          type="button"
+                          onClick={() => toggleEntryOptions(entry.id)}
+                          className="text-[10px] text-blue-500 hover:text-blue-700 px-1 py-1 rounded"
+                          title="Opciones adicionales"
+                        >
+                          {entry.showOptions ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+                        </button>
                         {index > 0 && (
                           <TooltipProvider>
                             <Tooltip>
                               <TooltipTrigger asChild>
-                                <Button
+                                <button
                                   type="button"
-                                  variant="ghost"
-                                  size="icon"
                                   onClick={() => copyFromPrevious(index)}
                                   disabled={loading}
-                                  className="h-8 w-8"
+                                  className="p-1 rounded text-blue-400 hover:text-blue-700"
                                 >
-                                  <Copy className="h-3.5 w-3.5 text-blue-500" />
-                                </Button>
+                                  <Copy className="h-3.5 w-3.5" />
+                                </button>
                               </TooltipTrigger>
-                              <TooltipContent>Copiar del día anterior</TooltipContent>
+                              <TooltipContent side="top" className="text-xs">Copiar menú del día anterior</TooltipContent>
                             </Tooltip>
                           </TooltipProvider>
                         )}
-                        <Button
+                        <button
                           type="button"
-                          variant="ghost"
-                          size="icon"
                           onClick={() => removeEntry(entry.id)}
                           disabled={loading || entries.length === 1}
-                          className="h-8 w-8"
+                          className="p-1 rounded text-red-400 hover:text-red-600 disabled:opacity-30"
                         >
-                          <Trash2 className="h-3.5 w-3.5 text-red-500" />
-                        </Button>
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
                       </div>
                     </div>
+
+                    {/* Opciones adicionales expandibles */}
+                    {entry.showOptions && (
+                      <div className="mt-2 pt-2 border-t border-dashed border-stone-200 grid grid-cols-2 gap-3">
+                        <MenuAlternativesEditor
+                          label="Entrada"
+                          icon="🥗"
+                          alternatives={entry.starter_alternatives}
+                          onChange={(alts) => updateEntry(entry.id, 'starter_alternatives' as keyof MenuEntry, alts as any)}
+                          defaultValue={entry.starter}
+                          placeholder="Opción alternativa de entrada..."
+                        />
+                        <MenuAlternativesEditor
+                          label="Segundo"
+                          icon="🍲"
+                          alternatives={entry.main_course_alternatives}
+                          onChange={(alts) => updateEntry(entry.id, 'main_course_alternatives' as keyof MenuEntry, alts as any)}
+                          defaultValue={entry.main_course}
+                          placeholder="Opción alternativa de segundo..."
+                        />
+                        <MenuAlternativesEditor
+                          label="Bebida"
+                          icon="🥤"
+                          alternatives={entry.beverage_alternatives}
+                          onChange={(alts) => updateEntry(entry.id, 'beverage_alternatives' as keyof MenuEntry, alts as any)}
+                          defaultValue={entry.beverage}
+                          placeholder="Opción alternativa de bebida..."
+                        />
+                        <MenuAlternativesEditor
+                          label="Postre"
+                          icon="🍰"
+                          alternatives={entry.dessert_alternatives}
+                          onChange={(alts) => updateEntry(entry.id, 'dessert_alternatives' as keyof MenuEntry, alts as any)}
+                          defaultValue={entry.dessert}
+                          placeholder="Opción alternativa de postre..."
+                        />
+                      </div>
+                    )}
+
+                    {/* Indicador de opciones cargadas */}
+                    {!entry.showOptions && (
+                      [entry.starter_alternatives, entry.main_course_alternatives, entry.beverage_alternatives, entry.dessert_alternatives]
+                        .some(arr => arr.length > 0)
+                    ) && (
+                      <div className="mt-1">
+                        <Badge variant="secondary" className="text-[10px]">
+                          Con opciones alternativas
+                        </Badge>
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
               ))}
             </div>
           </div>
 
-          <DialogFooter>
+          {/* FOOTER */}
+          <DialogFooter className="gap-2 flex-wrap">
             <Button type="button" variant="outline" onClick={onClose} disabled={loading}>
               Cancelar
             </Button>
-            <Button type="submit" disabled={loading}>
+            <Button
+              type="submit"
+              disabled={loading || totalMenus === 0}
+              className="bg-emerald-600 hover:bg-emerald-700 text-white"
+            >
               {loading ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Cargando...
-                </>
+                <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Guardando...</>
+              ) : totalMenus === 0 ? (
+                'Selecciona sedes primero'
               ) : (
-                `Cargar ${entries.length * selectedSchools.length} menús`
+                `Guardar ${totalMenus} menú${totalMenus !== 1 ? 's' : ''}`
               )}
             </Button>
           </DialogFooter>
@@ -525,4 +735,3 @@ export const MassUploadModal = ({
     </Dialog>
   );
 };
-
