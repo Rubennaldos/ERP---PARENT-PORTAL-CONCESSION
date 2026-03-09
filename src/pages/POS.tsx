@@ -1065,8 +1065,16 @@ const POS = () => {
         toast({ title: '👨‍🏫 Profesor identificado', description: holder.teacher_name });
       }
     } catch (err: any) {
-      setNfcError('Error al leer la tarjeta');
-      toast({ variant: 'destructive', title: 'Error NFC', description: err.message });
+      const msg = err?.message || '';
+      const isFunctionMissing = msg.includes('get_nfc_holder') || msg.includes('schema cache') || err?.code === 'PGRST204';
+      setNfcError(isFunctionMissing ? 'Función NFC no configurada' : 'Error al leer la tarjeta');
+      toast({
+        variant: 'destructive',
+        title: 'Error NFC',
+        description: isFunctionMissing
+          ? 'La función get_nfc_holder no existe en la base de datos. Ejecuta la migración ADD_GET_NFC_HOLDER_FUNCTION.sql en Supabase.'
+          : msg,
+      });
     } finally {
       setNfcScanning(false);
     }
