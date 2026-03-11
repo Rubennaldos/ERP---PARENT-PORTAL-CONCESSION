@@ -14,9 +14,10 @@ interface ParentDataFormProps {
   onSuccess: () => void;
   isLoading?: boolean;
   setIsLoading?: (loading: boolean) => void;
+  isEditing?: boolean;
 }
 
-export function ParentDataForm({ onSuccess, isLoading: externalLoading, setIsLoading: setExternalLoading }: ParentDataFormProps) {
+export function ParentDataForm({ onSuccess, isLoading: externalLoading, setIsLoading: setExternalLoading, isEditing }: ParentDataFormProps) {
   const { user, signOut } = useAuth();
   const { toast } = useToast();
 
@@ -49,7 +50,7 @@ export function ParentDataForm({ onSuccess, isLoading: externalLoading, setIsLoa
         .from('parent_profiles')
         .select('*')
         .eq('user_id', user.id)
-        .single();
+        .maybeSingle();
       if (data) {
         setFullName(data.full_name || '');
         setDocumentType(data.document_type || 'DNI');
@@ -114,7 +115,7 @@ export function ParentDataForm({ onSuccess, isLoading: externalLoading, setIsLoa
       return;
     }
 
-    if (!legalAcceptance) {
+    if (!isEditing && !legalAcceptance) {
       toast({ variant: 'destructive', title: 'Aceptación requerida', description: 'Debes aceptar los términos para continuar.' });
       return;
     }
@@ -125,25 +126,30 @@ export function ParentDataForm({ onSuccess, isLoading: externalLoading, setIsLoa
     try {
       const metadata = captureMetadata();
 
+      const payload: Record<string, any> = {
+        user_id: user.id,
+        full_name: fullName.trim(),
+        document_type: documentType,
+        dni: dni.trim(),
+        phone_1: phone.trim(),
+        address: address.trim(),
+        responsible_2_full_name: resp2FullName.trim() || null,
+        responsible_2_document_type: resp2FullName.trim() ? resp2DocumentType : null,
+        responsible_2_dni: resp2Dni.trim() || null,
+        responsible_2_phone_1: resp2Phone.trim() || null,
+        responsible_2_address: resp2Address.trim() || null,
+        updated_at: new Date().toISOString(),
+      };
+
+      if (!isEditing) {
+        payload.legal_acceptance = legalAcceptance;
+        payload.legal_acceptance_timestamp = new Date().toISOString();
+        payload.registration_metadata = metadata;
+      }
+
       const { error } = await supabase
         .from('parent_profiles')
-        .upsert({
-          user_id: user.id,
-          full_name: fullName.trim(),
-          document_type: documentType,
-          dni: dni.trim(),
-          phone_1: phone.trim(),
-          address: address.trim(),
-          responsible_2_full_name: resp2FullName.trim() || null,
-          responsible_2_document_type: resp2FullName.trim() ? resp2DocumentType : null,
-          responsible_2_dni: resp2Dni.trim() || null,
-          responsible_2_phone_1: resp2Phone.trim() || null,
-          responsible_2_address: resp2Address.trim() || null,
-          legal_acceptance: legalAcceptance,
-          legal_acceptance_timestamp: new Date().toISOString(),
-          registration_metadata: metadata,
-          updated_at: new Date().toISOString(),
-        }, { onConflict: 'user_id' });
+        .upsert(payload, { onConflict: 'user_id' });
 
       if (error) throw error;
 
@@ -166,20 +172,22 @@ export function ParentDataForm({ onSuccess, isLoading: externalLoading, setIsLoa
   return (
     <Card className="w-full shadow-xl border border-stone-200/50 bg-white relative">
       <CardHeader className="pb-2 pt-4 px-4 sm:px-5">
-        <div className="absolute top-3 right-3">
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            onClick={async () => { await signOut(); }}
-            className="text-stone-400 hover:text-red-600 hover:bg-red-50 h-7 px-2 text-xs"
-          >
-            <LogOut className="h-3.5 w-3.5 mr-1" />
-            Salir
-          </Button>
-        </div>
+        {!isEditing && (
+          <div className="absolute top-3 right-3">
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={async () => { await signOut(); }}
+              className="text-stone-400 hover:text-red-600 hover:bg-red-50 h-7 px-2 text-xs"
+            >
+              <LogOut className="h-3.5 w-3.5 mr-1" />
+              Salir
+            </Button>
+          </div>
+        )}
         <CardTitle className="text-base sm:text-lg font-semibold text-stone-800 text-center">
-          Completa tus datos para continuar
+          {isEditing ? 'Actualiza tus datos' : 'Completa tus datos para continuar'}
         </CardTitle>
       </CardHeader>
 
@@ -340,29 +348,31 @@ export function ParentDataForm({ onSuccess, isLoading: externalLoading, setIsLoa
 
           {/* --- LEGAL + SUBMIT --- */}
           <div className="border-t border-stone-200 pt-2 space-y-2">
-            <div className="flex items-start gap-2 bg-stone-50 border border-stone-200 rounded-lg p-2.5">
-              <Checkbox
-                id="legal"
-                checked={legalAcceptance}
-                onCheckedChange={(c) => setLegalAcceptance(c as boolean)}
-                className="mt-0.5"
-                disabled={isLoading}
-              />
-              <label htmlFor="legal" className="text-[10px] sm:text-[11px] text-stone-600 leading-snug cursor-pointer">
-                Acepto la cláusula de cobranza judicial y confirmo que mis datos son correctos. Los datos serán usados
-                exclusivamente para gestión de pagos conforme a la Ley de Protección de Datos.
-              </label>
-            </div>
+            {!isEditing && (
+              <div className="flex items-start gap-2 bg-stone-50 border border-stone-200 rounded-lg p-2.5">
+                <Checkbox
+                  id="legal"
+                  checked={legalAcceptance}
+                  onCheckedChange={(c) => setLegalAcceptance(c as boolean)}
+                  className="mt-0.5"
+                  disabled={isLoading}
+                />
+                <label htmlFor="legal" className="text-[10px] sm:text-[11px] text-stone-600 leading-snug cursor-pointer">
+                  Acepto la cláusula de cobranza judicial y confirmo que mis datos son correctos. Los datos serán usados
+                  exclusivamente para gestión de pagos conforme a la Ley de Protección de Datos.
+                </label>
+              </div>
+            )}
 
             <Button
               type="submit"
               className="w-full h-11 text-sm font-medium bg-gradient-to-r from-emerald-600/90 via-[#A3566E] to-[#8B4060] hover:from-emerald-700/90 hover:via-[#8B4060] hover:to-[#7A3755] text-white shadow-md rounded-xl"
-              disabled={isLoading || !legalAcceptance}
+              disabled={isLoading || (!isEditing && !legalAcceptance)}
             >
               {isLoading ? (
                 <><Loader2 className="animate-spin mr-2 h-4 w-4" />Guardando...</>
               ) : (
-                'Confirmar y Continuar'
+                isEditing ? 'Guardar Cambios' : 'Confirmar y Continuar'
               )}
             </Button>
           </div>

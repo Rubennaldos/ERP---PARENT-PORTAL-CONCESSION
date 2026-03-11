@@ -573,7 +573,8 @@ const Index = () => {
         <MoreMenu 
           key={photoConsentRefresh} 
           userEmail={user?.email || ''} 
-          onLogout={handleLogout} 
+          onLogout={handleLogout}
+          students={students}
         />
       )}
 

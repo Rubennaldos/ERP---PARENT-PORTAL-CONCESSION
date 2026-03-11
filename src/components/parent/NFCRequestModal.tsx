@@ -99,9 +99,12 @@ export function NFCRequestModal({ isOpen, onClose, studentId, studentName, schoo
     }
   }, [isOpen, studentId, user]);
 
+  const [tableError, setTableError] = useState(false);
+
   const checkExistingRequest = async () => {
     try {
       setLoadingExisting(true);
+      setTableError(false);
       const { data, error } = await supabase
         .from('nfc_requests')
         .select('*')
@@ -110,6 +113,14 @@ export function NFCRequestModal({ isOpen, onClose, studentId, studentName, schoo
         .order('created_at', { ascending: false })
         .limit(1)
         .maybeSingle();
+
+      if (error) {
+        const msg = error.message || '';
+        if (msg.includes('nfc_requests') || msg.includes('relation') || error.code === '42P01' || error.code === 'PGRST204') {
+          setTableError(true);
+          return;
+        }
+      }
 
       if (!error && data) {
         setExistingRequest(data);
@@ -154,8 +165,11 @@ export function NFCRequestModal({ isOpen, onClose, studentId, studentName, schoo
       console.error('Error creating NFC request:', error);
       
       let msg = 'No se pudo enviar la solicitud';
+      const errMsg = error?.message || '';
       if (error.code === '23505') {
         msg = 'Ya existe una solicitud pendiente para este alumno';
+      } else if (errMsg.includes('nfc_requests') || errMsg.includes('relation') || error.code === '42P01') {
+        msg = 'El módulo NFC no está configurado. Contacta al administrador.';
       }
 
       toast({
@@ -237,6 +251,19 @@ export function NFCRequestModal({ isOpen, onClose, studentId, studentName, schoo
         {loadingExisting ? (
           <div className="flex items-center justify-center py-8">
             <Loader2 className="h-6 w-6 animate-spin text-blue-600" />
+          </div>
+        ) : tableError ? (
+          <div className="py-6 space-y-3">
+            <div className="flex items-start gap-3 p-4 bg-amber-50 border border-amber-200 rounded-lg">
+              <AlertCircle className="h-5 w-5 text-amber-600 mt-0.5 flex-shrink-0" />
+              <div>
+                <p className="font-semibold text-amber-900">Módulo NFC no configurado</p>
+                <p className="text-sm text-amber-800 mt-1">
+                  El sistema de solicitudes NFC aún no está habilitado. Contacta al administrador del colegio para activar esta funcionalidad.
+                </p>
+              </div>
+            </div>
+            <Button variant="outline" className="w-full" onClick={onClose}>Cerrar</Button>
           </div>
         ) : existingRequest && !changingType ? (
           // Ya tiene una solicitud — mostrar estado + opción de cambiar

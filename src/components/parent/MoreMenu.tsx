@@ -1,4 +1,4 @@
-﻿import { Card, CardContent } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
@@ -26,19 +26,30 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 import { ChangePasswordModal } from '@/components/admin/ChangePasswordModal';
+import { ParentDataForm } from '@/components/parent/ParentDataForm';
+import { NFCRequestModal } from '@/components/parent/NFCRequestModal';
+
+interface Student {
+  id: string;
+  full_name: string;
+  school_id?: string;
+}
 
 interface MoreMenuProps {
   userEmail: string;
   onLogout: () => void;
+  students?: Student[];
 }
 
-export const MoreMenu = ({ userEmail, onLogout }: MoreMenuProps) => {
+export const MoreMenu = ({ userEmail, onLogout, students = [] }: MoreMenuProps) => {
   const { user } = useAuth();
   const [showChangePassword, setShowChangePassword] = useState(false);
   const [showParentData, setShowParentData] = useState(false);
-  const [showPhotoInfo, setShowPhotoInfo] = useState(false); // Cambiado de showPhotoConsent
+  const [showPhotoInfo, setShowPhotoInfo] = useState(false);
   const [photoConsentAccepted, setPhotoConsentAccepted] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [showNFCModal, setShowNFCModal] = useState(false);
+  const [selectedNFCStudent, setSelectedNFCStudent] = useState<Student | null>(null);
 
   // Verificar si ya aceptó el consentimiento
   useEffect(() => {
@@ -50,7 +61,7 @@ export const MoreMenu = ({ userEmail, onLogout }: MoreMenuProps) => {
           .from('parent_profiles')
           .select('photo_consent')
           .eq('user_id', user.id)
-          .single();
+          .maybeSingle();
 
         if (!error && data) {
           setPhotoConsentAccepted(data.photo_consent || false);
@@ -84,7 +95,20 @@ export const MoreMenu = ({ userEmail, onLogout }: MoreMenuProps) => {
       title: 'Servicios',
       items: [
         { icon: UtensilsCrossed, label: 'Catering Privado', badge: 'Próximamente', disabled: true },
-        { icon: Nfc, label: 'Activar NFC', badge: 'Próximamente', disabled: true },
+        { 
+          icon: Nfc, 
+          label: 'Solicitar NFC', 
+          badge: students.length > 0 ? `${students.length} hijo(s)` : undefined,
+          action: students.length > 0 ? () => {
+            if (students.length === 1) {
+              setSelectedNFCStudent(students[0]);
+            } else {
+              setSelectedNFCStudent(null);
+            }
+            setShowNFCModal(true);
+          } : undefined,
+          disabled: students.length === 0,
+        },
       ]
     },
     {
@@ -182,28 +206,25 @@ export const MoreMenu = ({ userEmail, onLogout }: MoreMenuProps) => {
         onOpenChange={setShowChangePassword}
       />
 
-      {/* Modal Datos del Padre */}
+      {/* Modal Datos del Padre — editable con ParentDataForm */}
       <Dialog open={showParentData} onOpenChange={setShowParentData}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Editar Datos del Padre</DialogTitle>
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto p-0 gap-0">
+          <DialogHeader className="p-4 pb-0">
+            <DialogTitle className="flex items-center gap-2">
+              <User className="h-5 w-5 text-[#9E4D68]" />
+              Editar Datos del Padre
+            </DialogTitle>
             <DialogDescription>
-              <div className="flex items-start gap-2 mt-2 p-3 bg-amber-50 border border-amber-200 rounded-lg">
-                <AlertTriangle className="h-5 w-5 text-amber-600 flex-shrink-0 mt-0.5" />
-                <div className="text-sm text-amber-800">
-                  <strong>Importante:</strong> Si cambias el responsable principal, se actualizarán los accesos y notificaciones.
-                  Esta acción debe hacerse con precaución.
-                </div>
-              </div>
+              Puedes actualizar tus datos de responsable principal y secundario.
             </DialogDescription>
           </DialogHeader>
-          <div className="text-center py-8">
-            <User className="h-16 w-16 text-gray-300 mx-auto mb-4" />
-            <p className="text-gray-600">
-              Funcionalidad en desarrollo.
-              <br />
-              Contacta al administrador para cambios.
-            </p>
+          <div className="px-2 pb-2">
+            <ParentDataForm
+              isEditing
+              onSuccess={() => {
+                setShowParentData(false);
+              }}
+            />
           </div>
         </DialogContent>
       </Dialog>
@@ -284,6 +305,47 @@ export const MoreMenu = ({ userEmail, onLogout }: MoreMenuProps) => {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Selector de estudiante para NFC (si hay más de 1) */}
+      {showNFCModal && students.length > 1 && !selectedNFCStudent && (
+        <Dialog open={true} onOpenChange={() => setShowNFCModal(false)}>
+          <DialogContent className="max-w-sm">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Nfc className="h-5 w-5 text-blue-600" />
+                ¿Para cuál hijo/a?
+              </DialogTitle>
+            </DialogHeader>
+            <div className="space-y-2">
+              {students.map((s) => (
+                <Button
+                  key={s.id}
+                  variant="outline"
+                  className="w-full justify-start text-left h-12"
+                  onClick={() => setSelectedNFCStudent(s)}
+                >
+                  <User className="h-4 w-4 mr-2 text-[#9E4D68]" />
+                  {s.full_name}
+                </Button>
+              ))}
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {/* Modal NFC */}
+      {selectedNFCStudent && (
+        <NFCRequestModal
+          isOpen={showNFCModal}
+          onClose={() => {
+            setShowNFCModal(false);
+            setSelectedNFCStudent(null);
+          }}
+          studentId={selectedNFCStudent.id}
+          studentName={selectedNFCStudent.full_name}
+          schoolId={selectedNFCStudent.school_id}
+        />
+      )}
     </div>
   );
 };
