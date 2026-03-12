@@ -12,12 +12,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Package, Tag, Percent, Plus, Pencil, Trash2, ArrowLeft, Camera, BarChart3, Download, TrendingUp, AlertTriangle, DollarSign, ShoppingCart, Loader2, Building2, FileSpreadsheet } from 'lucide-react';
+import { Package, Tag, Percent, Plus, Pencil, Trash2, ArrowLeft, Camera, BarChart3, Download, TrendingUp, AlertTriangle, DollarSign, ShoppingCart, Loader2, Building2, FileSpreadsheet, FileDown } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useToast } from '@/hooks/use-toast';
 import { PriceMatrix } from '@/components/products/PriceMatrix';
 import { BulkProductUpload } from '@/components/products/BulkProductUpload';
 import { CombosPromotionsManager } from '@/components/products/CombosPromotionsManager';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 interface Product {
   id: string;
@@ -190,6 +192,53 @@ const Products = () => {
     const timer = setTimeout(checkCode, 500);
     return () => clearTimeout(timer);
   }, [currentCode, editingProductId]);
+
+  const exportProductsPDF = () => {
+    const doc = new jsPDF();
+
+    // Título
+    doc.setFontSize(18);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Lista de Productos', 14, 20);
+
+    // Subtítulo con fecha y cantidad
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(100);
+    const today = new Date().toLocaleDateString('es-PE', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    doc.text(`Generado el ${today}  •  ${filteredProducts.length} productos`, 14, 28);
+    doc.setTextColor(0);
+
+    // Tabla
+    autoTable(doc, {
+      startY: 34,
+      head: [['Producto', 'Categoría', 'Precio Venta']],
+      body: filteredProducts.map(p => [
+        p.name || '—',
+        p.category || '—',
+        `S/ ${(p.price_sale || 0).toFixed(2)}`,
+      ]),
+      headStyles: {
+        fillColor: [158, 77, 104],
+        textColor: 255,
+        fontStyle: 'bold',
+        fontSize: 10,
+      },
+      bodyStyles: { fontSize: 9 },
+      alternateRowStyles: { fillColor: [252, 245, 248] },
+      columnStyles: {
+        0: { cellWidth: 'auto' },
+        1: { cellWidth: 45 },
+        2: { cellWidth: 35, halign: 'right' },
+      },
+      margin: { left: 14, right: 14 },
+    });
+
+    const filename = `productos_${today.replace(/\//g, '-')}.pdf`;
+    doc.save(filename);
+
+    toast({ title: '✅ PDF exportado', description: `${filteredProducts.length} productos exportados.` });
+  };
 
   const fetchProducts = async () => {
     setLoading(true);
@@ -1164,6 +1213,14 @@ const Products = () => {
                     <CardDescription>{filteredProducts.length} de {products.length} productos</CardDescription>
                   </div>
                   <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      onClick={exportProductsPDF}
+                      className="border-rose-200 text-rose-700 hover:bg-rose-50"
+                    >
+                      <FileDown className="h-4 w-4 mr-2" />
+                      Exportar PDF
+                    </Button>
                     {isAdminGeneral && (
                       <Button 
                         variant="outline" 
