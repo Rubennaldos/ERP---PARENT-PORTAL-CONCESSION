@@ -13,7 +13,7 @@ import { Card } from '@/components/ui/card';
 import { supabase } from '@/lib/supabase';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
-import { Loader2, Check, Nfc, AlertCircle, RefreshCw } from 'lucide-react';
+import { Loader2, Check, Nfc, AlertCircle, RefreshCw, Wallet } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface NFCRequestModalProps {
@@ -22,6 +22,7 @@ interface NFCRequestModalProps {
   studentId: string;
   studentName: string;
   schoolId?: string;
+  onGoToPayments?: () => void;
 }
 
 interface NFCOption {
@@ -83,7 +84,7 @@ const NFC_OPTIONS: NFCOption[] = [
   },
 ];
 
-export function NFCRequestModal({ isOpen, onClose, studentId, studentName, schoolId }: NFCRequestModalProps) {
+export function NFCRequestModal({ isOpen, onClose, studentId, studentName, schoolId, onGoToPayments }: NFCRequestModalProps) {
   const { user } = useAuth();
   const { toast } = useToast();
   const [selectedType, setSelectedType] = useState<NFCOption | null>(null);
@@ -109,7 +110,7 @@ export function NFCRequestModal({ isOpen, onClose, studentId, studentName, schoo
         .from('nfc_requests')
         .select('*')
         .eq('student_id', studentId)
-        .in('status', ['pending', 'approved'])
+        .in('status', ['pending', 'approved', 'delivered'])
         .order('created_at', { ascending: false })
         .limit(1)
         .maybeSingle();
@@ -272,6 +273,7 @@ export function NFCRequestModal({ isOpen, onClose, studentId, studentName, schoo
               "p-4 rounded-xl border-2 text-center",
               existingRequest.status === 'pending' && "bg-yellow-50 border-yellow-300",
               existingRequest.status === 'approved' && "bg-green-50 border-green-300",
+              existingRequest.status === 'delivered' && "bg-blue-50 border-blue-400",
             )}>
               <div className="text-3xl mb-2">
                 {NFC_OPTIONS.find(o => o.type === existingRequest.nfc_type)?.icon || '📱'}
@@ -292,16 +294,43 @@ export function NFCRequestModal({ isOpen, onClose, studentId, studentName, schoo
               )}
             </div>
 
-            <div className="flex items-start gap-2 p-3 bg-blue-50 rounded-lg border border-blue-200">
-              <AlertCircle className="h-4 w-4 text-blue-600 mt-0.5 flex-shrink-0" />
-              <p className="text-sm text-blue-800">
-                {existingRequest.status === 'pending' 
-                  ? 'Tu solicitud está siendo revisada por el administrador. Te notificaremos cuando sea aprobada.'
-                  : existingRequest.status === 'approved'
-                  ? 'Tu solicitud fue aprobada. Pronto recibirás el NFC para tu hijo/a.'
-                  : 'Ya tienes una solicitud activa para este alumno.'}
-              </p>
-            </div>
+            {/* Estado: ENTREGADO — botón para ir a recargar/pagar */}
+            {existingRequest.status === 'delivered' && (
+              <div className="space-y-3">
+                <div className="flex items-start gap-2 p-3 bg-green-50 rounded-lg border border-green-200">
+                  <AlertCircle className="h-4 w-4 text-green-600 mt-0.5 flex-shrink-0" />
+                  <p className="text-sm text-green-800">
+                    <strong>¡Tu {getNfcTypeName(existingRequest.nfc_type)} ya fue entregado!</strong>
+                    <br />
+                    Recarga el saldo de {studentName} para que pueda usarlo en el colegio.
+                  </p>
+                </div>
+                <Button
+                  className="w-full h-12 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-base"
+                  onClick={() => {
+                    onClose();
+                    onGoToPayments?.();
+                  }}
+                >
+                  <Wallet className="h-5 w-5 mr-2" />
+                  Recargar saldo — Ir a Pagos
+                </Button>
+              </div>
+            )}
+
+            {/* Estado: PENDIENTE o APROBADO */}
+            {existingRequest.status !== 'delivered' && (
+              <div className="flex items-start gap-2 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                <AlertCircle className="h-4 w-4 text-blue-600 mt-0.5 flex-shrink-0" />
+                <p className="text-sm text-blue-800">
+                  {existingRequest.status === 'pending'
+                    ? 'Tu solicitud está siendo revisada por el administrador. Te notificaremos cuando sea aprobada.'
+                    : existingRequest.status === 'approved'
+                    ? 'Tu solicitud fue aprobada. Pronto recibirás el NFC para tu hijo/a.'
+                    : 'Ya tienes una solicitud activa para este alumno.'}
+                </p>
+              </div>
+            )}
 
             {/* Botón para cambiar tipo de dispositivo — solo si está pendiente */}
             {existingRequest.status === 'pending' && (
@@ -406,6 +435,11 @@ export function NFCRequestModal({ isOpen, onClose, studentId, studentName, schoo
                 )}
               </Button>
             </>
+          ) : existingRequest?.status === 'delivered' ? (
+            // Solo cerrar cuando está entregado (el botón de pagar está arriba)
+            <Button variant="outline" onClick={onClose} className="w-full">
+              Cerrar
+            </Button>
           ) : (
             <>
               <Button variant="outline" onClick={onClose} disabled={submitting}>

@@ -565,6 +565,10 @@ const Index = () => {
             studentId={selectedStudent.id}
             studentName={selectedStudent.full_name}
             schoolId={selectedStudent.school_id}
+            onGoToPayments={() => {
+              setShowNFCModal(false);
+              setActiveTab('pagos');
+            }}
           />
         </>
       )}
@@ -575,6 +579,7 @@ const Index = () => {
           userEmail={user?.email || ''} 
           onLogout={handleLogout}
           students={students}
+          onGoToPayments={() => setActiveTab('pagos')}
         />
       )}
 

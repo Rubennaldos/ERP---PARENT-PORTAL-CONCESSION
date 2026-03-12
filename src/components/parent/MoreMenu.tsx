@@ -39,9 +39,10 @@ interface MoreMenuProps {
   userEmail: string;
   onLogout: () => void;
   students?: Student[];
+  onGoToPayments?: () => void;
 }
 
-export const MoreMenu = ({ userEmail, onLogout, students = [] }: MoreMenuProps) => {
+export const MoreMenu = ({ userEmail, onLogout, students = [], onGoToPayments }: MoreMenuProps) => {
   const { user } = useAuth();
   const [showChangePassword, setShowChangePassword] = useState(false);
   const [showParentData, setShowParentData] = useState(false);
@@ -344,6 +345,11 @@ export const MoreMenu = ({ userEmail, onLogout, students = [] }: MoreMenuProps) 
           studentId={selectedNFCStudent.id}
           studentName={selectedNFCStudent.full_name}
           schoolId={selectedNFCStudent.school_id}
+          onGoToPayments={() => {
+            setShowNFCModal(false);
+            setSelectedNFCStudent(null);
+            onGoToPayments?.();
+          }}
         />
       )}
     </div>
