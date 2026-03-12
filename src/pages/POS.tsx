@@ -108,6 +108,7 @@ interface CartItem {
 
 // Función para asignar iconos a categorías dinámicamente
 const getCategoryIcon = (categoryName: string) => {
+  if (!categoryName) return ShoppingCart;
   const name = categoryName.toLowerCase();
   
   // Bebidas
@@ -339,7 +340,7 @@ const POS = () => {
 
     if (productSearch.trim()) {
       filtered = filtered.filter(p => 
-        p.name.toLowerCase().includes(productSearch.toLowerCase())
+        (p.name || '').toLowerCase().includes(productSearch.toLowerCase())
       );
     }
 
@@ -728,7 +729,8 @@ const POS = () => {
       }
 
       console.log('✅ Profesores encontrados:', data?.length || 0);
-      setTeachers(data || []);
+      // Filtrar entradas con full_name nulo para evitar errores de render
+      setTeachers((data || []).filter(t => t && t.full_name != null));
     } catch (error: any) {
       console.error('❌ Error crítico buscando profesores:', error);
       toast({
@@ -914,7 +916,7 @@ const POS = () => {
   const selectTeacher = (teacher: any) => {
     console.log('👨‍🏫 Profesor seleccionado:', teacher);
     setSelectedTeacher(teacher);
-    setTeacherSearch(teacher.full_name);
+    setTeacherSearch(teacher.full_name || '');
     setShowTeacherResults(false);
   };
 
@@ -1989,11 +1991,11 @@ const POS = () => {
                   >
                     <div className="flex-1">
                       <p className="font-bold text-lg">
-                        {teacher.full_name}
+                        {teacher.full_name || '(Sin nombre)'}
                       </p>
                       <p className="text-sm text-gray-500">
-                        {teacher.area && `${teacher.area.charAt(0).toUpperCase() + teacher.area.slice(1)}`}
-                        {teacher.school_1_name && ` • ${teacher.school_1_name}`}
+                        {teacher.area ? `${teacher.area.charAt(0).toUpperCase() + teacher.area.slice(1)}` : ''}
+                        {teacher.school_1_name ? ` • ${teacher.school_1_name}` : ''}
                       </p>
                     </div>
                     <div className="text-right">
