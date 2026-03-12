@@ -1,4 +1,4 @@
-﻿import { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -823,25 +823,24 @@ const ParentConfiguration = () => {
   };
 
   const filteredParents = parents.filter(parent => {
-    const matchesSearch = parent.full_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         parent.dni.includes(searchTerm) ||
+    const matchesSearch = (parent.full_name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         (parent.dni || '').includes(searchTerm) ||
                          (parent.nickname && parent.nickname.toLowerCase().includes(searchTerm.toLowerCase()));
-    
-    // Filtrar por colegio: buscar si al menos uno de los hijos está en ese colegio
-    const matchesSchool = selectedSchool === 'all' || 
+
+    const matchesSchool = selectedSchool === 'all' ||
                          (parent.children && parent.children.some((child: any) => child.school_id === selectedSchool));
-    
+
     return matchesSearch && matchesSchool;
   });
 
   const filteredTeachers = teachers.filter(teacher => {
-    const matchesSearch = teacher.full_name.toLowerCase().includes(searchTermTeacher.toLowerCase()) ||
-                         teacher.dni.includes(searchTermTeacher) ||
+    const matchesSearch = (teacher.full_name || '').toLowerCase().includes(searchTermTeacher.toLowerCase()) ||
+                         (teacher.dni || '').includes(searchTermTeacher) ||
                          (teacher.personal_email && teacher.personal_email.toLowerCase().includes(searchTermTeacher.toLowerCase())) ||
                          (teacher.corporate_email && teacher.corporate_email.toLowerCase().includes(searchTermTeacher.toLowerCase()));
-    
-    const matchesSchool = selectedSchoolTeacher === 'all' || 
-                         teacher.school_id_1 === selectedSchoolTeacher || 
+
+    const matchesSchool = selectedSchoolTeacher === 'all' ||
+                         teacher.school_id_1 === selectedSchoolTeacher ||
                          teacher.school_id_2 === selectedSchoolTeacher;
     
     return matchesSearch && matchesSchool;
