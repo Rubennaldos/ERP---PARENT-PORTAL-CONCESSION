@@ -93,11 +93,17 @@ export function NFCRequestModal({ isOpen, onClose, studentId, studentName, schoo
   const [loadingExisting, setLoadingExisting] = useState(true);
   const [changingType, setChangingType] = useState(false);
 
-  // Verificar si ya existe una solicitud pendiente
+  // Verificar si ya existe una solicitud — polling cada 10s mientras el modal está abierto
   useEffect(() => {
-    if (isOpen && studentId && user) {
+    if (!isOpen || !studentId || !user) return;
+
+    checkExistingRequest(); // carga inicial
+
+    const interval = setInterval(() => {
       checkExistingRequest();
-    }
+    }, 10000); // refresca cada 10 segundos
+
+    return () => clearInterval(interval);
   }, [isOpen, studentId, user]);
 
   const [tableError, setTableError] = useState(false);
@@ -330,6 +336,24 @@ export function NFCRequestModal({ isOpen, onClose, studentId, studentName, schoo
                     : 'Ya tienes una solicitud activa para este alumno.'}
                 </p>
               </div>
+            )}
+
+            {/* Botón actualizar estado manualmente — visible en pending y approved */}
+            {(existingRequest.status === 'pending' || existingRequest.status === 'approved') && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={checkExistingRequest}
+                disabled={loadingExisting}
+                className="w-full text-gray-500 hover:text-blue-600"
+              >
+                {loadingExisting ? (
+                  <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+                ) : (
+                  <RefreshCw className="h-3.5 w-3.5 mr-1.5" />
+                )}
+                Actualizar estado
+              </Button>
             )}
 
             {/* Botón para cambiar tipo de dispositivo — solo si está pendiente */}
