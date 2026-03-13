@@ -18,7 +18,8 @@ import {
   AlertCircle,
   ArrowLeft,
   BarChart3,
-  Wallet
+  Wallet,
+  PlusCircle,
 } from 'lucide-react';
 
 // Importar los componentes de cada tab
@@ -28,6 +29,7 @@ import { BillingReports } from '@/components/billing/BillingReports';
 import { BillingConfig } from '@/components/billing/BillingConfig';
 import { PaymentStatistics } from '@/components/admin/PaymentStatistics';
 import { VoucherApproval } from '@/components/billing/VoucherApproval';
+import { ManualRechargeTab } from '@/components/billing/ManualRechargeTab';
 
 interface TabPermissions {
   dashboard: boolean;
@@ -36,6 +38,7 @@ interface TabPermissions {
   statistics: boolean;
   config: boolean;
   vouchers: boolean;
+  recharge: boolean;
 }
 
 const Cobranzas = () => {
@@ -51,6 +54,7 @@ const Cobranzas = () => {
     statistics: false,
     config: false,
     vouchers: false,
+    recharge: false,
   });
   const [pendingVouchers, setPendingVouchers] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -75,6 +79,7 @@ const Cobranzas = () => {
           statistics: true,
           config: true,
           vouchers: true,
+          recharge: true,
         });
         setActiveTab('dashboard');
         fetchPendingVouchers();
@@ -110,6 +115,7 @@ const Cobranzas = () => {
         statistics: false,
         config: false,
         vouchers: false,
+        recharge: false,
       };
 
       // Mapear los permisos de la BD a las pestañas
@@ -124,7 +130,8 @@ const Cobranzas = () => {
             case 'cobrar_todas_sedes':
             case 'cobrar_personalizado':
               perms.collect = true;
-              perms.vouchers = true; // Admins que cobran también aprueban recargas
+              perms.vouchers = true;
+              perms.recharge = true;
               break;
             case 'sacar_reportes':
               perms.reports = true;
@@ -206,6 +213,7 @@ const Cobranzas = () => {
     permissions.collect,
     // permissions.reports — eliminado de la UI
     permissions.vouchers,
+    permissions.recharge,
     permissions.config,
   ].filter(Boolean).length;
 
@@ -298,6 +306,19 @@ const Cobranzas = () => {
                       )}
                     </button>
                   )}
+                  {permissions.recharge && (
+                    <button
+                      onClick={() => setActiveTab('recharge')}
+                      className={`flex items-center justify-center gap-2 py-3 text-sm font-medium rounded-md transition-all ${
+                        activeTab === 'recharge'
+                          ? 'bg-background text-foreground shadow-sm'
+                          : 'text-muted-foreground hover:text-foreground'
+                      }`}
+                    >
+                      <PlusCircle className="h-4 w-4" />
+                      Recargas
+                    </button>
+                  )}
                   {permissions.config && (
                     <button
                       onClick={() => setActiveTab('config')}
@@ -359,6 +380,19 @@ const Cobranzas = () => {
                       )}
                     </button>
                   )}
+                  {permissions.recharge && (
+                    <button
+                      onClick={() => setActiveTab('recharge')}
+                      className={`flex items-center gap-1.5 px-3 py-2.5 text-xs font-medium rounded-md transition-all whitespace-nowrap ${
+                        activeTab === 'recharge'
+                          ? 'bg-background text-foreground shadow-sm'
+                          : 'text-muted-foreground hover:text-foreground'
+                      }`}
+                    >
+                      <PlusCircle className="h-3.5 w-3.5" />
+                      Recargas
+                    </button>
+                  )}
                   {permissions.config && (
                     <button
                       onClick={() => setActiveTab('config')}
@@ -402,6 +436,13 @@ const Cobranzas = () => {
               {activeTab === 'vouchers' && permissions.vouchers && (
                 <div className="mt-4 sm:mt-6">
                   <VoucherApproval />
+                </div>
+              )}
+
+              {/* Recargas Manuales Tab */}
+              {activeTab === 'recharge' && permissions.recharge && (
+                <div className="mt-4 sm:mt-6">
+                  <ManualRechargeTab />
                 </div>
               )}
 
