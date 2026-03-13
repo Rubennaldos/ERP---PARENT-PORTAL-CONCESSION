@@ -1645,6 +1645,141 @@ export default function LunchOrders() {
     }
   };
 
+  // ────────────────────────────────────────────────────────────
+  // TICKET 80mm — impresora térmica (portrait, ancho 80mm)
+  // ────────────────────────────────────────────────────────────
+  const exportToTicket80mm = () => {
+    try {
+      const PAGE_W = 80;        // mm
+      const MARGIN = 4;         // mm lateral
+      const CONTENT_W = PAGE_W - MARGIN * 2;
+      const LINE_H = 4.5;       // mm por línea de texto
+      const HEADER_H = 20;      // mm cabecera
+      const ROW_H = 22;         // mm por pedido (5 líneas × LINE_H + padding)
+      const FOOTER_H = 8;       // mm pie
+
+      const totalRows = filteredOrders.length;
+      const pageH = HEADER_H + totalRows * ROW_H + FOOTER_H + 10;
+
+      // Crear doc con dimensiones de rollo 80mm
+      const doc = new jsPDF({
+        orientation: 'portrait',
+        unit: 'mm',
+        format: [PAGE_W, pageH],
+      });
+
+      doc.setTextColor(0, 0, 0);
+
+      // ── CABECERA ──
+      let y = 6;
+      doc.setFontSize(9);
+      doc.setFont('helvetica', 'bold');
+      doc.text('PEDIDOS DE ALMUERZO', PAGE_W / 2, y, { align: 'center' });
+      y += 4.5;
+
+      doc.setFontSize(7);
+      doc.setFont('helvetica', 'normal');
+      const dateLabel = isDateRangeMode && startDate && endDate
+        ? `${startDate} → ${endDate}`
+        : selectedDate;
+      doc.text(dateLabel, PAGE_W / 2, y, { align: 'center' });
+      y += 3.5;
+
+      doc.text(
+        `Generado: ${new Date().toLocaleString('es-PE', { timeZone: 'America/Lima', dateStyle: 'short', timeStyle: 'short' })}`,
+        PAGE_W / 2, y, { align: 'center' }
+      );
+      y += 3;
+
+      // Línea separadora
+      doc.setDrawColor(0);
+      doc.setLineWidth(0.3);
+      doc.line(MARGIN, y, PAGE_W - MARGIN, y);
+      y += 3;
+
+      // ── FILAS DE PEDIDO ──
+      filteredOrders.forEach((order, idx) => {
+        const nombre = order.student?.full_name || order.teacher?.full_name || order.manual_name || 'N/A';
+        const grado = order.student?.grade || order.teacher?.grade || '-';
+        const seccion = order.student?.section || order.teacher?.section || '-';
+        const plato = (() => {
+          const mc = order.chosen_main_course || order.lunch_menus?.main_course || '';
+          const cat = order.lunch_menus?.lunch_categories?.name || order.lunch_menus?.category_name || '';
+          return [cat, mc].filter(Boolean).join(' · ') || 'Sin plato';
+        })();
+        const obs = [order.comments, order.cancellation_reason, order.postponement_reason]
+          .filter(Boolean).join(' | ') || '-';
+
+        // Fondo alterno
+        if (idx % 2 === 1) {
+          doc.setFillColor(245, 245, 245);
+          doc.rect(MARGIN - 1, y - 1, CONTENT_W + 2, ROW_H, 'F');
+        }
+
+        doc.setFontSize(7);
+        doc.setFont('helvetica', 'bold');
+        // Nombre (puede ser largo — se trunca a 1 línea con wrapping)
+        const nombreLines = doc.splitTextToSize(nombre, CONTENT_W);
+        doc.text(nombreLines[0], MARGIN, y);
+        y += LINE_H;
+
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(6.5);
+        doc.text(`Grado: ${grado}   Aula: ${seccion}`, MARGIN, y);
+        y += LINE_H;
+
+        const platoLines = doc.splitTextToSize(`Plato: ${plato}`, CONTENT_W);
+        doc.text(platoLines[0], MARGIN, y);
+        if (platoLines.length > 1) {
+          y += LINE_H - 0.5;
+          doc.text(platoLines[1], MARGIN, y);
+        }
+        y += LINE_H;
+
+        const obsLines = doc.splitTextToSize(`Obs: ${obs}`, CONTENT_W);
+        doc.setTextColor(100, 100, 100);
+        doc.text(obsLines[0], MARGIN, y);
+        doc.setTextColor(0, 0, 0);
+        y += LINE_H;
+
+        // Separador ligero entre pedidos
+        doc.setDrawColor(200, 200, 200);
+        doc.setLineWidth(0.1);
+        doc.line(MARGIN, y, PAGE_W - MARGIN, y);
+        y += 2;
+      });
+
+      // ── PIE ──
+      y += 2;
+      doc.setDrawColor(0);
+      doc.setLineWidth(0.3);
+      doc.line(MARGIN, y, PAGE_W - MARGIN, y);
+      y += 3.5;
+      doc.setFontSize(6);
+      doc.setFont('helvetica', 'italic');
+      doc.setTextColor(120, 120, 120);
+      doc.text(`${filteredOrders.length} pedido(s) · ERP Maracuyá`, PAGE_W / 2, y, { align: 'center' });
+
+      const fileNameTicket = isDateRangeMode
+        ? `Ticket_Almuerzo_${startDate.replace(/-/g, '')}_${endDate.replace(/-/g, '')}.pdf`
+        : `Ticket_Almuerzo_${selectedDate.replace(/-/g, '')}.pdf`;
+
+      doc.save(fileNameTicket);
+
+      toast({
+        title: '🖨️ Ticket 80mm generado',
+        description: `${filteredOrders.length} pedido(s) exportados`,
+      });
+    } catch (error: any) {
+      console.error('Error generando ticket 80mm:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'No se pudo generar el ticket',
+      });
+    }
+  };
+
   if (loading || roleLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-purple-50">
@@ -1677,6 +1812,17 @@ export default function LunchOrders() {
           <Download className="h-3.5 w-3.5" />
           <span className="hidden sm:inline">Exportar PDF</span>
           <span className="sm:hidden">PDF</span>
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={exportToTicket80mm}
+          disabled={filteredOrders.length === 0}
+          className="h-8 text-xs gap-1.5 shrink-0 border-violet-300 text-violet-700 hover:bg-violet-50"
+        >
+          <Download className="h-3.5 w-3.5" />
+          <span className="hidden sm:inline">Ticket 80mm</span>
+          <span className="sm:hidden">🖨️</span>
         </Button>
       </div>
 

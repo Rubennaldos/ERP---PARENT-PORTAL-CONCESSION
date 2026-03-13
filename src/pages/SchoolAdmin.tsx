@@ -1,10 +1,10 @@
-﻿import { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { ShoppingCart, Calendar, CreditCard, Plus, Clock, CheckCircle2, AlertTriangle, ArrowLeft, GraduationCap, Nfc, Wrench } from 'lucide-react';
+import { ShoppingCart, Calendar, CreditCard, Plus, Clock, CheckCircle2, AlertTriangle, ArrowLeft, GraduationCap, Nfc, Wrench, History } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
@@ -13,6 +13,7 @@ import { GradesManagement } from '@/components/school-admin/GradesManagement';
 import { NFCCardsManager } from '@/components/admin/NFCCardsManager';
 import { NFCRequestsManager } from '@/components/school-admin/NFCRequestsManager';
 import { MaintenanceModeManager } from '@/components/school-admin/MaintenanceModeManager';
+import { HistoricalSalesForm } from '@/components/admin/HistoricalSalesForm';
 
 interface SupplyRequest {
   id: string;
@@ -143,7 +144,7 @@ const SchoolAdmin = () => {
 
         {/* Tabs Principales */}
         <Tabs defaultValue="requests" className="w-full">
-          <TabsList className="grid w-full grid-cols-5 bg-white border rounded-xl p-1 h-auto">
+          <TabsList className="grid w-full grid-cols-6 bg-white border rounded-xl p-1 h-auto">
             <TabsTrigger value="requests" className="data-[state=active]:bg-[#9E4D68] data-[state=active]:text-white flex flex-col sm:flex-row items-center gap-1 py-2 px-1 sm:px-3 text-xs sm:text-sm">
               <ShoppingCart className="h-4 w-4" />
               <span className="hidden xs:inline sm:inline text-[10px] sm:text-sm leading-tight">Pedidos</span>
@@ -163,6 +164,10 @@ const SchoolAdmin = () => {
             <TabsTrigger value="maintenance" className="data-[state=active]:bg-[#9E4D68] data-[state=active]:text-white flex flex-col sm:flex-row items-center gap-1 py-2 px-1 sm:px-3 text-xs sm:text-sm">
               <Wrench className="h-4 w-4" />
               <span className="hidden xs:inline sm:inline text-[10px] sm:text-sm leading-tight">Mant.</span>
+            </TabsTrigger>
+            <TabsTrigger value="historical" className="data-[state=active]:bg-[#9E4D68] data-[state=active]:text-white flex flex-col sm:flex-row items-center gap-1 py-2 px-1 sm:px-3 text-xs sm:text-sm">
+              <History className="h-4 w-4" />
+              <span className="hidden xs:inline sm:inline text-[10px] sm:text-sm leading-tight">Historial</span>
             </TabsTrigger>
           </TabsList>
 
@@ -270,6 +275,30 @@ const SchoolAdmin = () => {
               </CardHeader>
               <CardContent className="p-4 sm:p-6">
                 <MaintenanceModeManager schoolId={userSchoolId} />
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Pestaña Ventas Históricas del Kiosco */}
+          <TabsContent value="historical" className="mt-4">
+            <Card className="border-2 border-slate-200">
+              <CardHeader className="bg-gradient-to-r from-slate-50 to-slate-100 p-4 sm:p-5">
+                <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+                  <History className="h-5 w-5 text-slate-700" />
+                  Ventas Históricas del Kiosco
+                </CardTitle>
+                <CardDescription className="text-xs sm:text-sm">
+                  Registra ventas del cuaderno con su fecha real. La fecha queda guardada entre registros para agilizar la carga masiva.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="p-4 sm:p-6">
+                {userSchoolId ? (
+                  <HistoricalSalesForm schoolId={userSchoolId} />
+                ) : (
+                  <p className="text-sm text-slate-500 text-center py-6">
+                    No se pudo determinar la sede. Contacta al administrador general.
+                  </p>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
