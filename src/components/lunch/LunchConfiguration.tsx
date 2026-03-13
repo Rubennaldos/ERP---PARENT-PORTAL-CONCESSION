@@ -14,6 +14,7 @@ import {
   Settings,
   CheckCircle2,
   Building2,
+  Ban,
 } from 'lucide-react';
 import {
   Select,
@@ -48,6 +49,9 @@ interface LunchConfig {
   delivery_end_time?: string;
   auto_close_day?: boolean;
   auto_mark_as_delivered?: boolean;
+  block_start_time?: string;
+  block_end_time?: string;
+  block_orders_enabled?: boolean;
 }
 
 export function LunchConfiguration({ schoolId, canEdit, schools = [] }: LunchConfigurationProps) {
@@ -102,6 +106,9 @@ export function LunchConfiguration({ schoolId, canEdit, schools = [] }: LunchCon
           delivery_end_time: '17:00:00',
           auto_close_day: true,
           auto_mark_as_delivered: true,
+          block_orders_enabled: false,
+          block_start_time: '11:00:00',
+          block_end_time: '14:00:00',
         });
         toast({
           title: 'Nueva configuración',
@@ -137,6 +144,9 @@ export function LunchConfiguration({ schoolId, canEdit, schools = [] }: LunchCon
         delivery_end_time: config.delivery_end_time,
         auto_close_day: config.auto_close_day,
         auto_mark_as_delivered: config.auto_mark_as_delivered,
+        block_orders_enabled: config.block_orders_enabled ?? false,
+        block_start_time: config.block_start_time ?? '11:00:00',
+        block_end_time: config.block_end_time ?? '14:00:00',
       };
 
       // Usar upsert para crear o actualizar (funciona tanto para config nueva como existente)
@@ -519,6 +529,75 @@ export function LunchConfiguration({ schoolId, canEdit, schools = [] }: LunchCon
                 </li>
               </ul>
             </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Bloqueo por rango horario */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Ban className="h-5 w-5 text-red-600" />
+            Bloqueo de Pedidos por Horario
+          </CardTitle>
+          <CardDescription>
+            Bloquea los pedidos durante un rango de horas del día (ej. hora de entrega de almuerzos)
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-5">
+          <div className="flex items-center justify-between p-4 bg-red-50 rounded-lg">
+            <div>
+              <Label className="text-base font-semibold">Activar bloqueo por rango horario</Label>
+              <p className="text-sm text-gray-600 mt-1">
+                Los padres no podrán hacer pedidos durante el horario definido abajo
+              </p>
+            </div>
+            <Switch
+              checked={config.block_orders_enabled ?? false}
+              onCheckedChange={(checked) =>
+                setConfig({ ...config, block_orders_enabled: checked })
+              }
+              disabled={!canEdit}
+            />
+          </div>
+
+          {config.block_orders_enabled && (
+            <>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Inicio del bloqueo</Label>
+                  <Input
+                    type="time"
+                    value={(config.block_start_time ?? '11:00:00').slice(0, 5)}
+                    onChange={(e) =>
+                      setConfig({ ...config, block_start_time: e.target.value + ':00' })
+                    }
+                    disabled={!canEdit}
+                  />
+                  <p className="text-xs text-gray-500">Hora desde la que se bloquean pedidos</p>
+                </div>
+                <div className="space-y-2">
+                  <Label>Fin del bloqueo</Label>
+                  <Input
+                    type="time"
+                    value={(config.block_end_time ?? '14:00:00').slice(0, 5)}
+                    onChange={(e) =>
+                      setConfig({ ...config, block_end_time: e.target.value + ':00' })
+                    }
+                    disabled={!canEdit}
+                  />
+                  <p className="text-xs text-gray-500">Hora en que se reabren los pedidos</p>
+                </div>
+              </div>
+              <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                <p className="text-sm text-red-800">
+                  🚫 <strong>Pedidos bloqueados</strong> de las{' '}
+                  <strong>{(config.block_start_time ?? '11:00:00').slice(0, 5)}</strong> a las{' '}
+                  <strong>{(config.block_end_time ?? '14:00:00').slice(0, 5)}</strong>.
+                  Fuera de ese rango, los padres pueden pedir normalmente.
+                </p>
+              </div>
+            </>
           )}
         </CardContent>
       </Card>

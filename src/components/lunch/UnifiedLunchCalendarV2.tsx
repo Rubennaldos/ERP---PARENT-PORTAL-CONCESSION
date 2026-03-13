@@ -86,6 +86,9 @@ interface LunchConfig {
   order_deadline_days: number;
   cancellation_deadline_time: string;
   cancellation_deadline_days: number;
+  block_orders_enabled?: boolean;
+  block_start_time?: string;
+  block_end_time?: string;
 }
 
 interface Student {
@@ -279,7 +282,7 @@ export function UnifiedLunchCalendarV2({ userType, userId, userSchoolId }: Unifi
       // 1. Configuration
       const { data: configData, error: configError } = await supabase
         .from('lunch_configuration')
-        .select('lunch_price, orders_enabled, order_deadline_time, order_deadline_days, cancellation_deadline_time, cancellation_deadline_days')
+        .select('lunch_price, orders_enabled, order_deadline_time, order_deadline_days, cancellation_deadline_time, cancellation_deadline_days, block_orders_enabled, block_start_time, block_end_time')
         .eq('school_id', effectiveSchoolId)
         .maybeSingle();
 
@@ -417,6 +420,26 @@ export function UnifiedLunchCalendarV2({ userType, userId, userSchoolId }: Unifi
         canOrder: false,
         reason: `Venció el ${deadlineDateFormatted}`
       };
+    }
+
+    // Verificar bloqueo por rango horario (ej. 11:00 - 14:00)
+    if (config.block_orders_enabled && config.block_start_time && config.block_end_time) {
+      const nowHour = peruNow.getHours();
+      const nowMin = peruNow.getMinutes();
+      const nowTotal = nowHour * 60 + nowMin;
+
+      const [bsH, bsM] = config.block_start_time.split(':').map(Number);
+      const [beH, beM] = config.block_end_time.split(':').map(Number);
+      const blockStart = bsH * 60 + bsM;
+      const blockEnd = beH * 60 + beM;
+
+      if (nowTotal >= blockStart && nowTotal < blockEnd) {
+        const endStr = config.block_end_time.slice(0, 5);
+        return {
+          canOrder: false,
+          reason: `Pedidos bloqueados hasta las ${endStr} (hora de entrega de almuerzos)`
+        };
+      }
     }
 
     return { canOrder: true };
