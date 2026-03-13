@@ -38,7 +38,7 @@ BEGIN
     s.section::TEXT             AS student_section,
     COALESCE(s.balance, 0)::FLOAT8           AS student_balance,
     COALESCE(s.free_account, true)::BOOLEAN  AS student_free_account,
-    COALESCE(s.kiosk_disabled, false)::BOOLEAN AS student_kiosk_disabled,
+    false::BOOLEAN AS student_kiosk_disabled,
     s.limit_type::TEXT          AS student_limit_type,
     COALESCE(s.daily_limit, 0)::FLOAT8      AS student_daily_limit,
     COALESCE(s.weekly_limit, 0)::FLOAT8     AS student_weekly_limit,

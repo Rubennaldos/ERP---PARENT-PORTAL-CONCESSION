@@ -1,0 +1,18 @@
+═══════════════════════════════════════════════════════════════
+RESUMEN ALMUERZOS MARZO
+Entrada · Almuerzo (segundo) · Postre
+═══════════════════════════════════════════════════════════════
+
+DÍA        ENTRADA              ALMUERZO              POSTRE
+───────────────────────────────────────────────────────────────
+(pegar aquí los resultados de la consulta SQL o completar a mano)
+
+
+═══════════════════════════════════════════════════════════════
+CÓMO OBTENER LOS DATOS
+═══════════════════════════════════════════════════════════════
+1. Abre Supabase → SQL Editor.
+2. Abre el archivo RESUMEN_ALMUERZOS_MARZO.sql en este proyecto.
+3. Si usas otro año, cambia 2025 en la línea del WHERE por el año deseado.
+4. Ejecuta la consulta y copia el resultado.
+5. Pega aquí arriba en la tabla o en un Excel/Sheets para el resumen.

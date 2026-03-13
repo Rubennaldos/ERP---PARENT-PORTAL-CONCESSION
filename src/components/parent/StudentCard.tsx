@@ -1,4 +1,4 @@
-﻿import { Card, CardContent } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { 
@@ -8,6 +8,10 @@ import {
   Info,
   CreditCard,
   Nfc,
+  ShoppingBag,
+  AlertTriangle,
+  RefreshCw,
+  Zap,
 } from 'lucide-react';
 import {
   Popover,
@@ -38,6 +42,7 @@ interface StudentCardProps {
   onPayDebt?: () => void;
   onPhotoClick: () => void;
   onActivateNFC?: () => void;
+  onOpenKiosk?: () => void;
 }
 
 export function StudentCard({
@@ -47,15 +52,19 @@ export function StudentCard({
   onPayDebt,
   onPhotoClick,
   onActivateNFC,
+  onOpenKiosk,
 }: StudentCardProps) {
-  // Siempre Cuenta Libre
   const hasDebt = totalDebt > 0;
+  const debtExceedsLimit = totalDebt > 100;
+  const isRecarga = student.free_account === false;
+  const isLibre = !isRecarga;
 
   return (
     <Card className="overflow-hidden hover:shadow-lg transition-all duration-300 border border-stone-200/50 bg-white group">
       {/* Header bar */}
       <div className={`h-1.5 relative transition-colors duration-500 ${
-        hasDebt ? 'bg-rose-400' 
+        debtExceedsLimit ? 'bg-red-500'
+        : hasDebt ? 'bg-rose-400' 
         : 'bg-gradient-to-r from-emerald-500/70 via-[#A3566E] to-[#8B4060]'
       }`} />
 
@@ -94,15 +103,30 @@ export function StudentCard({
               {student.grade} <span className="text-stone-300">·</span> {student.section}
             </p>
             
-            <div className="flex gap-2 mt-3">
-              <Badge className="bg-emerald-50/80 text-emerald-700 hover:bg-emerald-100/80 border border-emerald-200/30 py-0.5 px-2.5 rounded-lg font-medium text-[9px] uppercase tracking-wider">
-                Cuenta Libre
-              </Badge>
-              {hasDebt && (
-                <Badge className="bg-rose-50 text-rose-600 border-0 py-0.5 px-2.5 rounded-lg font-medium text-[9px] uppercase tracking-wider animate-pulse">
-                  Deuda
+            <div className="flex flex-wrap gap-1.5 mt-3">
+              {/* Badge modo kiosco */}
+              {isRecarga ? (
+                <Badge className="bg-emerald-50/80 text-emerald-700 hover:bg-emerald-100/80 border border-emerald-200/30 py-0.5 px-2 rounded-lg font-medium text-[9px] uppercase tracking-wider">
+                  <RefreshCw className="h-2.5 w-2.5 mr-1" />
+                  Recarga
+                </Badge>
+              ) : (
+                <Badge className="bg-blue-50/80 text-blue-700 hover:bg-blue-100/80 border border-blue-200/30 py-0.5 px-2 rounded-lg font-medium text-[9px] uppercase tracking-wider">
+                  <Zap className="h-2.5 w-2.5 mr-1" />
+                  Libre
                 </Badge>
               )}
+              {/* Badge deuda */}
+              {debtExceedsLimit ? (
+                <Badge className="bg-red-50 text-red-600 border border-red-200 py-0.5 px-2 rounded-lg font-medium text-[9px] uppercase tracking-wider animate-pulse">
+                  <AlertTriangle className="h-2.5 w-2.5 mr-1" />
+                  Deuda alta
+                </Badge>
+              ) : hasDebt ? (
+                <Badge className="bg-rose-50 text-rose-600 border-0 py-0.5 px-2.5 rounded-lg font-medium text-[9px] uppercase tracking-wider">
+                  Deuda
+                </Badge>
+              ) : null}
             </div>
           </div>
         </div>
@@ -121,15 +145,39 @@ export function StudentCard({
 
       {/* Contenido */}
       <CardContent className="pb-6 px-6 pt-2">
+
+        {/* ═══════ SALDO KIOSCO (modo Recarga) ═══════ */}
+        {isRecarga && (
+          <div className="rounded-2xl p-4 mb-3 border bg-emerald-50/40 border-emerald-200/50">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-[9px] font-medium uppercase tracking-[0.2em] text-emerald-600 mb-1">
+                  Saldo Kiosco
+                </p>
+                <p className="text-2xl font-light text-emerald-700">
+                  S/ {(student.balance || 0).toFixed(2)}
+                </p>
+              </div>
+              <div className="bg-emerald-100/60 p-2.5 rounded-xl">
+                <ShoppingBag className="h-5 w-5 text-emerald-600" />
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* ═══════════════════ DEUDA / AL DÍA ═══════════════════ */}
         <div className={`rounded-2xl p-5 mb-4 border transition-all duration-300 ${
-          hasDebt ? 'bg-rose-50/30 border-rose-200/50' : 'bg-gradient-to-br from-stone-50/30 to-emerald-50/20 border-emerald-200/20'
+          debtExceedsLimit
+            ? 'bg-red-50/40 border-red-200/60'
+            : hasDebt
+              ? 'bg-rose-50/30 border-rose-200/50'
+              : 'bg-gradient-to-br from-stone-50/30 to-emerald-50/20 border-emerald-200/20'
         }`}>
           <div className="flex items-center justify-between">
             <div className="flex-1">
               <div className="flex items-center gap-2 mb-1.5">
                 <span className={`text-[9px] font-medium uppercase tracking-[0.2em] ${
-                  hasDebt ? 'text-rose-500' : 'text-stone-400'
+                  debtExceedsLimit ? 'text-red-500' : hasDebt ? 'text-rose-500' : 'text-stone-400'
                 }`}>
                   {hasDebt ? 'Monto Adeudado' : 'Sin Deudas'}
                 </span>
@@ -142,26 +190,47 @@ export function StudentCard({
                   <PopoverContent className="w-80 shadow-lg border border-stone-200/50 rounded-2xl p-4" side="top" align="start">
                     <div className="space-y-2">
                       <h4 className="font-medium text-sm text-stone-800">
-                        {hasDebt ? '💳 Cuenta Libre - Deuda' : '✅ Cuenta Libre'}
+                        {hasDebt
+                          ? debtExceedsLimit ? '⚠️ Deuda alta' : '💳 Cuenta Kiosco - Deuda'
+                          : '✅ Sin Deudas'
+                        }
                       </h4>
                       <p className="text-xs text-stone-500 leading-relaxed">
-                        {hasDebt 
-                          ? `Consumos pendientes de pago. ${student.full_name} puede seguir consumiendo y pagas al final del mes.`
-                          : `${student.full_name} no tiene consumos pendientes. Puede comprar libremente en la cafetería.`
+                        {isLibre
+                          ? hasDebt
+                            ? `Consumos pendientes de pago. ${student.full_name} puede seguir comprando y pagas al final del período.`
+                            : `${student.full_name} no tiene consumos pendientes. Puede comprar libremente en el kiosco.`
+                          : hasDebt
+                            ? `Consumos que superaron el saldo disponible.`
+                            : `${student.full_name} está al día.`
                         }
                       </p>
+                      {debtExceedsLimit && (
+                        <p className="text-xs text-red-600 font-medium">
+                          La deuda ha superado S/ 100. Te recomendamos pagarla pronto.
+                        </p>
+                      )}
                     </div>
                   </PopoverContent>
                 </Popover>
               </div>
               <p className={`text-3xl font-light tracking-tight ${
-                hasDebt ? 'text-rose-600' : 'text-emerald-600'
+                debtExceedsLimit ? 'text-red-600' : hasDebt ? 'text-rose-600' : 'text-emerald-600'
               }`}>
                 {hasDebt ? `S/ ${totalDebt.toFixed(2)}` : '✓ Al día'}
               </p>
+              {/* Alerta visible cuando deuda > S/100 */}
+              {debtExceedsLimit && (
+                <p className="text-[10px] text-red-500 mt-1 flex items-center gap-1">
+                  <AlertTriangle className="h-3 w-3" />
+                  Deuda alta — te recomendamos pagar pronto
+                </p>
+              )}
             </div>
             <div className={`p-3 rounded-xl ${
-              hasDebt ? 'bg-rose-100/50 text-rose-500' : 'bg-emerald-100/60 text-emerald-600'
+              debtExceedsLimit ? 'bg-red-100/50 text-red-500'
+              : hasDebt ? 'bg-rose-100/50 text-rose-500'
+              : 'bg-emerald-100/60 text-emerald-600'
             }`}>
               <Wallet className="h-6 w-6" />
             </div>
@@ -175,10 +244,31 @@ export function StudentCard({
             <Button
               onClick={onPayDebt}
               variant="outline"
-              className="w-full h-12 rounded-xl font-medium text-sm tracking-wide transition-all active:scale-95 border-rose-200 text-rose-600 hover:bg-rose-50 hover:border-rose-300"
+              className={`w-full h-12 rounded-xl font-medium text-sm tracking-wide transition-all active:scale-95 ${
+                debtExceedsLimit
+                  ? 'border-red-300 text-red-600 hover:bg-red-50 hover:border-red-400 animate-pulse'
+                  : 'border-rose-200 text-rose-600 hover:bg-rose-50 hover:border-rose-300'
+              }`}
             >
               <CreditCard className="h-4 w-4 mr-2" />
-              Pagar Deudas
+              {debtExceedsLimit ? '⚠️ Pagar Deuda (monto alto)' : 'Pagar Deudas'}
+            </Button>
+          )}
+
+          {/* Cuenta Kiosco */}
+          {onOpenKiosk && (
+            <Button
+              onClick={onOpenKiosk}
+              variant="outline"
+              className="w-full h-12 rounded-xl font-medium text-sm tracking-wide transition-all active:scale-95 border-slate-200 text-slate-600 hover:bg-slate-50 hover:border-slate-300"
+            >
+              <ShoppingBag className="h-4 w-4 mr-2" />
+              Cuenta Kiosco
+              {isRecarga && (
+                <span className="ml-auto text-[10px] bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded-md font-semibold">
+                  S/ {(student.balance || 0).toFixed(2)}
+                </span>
+              )}
             </Button>
           )}
 

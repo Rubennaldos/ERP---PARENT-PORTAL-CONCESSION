@@ -29,6 +29,7 @@ import { UnifiedLunchCalendarV2 } from '@/components/lunch/UnifiedLunchCalendarV
 import { ParentLunchOrders } from '@/components/parent/ParentLunchOrders';
 import { ParentDataForm } from '@/components/parent/ParentDataForm';
 import { NFCRequestModal } from '@/components/parent/NFCRequestModal';
+import { KioskAccountModal } from '@/components/parent/KioskAccountModal';
 import { MaintenanceScreen } from '@/components/parent/MaintenanceScreen';
 import { useOnboardingCheck } from '@/hooks/useOnboardingCheck';
 
@@ -85,6 +86,9 @@ const Index = () => {
 
   // NFC
   const [showNFCModal, setShowNFCModal] = useState(false);
+
+  // Kiosco
+  const [showKioskModal, setShowKioskModal] = useState(false);
 
   // Modo mantenimiento
   const [lunchMaintenance, setLunchMaintenance] = useState<{ is_active: boolean; title: string; message: string; bypass_emails: string[] } | null>(null);
@@ -442,6 +446,10 @@ const Index = () => {
                         setSelectedStudent(student);
                         setShowNFCModal(true);
                       }}
+                      onOpenKiosk={() => {
+                        setSelectedStudent(student);
+                        setShowKioskModal(true);
+                      }}
                     />
                   ))}
                 </div>
@@ -569,6 +577,21 @@ const Index = () => {
               setShowNFCModal(false);
               setActiveTab('pagos');
             }}
+          />
+
+          <KioskAccountModal
+            isOpen={showKioskModal}
+            onClose={() => setShowKioskModal(false)}
+            studentId={selectedStudent.id}
+            studentName={selectedStudent.full_name}
+            currentBalance={selectedStudent.balance || 0}
+            freeAccount={selectedStudent.free_account !== false}
+            totalDebt={studentDebts[selectedStudent.id] || 0}
+            onGoToPayments={() => {
+              setShowKioskModal(false);
+              setActiveTab('pagos');
+            }}
+            onAccountChanged={fetchStudents}
           />
         </>
       )}
