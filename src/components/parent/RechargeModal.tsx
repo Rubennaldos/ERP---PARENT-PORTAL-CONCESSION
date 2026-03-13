@@ -35,7 +35,7 @@ interface RechargeModalProps {
   accountType: string;
   onRecharge: (amount: number, method: string) => Promise<void>;
   suggestedAmount?: number;
-  requestType?: 'recharge' | 'lunch_payment' | 'debt_payment';
+  requestType?: 'recharge' | 'lunch_payment' | 'debt_payment' | 'kiosk_mode_activation';
   requestDescription?: string;
   lunchOrderIds?: string[];
   paidTransactionIds?: string[];
@@ -367,6 +367,7 @@ export function RechargeModal({
         description: requestDescription || (
           requestType === 'lunch_payment' ? 'Pago de almuerzo' :
           requestType === 'debt_payment' ? 'Pago de deuda pendiente' :
+          requestType === 'kiosk_mode_activation' ? 'Activación modalidad Recarga kiosco' :
           'Recarga de saldo'
         ),
         lunch_order_ids: lunchOrderIds || null,
@@ -453,7 +454,7 @@ export function RechargeModal({
   };
 
   const numAmount = parseFloat(amount || '0');
-  const titleLabel = requestType === 'lunch_payment' ? 'Pagar Almuerzo' : requestType === 'debt_payment' ? 'Pagar Deuda' : 'Recargar Saldo';
+  const titleLabel = requestType === 'lunch_payment' ? 'Pagar Almuerzo' : requestType === 'debt_payment' ? 'Pagar Deuda' : requestType === 'kiosk_mode_activation' ? 'Activar Recarga Kiosco' : 'Recargar Saldo';
   const availableMethods = (['yape', 'plin', 'transferencia'] as PaymentMethod[]).filter(m => isMethodAvailable(m));
   const hasAnyMethod = availableMethods.length > 0;
   const isMainVoucherComplete = !!(referenceCode.trim() && voucherFile);
@@ -485,6 +486,7 @@ export function RechargeModal({
                 {requestType === 'lunch_payment' && <li>Tu pedido se confirmará al aprobarse</li>}
                 {requestType === 'debt_payment' && <li>La deuda se saldará al aprobarse</li>}
                 {requestType === 'recharge' && <li>Saldo acreditado en menos de 24h</li>}
+                {requestType === 'kiosk_mode_activation' && <li>Cuenta cambiada a modalidad Recarga al aprobarse</li>}
               </ul>
             </div>
             <Button onClick={onClose} className="w-full h-10 bg-blue-600 hover:bg-blue-700 font-semibold text-sm">

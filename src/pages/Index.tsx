@@ -587,6 +587,7 @@ const Index = () => {
             currentBalance={selectedStudent.balance || 0}
             freeAccount={selectedStudent.free_account !== false}
             totalDebt={studentDebts[selectedStudent.id] || 0}
+            schoolId={selectedStudent.school_id}
             onGoToPayments={() => {
               setShowKioskModal(false);
               setActiveTab('pagos');
