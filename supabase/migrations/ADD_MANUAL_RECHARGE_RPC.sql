@@ -86,9 +86,10 @@ BEGIN
   )
   RETURNING id INTO v_tx_id;
 
-  -- 2) Actualizar balance del estudiante
+  -- 2) Actualizar balance del estudiante y activar modo Recarga
   UPDATE public.students
-  SET    balance = v_new_balance
+  SET    balance      = v_new_balance,
+         free_account = false          -- activar modo Recarga al recargar
   WHERE  id = p_student_id;
 
   -- Retornar resumen
