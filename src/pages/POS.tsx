@@ -875,31 +875,28 @@ const POS = () => {
       }
     }
 
-    // ─── 2. Cuenta Libre sin topes ───
-    if (student.free_account) {
+    // ─── 2. Cuenta Recarga (free_account === false) ───
+    if (student.free_account === false) {
+      const balance = student.balance || 0;
+      if (balance <= 0) {
+        return {
+          canPurchase: false,
+          statusText: '💳 Sin Saldo - S/ 0.00',
+          statusColor: 'text-red-600',
+          reason: 'Sin saldo disponible'
+        };
+      }
       return {
         canPurchase: true,
-        statusText: '✨ Cuenta Libre - Sin tope',
-        statusColor: 'text-emerald-600'
+        statusText: `💰 Recarga: S/ ${balance.toFixed(2)}`,
+        statusColor: 'text-blue-600'
       };
     }
 
-    // ─── 3. Con Recargas (sin cuenta libre) ───
-    const balance = student.balance || 0;
-    
-    if (balance <= 0) {
-      return {
-        canPurchase: false,
-        statusText: '💳 Sin Saldo - S/ 0.00',
-        statusColor: 'text-red-600',
-        reason: 'Sin saldo disponible'
-      };
-    }
-
-    // 4. Sin límites pero con saldo (default)
+    // ─── 3. Cuenta Libre sin topes ───
     return {
       canPurchase: true,
-      statusText: `💰 Saldo: S/ ${balance.toFixed(2)}`,
+      statusText: '✨ Cuenta Libre - Sin tope',
       statusColor: 'text-emerald-600'
     };
   };
@@ -1324,47 +1321,88 @@ const POS = () => {
           if (paymentSplits.length > 0) studentPaymentDetails.payment_splits = paymentSplits;
         }
 
-        const { data: transaction, error: transError} = await supabase
-          .from('transactions')
-          .insert({
-            student_id: selectedStudent.id,
-            school_id: selectedStudent.school_id, // ✅ Agregar school_id
-            type: 'purchase',
-            amount: -total,
-            description: `Compra POS${isFreeAccount ? ' (Cuenta Libre)' : ''} - Total: S/ ${total.toFixed(2)}`,
-            balance_after: newBalance,
-            created_by: user?.id,
-            ticket_code: ticketCode,
-            payment_status: isFreeAccount ? 'pending' : 'paid', // Si es cuenta libre, queda pendiente
-            payment_method: isFreeAccount ? null : (paymentMethod || 'efectivo'),
-            metadata: Object.keys(studentPaymentDetails).length > 0 ? { source: 'pos', ...studentPaymentDetails } : { source: 'pos' },
-          })
-          .select()
-          .single();
+        let finalNewBalance = newBalance;
 
-        if (transError) {
-          console.error('❌ Error creando transacción:', transError);
-          throw transError;
+        if (!isFreeAccount && amountToDeduct > 0) {
+          // ── MODO RECARGA: usar RPC atómica con FOR UPDATE para evitar race conditions ──
+          const extraMeta = Object.keys(studentPaymentDetails).length > 0
+            ? { ...studentPaymentDetails }
+            : {};
+
+          const { data: rpcResult, error: rpcError } = await supabase.rpc('deduct_kiosk_balance', {
+            p_student_id:  selectedStudent.id,
+            p_amount:      amountToDeduct,
+            p_description: `Compra POS - Total: S/ ${total.toFixed(2)}`,
+            p_ticket_code: ticketCode,
+            p_created_by:  user?.id,
+            p_metadata:    extraMeta,
+          });
+
+          if (rpcError) {
+            console.error('❌ Error en RPC deduct_kiosk_balance:', rpcError);
+            throw rpcError;
+          }
+
+          finalNewBalance = (rpcResult as any)?.new_balance ?? newBalance;
+          const rpcTxId = (rpcResult as any)?.transaction_id;
+          console.log('✅ Transacción kiosco (RPC atómica):', rpcTxId, '— nuevo saldo:', finalNewBalance);
+
+          // Crear items de transacción para esta tx
+          if (rpcTxId) {
+            const items = cart.map(item => ({
+              transaction_id: rpcTxId,
+              product_id: item.product.id,
+              product_name: item.product.name,
+              quantity: item.quantity,
+              unit_price: item.product.price,
+              subtotal: item.product.price * item.quantity,
+            }));
+            const { error: itemsError } = await supabase.from('transaction_items').insert(items);
+            if (itemsError) console.warn('⚠️ Error insertando items (no crítico):', itemsError.message);
+          }
+
+          // Actualizar estado local
+          setSelectedStudent({ ...selectedStudent, balance: finalNewBalance });
+        } else {
+          // ── MODO LIBRE: registrar como deuda (payment_status = pending) ──
+          const { data: transaction, error: transError } = await supabase
+            .from('transactions')
+            .insert({
+              student_id: selectedStudent.id,
+              school_id: selectedStudent.school_id,
+              type: 'purchase',
+              amount: -total,
+              description: `Compra POS (Cuenta Libre) - Total: S/ ${total.toFixed(2)}`,
+              balance_after: newBalance,
+              created_by: user?.id,
+              ticket_code: ticketCode,
+              payment_status: 'pending',
+              payment_method: null,
+              metadata: { source: 'pos', ...studentPaymentDetails },
+            })
+            .select()
+            .single();
+
+          if (transError) {
+            console.error('❌ Error creando transacción:', transError);
+            throw transError;
+          }
+          console.log('✅ Transacción libre creada:', transaction.id);
+
+          // Crear items
+          const items = cart.map(item => ({
+            transaction_id: transaction.id,
+            product_id: item.product.id,
+            product_name: item.product.name,
+            quantity: item.quantity,
+            unit_price: item.product.price,
+            subtotal: item.product.price * item.quantity,
+          }));
+          const { error: itemsError } = await supabase.from('transaction_items').insert(items);
+          if (itemsError) throw itemsError;
         }
-        console.log('✅ Transacción creada:', transaction.id);
 
-        // Crear items
-        const items = cart.map(item => ({
-          transaction_id: transaction.id,
-          product_id: item.product.id,
-          product_name: item.product.name,
-          quantity: item.quantity,
-          unit_price: item.product.price,
-          subtotal: item.product.price * item.quantity,
-        }));
-
-        const { error: itemsError } = await supabase
-          .from('transaction_items')
-          .insert(items);
-
-        if (itemsError) throw itemsError;
-
-        // **NUEVO: Registrar en tabla SALES para módulo de Finanzas**
+        // Registrar en tabla SALES para módulo de Finanzas
         const salesItems = cart.map(item => ({
           product_id: item.product.id,
           product_name: item.product.name,
@@ -1384,7 +1422,7 @@ const POS = () => {
             total: total,
             subtotal: total,
             discount: 0,
-            payment_method: isFreeAccount ? 'debt' : 'cash', // Si es cuenta libre, es "fiado"
+            payment_method: isFreeAccount ? 'debt' : 'cash',
             cash_received: isFreeAccount ? null : parseFloat(cashGiven) || total,
             change_given: isFreeAccount ? null : (parseFloat(cashGiven) || total) - total,
             items: salesItems,
@@ -1392,23 +1430,7 @@ const POS = () => {
         
         console.log('✅ Venta registrada en tabla sales');
 
-        // Actualizar saldo solo si NO es cuenta libre y hubo descuento
-        if (!isFreeAccount && amountToDeduct > 0) {
-          const { error: updateError } = await supabase
-            .from('students')
-            .update({ balance: newBalance })
-            .eq('id', selectedStudent.id);
-
-          if (updateError) throw updateError;
-          
-          // Actualizar estado local
-          setSelectedStudent({
-            ...selectedStudent,
-            balance: newBalance
-          });
-        }
-
-        ticketInfo.newBalance = newBalance;
+        ticketInfo.newBalance = finalNewBalance;
         ticketInfo.amountToDeduct = amountToDeduct;
         ticketInfo.isFreeAccount = isFreeAccount;
       } else if (clientMode === 'teacher' && selectedTeacher) {
@@ -2174,13 +2196,25 @@ const POS = () => {
                             {selectedStudentLimitInfo.periodText === 'Diario' ? '📅' : selectedStudentLimitInfo.periodText === 'Semanal' ? '📆' : '📊'} Tope {selectedStudentLimitInfo.periodText}: S/ {selectedStudentLimitInfo.remaining.toFixed(2)} restante
                           </span>
                         </div>
-                      ) : selectedStudent.free_account !== false ? (
+                      ) : selectedStudent.free_account === false ? (
+                        <div className="mt-1">
+                          <span className={`text-[8px] sm:text-xs px-2 py-0.5 rounded-full font-bold shadow-md ${
+                            (selectedStudent.balance || 0) <= 0
+                              ? 'bg-red-400 text-red-900'
+                              : (selectedStudent.balance || 0) < 10
+                                ? 'bg-orange-400 text-orange-900'
+                                : 'bg-blue-400 text-blue-900'
+                          }`}>
+                            💰 Recarga: S/ {(selectedStudent.balance || 0).toFixed(2)}
+                          </span>
+                        </div>
+                      ) : (
                         <div className="mt-1">
                           <span className="text-[8px] sm:text-xs bg-green-400 text-green-900 px-2 py-0.5 rounded-full font-bold shadow-md">
                             ✓ CUENTA LIBRE
                           </span>
                         </div>
-                      ) : null}
+                      )}
                     </div>
                     
                     {/* Botón CAMBIAR más pequeño en móvil */}
