@@ -304,7 +304,9 @@ export default function LunchOrders() {
               is_temporary,
               temporary_classroom_name,
               school_id,
-              free_account
+              free_account,
+              grade,
+              section
             ),
             teacher:teacher_profiles (
               full_name,
@@ -454,7 +456,9 @@ export default function LunchOrders() {
             is_temporary,
             temporary_classroom_name,
             school_id,
-            free_account
+            free_account,
+            grade,
+            section
           ),
           teacher:teacher_profiles (
             full_name,
