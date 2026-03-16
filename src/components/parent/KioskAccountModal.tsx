@@ -174,7 +174,7 @@ export function KioskAccountModal({
             </DialogHeader>
 
             {/* Badge del modo actual */}
-            <div className="mt-3 flex items-center gap-2">
+            <div className="mt-3 flex items-center gap-2 flex-wrap">
               {isRecarga ? (
                 <Badge className="bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-3 py-1 text-[11px] font-semibold uppercase tracking-wider">
                   <RefreshCw className="h-3 w-3 mr-1.5" />
@@ -187,6 +187,22 @@ export function KioskAccountModal({
                 </Badge>
               )}
             </div>
+
+            {/* Aviso cuando el admin activó Recarga directamente */}
+            {isRecarga && currentBalance > 0 && (
+              <div className="mt-3 bg-emerald-900/40 border border-emerald-500/30 rounded-xl px-3 py-2.5 flex items-start gap-2">
+                <CheckCircle2 className="h-4 w-4 text-emerald-400 mt-0.5 shrink-0" />
+                <div>
+                  <p className="text-[11px] text-emerald-300 font-semibold leading-snug">
+                    ¡Modo Recarga activado!
+                  </p>
+                  <p className="text-[10px] text-emerald-400/80 leading-relaxed mt-0.5">
+                    La administración recargó <strong>S/ {currentBalance.toFixed(2)}</strong> en la cuenta de {studentName}.
+                    A partir de ahora sus compras se descontarán de este saldo.
+                  </p>
+                </div>
+              </div>
+            )}
           </div>
 
           <div className="p-5 space-y-4">
@@ -337,9 +353,9 @@ export function KioskAccountModal({
                       </p>
                       <Button
                         onClick={handleActivateRecarga}
-                        disabled={hasDebt}
+                        disabled={hasDebt || checkingPending}
                         className={`w-full h-10 text-xs font-semibold gap-2 ${
-                          hasDebt
+                          hasDebt || checkingPending
                             ? 'bg-slate-300 text-slate-500 cursor-not-allowed'
                             : 'bg-blue-600 hover:bg-blue-700 text-white'
                         }`}
