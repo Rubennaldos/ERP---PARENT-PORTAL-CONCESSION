@@ -20,6 +20,7 @@ import {
   X,
   ShoppingCart,
   User,
+  GraduationCap,
 } from 'lucide-react';
 
 interface Student {
@@ -30,6 +31,21 @@ interface Student {
   school_id: string;
   balance: number;
   free_account: boolean;
+}
+
+interface Teacher {
+  id: string;
+  full_name: string;
+  area?: string;
+  school_id_1?: string;
+}
+
+// Tipo unificado para el buscador
+interface Person {
+  id: string;
+  full_name: string;
+  subtitle: string; // grado·sección para alumnos, área para profes
+  type: 'student' | 'teacher';
 }
 
 interface Product {
@@ -69,14 +85,16 @@ export function HistoricalSalesForm({ schoolId, schoolName }: HistoricalSalesFor
   const [step, setStep] = useState<Step>('date');
   const [saleDate, setSaleDate] = useState<string>(today);
   const [students, setStudents] = useState<Student[]>([]);
+  const [teachers, setTeachers] = useState<Teacher[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [loadingStudents, setLoadingStudents] = useState(false);
   const [loadingProducts, setLoadingProducts] = useState(false);
 
-  // Alumno
+  // Persona seleccionada (alumno o profesor)
   const [studentSearch, setStudentSearch] = useState('');
   const [gradeFilter, setGradeFilter] = useState('all');
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
+  const [selectedTeacher, setSelectedTeacher] = useState<Teacher | null>(null);
   const [showStudentDropdown, setShowStudentDropdown] = useState(false);
   const studentInputRef = useRef<HTMLInputElement>(null);
 
@@ -93,6 +111,7 @@ export function HistoricalSalesForm({ schoolId, schoolName }: HistoricalSalesFor
   useEffect(() => {
     if (schoolId) {
       fetchStudents();
+      fetchTeachers();
       fetchProducts();
     }
   }, [schoolId]);
@@ -122,6 +141,19 @@ export function HistoricalSalesForm({ schoolId, schoolName }: HistoricalSalesFor
     }
   };
 
+  const fetchTeachers = async () => {
+    try {
+      const { data } = await supabase
+        .from('teacher_profiles')
+        .select('id, full_name, area, school_id_1')
+        .or(`school_id_1.eq.${schoolId},school_id_2.eq.${schoolId}`)
+        .order('full_name', { ascending: true });
+      setTeachers((data || []).filter((t: any) => t.full_name));
+    } catch {
+      // silencioso
+    }
+  };
+
   const fetchProducts = async () => {
     setLoadingProducts(true);
     try {
@@ -144,11 +176,28 @@ export function HistoricalSalesForm({ schoolId, schoolName }: HistoricalSalesFor
 
   const uniqueGrades = Array.from(new Set(students.map(s => s.grade).filter(Boolean))).sort();
 
-  const filteredStudents = students.filter(s => {
-    const matchSearch = !studentSearch || s.full_name.toLowerCase().includes(studentSearch.toLowerCase());
-    const matchGrade = gradeFilter === 'all' || s.grade === gradeFilter;
-    return matchSearch && matchGrade;
-  }).slice(0, 40);
+  // Lista unificada: alumnos + profesores filtrados por búsqueda
+  const allPersons: Person[] = [
+    ...students
+      .filter(s => gradeFilter === 'all' || s.grade === gradeFilter)
+      .filter(s => !studentSearch || s.full_name.toLowerCase().includes(studentSearch.toLowerCase()))
+      .map(s => ({
+        id: s.id,
+        full_name: s.full_name,
+        subtitle: `${s.grade} · ${s.section}`,
+        type: 'student' as const,
+      })),
+    ...(gradeFilter === 'all'
+      ? teachers
+          .filter(t => !studentSearch || t.full_name.toLowerCase().includes(studentSearch.toLowerCase()))
+          .map(t => ({
+            id: t.id,
+            full_name: t.full_name,
+            subtitle: t.area ? `Profesor · ${t.area}` : 'Profesor',
+            type: 'teacher' as const,
+          }))
+      : []),
+  ].slice(0, 50);
 
   const filteredProducts = products.filter(p =>
     !productSearch || p.name.toLowerCase().includes(productSearch.toLowerCase())
@@ -176,8 +225,9 @@ export function HistoricalSalesForm({ schoolId, schoolName }: HistoricalSalesFor
   const cartTotal = cart.reduce((sum, e) => sum + e.product.price * e.quantity, 0);
 
   const handleConfirm = async () => {
-    if (!selectedStudent || cart.length === 0 || !saleDate) return;
+    if ((!selectedStudent && !selectedTeacher) || cart.length === 0 || !saleDate) return;
     setSubmitting(true);
+    const personName = selectedStudent?.full_name || selectedTeacher?.full_name || '';
     try {
       const itemsSummary = cart.map(e => `${e.quantity}x ${e.product.name}`).join(', ');
       const description = `Kiosco histórico - ${itemsSummary} - S/ ${cartTotal.toFixed(2)}`;
@@ -191,7 +241,8 @@ export function HistoricalSalesForm({ schoolId, schoolName }: HistoricalSalesFor
       };
 
       const { data: txId, error } = await supabase.rpc('insert_historical_kiosk_sale', {
-        p_student_id:  selectedStudent.id,
+        p_student_id:  selectedStudent ? selectedStudent.id : '00000000-0000-0000-0000-000000000000',
+        p_teacher_id:  selectedTeacher ? selectedTeacher.id : null,
         p_school_id:   schoolId,
         p_amount:      cartTotal,
         p_description: description,
@@ -214,21 +265,21 @@ export function HistoricalSalesForm({ schoolId, schoolName }: HistoricalSalesFor
       }
 
       setSessionLog(prev => [
-        { studentName: selectedStudent.full_name, amount: cartTotal, date: saleDate },
+        { studentName: personName, amount: cartTotal, date: saleDate },
         ...prev,
       ]);
 
       toast({
         title: '✅ Venta registrada',
-        description: `${selectedStudent.full_name} — S/ ${cartTotal.toFixed(2)}`,
+        description: `${personName} — S/ ${cartTotal.toFixed(2)}`,
       });
 
-      // Reset para la siguiente venta: fecha se mantiene sticky
       setSelectedStudent(null);
+      setSelectedTeacher(null);
       setStudentSearch('');
       setCart([]);
       setProductSearch('');
-      setStep('student'); // Saltar directo a alumno (fecha ya está guardada)
+      setStep('student');
     } catch (err: any) {
       toast({ variant: 'destructive', title: 'Error al registrar', description: err.message });
     } finally {
@@ -340,9 +391,9 @@ export function HistoricalSalesForm({ schoolId, schoolName }: HistoricalSalesFor
           </div>
 
           <div className="p-3 space-y-2">
-            <h3 className="text-xs font-bold text-slate-800 text-center">¿Para qué alumno?</h3>
+            <h3 className="text-xs font-bold text-slate-800 text-center">¿Para quién?</h3>
 
-            {/* Filtro por grado */}
+            {/* Filtro por grado — solo afecta alumnos */}
             <div className="flex gap-1.5 overflow-x-auto pb-0.5 scrollbar-none">
               <button
                 onClick={() => setGradeFilter('all')}
@@ -370,7 +421,7 @@ export function HistoricalSalesForm({ schoolId, schoolName }: HistoricalSalesFor
               <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
               <Input
                 ref={studentInputRef}
-                placeholder={loadingStudents ? 'Cargando...' : 'Buscar alumno...'}
+                placeholder={loadingStudents ? 'Cargando...' : 'Buscar alumno o profesor...'}
                 value={studentSearch}
                 onChange={e => { setStudentSearch(e.target.value); setShowStudentDropdown(true); }}
                 onFocus={() => setShowStudentDropdown(true)}
@@ -380,23 +431,39 @@ export function HistoricalSalesForm({ schoolId, schoolName }: HistoricalSalesFor
               />
             </div>
 
-            {/* Lista de alumnos */}
-            {(showStudentDropdown || studentSearch) && filteredStudents.length > 0 && (
+            {/* Lista unificada alumnos + profesores */}
+            {(showStudentDropdown || studentSearch) && allPersons.length > 0 && (
               <div className="border border-slate-200 rounded-lg overflow-hidden max-h-48 overflow-y-auto divide-y divide-slate-100">
-                {filteredStudents.map(s => (
+                {allPersons.map(p => (
                   <button
-                    key={s.id}
+                    key={`${p.type}-${p.id}`}
                     onMouseDown={() => {
-                      setSelectedStudent(s);
+                      if (p.type === 'student') {
+                        const s = students.find(s => s.id === p.id)!;
+                        setSelectedStudent(s);
+                        setSelectedTeacher(null);
+                      } else {
+                        const t = teachers.find(t => t.id === p.id)!;
+                        setSelectedTeacher(t);
+                        setSelectedStudent(null);
+                      }
                       setStudentSearch('');
                       setShowStudentDropdown(false);
                       setStep('products');
                     }}
-                    className="w-full text-left px-3 py-2 hover:bg-slate-50 active:bg-slate-100 transition-colors flex items-center justify-between"
+                    className="w-full text-left px-3 py-2 hover:bg-slate-50 active:bg-slate-100 transition-colors flex items-center gap-2"
                   >
-                    <div>
-                      <p className="text-xs font-semibold text-slate-800">{s.full_name}</p>
-                      <p className="text-[10px] text-slate-400">{s.grade} · {s.section}</p>
+                    <div className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 ${
+                      p.type === 'teacher' ? 'bg-purple-100' : 'bg-blue-100'
+                    }`}>
+                      {p.type === 'teacher'
+                        ? <GraduationCap className="h-3 w-3 text-purple-600" />
+                        : <User className="h-3 w-3 text-blue-600" />
+                      }
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-semibold text-slate-800 truncate">{p.full_name}</p>
+                      <p className="text-[10px] text-slate-400">{p.subtitle}</p>
                     </div>
                     <ChevronRight className="h-3.5 w-3.5 text-slate-300 shrink-0" />
                   </button>
@@ -404,12 +471,12 @@ export function HistoricalSalesForm({ schoolId, schoolName }: HistoricalSalesFor
               </div>
             )}
 
-            {studentSearch && filteredStudents.length === 0 && !loadingStudents && (
+            {studentSearch && allPersons.length === 0 && !loadingStudents && (
               <p className="text-center text-[11px] text-slate-400 py-3">Sin resultados para "<strong>{studentSearch}</strong>"</p>
             )}
 
             {!studentSearch && !showStudentDropdown && (
-              <p className="text-[10px] text-slate-400 text-center py-1">Escribe el nombre del alumno</p>
+              <p className="text-[10px] text-slate-400 text-center py-1">Busca por nombre de alumno o profesor</p>
             )}
           </div>
         </div>
@@ -421,14 +488,28 @@ export function HistoricalSalesForm({ schoolId, schoolName }: HistoricalSalesFor
       {step === 'products' && (
         <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
           <div className="bg-emerald-50 border-b border-emerald-100 px-3 py-1.5 flex items-center gap-2">
-            <div className="w-6 h-6 bg-emerald-200 rounded-full flex items-center justify-center shrink-0">
-              <User className="h-3 w-3 text-emerald-700" />
+            <div className={`w-6 h-6 rounded-full flex items-center justify-center shrink-0 ${
+              selectedTeacher ? 'bg-purple-200' : 'bg-emerald-200'
+            }`}>
+              {selectedTeacher
+                ? <GraduationCap className="h-3 w-3 text-purple-700" />
+                : <User className="h-3 w-3 text-emerald-700" />
+              }
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-xs font-bold text-emerald-800 truncate">{selectedStudent?.full_name}</p>
-              <p className="text-[10px] text-emerald-600">{selectedStudent?.grade} · {formatDate(saleDate)}</p>
+              <p className="text-xs font-bold text-emerald-800 truncate">
+                {selectedStudent?.full_name || selectedTeacher?.full_name}
+              </p>
+              <p className="text-[10px] text-emerald-600">
+                {selectedStudent
+                  ? `${selectedStudent.grade} · ${formatDate(saleDate)}`
+                  : selectedTeacher?.area
+                    ? `Profesor · ${selectedTeacher.area} · ${formatDate(saleDate)}`
+                    : `Profesor · ${formatDate(saleDate)}`
+                }
+              </p>
             </div>
-            <button onClick={() => setStep('student')} className="text-[10px] text-emerald-500 hover:text-emerald-700 underline shrink-0">cambiar</button>
+            <button onClick={() => { setSelectedStudent(null); setSelectedTeacher(null); setStep('student'); }} className="text-[10px] text-emerald-500 hover:text-emerald-700 underline shrink-0">cambiar</button>
           </div>
 
           <div className="p-3 space-y-2">
@@ -539,9 +620,15 @@ export function HistoricalSalesForm({ schoolId, schoolName }: HistoricalSalesFor
           <div className="p-3 space-y-2">
             <div className="grid grid-cols-2 gap-2">
               <div className="bg-emerald-50 rounded-lg p-2 border border-emerald-100">
-                <p className="text-[9px] text-emerald-500 uppercase font-semibold mb-0.5">Alumno</p>
-                <p className="text-xs font-bold text-emerald-800 leading-tight">{selectedStudent?.full_name}</p>
-                <p className="text-[10px] text-emerald-600">{selectedStudent?.grade}</p>
+                <p className="text-[9px] text-emerald-500 uppercase font-semibold mb-0.5">
+                  {selectedTeacher ? 'Profesor' : 'Alumno'}
+                </p>
+                <p className="text-xs font-bold text-emerald-800 leading-tight">
+                  {selectedStudent?.full_name || selectedTeacher?.full_name}
+                </p>
+                <p className="text-[10px] text-emerald-600">
+                  {selectedStudent?.grade || selectedTeacher?.area || ''}
+                </p>
               </div>
               <div className="bg-amber-50 rounded-lg p-2 border border-amber-100">
                 <p className="text-[9px] text-amber-500 uppercase font-semibold mb-0.5">Fecha</p>
