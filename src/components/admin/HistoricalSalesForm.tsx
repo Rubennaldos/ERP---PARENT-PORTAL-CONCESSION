@@ -126,6 +126,16 @@ export function HistoricalSalesForm({ schoolId, schoolName }: HistoricalSalesFor
     }
   }, [step]);
 
+  // Enter para confirmar en el paso 4
+  useEffect(() => {
+    if (step !== 'confirm') return;
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === 'Enter' && !submitting) handleConfirm();
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [step, submitting]);
+
   const fetchStudents = async () => {
     setLoadingStudents(true);
     try {
