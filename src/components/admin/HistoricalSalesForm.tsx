@@ -287,6 +287,43 @@ export function HistoricalSalesForm({ schoolId, schoolName }: HistoricalSalesFor
     }
   };
 
+  // Índice del item activo en la lista de personas (para navegación con teclado)
+  const [activePersonIdx, setActivePersonIdx] = useState(-1);
+
+  const selectPerson = (p: Person) => {
+    if (p.type === 'student') {
+      setSelectedStudent(students.find(s => s.id === p.id)!);
+      setSelectedTeacher(null);
+    } else {
+      setSelectedTeacher(teachers.find(t => t.id === p.id)!);
+      setSelectedStudent(null);
+    }
+    setStudentSearch('');
+    setShowStudentDropdown(false);
+    setActivePersonIdx(-1);
+    setStep('products');
+  };
+
+  const handlePersonKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (!showStudentDropdown && !studentSearch) return;
+    if (allPersons.length === 0) return;
+
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setActivePersonIdx(i => Math.min(i + 1, allPersons.length - 1));
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setActivePersonIdx(i => Math.max(i - 1, 0));
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      const idx = activePersonIdx >= 0 ? activePersonIdx : 0;
+      if (allPersons[idx]) selectPerson(allPersons[idx]);
+    } else if (e.key === 'Escape') {
+      setShowStudentDropdown(false);
+      setActivePersonIdx(-1);
+    }
+  };
+
   const stepIndex = STEPS.findIndex(s => s.key === step);
 
   const formatDate = (d: string) => {
@@ -358,6 +395,7 @@ export function HistoricalSalesForm({ schoolId, schoolName }: HistoricalSalesFor
             value={saleDate}
             max={today}
             onChange={e => setSaleDate(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter' && saleDate) setStep('student'); }}
             className="w-full h-10 text-center text-sm font-bold text-slate-800 border-2 border-slate-200 rounded-lg focus:border-slate-800 focus:outline-none bg-slate-50 cursor-pointer"
           />
 
@@ -423,9 +461,10 @@ export function HistoricalSalesForm({ schoolId, schoolName }: HistoricalSalesFor
                 ref={studentInputRef}
                 placeholder={loadingStudents ? 'Cargando...' : 'Buscar alumno o profesor...'}
                 value={studentSearch}
-                onChange={e => { setStudentSearch(e.target.value); setShowStudentDropdown(true); }}
+                onChange={e => { setStudentSearch(e.target.value); setShowStudentDropdown(true); setActivePersonIdx(-1); }}
                 onFocus={() => setShowStudentDropdown(true)}
-                onBlur={() => setTimeout(() => setShowStudentDropdown(false), 150)}
+                onBlur={() => setTimeout(() => { setShowStudentDropdown(false); setActivePersonIdx(-1); }, 150)}
+                onKeyDown={handlePersonKeyDown}
                 className="pl-8 h-9 text-xs rounded-lg border-slate-200"
                 disabled={loadingStudents}
               />
@@ -434,24 +473,13 @@ export function HistoricalSalesForm({ schoolId, schoolName }: HistoricalSalesFor
             {/* Lista unificada alumnos + profesores */}
             {(showStudentDropdown || studentSearch) && allPersons.length > 0 && (
               <div className="border border-slate-200 rounded-lg overflow-hidden max-h-48 overflow-y-auto divide-y divide-slate-100">
-                {allPersons.map(p => (
+                {allPersons.map((p, idx) => (
                   <button
                     key={`${p.type}-${p.id}`}
-                    onMouseDown={() => {
-                      if (p.type === 'student') {
-                        const s = students.find(s => s.id === p.id)!;
-                        setSelectedStudent(s);
-                        setSelectedTeacher(null);
-                      } else {
-                        const t = teachers.find(t => t.id === p.id)!;
-                        setSelectedTeacher(t);
-                        setSelectedStudent(null);
-                      }
-                      setStudentSearch('');
-                      setShowStudentDropdown(false);
-                      setStep('products');
-                    }}
-                    className="w-full text-left px-3 py-2 hover:bg-slate-50 active:bg-slate-100 transition-colors flex items-center gap-2"
+                    onMouseDown={() => selectPerson(p)}
+                    className={`w-full text-left px-3 py-2 transition-colors flex items-center gap-2 ${
+                      idx === activePersonIdx ? 'bg-slate-100' : 'hover:bg-slate-50 active:bg-slate-100'
+                    }`}
                   >
                     <div className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 ${
                       p.type === 'teacher' ? 'bg-purple-100' : 'bg-blue-100'
