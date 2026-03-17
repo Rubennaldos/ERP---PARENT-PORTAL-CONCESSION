@@ -289,6 +289,8 @@ export function HistoricalSalesForm({ schoolId, schoolName }: HistoricalSalesFor
 
   // Índice del item activo en la lista de personas (para navegación con teclado)
   const [activePersonIdx, setActivePersonIdx] = useState(-1);
+  // Índice del item activo en la lista de productos (para navegación con teclado)
+  const [activeProductIdx, setActiveProductIdx] = useState(-1);
 
   const selectPerson = (p: Person) => {
     if (p.type === 'student') {
@@ -321,6 +323,36 @@ export function HistoricalSalesForm({ schoolId, schoolName }: HistoricalSalesFor
     } else if (e.key === 'Escape') {
       setShowStudentDropdown(false);
       setActivePersonIdx(-1);
+    }
+  };
+
+  const handleProductKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    // Si hay solo 1 resultado y se presiona ↓ o Enter, agregar directo
+    const visible = showProductDropdown && filteredProducts.length > 0;
+
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      if (!visible) { setShowProductDropdown(true); return; }
+      setActiveProductIdx(i => Math.min(i + 1, filteredProducts.length - 1));
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setActiveProductIdx(i => Math.max(i - 1, 0));
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      if (visible) {
+        // Si hay un único resultado o hay uno resaltado, agregar ese
+        const idx = activeProductIdx >= 0 ? activeProductIdx : 0;
+        if (filteredProducts[idx]) {
+          addToCart(filteredProducts[idx]);
+          setActiveProductIdx(-1);
+        }
+      } else if (cart.length > 0) {
+        // Si no hay dropdown abierto y hay productos en carrito, avanzar a confirmar
+        setStep('confirm');
+      }
+    } else if (e.key === 'Escape') {
+      setShowProductDropdown(false);
+      setActiveProductIdx(-1);
     }
   };
 
@@ -548,9 +580,14 @@ export function HistoricalSalesForm({ schoolId, schoolName }: HistoricalSalesFor
                 ref={productInputRef}
                 placeholder={loadingProducts ? 'Cargando...' : 'Buscar y agregar producto...'}
                 value={productSearch}
-                onChange={e => { setProductSearch(e.target.value); setShowProductDropdown(true); }}
+                onChange={e => {
+                  setProductSearch(e.target.value);
+                  setShowProductDropdown(true);
+                  setActiveProductIdx(-1);
+                }}
                 onFocus={() => setShowProductDropdown(true)}
-                onBlur={() => setTimeout(() => setShowProductDropdown(false), 150)}
+                onBlur={() => setTimeout(() => { setShowProductDropdown(false); setActiveProductIdx(-1); }, 150)}
+                onKeyDown={handleProductKeyDown}
                 className="pl-8 h-9 text-xs rounded-lg border-slate-200"
                 disabled={loadingProducts}
               />
@@ -559,11 +596,13 @@ export function HistoricalSalesForm({ schoolId, schoolName }: HistoricalSalesFor
             {/* Dropdown productos */}
             {showProductDropdown && filteredProducts.length > 0 && (
               <div className="border border-slate-200 rounded-lg overflow-hidden max-h-40 overflow-y-auto divide-y divide-slate-100">
-                {filteredProducts.map(p => (
+                {filteredProducts.map((p, idx) => (
                   <button
                     key={p.id}
-                    onMouseDown={() => addToCart(p)}
-                    className="w-full text-left px-3 py-2 hover:bg-slate-50 active:bg-slate-100 transition-colors flex items-center justify-between"
+                    onMouseDown={() => { addToCart(p); setActiveProductIdx(-1); }}
+                    className={`w-full text-left px-3 py-2 transition-colors flex items-center justify-between ${
+                      idx === activeProductIdx ? 'bg-slate-100' : 'hover:bg-slate-50 active:bg-slate-100'
+                    }`}
                   >
                     <div className="min-w-0 mr-2">
                       <p className="text-xs font-semibold text-slate-800 truncate">{p.name}</p>
