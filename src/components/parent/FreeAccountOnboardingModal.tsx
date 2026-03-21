@@ -1,4 +1,4 @@
-﻿import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Check, ShieldCheck, Info } from 'lucide-react';
 import { useState } from 'react';
@@ -24,105 +24,87 @@ export function FreeAccountOnboardingModal({
 
   return (
     <Dialog open={open} onOpenChange={() => {}}>
-      <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto border border-stone-200/50 bg-white shadow-2xl">
-        <DialogHeader className="pb-4">
-          <div className="flex flex-col items-center text-center space-y-3">
-            <div className="w-16 h-16 bg-gradient-to-br from-[#A3566E]/10 to-[#8B4060]/10 rounded-2xl flex items-center justify-center">
-              <ShieldCheck className="h-9 w-9 text-[#A3566E]" />
+      <DialogContent className="sm:max-w-lg border border-stone-200/50 bg-white shadow-2xl p-0 overflow-hidden">
+        <div className="overflow-y-auto max-h-[95dvh] p-4 sm:p-5">
+        <DialogHeader className="pb-2">
+          <div className="flex flex-col items-center text-center space-y-2">
+            <div className="w-11 h-11 bg-gradient-to-br from-[#A3566E]/10 to-[#8B4060]/10 rounded-xl flex items-center justify-center">
+              <ShieldCheck className="h-6 w-6 text-[#A3566E]" />
             </div>
             <div>
-              <DialogTitle className="text-2xl font-light text-stone-800 tracking-wide">
+              <DialogTitle className="text-lg font-light text-stone-800 tracking-wide">
                 ¡Bienvenido, {parentName}!
               </DialogTitle>
-              <DialogDescription className="text-sm text-stone-500 mt-2 font-normal">
+              <DialogDescription className="text-xs text-stone-500 mt-1 font-normal">
                 Autorización de Cuenta Libre
               </DialogDescription>
             </div>
           </div>
         </DialogHeader>
 
-        <div className="space-y-6 py-2">
+        <div className="space-y-3 py-1">
           {/* Explicación */}
-          <div className="bg-stone-50/50 border border-stone-200/50 rounded-xl p-6">
-            <h3 className="font-medium text-stone-800 mb-3 flex items-center gap-2 text-sm">
-              <Check className="h-5 w-5 text-[#A3566E]" />
+          <div className="bg-stone-50/50 border border-stone-200/50 rounded-lg p-3">
+            <h3 className="font-medium text-stone-800 mb-1.5 flex items-center gap-1.5 text-xs">
+              <Check className="h-4 w-4 text-[#A3566E]" />
               ¿Qué es una Cuenta Libre?
             </h3>
-            <p className="text-sm text-stone-600 leading-relaxed font-normal">
+            <p className="text-xs text-stone-600 leading-relaxed font-normal">
               Todos tus hijos están en modo <span className="font-semibold text-stone-800">Cuenta Libre</span> por defecto. 
-              Esto significa que pueden consumir en el kiosco sin necesidad de recargar saldo previamente, 
-              y tú pagarás al final del mes por sus consumos.
+              Pueden consumir en el kiosco sin recargar saldo previamente y pagas al final del mes.
             </p>
           </div>
 
           {/* Ventajas */}
           <div>
-            <h4 className="font-medium text-stone-700 mb-4 text-xs uppercase tracking-wider">Ventajas</h4>
-            <ul className="space-y-3">
-              <li className="flex items-start gap-3 text-sm text-stone-600">
-                <div className="w-5 h-5 rounded-lg bg-[#A3566E]/10 flex items-center justify-center flex-shrink-0 mt-0.5">
-                  <Check className="h-3.5 w-3.5 text-[#A3566E]" />
-                </div>
-                <span className="font-normal"><strong className="font-medium text-stone-800">Sin recargas anticipadas:</strong> No necesitas estar transfiriendo dinero constantemente</span>
-              </li>
-              <li className="flex items-start gap-3 text-sm text-stone-600">
-                <div className="w-5 h-5 rounded-lg bg-[#A3566E]/10 flex items-center justify-center flex-shrink-0 mt-0.5">
-                  <Check className="h-3.5 w-3.5 text-[#A3566E]" />
-                </div>
-                <span className="font-normal"><strong className="font-medium text-stone-800">Acceso inmediato:</strong> Tus hijos pueden comprar lo que necesiten al instante</span>
-              </li>
-              <li className="flex items-start gap-3 text-sm text-stone-600">
-                <div className="w-5 h-5 rounded-lg bg-[#A3566E]/10 flex items-center justify-center flex-shrink-0 mt-0.5">
-                  <Check className="h-3.5 w-3.5 text-[#A3566E]" />
-                </div>
-                <span className="font-normal"><strong className="font-medium text-stone-800">Control total:</strong> Puedes establecer límites diarios, semanales o mensuales</span>
-              </li>
-              <li className="flex items-start gap-3 text-sm text-stone-600">
-                <div className="w-5 h-5 rounded-lg bg-[#A3566E]/10 flex items-center justify-center flex-shrink-0 mt-0.5">
-                  <Check className="h-3.5 w-3.5 text-[#A3566E]" />
-                </div>
-                <span className="font-normal"><strong className="font-medium text-stone-800">Historial completo:</strong> Ve todos los consumos con un retraso de 2 días (tiempo de registro manual del kiosco)</span>
-              </li>
+            <h4 className="font-medium text-stone-700 mb-2 text-[10px] uppercase tracking-wider">Ventajas</h4>
+            <ul className="space-y-1.5">
+              {[
+                ['Sin recargas anticipadas', 'No necesitas transferir dinero constantemente'],
+                ['Acceso inmediato', 'Tus hijos pueden comprar al instante'],
+                ['Control total', 'Establece límites diarios, semanales o mensuales'],
+                ['Historial completo', 'Ve todos los consumos con retraso de 2 días'],
+              ].map(([title, desc]) => (
+                <li key={title} className="flex items-start gap-2 text-xs text-stone-600">
+                  <div className="w-4 h-4 rounded bg-[#A3566E]/10 flex items-center justify-center flex-shrink-0 mt-0.5">
+                    <Check className="h-2.5 w-2.5 text-[#A3566E]" />
+                  </div>
+                  <span><strong className="font-medium text-stone-800">{title}:</strong> {desc}</span>
+                </li>
+              ))}
             </ul>
           </div>
 
           {/* Información importante */}
-          <div className="bg-amber-50/30 border border-amber-200/50 rounded-xl p-4 flex gap-3">
-            <Info className="h-5 w-5 text-amber-600 flex-shrink-0 mt-0.5" />
-            <div>
-              <h4 className="font-medium text-amber-900 text-sm mb-1.5">Importante</h4>
-              <p className="text-xs text-amber-800 leading-relaxed font-normal">
-                Puedes cambiar entre <strong className="font-medium">Cuenta Libre</strong> y <strong className="font-medium">Cuenta Prepago</strong> 
-                cuando lo desees desde la configuración de cada hijo. Los límites de gasto los puedes ajustar en cualquier momento.
-              </p>
-            </div>
+          <div className="bg-amber-50/30 border border-amber-200/50 rounded-lg p-2.5 flex gap-2">
+            <Info className="h-4 w-4 text-amber-600 flex-shrink-0 mt-0.5" />
+            <p className="text-[11px] text-amber-800 leading-relaxed font-normal">
+              <strong className="font-medium">Importante:</strong> Puedes cambiar entre <strong className="font-medium">Cuenta Libre</strong> y <strong className="font-medium">Cuenta Prepago</strong> en cualquier momento desde la configuración de cada hijo.
+            </p>
           </div>
 
-          {/* Checkbox de entendimiento */}
-          <label className="flex items-start gap-3 cursor-pointer group p-4 bg-white border border-stone-200 rounded-xl hover:border-[#A3566E]/30 transition-colors">
+          {/* Checkbox */}
+          <label className="flex items-center gap-2.5 cursor-pointer group p-3 bg-white border border-stone-200 rounded-xl hover:border-[#A3566E]/30 transition-colors">
             <input
               type="checkbox"
               checked={understood}
               onChange={(e) => setUnderstood(e.target.checked)}
-              className="w-5 h-5 rounded border-2 border-stone-300 text-[#A3566E] focus:ring-[#A3566E] mt-0.5"
+              className="w-4 h-4 rounded border-2 border-stone-300 text-[#A3566E] focus:ring-[#A3566E]"
             />
-            <span className="text-sm font-normal text-stone-700 leading-relaxed group-hover:text-stone-900">
+            <span className="text-xs font-normal text-stone-700 group-hover:text-stone-900">
               Entiendo y acepto que mis hijos están en Cuenta Libre
             </span>
           </label>
 
-          {/* Botón de aceptar */}
+          {/* Botón */}
           <Button
             onClick={handleAccept}
             disabled={!understood}
-            className="w-full h-14 text-base font-medium bg-gradient-to-r from-[#A3566E] to-[#8B4060] hover:from-[#8B4060] hover:to-[#7A3755] text-white shadow-md rounded-xl transition-all disabled:opacity-40 disabled:cursor-not-allowed tracking-wide"
+            className="w-full h-11 text-sm font-medium bg-gradient-to-r from-[#A3566E] to-[#8B4060] hover:from-[#8B4060] hover:to-[#7A3755] text-white shadow-md rounded-xl transition-all disabled:opacity-40 disabled:cursor-not-allowed"
           >
             Comenzar a Usar el Portal
           </Button>
-
-          <p className="text-xs text-center text-stone-400 font-normal pt-2">
-            Esta autorización es solo informativa. Puedes modificar la configuración en cualquier momento.
-          </p>
+        </div>
         </div>
       </DialogContent>
     </Dialog>

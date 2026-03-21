@@ -1,4 +1,4 @@
-﻿import { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -257,47 +257,48 @@ export function AddStudentModal({ isOpen, onClose, onSuccess }: AddStudentModalP
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto border border-stone-200/50 bg-white shadow-2xl">
-        <DialogHeader className="pb-3 sm:pb-4 px-4 sm:px-6">
-          <div className="flex flex-col items-center text-center space-y-2 sm:space-y-3">
-            <div className="w-14 h-14 sm:w-16 sm:h-16 bg-gradient-to-br from-emerald-50/50 to-[#A3566E]/5 rounded-xl sm:rounded-2xl flex items-center justify-center border border-emerald-100/30 shadow-sm">
-              <GraduationCap className="h-7 w-7 sm:h-8 sm:w-8 text-emerald-600/80" />
+      <DialogContent className="sm:max-w-md border border-stone-200/50 bg-white shadow-2xl p-0 overflow-hidden">
+        <div className="overflow-y-auto max-h-[95dvh] p-4 sm:p-5">
+        <DialogHeader className="pb-2">
+          <div className="flex flex-col items-center text-center space-y-2">
+            <div className="w-11 h-11 bg-gradient-to-br from-emerald-50/50 to-[#A3566E]/5 rounded-xl flex items-center justify-center border border-emerald-100/30 shadow-sm">
+              <GraduationCap className="h-6 w-6 text-emerald-600/80" />
             </div>
             <div>
-              <DialogTitle className="text-xl sm:text-2xl font-light text-stone-800 tracking-wide">
+              <DialogTitle className="text-lg font-light text-stone-800 tracking-wide">
                 Agregar Hijo/a
               </DialogTitle>
-              <DialogDescription className="text-xs sm:text-sm text-stone-500 mt-1.5 sm:mt-2 font-normal px-2">
+              <DialogDescription className="text-xs text-stone-500 mt-1 font-normal">
                 Ingresa los datos del estudiante
               </DialogDescription>
             </div>
           </div>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-5 py-2 px-4 sm:px-6">
+        <form onSubmit={handleSubmit} className="space-y-3 py-1">
           {/* Nombre completo */}
-          <div className="space-y-1.5 sm:space-y-2">
-            <Label htmlFor="full_name" className="font-medium text-[10px] sm:text-xs text-stone-600 uppercase tracking-wider flex items-center gap-1.5 sm:gap-2">
-              <Users className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-emerald-600/70" /> Nombre Completo del Estudiante *
+          <div className="space-y-1">
+            <Label htmlFor="full_name" className="font-medium text-[10px] text-stone-600 uppercase tracking-wider flex items-center gap-1.5">
+              <Users className="h-3 w-3 text-emerald-600/70" /> Nombre Completo del Estudiante *
             </Label>
             <Input
               id="full_name"
               value={formData.full_name}
               onChange={(e) => setFormData(prev => ({ ...prev, full_name: e.target.value }))}
               placeholder="Ej: Juan Carlos Pérez García"
-              className="h-11 sm:h-12 border border-stone-200 focus:border-emerald-500/50 focus:ring-emerald-500/10 rounded-xl font-normal text-sm sm:text-base"
+              className="h-10 border border-stone-200 focus:border-emerald-500/50 focus:ring-emerald-500/10 rounded-xl font-normal text-sm"
               disabled={isSubmitting}
             />
           </div>
 
           {/* Sede/Colegio */}
-          <div className="space-y-1.5 sm:space-y-2">
-            <Label htmlFor="school" className="font-medium text-[10px] sm:text-xs text-stone-600 uppercase tracking-wider flex items-center gap-1.5 sm:gap-2">
-              <School className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-[#A3566E]" /> Sede/Colegio *
+          <div className="space-y-1">
+            <Label htmlFor="school" className="font-medium text-[10px] text-stone-600 uppercase tracking-wider flex items-center gap-1.5">
+              <School className="h-3 w-3 text-[#A3566E]" /> Sede/Colegio *
             </Label>
             {isLoadingSchools ? (
-              <div className="flex items-center justify-center h-11 sm:h-12 border border-stone-200 rounded-xl bg-stone-50/50">
-                <Loader2 className="h-4 w-4 sm:h-5 sm:w-5 animate-spin text-stone-400" />
+              <div className="flex items-center justify-center h-10 border border-stone-200 rounded-xl bg-stone-50/50">
+                <Loader2 className="h-4 w-4 animate-spin text-stone-400" />
               </div>
             ) : (
               <Select 
@@ -312,7 +313,7 @@ export function AddStudentModal({ isOpen, onClose, onSuccess }: AddStudentModalP
                 }}
                 disabled={isSubmitting}
               >
-                <SelectTrigger className="h-11 sm:h-12 border border-stone-200 focus:border-[#A3566E]/50 focus:ring-[#A3566E]/10 rounded-xl text-sm sm:text-base">
+                <SelectTrigger className="h-10 border border-stone-200 focus:border-[#A3566E]/50 focus:ring-[#A3566E]/10 rounded-xl text-sm">
                   <SelectValue placeholder="Selecciona la sede del estudiante" />
                 </SelectTrigger>
                 <SelectContent>
@@ -327,20 +328,20 @@ export function AddStudentModal({ isOpen, onClose, onSuccess }: AddStudentModalP
           </div>
 
           {/* Grado/Nivel */}
-          <div className="space-y-1.5 sm:space-y-2">
-            <Label htmlFor="level" className="font-medium text-[10px] sm:text-xs text-stone-600 uppercase tracking-wider">Grado/Nivel *</Label>
+          <div className="space-y-1">
+            <Label htmlFor="level" className="font-medium text-[10px] text-stone-600 uppercase tracking-wider">Grado/Nivel *</Label>
             {isLoadingLevels ? (
-              <div className="flex items-center justify-center h-11 sm:h-12 border border-stone-200 rounded-xl bg-stone-50/50">
-                <Loader2 className="h-4 w-4 sm:h-5 sm:w-5 animate-spin text-stone-400" />
+              <div className="flex items-center justify-center h-10 border border-stone-200 rounded-xl bg-stone-50/50">
+                <Loader2 className="h-4 w-4 animate-spin text-stone-400" />
               </div>
             ) : !formData.school_id ? (
-              <div className="flex items-center h-11 sm:h-12 border border-stone-200 rounded-xl bg-stone-50/50 px-3 text-xs sm:text-sm text-stone-500 font-normal">
+              <div className="flex items-center h-10 border border-stone-200 rounded-xl bg-stone-50/50 px-3 text-xs text-stone-500 font-normal">
                 Primero selecciona una sede
               </div>
             ) : levels.length === 0 ? (
-              <Alert variant="destructive" className="rounded-xl border-rose-200/50">
-                <AlertCircle className="h-4 w-4" />
-                <AlertDescription className="text-xs sm:text-sm">
+              <Alert variant="destructive" className="rounded-xl border-rose-200/50 py-2">
+                <AlertCircle className="h-3.5 w-3.5" />
+                <AlertDescription className="text-xs">
                   No hay grados configurados para esta sede
                 </AlertDescription>
               </Alert>
@@ -350,7 +351,7 @@ export function AddStudentModal({ isOpen, onClose, onSuccess }: AddStudentModalP
                 onValueChange={(value) => setFormData(prev => ({ ...prev, level_id: value }))}
                 disabled={isSubmitting || !formData.school_id}
               >
-                <SelectTrigger className="h-11 sm:h-12 border border-stone-200 focus:border-emerald-500/50 focus:ring-emerald-500/10 rounded-xl text-sm sm:text-base">
+                <SelectTrigger className="h-10 border border-stone-200 focus:border-emerald-500/50 focus:ring-emerald-500/10 rounded-xl text-sm">
                   <SelectValue placeholder="Selecciona el grado" />
                 </SelectTrigger>
                 <SelectContent>
@@ -365,16 +366,16 @@ export function AddStudentModal({ isOpen, onClose, onSuccess }: AddStudentModalP
           </div>
 
           {/* Aula/Sección */}
-          <div className="space-y-1.5 sm:space-y-2">
-            <Label htmlFor="classroom" className="font-medium text-[10px] sm:text-xs text-stone-600 uppercase tracking-wider">Aula/Sección *</Label>
+          <div className="space-y-1">
+            <Label htmlFor="classroom" className="font-medium text-[10px] text-stone-600 uppercase tracking-wider">Aula/Sección *</Label>
             {!formData.level_id ? (
-              <div className="flex items-center h-11 sm:h-12 border border-stone-200 rounded-xl bg-stone-50/50 px-3 text-xs sm:text-sm text-stone-500 font-normal">
+              <div className="flex items-center h-10 border border-stone-200 rounded-xl bg-stone-50/50 px-3 text-xs text-stone-500 font-normal">
                 Primero selecciona un grado
               </div>
             ) : filteredClassrooms.length === 0 ? (
-              <Alert variant="destructive" className="rounded-xl border-rose-200/50">
-                <AlertCircle className="h-4 w-4" />
-                <AlertDescription className="text-xs sm:text-sm">
+              <Alert variant="destructive" className="rounded-xl border-rose-200/50 py-2">
+                <AlertCircle className="h-3.5 w-3.5" />
+                <AlertDescription className="text-xs">
                   No hay aulas configuradas para este grado
                 </AlertDescription>
               </Alert>
@@ -384,7 +385,7 @@ export function AddStudentModal({ isOpen, onClose, onSuccess }: AddStudentModalP
                 onValueChange={(value) => setFormData(prev => ({ ...prev, classroom_id: value }))}
                 disabled={isSubmitting || !formData.level_id}
               >
-                <SelectTrigger className="h-11 sm:h-12 border border-stone-200 focus:border-emerald-500/50 focus:ring-emerald-500/10 rounded-xl text-sm sm:text-base">
+                <SelectTrigger className="h-10 border border-stone-200 focus:border-emerald-500/50 focus:ring-emerald-500/10 rounded-xl text-sm">
                   <SelectValue placeholder="Selecciona el aula/sección" />
                 </SelectTrigger>
                 <SelectContent>
@@ -398,20 +399,20 @@ export function AddStudentModal({ isOpen, onClose, onSuccess }: AddStudentModalP
             )}
           </div>
 
-          <div className="flex gap-2 sm:gap-3 pt-3 sm:pt-4">
+          <div className="flex gap-2 pt-2">
             <Button
               type="button"
               variant="outline"
               onClick={onClose}
               disabled={isSubmitting}
-              className="flex-1 h-11 sm:h-12 border border-stone-200 hover:bg-stone-50/50 rounded-xl font-normal text-sm sm:text-base"
+              className="flex-1 h-10 border border-stone-200 hover:bg-stone-50/50 rounded-xl font-normal text-sm"
             >
               Cancelar
             </Button>
             <Button
               type="submit"
               disabled={isSubmitting}
-              className="flex-1 h-11 sm:h-12 bg-gradient-to-r from-emerald-600/90 to-[#A3566E]/80 hover:from-emerald-700/90 hover:to-[#8B4060]/80 text-white shadow-md rounded-xl font-medium tracking-wide text-sm sm:text-base"
+              className="flex-1 h-10 bg-gradient-to-r from-emerald-600/90 to-[#A3566E]/80 hover:from-emerald-700/90 hover:to-[#8B4060]/80 text-white shadow-md rounded-xl font-medium text-sm"
             >
               {isSubmitting ? (
                 <>
@@ -424,6 +425,7 @@ export function AddStudentModal({ isOpen, onClose, onSuccess }: AddStudentModalP
             </Button>
           </div>
         </form>
+        </div>
       </DialogContent>
     </Dialog>
   );
