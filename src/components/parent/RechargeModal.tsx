@@ -171,7 +171,7 @@ export function RechargeModal({
 
   // Comprime imagen antes de subir — mantiene legibilidad del voucher
   const compressImage = (file: File): Promise<File> => {
-    return new Promise((resolve) => {
+    return new Promise((resolve, reject) => {
       const MAX_SIDE = 1400;  // px — suficiente para leer números del voucher
       const QUALITY  = 0.75;  // 75% calidad JPEG — buen balance tamaño/nitidez
       const img = new Image();
@@ -185,16 +185,20 @@ export function RechargeModal({
         const canvas = document.createElement('canvas');
         canvas.width  = w;
         canvas.height = h;
-        canvas.getContext('2d')!.drawImage(img, 0, 0, w, h);
+        const ctx = canvas.getContext('2d')!;
+        // Fondo blanco — evita que PNG con transparencia quede con fondo negro en JPEG
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, w, h);
+        ctx.drawImage(img, 0, 0, w, h);
         canvas.toBlob((blob) => {
           if (!blob || blob.size >= file.size) {
             resolve(file); // Si la compresión no reduce, usar original
             return;
           }
-          resolve(new File([blob], file.name, { type: 'image/jpeg', lastModified: Date.now() }));
+          resolve(new File([blob], file.name.replace(/\.\w+$/, '.jpg'), { type: 'image/jpeg', lastModified: Date.now() }));
         }, 'image/jpeg', QUALITY);
       };
-      img.onerror = () => { URL.revokeObjectURL(url); resolve(file); };
+      img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('no_image')); };
       img.src = url;
     });
   };
@@ -202,32 +206,61 @@ export function RechargeModal({
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    // Validar que sea una imagen antes de intentar comprimir
+    if (!file.type.startsWith('image/')) {
+      toast({ title: 'Archivo no válido', description: 'Solo se aceptan fotos (JPG, PNG, HEIC). Toma una foto del comprobante.', variant: 'destructive' });
+      e.target.value = '';
+      return;
+    }
     if (file.size > 15 * 1024 * 1024) {
       toast({ title: 'Imagen muy grande', description: 'Máximo 15 MB antes de comprimir', variant: 'destructive' });
       return;
     }
-    const compressed = await compressImage(file);
-    setVoucherFile(compressed);
-    const reader = new FileReader();
-    reader.onload = (ev) => setVoucherPreview(ev.target?.result as string);
-    reader.readAsDataURL(compressed);
+    try {
+      const compressed = await compressImage(file);
+      setVoucherFile(compressed);
+      const reader = new FileReader();
+      reader.onload = (ev) => setVoucherPreview(ev.target?.result as string);
+      reader.readAsDataURL(compressed);
+    } catch {
+      // Fallback: si compressImage falla (ej. archivo corrupto) usar original
+      setVoucherFile(file);
+      const reader = new FileReader();
+      reader.onload = (ev) => setVoucherPreview(ev.target?.result as string);
+      reader.readAsDataURL(file);
+    }
   };
 
   const handleSplitFileChange = async (splitId: string, e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      toast({ title: 'Archivo no válido', description: 'Solo se aceptan fotos (JPG, PNG, HEIC).', variant: 'destructive' });
+      e.target.value = '';
+      return;
+    }
     if (file.size > 15 * 1024 * 1024) {
       toast({ title: 'Imagen muy grande', description: 'Máximo 15 MB antes de comprimir', variant: 'destructive' });
       return;
     }
-    const compressed = await compressImage(file);
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      setSplitVouchers(prev => prev.map(sv =>
-        sv.id === splitId ? { ...sv, voucherFile: compressed, voucherPreview: ev.target?.result as string } : sv
-      ));
-    };
-    reader.readAsDataURL(compressed);
+    try {
+      const compressed = await compressImage(file);
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        setSplitVouchers(prev => prev.map(sv =>
+          sv.id === splitId ? { ...sv, voucherFile: compressed, voucherPreview: ev.target?.result as string } : sv
+        ));
+      };
+      reader.readAsDataURL(compressed);
+    } catch {
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        setSplitVouchers(prev => prev.map(sv =>
+          sv.id === splitId ? { ...sv, voucherFile: file, voucherPreview: ev.target?.result as string } : sv
+        ));
+      };
+      reader.readAsDataURL(file);
+    }
   };
 
   const checkDuplicateCode = async (code: string): Promise<boolean> => {

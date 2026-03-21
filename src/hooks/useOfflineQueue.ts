@@ -35,6 +35,7 @@ export interface OfflineSale {
   cash_given?: number;
   payment_metadata?: Record<string, unknown>;
   synced: boolean;
+  sync_failed?: boolean;  // true = falló definitivamente, no reintentar automáticamente
   sync_error?: string;
 }
 
@@ -72,8 +73,12 @@ async function dbGetPending(): Promise<OfflineSale[]> {
     const store = tx.objectStore(STORE_NAME);
     const idx   = store.index('synced');
     const req   = idx.getAll(IDBKeyRange.only(false));
-    req.onsuccess = () => resolve(req.result as OfflineSale[]);
-    req.onerror   = () => reject(req.error);
+    req.onsuccess = () => {
+      // Excluir los que fallaron definitivamente — no contar como "pendientes"
+      const result = (req.result as OfflineSale[]).filter(s => !s.sync_failed);
+      resolve(result);
+    };
+    req.onerror = () => reject(req.error);
   });
 }
 
@@ -88,12 +93,28 @@ async function dbDelete(id: string): Promise<void> {
 }
 
 // ── Ticket local ───────────────────────────────────────────────────────────
+// localSeq se inicializa desde IndexedDB para sobrevivir cierres de pestaña
 
-let localSeq = 1;
-function nextLocalTicket(): string {
-  const now    = new Date();
-  const date   = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}`;
-  const seq    = String(localSeq++).padStart(3, '0');
+let localSeq = 0; // 0 = sin inicializar
+
+async function getNextLocalSeq(): Promise<number> {
+  if (localSeq > 0) return ++localSeq;
+  // Primera llamada: leer cuántos registros existen (sin importar si synced o no)
+  const db = await openDB();
+  const count: number = await new Promise((resolve, reject) => {
+    const tx  = db.transaction(STORE_NAME, 'readonly');
+    const req = tx.objectStore(STORE_NAME).count();
+    req.onsuccess = () => resolve(req.result);
+    req.onerror   = () => reject(req.error);
+  });
+  localSeq = count + 1;
+  return localSeq;
+}
+
+async function nextLocalTicket(): Promise<string> {
+  const now  = new Date();
+  const date = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}`;
+  const seq  = String(await getNextLocalSeq()).padStart(3, '0');
   return `OFL-${date}-${seq}`;
 }
 
@@ -133,10 +154,10 @@ export function useOfflineQueue() {
   ): Promise<OfflineSale> => {
     const sale: OfflineSale = {
       ...saleData,
-      id:         crypto.randomUUID(),
-      local_ticket: nextLocalTicket(),
-      created_at: new Date().toISOString(),
-      synced:     false,
+      id:           crypto.randomUUID(),
+      local_ticket: await nextLocalTicket(),
+      created_at:   new Date().toISOString(),
+      synced:       false,
     };
     await dbPut(sale);
     await refreshCount();
@@ -251,8 +272,8 @@ export function useOfflineQueue() {
           ok++;
         } catch (err: any) {
           failed++;
-          // Marcar el error para diagnóstico pero no bloquear las demás
-          await dbPut({ ...sale, sync_error: err.message });
+          // Marcar como fallido definitivamente para sacarlo del contador de pendientes
+          await dbPut({ ...sale, sync_failed: true, sync_error: err.message });
         }
       }
     } finally {
@@ -266,9 +287,13 @@ export function useOfflineQueue() {
   // Auto-sincronizar al recuperar conexión
   useEffect(() => {
     if (isOnline && pendingCount > 0) {
-      syncQueue();
+      syncQueue().then(({ ok, failed }) => {
+        if (failed > 0) {
+          console.warn(`[offline] ${failed} venta(s) fallaron al sincronizar. Revisar en IndexedDB.`);
+        }
+      });
     }
-  }, [isOnline]); // Solo cuando cambia isOnline, no en cada render
+  }, [isOnline]); // Solo cuando cambia isOnline
 
   return {
     isOnline,

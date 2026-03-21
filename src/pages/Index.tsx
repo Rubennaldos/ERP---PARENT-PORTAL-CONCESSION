@@ -682,7 +682,7 @@ const Index = () => {
       {/* Modal de Formulario de Datos del Padre */}
       {showParentDataForm && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 overflow-y-auto">
-          <div className="flex min-h-full items-start justify-center p-3 sm:p-4 py-6">
+          <div className="flex min-h-full items-center justify-center p-3 sm:p-4 py-6">
             <div className="w-full max-w-md">
               <ParentDataForm
                 onSuccess={() => {

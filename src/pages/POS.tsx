@@ -349,17 +349,26 @@ const POS = () => {
     setFilteredProducts(filtered);
   }, [productSearch, selectedCategory, products]);
 
-  // Buscar estudiantes
+  // Buscar estudiantes (con debounce 300ms para no saturar Supabase)
   useEffect(() => {
-    if (clientMode === 'student' && studentSearch.trim().length >= 2) {
-      searchStudents(studentSearch);
-      searchTeachers(studentSearch);
-      setShowStudentResults(true);
-    } else {
+    if (clientMode !== 'student') {
       setStudents([]);
       setTeachers([]);
       setShowStudentResults(false);
+      return;
     }
+    if (studentSearch.trim().length < 2) {
+      setStudents([]);
+      setTeachers([]);
+      setShowStudentResults(false);
+      return;
+    }
+    const timer = setTimeout(() => {
+      searchStudents(studentSearch);
+      searchTeachers(studentSearch);
+      setShowStudentResults(true);
+    }, 300);
+    return () => clearTimeout(timer);
   }, [studentSearch, clientMode]);
 
   // Buscar profesores
