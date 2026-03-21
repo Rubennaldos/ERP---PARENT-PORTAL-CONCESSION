@@ -10,11 +10,9 @@ import { initiatePayment } from '@/services/paymentService';
 import { YapeLogo } from '@/components/ui/YapeLogo';
 import { PlinLogo } from '@/components/ui/PlinLogo';
 import { 
-  CreditCard, 
   Building2, 
   Loader2,
   CheckCircle2,
-  AlertCircle,
   ExternalLink,
   Calendar
 } from 'lucide-react';
@@ -52,7 +50,7 @@ export function PayDebtModal({
   const [processing, setProcessing] = useState(false);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [totalDebt, setTotalDebt] = useState(0);
-  const [selectedMethod, setSelectedMethod] = useState<'card' | 'yape' | 'plin'>('card');
+  const [selectedMethod, setSelectedMethod] = useState<'yape' | 'plin'>('yape');
 
   useEffect(() => {
     if (isOpen && studentId) {
@@ -151,15 +149,6 @@ export function PayDebtModal({
   };
 
   const paymentMethods = [
-    {
-      id: 'card',
-      name: 'Tarjeta de Crédito/Débito',
-      icon: CreditCard,
-      customIcon: null,
-      color: 'blue',
-      description: 'Visa, Mastercard, Amex',
-      gateway: 'niubiz'
-    },
     {
       id: 'yape',
       name: 'Yape',
@@ -281,13 +270,11 @@ export function PayDebtModal({
                         >
                           <div className="flex items-center justify-between">
                             <div className="flex items-center gap-3">
-                              <div className={`w-12 h-12 rounded-lg bg-white flex items-center justify-center`}>
-                                {CustomIcon ? (
-                                  <CustomIcon className="w-10 h-10" />
-                                ) : Icon ? (
-                                  <Icon className={`h-6 w-6 text-${method.color}-600`} />
-                                ) : null}
-                              </div>
+                      <div className={`w-12 h-12 rounded-lg bg-white flex items-center justify-center`}>
+                        {CustomIcon ? (
+                          <CustomIcon className="w-10 h-10" />
+                        ) : null}
+                      </div>
                               <div>
                                 <p className="font-semibold text-gray-900">{method.name}</p>
                                 <p className="text-xs text-gray-500">{method.description}</p>

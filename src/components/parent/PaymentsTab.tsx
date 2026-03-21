@@ -8,7 +8,7 @@ import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import {
   AlertCircle, Check, Clock, Receipt, XCircle, Send,
   Banknote, Link2, FileDown, Eye, Loader2, History,
-  ShoppingBag, CreditCard, X as XIcon,
+  ShoppingBag, CreditCard, X as XIcon, CalendarDays,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useToast } from '@/hooks/use-toast';
@@ -759,15 +759,35 @@ export const PaymentsTab = ({ userId }: PaymentsTabProps) => {
                         {debt.pending_transactions.map(tx => {
                           const locked = isTxLocked(tx.id);
                           const checked = sel.has(tx.id);
+                          const isHistorical = tx.metadata?.source === 'historical_kiosk_entry';
+                          const historicalDate = tx.metadata?.sale_date;
                           return (
-                            <div key={tx.id} className={`p-3 rounded-lg border transition-colors ${locked ? 'bg-blue-50/30 border-blue-200 opacity-70' : checked ? 'bg-blue-50/50 border-blue-200' : 'bg-white border-gray-200'}`}>
+                            <div key={tx.id} className={`p-3 rounded-lg border transition-colors ${locked ? 'bg-blue-50/30 border-blue-200 opacity-70' : isHistorical ? 'bg-amber-50/40 border-amber-200' : checked ? 'bg-blue-50/50 border-blue-200' : 'bg-white border-gray-200'}`}>
                               <div className="flex items-center gap-3">
                                 <Checkbox checked={checked} onCheckedChange={() => toggleTransaction(debt.student_id, tx.id)} disabled={locked} className="h-4 w-4 flex-shrink-0" />
-                                <Receipt className="h-4 w-4 text-gray-400 flex-shrink-0" />
+                                {isHistorical
+                                  ? <History className="h-4 w-4 text-amber-500 flex-shrink-0" />
+                                  : <Receipt className="h-4 w-4 text-gray-400 flex-shrink-0" />
+                                }
                                 <div className="flex-1 min-w-0">
-                                  <p className="font-semibold text-xs sm:text-sm truncate">{tx.description}</p>
+                                  <div className="flex items-center gap-2 flex-wrap">
+                                    <p className="font-semibold text-xs sm:text-sm truncate">{tx.description}</p>
+                                    {isHistorical && (
+                                      <Badge className="bg-amber-100 text-amber-700 border-amber-300 text-[9px] gap-0.5 shrink-0">
+                                        <History className="h-2.5 w-2.5" />Venta Histórica
+                                      </Badge>
+                                    )}
+                                  </div>
                                   <p className="text-[10px] sm:text-xs text-gray-500">
-                                    {format(new Date(tx.created_at), "d 'de' MMMM, yyyy • HH:mm", { locale: es })}
+                                    {isHistorical && historicalDate
+                                      ? <>
+                                          <CalendarDays className="h-2.5 w-2.5 inline mr-0.5 text-amber-500" />
+                                          <span className="text-amber-700 font-medium capitalize">
+                                            {format(new Date(historicalDate + 'T12:00:00'), "d 'de' MMMM, yyyy", { locale: es })}
+                                          </span>
+                                        </>
+                                      : format(new Date(tx.created_at), "d 'de' MMMM, yyyy • HH:mm", { locale: es })
+                                    }
                                     {tx.ticket_code && <span className="ml-1 text-blue-600 font-mono">• {tx.ticket_code}</span>}
                                   </p>
                                 </div>
@@ -848,20 +868,32 @@ export const PaymentsTab = ({ userId }: PaymentsTabProps) => {
                       const refCode = req?.reference_code || tx.operation_number;
                       const hasVoucher = !!req?.voucher_url;
                       const voucherUrl = req ? voucherUrls[req.id] : undefined;
+                      const isHistorical = tx.metadata?.source === 'historical_kiosk_entry';
+                      const historicalDate = tx.metadata?.sale_date;
 
                       return (
-                        <div key={tx.id} className="border border-green-200 rounded-lg bg-white overflow-hidden">
+                        <div key={tx.id} className={`border rounded-lg bg-white overflow-hidden ${isHistorical ? 'border-amber-200' : 'border-green-200'}`}>
                           {/* Top row */}
                           <div className="flex items-start gap-3 p-3">
                             <div className="flex-shrink-0 mt-0.5">
-                              <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center">
-                                <Check className="h-4 w-4 text-green-600" />
+                              <div className={`w-8 h-8 rounded-full flex items-center justify-center ${isHistorical ? 'bg-amber-100' : 'bg-green-100'}`}>
+                                {isHistorical
+                                  ? <History className="h-4 w-4 text-amber-600" />
+                                  : <Check className="h-4 w-4 text-green-600" />
+                                }
                               </div>
                             </div>
                             <div className="flex-1 min-w-0">
                               <div className="flex items-start justify-between gap-2">
-                                <p className="text-xs sm:text-sm font-semibold text-gray-800 leading-tight">{tx.description}</p>
-                                <span className="text-sm font-bold text-green-700 flex-shrink-0">S/ {tx.amount.toFixed(2)}</span>
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-xs sm:text-sm font-semibold text-gray-800 leading-tight">{tx.description}</p>
+                                  {isHistorical && (
+                                    <Badge className="bg-amber-100 text-amber-700 border-amber-300 text-[9px] gap-0.5 mt-0.5">
+                                      <History className="h-2.5 w-2.5" />Venta Histórica
+                                    </Badge>
+                                  )}
+                                </div>
+                                <span className={`text-sm font-bold flex-shrink-0 ${isHistorical ? 'text-amber-700' : 'text-green-700'}`}>S/ {tx.amount.toFixed(2)}</span>
                               </div>
 
                               <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 mt-0.5">
@@ -870,9 +902,16 @@ export const PaymentsTab = ({ userId }: PaymentsTabProps) => {
                                     {tx.ticket_code}
                                   </span>
                                 )}
-                                <span className="text-[10px] text-gray-400">
-                                  {format(new Date(tx.created_at), "d MMM yyyy", { locale: es })}
-                                </span>
+                                {isHistorical && historicalDate ? (
+                                  <span className="text-[10px] text-amber-700 font-semibold flex items-center gap-0.5">
+                                    <CalendarDays className="h-2.5 w-2.5" />
+                                    {format(new Date(historicalDate + 'T12:00:00'), "d MMM yyyy", { locale: es })}
+                                  </span>
+                                ) : (
+                                  <span className="text-[10px] text-gray-400">
+                                    {format(new Date(tx.created_at), "d MMM yyyy", { locale: es })}
+                                  </span>
+                                )}
                                 {method && (
                                   <span className="text-[10px] text-indigo-600 font-medium">
                                     {METHOD_LABELS[method] || method}
@@ -886,8 +925,8 @@ export const PaymentsTab = ({ userId }: PaymentsTabProps) => {
                           </div>
 
                           {/* Action row */}
-                          <div className="border-t border-green-100 bg-green-50/50 px-3 py-2 flex items-center justify-between gap-2">
-                            <Badge className="bg-green-100 text-green-700 border-green-300 text-[10px]">
+                          <div className={`border-t px-3 py-2 flex items-center justify-between gap-2 ${isHistorical ? 'border-amber-100 bg-amber-50/50' : 'border-green-100 bg-green-50/50'}`}>
+                            <Badge className={isHistorical ? 'bg-amber-100 text-amber-700 border-amber-300 text-[10px]' : 'bg-green-100 text-green-700 border-green-300 text-[10px]'}>
                               <Check className="h-2.5 w-2.5 mr-0.5" />
                               PAGADO
                             </Badge>

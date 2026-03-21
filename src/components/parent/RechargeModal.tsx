@@ -169,33 +169,65 @@ export function RechargeModal({
     }
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    if (file.size > 5 * 1024 * 1024) {
-      toast({ title: 'Imagen muy grande', description: 'Máximo 5 MB', variant: 'destructive' });
-      return;
-    }
-    setVoucherFile(file);
-    const reader = new FileReader();
-    reader.onload = (ev) => setVoucherPreview(ev.target?.result as string);
-    reader.readAsDataURL(file);
+  // Comprime imagen antes de subir — mantiene legibilidad del voucher
+  const compressImage = (file: File): Promise<File> => {
+    return new Promise((resolve) => {
+      const MAX_SIDE = 1400;  // px — suficiente para leer números del voucher
+      const QUALITY  = 0.75;  // 75% calidad JPEG — buen balance tamaño/nitidez
+      const img = new Image();
+      const url = URL.createObjectURL(file);
+      img.onload = () => {
+        URL.revokeObjectURL(url);
+        const { width, height } = img;
+        const scale = Math.min(1, MAX_SIDE / Math.max(width, height));
+        const w = Math.round(width  * scale);
+        const h = Math.round(height * scale);
+        const canvas = document.createElement('canvas');
+        canvas.width  = w;
+        canvas.height = h;
+        canvas.getContext('2d')!.drawImage(img, 0, 0, w, h);
+        canvas.toBlob((blob) => {
+          if (!blob || blob.size >= file.size) {
+            resolve(file); // Si la compresión no reduce, usar original
+            return;
+          }
+          resolve(new File([blob], file.name, { type: 'image/jpeg', lastModified: Date.now() }));
+        }, 'image/jpeg', QUALITY);
+      };
+      img.onerror = () => { URL.revokeObjectURL(url); resolve(file); };
+      img.src = url;
+    });
   };
 
-  const handleSplitFileChange = (splitId: string, e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (file.size > 5 * 1024 * 1024) {
-      toast({ title: 'Imagen muy grande', description: 'Máximo 5 MB', variant: 'destructive' });
+    if (file.size > 15 * 1024 * 1024) {
+      toast({ title: 'Imagen muy grande', description: 'Máximo 15 MB antes de comprimir', variant: 'destructive' });
       return;
     }
+    const compressed = await compressImage(file);
+    setVoucherFile(compressed);
+    const reader = new FileReader();
+    reader.onload = (ev) => setVoucherPreview(ev.target?.result as string);
+    reader.readAsDataURL(compressed);
+  };
+
+  const handleSplitFileChange = async (splitId: string, e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 15 * 1024 * 1024) {
+      toast({ title: 'Imagen muy grande', description: 'Máximo 15 MB antes de comprimir', variant: 'destructive' });
+      return;
+    }
+    const compressed = await compressImage(file);
     const reader = new FileReader();
     reader.onload = (ev) => {
       setSplitVouchers(prev => prev.map(sv =>
-        sv.id === splitId ? { ...sv, voucherFile: file, voucherPreview: ev.target?.result as string } : sv
+        sv.id === splitId ? { ...sv, voucherFile: compressed, voucherPreview: ev.target?.result as string } : sv
       ));
     };
-    reader.readAsDataURL(file);
+    reader.readAsDataURL(compressed);
   };
 
   const checkDuplicateCode = async (code: string): Promise<boolean> => {

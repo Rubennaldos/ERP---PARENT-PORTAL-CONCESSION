@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRole } from '@/hooks/useRole';
 import { useUserProfile } from '@/hooks/useUserProfile';
+import { useOfflineQueue } from '@/hooks/useOfflineQueue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -159,6 +160,7 @@ const POS = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const { isOnline, pendingCount, isSyncing, saveOffline, syncQueue } = useOfflineQueue();
 
   // ── NFC POS Refs & Estados ──
   const nfcPosBuffer = useRef('');
@@ -351,9 +353,11 @@ const POS = () => {
   useEffect(() => {
     if (clientMode === 'student' && studentSearch.trim().length >= 2) {
       searchStudents(studentSearch);
+      searchTeachers(studentSearch);
       setShowStudentResults(true);
     } else {
       setStudents([]);
+      setTeachers([]);
       setShowStudentResults(false);
     }
   }, [studentSearch, clientMode]);
@@ -1210,6 +1214,56 @@ const POS = () => {
       const total = getTotal();
       let ticketCode = '';
 
+      // ── MODO OFFLINE ─────────────────────────────────────────────────────
+      if (!isOnline) {
+        const offlineSale = await saveOffline({
+          client_mode: clientMode as 'generic' | 'student' | 'teacher',
+          student_id:  selectedStudent?.id || null,
+          teacher_id:  selectedTeacher?.id || null,
+          school_id:   selectedStudent?.school_id
+                        || (selectedTeacher as any)?.school_1_id
+                        || userSchoolId
+                        || null,
+          cashier_id:      user!.id,
+          total,
+          payment_method:  paymentMethod,
+          is_free_account: selectedStudent ? selectedStudent.free_account !== false : false,
+          items: cart.map(item => ({
+            product_id:   item.product.id,
+            product_name: item.product.name,
+            quantity:     item.quantity,
+            unit_price:   item.product.price,
+            subtotal:     item.product.price * item.quantity,
+          })),
+          cash_given:       parseFloat(cashGiven) || undefined,
+          payment_metadata: { source: 'pos_offline' },
+        });
+
+        const clientName = clientMode === 'student' ? selectedStudent?.full_name
+                         : clientMode === 'teacher'  ? selectedTeacher?.full_name
+                         : 'CLIENTE GENÉRICO';
+
+        setTicketData({
+          code:          offlineSale.local_ticket,
+          clientName,
+          clientType:    clientMode,
+          items:         cart,
+          total,
+          timestamp:     new Date(),
+          paymentMethod: paymentMethod || 'efectivo',
+          isOffline:     true,
+        });
+        setShowTicketPrint(true);
+        toast({
+          title: '📵 Venta guardada offline',
+          description: `Ticket ${offlineSale.local_ticket}. Se sincronizará automáticamente al recuperar internet.`,
+          duration: 6000,
+        });
+        setIsProcessing(false);
+        return;
+      }
+      // ── FIN MODO OFFLINE ──────────────────────────────────────────────
+
       console.log('🔵 INICIANDO CHECKOUT', {
         clientMode,
         selectedStudent: selectedStudent?.full_name,
@@ -1718,6 +1772,29 @@ const POS = () => {
       />
     )}
     <div className="h-screen flex flex-col bg-gray-100">
+      {/* Banner offline */}
+      {!isOnline && (
+        <div className="bg-amber-500 text-white text-xs font-bold text-center py-1.5 px-3 flex items-center justify-center gap-2 print:hidden">
+          📵 SIN INTERNET — Las ventas se guardarán localmente y sincronizarán al reconectar
+          {pendingCount > 0 && (
+            <span className="bg-white text-amber-700 rounded-full px-2 py-0.5">
+              {pendingCount} pendiente{pendingCount > 1 ? 's' : ''}
+            </span>
+          )}
+        </div>
+      )}
+      {isOnline && pendingCount > 0 && (
+        <div className="bg-blue-600 text-white text-xs font-bold text-center py-1.5 px-3 flex items-center justify-center gap-2 print:hidden">
+          {isSyncing ? (
+            <>⏳ Sincronizando {pendingCount} venta{pendingCount > 1 ? 's' : ''} offline...</>
+          ) : (
+            <>
+              ✅ Internet recuperado — {pendingCount} venta{pendingCount > 1 ? 's' : ''} offline pendiente{pendingCount > 1 ? 's' : ''}
+              <button onClick={syncQueue} className="underline ml-1">Sincronizar ahora</button>
+            </>
+          )}
+        </div>
+      )}
       {/* Header */}
       <header className="bg-slate-900 text-white px-3 sm:px-4 lg:px-6 py-2 sm:py-3 flex justify-between items-center shadow-lg print:hidden">
         <div className="flex items-center gap-2 sm:gap-3">
@@ -1782,7 +1859,7 @@ const POS = () => {
               </div>
             </div>
             
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
               {/* Cliente Genérico */}
               <button
                 onClick={selectGenericClient}
@@ -1793,24 +1870,14 @@ const POS = () => {
                 <p className="text-xs sm:text-sm text-gray-600">Venta al contado (Efectivo/Yape/Tarjeta)</p>
               </button>
 
-              {/* Crédito */}
+              {/* Alumno / Profesor — búsqueda unificada */}
               <button
                 onClick={selectStudentMode}
                 className="p-4 sm:p-8 border-2 border-gray-300 rounded-xl hover:border-blue-500 hover:bg-blue-50 transition-all group"
               >
                 <User className="h-10 w-10 sm:h-16 sm:w-16 mx-auto mb-2 sm:mb-4 text-gray-400 group-hover:text-blue-600" />
-                <h3 className="text-base sm:text-xl font-bold mb-1 sm:mb-2">Crédito</h3>
-                <p className="text-xs sm:text-sm text-gray-600">Compra a crédito (Descuenta de saldo)</p>
-              </button>
-
-              {/* Profesor */}
-              <button
-                onClick={selectTeacherMode}
-                className="p-4 sm:p-8 border-2 border-gray-300 rounded-xl hover:border-purple-500 hover:bg-purple-50 transition-all group"
-              >
-                <UtensilsCrossed className="h-10 w-10 sm:h-16 sm:w-16 mx-auto mb-2 sm:mb-4 text-gray-400 group-hover:text-purple-600" />
-                <h3 className="text-base sm:text-xl font-bold mb-1 sm:mb-2">Profesor</h3>
-                <p className="text-xs sm:text-sm text-gray-600">Cuenta libre (Sin límites)</p>
+                <h3 className="text-base sm:text-xl font-bold mb-1 sm:mb-2">Alumno / Profesor</h3>
+                <p className="text-xs sm:text-sm text-gray-600">Busca alumnos (crédito) y profesores juntos</p>
               </button>
             </div>
 
@@ -1856,12 +1923,12 @@ const POS = () => {
         </div>
       )}
 
-      {/* Modal de Búsqueda de Estudiante */}
+      {/* Modal de Búsqueda Unificada: Alumno / Profesor */}
       {clientMode === 'student' && !selectedStudent && (
         <div className="absolute inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full p-6">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-2xl font-bold">Buscar Estudiante</h2>
+              <h2 className="text-2xl font-bold">Buscar Alumno o Profesor</h2>
               <Button 
                 variant="ghost" 
                 onClick={resetClient}
@@ -1874,7 +1941,7 @@ const POS = () => {
             <div className="relative mb-4">
               <Search className="absolute left-4 top-4 h-5 w-5 text-gray-400" />
               <Input
-                placeholder="Escribe el nombre del estudiante..."
+                placeholder="Escribe el nombre del alumno o profesor..."
                 value={studentSearch}
                 onChange={(e) => setStudentSearch(e.target.value)}
                 className="pl-12 text-lg h-14 border-2"
@@ -1882,8 +1949,9 @@ const POS = () => {
               />
             </div>
 
-            {showStudentResults && students.length > 0 && (
+            {showStudentResults && (students.length > 0 || teachers.length > 0) && (
               <div className="space-y-2 max-h-96 overflow-y-auto">
+                {/* Sección alumnos */}
                 {students.map((student) => {
                   const accountStatus = studentAccountStatuses.get(student.id);
                   const canPurchase = accountStatus?.canPurchase ?? true;
@@ -1893,7 +1961,7 @@ const POS = () => {
                   
                   return (
                     <button
-                      key={student.id}
+                      key={`s-${student.id}`}
                       onClick={() => canPurchase && selectStudent(student)}
                       disabled={!canPurchase}
                       className={cn(
@@ -1904,6 +1972,7 @@ const POS = () => {
                       )}
                     >
                       <div className="flex items-center gap-4">
+                        <span className="text-xs font-bold px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full flex-shrink-0">Alumno</span>
                         <div className="flex-1 min-w-0">
                           <p className={cn("font-bold text-lg", !canPurchase && "text-gray-500")}>
                             {student.full_name}
@@ -1919,7 +1988,6 @@ const POS = () => {
                         </div>
                       </div>
                       
-                      {/* Info detallada del tope */}
                       {limitInfo?.hasLimit && (
                         <div className={cn(
                           "mt-2 p-2 rounded-lg border text-xs",
@@ -1937,7 +2005,6 @@ const POS = () => {
                               S/ {limitInfo.remaining.toFixed(2)} restante
                             </span>
                           </div>
-                          {/* Barra de progreso */}
                           <div className="w-full bg-gray-200 rounded-full h-2 mb-1">
                             <div 
                               className={cn(
@@ -1964,20 +2031,46 @@ const POS = () => {
                     </button>
                   );
                 })}
+
+                {/* Sección profesores */}
+                {teachers.map((teacher) => (
+                  <button
+                    key={`t-${teacher.id}`}
+                    onClick={() => {
+                      selectTeacher(teacher);
+                      setClientMode('teacher');
+                    }}
+                    className="w-full p-4 border-2 rounded-xl text-left flex items-center gap-4 transition-all hover:bg-purple-50 border-gray-200 hover:border-purple-500 cursor-pointer"
+                  >
+                    <span className="text-xs font-bold px-2 py-0.5 bg-purple-100 text-purple-700 rounded-full flex-shrink-0">Profesor</span>
+                    <div className="flex-1">
+                      <p className="font-bold text-lg">
+                        {teacher.full_name || '(Sin nombre)'}
+                      </p>
+                      <p className="text-sm text-gray-500">
+                        {teacher.area ? `${teacher.area.charAt(0).toUpperCase() + teacher.area.slice(1)}` : ''}
+                        {teacher.school_1_name ? ` • ${teacher.school_1_name}` : ''}
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-sm font-bold text-purple-600">✅ Cuenta Libre</p>
+                    </div>
+                  </button>
+                ))}
               </div>
             )}
 
-            {studentSearch.length >= 2 && students.length === 0 && (
+            {studentSearch.length >= 2 && students.length === 0 && teachers.length === 0 && (
               <div className="text-center py-8 text-gray-500">
                 <User className="h-16 w-16 mx-auto mb-3 opacity-30" />
-                <p>No se encontraron estudiantes</p>
+                <p>No se encontraron resultados para "{studentSearch}"</p>
               </div>
             )}
           </div>
         </div>
       )}
 
-      {/* Modal de Búsqueda de Profesor */}
+      {/* Modal de Búsqueda de Profesor (acceso directo NFC) */}
       {clientMode === 'teacher' && !selectedTeacher && (
         <div className="absolute inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full p-6">

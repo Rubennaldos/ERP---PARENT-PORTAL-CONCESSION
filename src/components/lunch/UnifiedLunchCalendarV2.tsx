@@ -20,10 +20,8 @@ import {
   Check,
   Ban,
   Trash2,
-  CreditCard as CreditCardIcon,
   MessageSquare,
 } from 'lucide-react';
-import { RechargeModal } from '@/components/parent/RechargeModal';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, addMonths, subMonths } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { MenuFieldOptionSelector, hasAnyAlternatives } from '@/components/lunch/MenuFieldOptionSelector';
@@ -187,7 +185,6 @@ export function UnifiedLunchCalendarV2({ userType, userId, userSchoolId }: Unifi
   const [cancellingOrderId, setCancellingOrderId] = useState<string | null>(null);
 
   // ── Payment flow (parents only) ──
-  const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [createdOrderIds, setCreatedOrderIds] = useState<string[]>([]);
   const [totalOrderAmount, setTotalOrderAmount] = useState(0);
   const [orderDescriptions, setOrderDescriptions] = useState<string[]>([]);
@@ -1263,16 +1260,16 @@ export function UnifiedLunchCalendarV2({ userType, userId, userSchoolId }: Unifi
         </div>
       )}
 
-      {/* ── SESSION ORDERS FLOATING BAR ── */}
-      {createdOrderIds.length > 0 && !showPaymentModal && userType === 'parent' && (
+      {/* ── PEDIDOS CONFIRMADOS — AVISO PARA IR A PAGOS ── */}
+      {createdOrderIds.length > 0 && userType === 'parent' && (
         <div className="fixed bottom-16 left-2 right-2 z-50 animate-in slide-in-from-bottom-3 duration-200">
-          <div className="mx-auto max-w-sm bg-gradient-to-r from-purple-700 to-indigo-700 text-white rounded-2xl shadow-2xl px-4 py-3 flex items-center gap-3">
+          <div className="mx-auto max-w-sm bg-gradient-to-r from-emerald-600 to-teal-600 text-white rounded-2xl shadow-2xl px-4 py-3 flex items-center gap-3">
             <div className="flex-1 min-w-0">
               <p className="font-bold text-sm">
-                🛒 {createdOrderIds.length} pedido{createdOrderIds.length > 1 ? 's' : ''}
+                ✅ {createdOrderIds.length} pedido{createdOrderIds.length > 1 ? 's' : ''} registrado{createdOrderIds.length > 1 ? 's' : ''} — S/ {totalOrderAmount.toFixed(2)}
               </p>
-              <p className="text-purple-300 text-[10px] truncate">
-                Total: S/ {totalOrderAmount.toFixed(2)}
+              <p className="text-emerald-100 text-[10px]">
+                Ve a la pestaña <strong>Pagos</strong> para enviar tu comprobante
               </p>
             </div>
             <button
@@ -1281,16 +1278,9 @@ export function UnifiedLunchCalendarV2({ userType, userId, userSchoolId }: Unifi
                 setTotalOrderAmount(0);
                 setOrderDescriptions([]);
               }}
-              className="text-white/50 hover:text-white/80 p-1"
+              className="text-white/60 hover:text-white p-1 text-lg leading-none"
             >
               ✕
-            </button>
-            <button
-              onClick={() => setShowPaymentModal(true)}
-              className="bg-white text-purple-700 font-bold text-xs h-9 px-4 rounded-xl flex items-center gap-1.5 active:scale-95 transition-transform shadow-lg"
-            >
-              <CreditCardIcon className="h-3.5 w-3.5" />
-              Pagar
             </button>
           </div>
         </div>
@@ -1317,29 +1307,7 @@ export function UnifiedLunchCalendarV2({ userType, userId, userSchoolId }: Unifi
         </div>
       </div>
 
-      {/* ── PAYMENT MODAL (parents only) ── */}
-      {userType === 'parent' && selectedStudent && (
-        <RechargeModal
-          isOpen={showPaymentModal}
-          onClose={() => {
-            setShowPaymentModal(false);
-            setCreatedOrderIds([]);
-            setTotalOrderAmount(0);
-            setOrderDescriptions([]);
-          }}
-          studentName={selectedStudent.full_name}
-          studentId={selectedStudent.id}
-          currentBalance={selectedStudent.balance || 0}
-          accountType={selectedStudent.free_account ? 'free' : 'prepaid'}
-          suggestedAmount={totalOrderAmount}
-          requestType="lunch_payment"
-          requestDescription={`Pago almuerzo: ${orderDescriptions.join(' | ')}`}
-          lunchOrderIds={createdOrderIds}
-          onRecharge={async () => {
-            toast({ title: '✅ Comprobante enviado', description: 'Tu pago será revisado por el administrador.' });
-          }}
-        />
-      )}
+
     </div>
   );
 }

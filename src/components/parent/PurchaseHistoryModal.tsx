@@ -1,8 +1,8 @@
-﻿import { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
-import { Receipt, Clock, ShoppingBag, AlertCircle } from 'lucide-react';
+import { Receipt, Clock, ShoppingBag, AlertCircle, History } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
@@ -22,6 +22,7 @@ interface Purchase {
   created_at: string;
   ticket_code: string | null;
   payment_status: string;
+  metadata?: any;
   items: PurchaseItem[];
 }
 
@@ -55,7 +56,7 @@ export const PurchaseHistoryModal = ({
       // ✅ Sin delay — mostrar TODAS las compras en tiempo real
       const { data: transactions, error: transError } = await supabase
         .from('transactions')
-        .select('*')
+        .select('id, amount, description, created_at, ticket_code, payment_status, metadata')
         .eq('student_id', studentId)
         .eq('type', 'purchase')
         .neq('payment_status', 'cancelled')
@@ -90,6 +91,7 @@ export const PurchaseHistoryModal = ({
           created_at: transaction.created_at,
           ticket_code: transaction.ticket_code,
           payment_status: transaction.payment_status || 'paid',
+          metadata: transaction.metadata,
           items: items || [],
         });
       }
@@ -136,18 +138,30 @@ export const PurchaseHistoryModal = ({
           </div>
         ) : (
           <div className="space-y-4">
-            {purchases.map((purchase) => (
-              <Card key={purchase.id} className="border-2 hover:shadow-lg transition-shadow">
+            {purchases.map((purchase) => {
+              const isHistorical = purchase.metadata?.source === 'historical_kiosk_entry';
+              const historicalDate = purchase.metadata?.sale_date;
+              return (
+              <Card key={purchase.id} className={`border-2 hover:shadow-lg transition-shadow ${isHistorical ? 'border-amber-200 bg-amber-50/20' : ''}`}>
                 <CardContent className="p-4">
                   {/* Header de la compra */}
                   <div className="flex items-start justify-between mb-3 pb-3 border-b-2 border-gray-100">
                     <div className="flex items-center gap-3">
-                      <div className="p-2 bg-[#9E4D68]/10 rounded-lg">
-                        <Receipt className="h-5 w-5 text-[#9E4D68]" />
+                      <div className={`p-2 rounded-lg ${isHistorical ? 'bg-amber-100' : 'bg-[#9E4D68]/10'}`}>
+                        {isHistorical
+                          ? <History className="h-5 w-5 text-amber-600" />
+                          : <Receipt className="h-5 w-5 text-[#9E4D68]" />
+                        }
                       </div>
                       <div>
-                        <div className="font-bold text-gray-900 flex items-center gap-2">
+                        <div className="font-bold text-gray-900 flex items-center gap-2 flex-wrap">
                           {purchase.ticket_code || 'Sin ticket'}
+                          {isHistorical && (
+                            <Badge className="bg-amber-100 text-amber-800 border-amber-300 text-[10px] gap-1">
+                              <History className="h-2.5 w-2.5" />
+                              Venta Histórica
+                            </Badge>
+                          )}
                           {purchase.payment_status === 'pending' && (
                             <Badge variant="outline" className="text-xs border-amber-300 text-amber-700">
                               <Clock className="h-3 w-3 mr-1" />
@@ -157,13 +171,21 @@ export const PurchaseHistoryModal = ({
                         </div>
                         <div className="text-sm text-gray-500 flex items-center gap-1 mt-1">
                           <Clock className="h-3 w-3" />
-                          {format(new Date(purchase.created_at), "EEEE, d 'de' MMMM 'de' yyyy • HH:mm", { locale: es })}
+                          {isHistorical && historicalDate
+                            ? <>
+                                <span className="font-semibold text-amber-700">
+                                  Fecha real: {format(new Date(historicalDate + 'T12:00:00'), "EEEE, d 'de' MMMM 'de' yyyy", { locale: es })}
+                                </span>
+                                <span className="text-gray-400 ml-1">(registrado {format(new Date(purchase.created_at), "d MMM", { locale: es })})</span>
+                              </>
+                            : format(new Date(purchase.created_at), "EEEE, d 'de' MMMM 'de' yyyy • HH:mm", { locale: es })
+                          }
                         </div>
                       </div>
                     </div>
                     <div className="text-right">
                       <p className="text-sm text-gray-500">Total</p>
-                      <p className="text-2xl font-black text-[#9E4D68]">
+                      <p className={`text-2xl font-black ${isHistorical ? 'text-amber-700' : 'text-[#9E4D68]'}`}>
                         S/ {purchase.amount.toFixed(2)}
                       </p>
                     </div>
@@ -198,7 +220,7 @@ export const PurchaseHistoryModal = ({
                   )}
                 </CardContent>
               </Card>
-            ))}
+            );})}
           </div>
         )}
       </DialogContent>

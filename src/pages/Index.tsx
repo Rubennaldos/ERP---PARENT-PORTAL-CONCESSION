@@ -18,7 +18,6 @@ import { useToast } from '@/hooks/use-toast';
 import { AddStudentModal } from '@/components/AddStudentModal';
 import { UploadPhotoModal } from '@/components/UploadPhotoModal';
 import { StudentCard } from '@/components/parent/StudentCard';
-import { PayDebtModal } from '@/components/parent/PayDebtModal';
 import { VersionBadge } from '@/components/VersionBadge';
 import { FreeAccountOnboardingModal } from '@/components/parent/FreeAccountOnboardingModal';
 import { PaymentsTab } from '@/components/parent/PaymentsTab';
@@ -74,7 +73,6 @@ const Index = () => {
   const [isParentFormLoading, setIsParentFormLoading] = useState(false);
   
   // Modales
-  const [showPayDebtModal, setShowPayDebtModal] = useState(false);
   const [showHistoryModal, setShowHistoryModal] = useState(false);
   const [showUploadPhoto, setShowUploadPhoto] = useState(false);
   const [showPhotoConsent, setShowPhotoConsent] = useState(false);
@@ -277,21 +275,34 @@ const Index = () => {
     }
   };
 
-  // ✅ Calcular deuda de cada estudiante — SIN delay, en tiempo real
+  // ✅ Calcular deuda de cada estudiante — SOLO consumos de kiosco (excluye almuerzos)
   const calculateStudentDebts = async (studentsData: Student[]) => {
     const debtsMap: Record<string, number> = {};
     
     for (const student of studentsData) {
       try {
+        // Solo deudas del KIOSCO: excluye transacciones cuyo metadata.source sea de almuerzo
+        // Los almuerzos usan source: 'physical_order_wizard', 'parent_app', 'teacher_app', etc.
+        // El kiosco usa source: 'pos' y 'historical_kiosk_entry'
         const { data: transactions } = await supabase
           .from('transactions')
-          .select('amount')
+          .select('amount, metadata')
           .eq('student_id', student.id)
           .eq('type', 'purchase')
           .eq('payment_status', 'pending');
 
-        const totalDebt = transactions?.reduce((sum, t) => sum + Math.abs(t.amount), 0) || 0;
-        debtsMap[student.id] = totalDebt;
+        const kioskDebt = (transactions || [])
+          .filter(t => {
+            const src = t.metadata?.source as string | undefined;
+            // Incluir solo si la fuente es del kiosco o si no tiene source definido
+            // Excluir explícitamente todas las fuentes de almuerzo
+            const lunchSources = ['physical_order_wizard', 'parent_app', 'teacher_app', 'lunch', 'lunch_order'];
+            if (!src) return true; // Sin source → kiosco (comportamiento legacy)
+            return !lunchSources.includes(src);
+          })
+          .reduce((sum: number, t: any) => sum + Math.abs(t.amount), 0);
+
+        debtsMap[student.id] = kioskDebt;
       } catch (error) {
         console.error(`Error calculating debt for student ${student.id}:`, error);
         debtsMap[student.id] = 0;
@@ -306,9 +317,8 @@ const Index = () => {
     setShowHistoryModal(true);
   };
 
-  const openPayDebtModal = (student: Student) => {
-    setSelectedStudent(student);
-    setShowPayDebtModal(true);
+  const openPayDebtModal = (_student: Student) => {
+    setActiveTab('pagos');
   };
 
   const openPhotoModal = async (student: Student) => {
@@ -535,14 +545,6 @@ const Index = () => {
 
       {selectedStudent && (
         <>
-          <PayDebtModal
-            isOpen={showPayDebtModal}
-            onClose={() => setShowPayDebtModal(false)}
-            studentName={selectedStudent.full_name}
-            studentId={selectedStudent.id}
-            onPaymentComplete={fetchStudents}
-          />
-
           <UploadPhotoModal
             isOpen={showUploadPhoto}
             onClose={() => setShowUploadPhoto(false)}
@@ -679,16 +681,18 @@ const Index = () => {
 
       {/* Modal de Formulario de Datos del Padre */}
       {showParentDataForm && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-3 sm:p-4">
-          <div className="w-full max-w-md">
-            <ParentDataForm
-              onSuccess={() => {
-                setShowParentDataForm(false);
-                setShowOnboarding(true);
-              }}
-              isLoading={isParentFormLoading}
-              setIsLoading={setIsParentFormLoading}
-            />
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 overflow-y-auto">
+          <div className="flex min-h-full items-start justify-center p-3 sm:p-4 py-6">
+            <div className="w-full max-w-md">
+              <ParentDataForm
+                onSuccess={() => {
+                  setShowParentDataForm(false);
+                  setShowOnboarding(true);
+                }}
+                isLoading={isParentFormLoading}
+                setIsLoading={setIsParentFormLoading}
+              />
+            </div>
           </div>
         </div>
       )}

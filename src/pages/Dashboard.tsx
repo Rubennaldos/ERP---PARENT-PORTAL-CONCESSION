@@ -158,8 +158,8 @@ const Dashboard = () => {
         {
           id: '2',
           code: 'ventas',
-          name: 'Lista de Ventas',
-          description: 'Historial y reportes del día',
+          name: 'Ventas y Históricas',
+          description: 'Lista de ventas, dashboard y registro de ventas históricas',
           icon: 'FileSearch',
           color: 'blue',
           route: '/sales',

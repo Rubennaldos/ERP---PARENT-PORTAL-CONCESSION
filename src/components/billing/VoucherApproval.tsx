@@ -47,7 +47,7 @@ interface RechargeRequest {
   approved_by: string | null;
   created_at: string;
   expires_at: string;
-  request_type?: 'recharge' | 'lunch_payment' | 'debt_payment';
+  request_type?: 'recharge' | 'lunch_payment' | 'debt_payment' | 'kiosk_mode_activation';
   description?: string | null;
   lunch_order_ids?: string[] | null;
   paid_transaction_ids?: string[] | null;
@@ -154,52 +154,59 @@ export const VoucherApproval = () => {
       const { data, error } = await query;
       if (error) throw error;
 
-      // ── Enriquecer con ticket_codes de las transacciones asociadas ──
+      // ── Enriquecer con ticket_codes — BATCH (evita N+1) ──
       const enriched = data || [];
-      const lunchPayments = enriched.filter(r => (r.request_type === 'lunch_payment' || r.request_type === 'debt_payment') && r.lunch_order_ids?.length);
 
-      for (const req of lunchPayments) {
-        const codes: string[] = [];
-        for (const orderId of (req.lunch_order_ids || [])) {
-          try {
-            const { data: tx } = await supabase
-              .from('transactions')
-              .select('ticket_code')
-              .eq('type', 'purchase')
-              .contains('metadata', { lunch_order_id: orderId })
-              .not('ticket_code', 'is', null)
-              .maybeSingle();
-            if (tx?.ticket_code) {
-              codes.push(tx.ticket_code);
-            }
-          } catch (e) {
-            // silently ignore
-          }
+      // Recopilar todos los lunch_order_ids y paid_transaction_ids de una vez
+      const allLunchOrderIds: string[] = [];
+      const allPaidTxIds: string[] = [];
+      enriched.forEach(r => {
+        if ((r.request_type === 'lunch_payment' || r.request_type === 'debt_payment')) {
+          (r.lunch_order_ids || []).forEach((id: string) => allLunchOrderIds.push(id));
+          (r.paid_transaction_ids || []).forEach((id: string) => allPaidTxIds.push(id));
         }
-        (req as any)._ticket_codes = codes;
+      });
+
+      // Una sola query para lunch orders
+      const lunchOrderToTicket: Record<string, string> = {};
+      if (allLunchOrderIds.length > 0) {
+        const { data: lunchTxs } = await supabase
+          .from('transactions')
+          .select('ticket_code, metadata')
+          .eq('type', 'purchase')
+          .not('ticket_code', 'is', null)
+          .in('metadata->>lunch_order_id', allLunchOrderIds);
+        (lunchTxs || []).forEach(tx => {
+          const orderId = tx.metadata?.lunch_order_id as string | undefined;
+          if (orderId && tx.ticket_code) lunchOrderToTicket[orderId] = tx.ticket_code;
+        });
       }
 
-      // Enriquecer debt_payments con ticket_codes de paid_transaction_ids
-      const debtPayments = enriched.filter(r => r.request_type === 'debt_payment' && r.paid_transaction_ids?.length);
-      for (const req of debtPayments) {
-        const existingCodes: string[] = (req as any)._ticket_codes || [];
-        for (const txId of (req.paid_transaction_ids || [])) {
-          try {
-            const { data: tx } = await supabase
-              .from('transactions')
-              .select('ticket_code')
-              .eq('id', txId)
-              .not('ticket_code', 'is', null)
-              .maybeSingle();
-            if (tx?.ticket_code && !existingCodes.includes(tx.ticket_code)) {
-              existingCodes.push(tx.ticket_code);
-            }
-          } catch (e) {
-            // silently ignore
-          }
-        }
-        (req as any)._ticket_codes = existingCodes;
+      // Una sola query para paid_transaction_ids
+      const txIdToTicket: Record<string, string> = {};
+      if (allPaidTxIds.length > 0) {
+        const { data: paidTxs } = await supabase
+          .from('transactions')
+          .select('id, ticket_code')
+          .in('id', allPaidTxIds)
+          .not('ticket_code', 'is', null);
+        (paidTxs || []).forEach(tx => {
+          if (tx.ticket_code) txIdToTicket[tx.id] = tx.ticket_code;
+        });
       }
+
+      // Asignar ticket codes a cada solicitud
+      enriched.forEach(req => {
+        if (req.request_type !== 'lunch_payment' && req.request_type !== 'debt_payment') return;
+        const codes = new Set<string>();
+        (req.lunch_order_ids || []).forEach((orderId: string) => {
+          if (lunchOrderToTicket[orderId]) codes.add(lunchOrderToTicket[orderId]);
+        });
+        (req.paid_transaction_ids || []).forEach((txId: string) => {
+          if (txIdToTicket[txId]) codes.add(txIdToTicket[txId]);
+        });
+        (req as any)._ticket_codes = Array.from(codes);
+      });
 
       setRequests(enriched);
 
@@ -225,11 +232,11 @@ export const VoucherApproval = () => {
         // Ya es URL completa (vouchers antiguos con getPublicUrl)
         urls[req.id] = req.voucher_url;
       } else {
-        // Es un path de storage → generar signed URL (1 hora)
+        // Es un path de storage → generar signed URL (24 horas)
         try {
           const { data, error } = await supabase.storage
             .from('vouchers')
-            .createSignedUrl(req.voucher_url, 3600);
+            .createSignedUrl(req.voucher_url, 86400);
           if (data?.signedUrl) {
             urls[req.id] = data.signedUrl;
           }
@@ -479,88 +486,23 @@ export const VoucherApproval = () => {
           });
         }
       } else {
-        // ── RECARGA DE SALDO ──
-
-        // Leer balance FRESCO del estudiante (no stale)
-        const { data: freshStudent } = await supabase
-          .from('students')
-          .select('balance')
-          .eq('id', req.student_id)
-          .single();
-
-        const currentBalance = freshStudent?.balance || 0;
-
-        const { error: txErr } = await supabase.from('transactions').insert({
-          student_id: req.student_id,
-          school_id: req.school_id,
-          type: 'recharge',
-          amount: req.amount,
-          description: `Recarga aprobada — ${METHOD_LABELS[req.payment_method] || req.payment_method}${finalCode ? ` (Ref: ${finalCode})` : ''}`,
-          payment_status: 'paid',
-          payment_method: req.payment_method,
-          metadata: {
-            source: 'voucher_recharge',
-            recharge_request_id: req.id,
-            reference_code: finalCode,
-            approved_by: user.id,
-            voucher_url: req.voucher_url,
-          },
+        // ── RECARGA / KIOSK ACTIVATION → RPC atómica (evita race condition) ──
+        const { data: rpcResult, error: rpcErr } = await supabase.rpc('approve_voucher_recharge', {
+          p_request_id:     req.id,
+          p_admin_id:       user.id,
+          p_reference_code: adminOverride || null,
         });
 
-        if (txErr) throw txErr;
+        if (rpcErr) throw rpcErr;
 
-        let newBalance = currentBalance + req.amount;
-
-        // ── Auto-saldar deudas kiosco antiguas si el saldo alcanza ──
-        const { data: pendingDebts } = await supabase
-          .from('transactions')
-          .select('id, amount, description')
-          .eq('student_id', req.student_id)
-          .eq('type', 'purchase')
-          .eq('payment_status', 'pending')
-          .order('created_at', { ascending: true });
-
-        let autoSettledCount = 0;
-        if (pendingDebts && pendingDebts.length > 0) {
-          for (const debt of pendingDebts) {
-            const debtAmount = Math.abs(debt.amount);
-            if (newBalance >= debtAmount) {
-              // Auto-pagar esta deuda
-              await supabase
-                .from('transactions')
-                .update({
-                  payment_status: 'paid',
-                  payment_method: 'balance',
-                  metadata: {
-                    auto_settled: true,
-                    settled_from_recharge: req.id,
-                    settled_at: new Date().toISOString(),
-                  },
-                })
-                .eq('id', debt.id);
-              newBalance -= debtAmount;
-              autoSettledCount++;
-            } else {
-              break; // No alcanza para más
-            }
-          }
-        }
-
-        // Actualizar balance y quitar free_account si tenía
-        const { error: stuErr } = await supabase
-          .from('students')
-          .update({ balance: newBalance, free_account: false })
-          .eq('id', req.student_id);
-
-        if (stuErr) throw stuErr;
-
-        let successMsg = `Se acreditaron S/ ${req.amount.toFixed(2)} a ${req.students?.full_name || 'el alumno'}. Saldo: S/ ${newBalance.toFixed(2)}`;
-        if (autoSettledCount > 0) {
-          successMsg += `. Se saldaron automáticamente ${autoSettledCount} deuda(s) pendiente(s).`;
+        const res = rpcResult as any;
+        let successMsg = `Se acreditaron S/ ${req.amount.toFixed(2)} a ${res.student_name || req.students?.full_name || 'el alumno'}. Saldo: S/ ${(res.new_balance ?? 0).toFixed(2)}`;
+        if (res.auto_settled_count > 0) {
+          successMsg += `. Se saldaron automáticamente ${res.auto_settled_count} deuda(s) pendiente(s).`;
         }
 
         toast({
-          title: '✅ Recarga aprobada',
+          title: req.request_type === 'kiosk_mode_activation' ? '✅ Modo Recarga activado' : '✅ Recarga aprobada',
           description: successMsg,
         });
       }
@@ -775,9 +717,14 @@ export const VoucherApproval = () => {
                             ? 'bg-orange-100 text-orange-800 border-orange-300'
                             : req.request_type === 'debt_payment'
                             ? 'bg-red-100 text-red-800 border-red-300'
+                            : req.request_type === 'kiosk_mode_activation'
+                            ? 'bg-purple-100 text-purple-800 border-purple-300'
                             : 'bg-blue-100 text-blue-800 border-blue-300'
                         }`}>
-                          {req.request_type === 'lunch_payment' ? '🍽️ Almuerzo' : req.request_type === 'debt_payment' ? '📋 Deuda' : '💰 Recarga'}
+                          {req.request_type === 'lunch_payment' ? '🍽️ Almuerzo'
+                            : req.request_type === 'debt_payment' ? '📋 Deuda'
+                            : req.request_type === 'kiosk_mode_activation' ? '🏪 Act. Kiosco'
+                            : '💰 Recarga'}
                         </span>
                         <span className="text-xs text-gray-400">
                           {format(new Date(req.created_at), "d 'de' MMM · HH:mm", { locale: es })}
@@ -961,7 +908,11 @@ export const VoucherApproval = () => {
                                 ) : (
                                   <Check className="h-4 w-4" />
                                 )}
-                                {req.request_type === 'debt_payment' ? `Aprobar pago S/ ${req.amount.toFixed(0)}` : `Aprobar +S/ ${req.amount.toFixed(0)}`}
+                                {req.request_type === 'debt_payment'
+                                  ? `Aprobar pago S/ ${req.amount.toFixed(0)}`
+                                  : req.request_type === 'kiosk_mode_activation'
+                                  ? `Activar Kiosco +S/ ${req.amount.toFixed(0)}`
+                                  : `Aprobar +S/ ${req.amount.toFixed(0)}`}
                               </Button>
                               <Button
                                 size="sm"
@@ -981,7 +932,12 @@ export const VoucherApproval = () => {
                       {req.status === 'approved' && (
                         <div className="flex items-center gap-1 text-green-600 text-xs">
                           <CheckCircle2 className="h-4 w-4" />
-                          <span>{req.request_type === 'lunch_payment' ? 'Pedido confirmado' : req.request_type === 'debt_payment' ? 'Deuda cancelada' : 'Saldo acreditado'}</span>
+                          <span>
+                            {req.request_type === 'lunch_payment' ? 'Pedido confirmado'
+                              : req.request_type === 'debt_payment' ? 'Deuda cancelada'
+                              : req.request_type === 'kiosk_mode_activation' ? 'Modo Kiosco activado'
+                              : 'Saldo acreditado'}
+                          </span>
                         </div>
                       )}
                     </div>
