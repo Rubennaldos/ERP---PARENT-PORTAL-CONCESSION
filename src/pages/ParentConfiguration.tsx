@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Search, Users, BarChart3, FileText, Plus, Edit, Download, Baby, UserCircle, ArrowLeft, Mail, Phone, MapPin, CreditCard, Wallet, User2, IdCard } from 'lucide-react';
 import { ParentAnalyticsDashboard } from '@/components/admin/ParentAnalyticsDashboard';
+import { StudentsManagementTab } from '@/components/admin/StudentsManagementTab';
 import { supabase } from '@/lib/supabase';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
@@ -883,7 +884,7 @@ const ParentConfiguration = () => {
 
         {/* Tabs principales */}
         <Tabs defaultValue="parents" className="w-full">
-          <TabsList className="grid w-full grid-cols-4 bg-white/90 backdrop-blur-sm border-2 border-emerald-200 rounded-xl p-1 shadow-md">
+          <TabsList className="grid w-full grid-cols-5 bg-white/90 backdrop-blur-sm border-2 border-emerald-200 rounded-xl p-1 shadow-md">
             <TabsTrigger value="parents" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-emerald-500 data-[state=active]:to-teal-500 data-[state=active]:text-white">
               <Users className="h-4 w-4 mr-2" />
               Gestión de Padres
@@ -896,6 +897,11 @@ const ParentConfiguration = () => {
                 Gestión de Profesores
               </TabsTrigger>
             )}
+
+            <TabsTrigger value="students" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-emerald-500 data-[state=active]:to-teal-500 data-[state=active]:text-white">
+              <Baby className="h-4 w-4 mr-2" />
+              Alumnos
+            </TabsTrigger>
             
             <TabsTrigger value="analytics" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-emerald-500 data-[state=active]:to-teal-500 data-[state=active]:text-white">
               <BarChart3 className="h-4 w-4 mr-2" />
@@ -1351,6 +1357,27 @@ const ParentConfiguration = () => {
             )}
             
             <ParentAnalyticsDashboard selectedSchool={selectedSchoolAnalytics} />
+          </TabsContent>
+
+          {/* Pestaña de Alumnos */}
+          <TabsContent value="students" className="mt-6">
+            <Card className="border-2 border-emerald-200 bg-white/80 backdrop-blur-sm shadow-lg">
+              <CardHeader className="bg-gradient-to-r from-emerald-100/60 to-teal-100/40 border-b-2 border-emerald-200">
+                <CardTitle className="flex items-center gap-2 text-emerald-900">
+                  <Baby className="h-6 w-6 text-emerald-600" />
+                  Gestión de Alumnos
+                </CardTitle>
+                <CardDescription className="text-emerald-700">
+                  Consulta y edita el nombre o salón de cualquier alumno registrado.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="pt-6">
+                <StudentsManagementTab
+                  userSchoolId={userSchoolId}
+                  canViewAllSchools={canViewAllSchools}
+                />
+              </CardContent>
+            </Card>
           </TabsContent>
 
           {/* Pestaña de Reportes */}
