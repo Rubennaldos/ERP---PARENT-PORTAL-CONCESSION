@@ -20,6 +20,7 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog';
 import { Search, Edit, Loader2, GraduationCap, Users, School } from 'lucide-react';
+import { normalizeSearch } from '@/lib/utils';
 
 interface Student {
   id: string;
@@ -198,11 +199,12 @@ export function StudentsManagementTab({ userSchoolId, canViewAllSchools }: Props
 
   // ── Filtrado en cliente ───────────────────────────────────────────────────
   const filtered = students.filter(s => {
-    const matchSearch = !search.trim() ||
-      s.full_name.toLowerCase().includes(search.toLowerCase()) ||
-      s.grade.toLowerCase().includes(search.toLowerCase()) ||
-      s.section.toLowerCase().includes(search.toLowerCase()) ||
-      (s.parent_name || '').toLowerCase().includes(search.toLowerCase());
+    const q = normalizeSearch(search);
+    const matchSearch = !q ||
+      normalizeSearch(s.full_name).includes(q) ||
+      normalizeSearch(s.grade).includes(q) ||
+      normalizeSearch(s.section).includes(q) ||
+      normalizeSearch(s.parent_name || '').includes(q);
     const matchSchool = filterSchool === 'all' || s.school_id === filterSchool;
     return matchSearch && matchSchool;
   });

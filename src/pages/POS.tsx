@@ -70,7 +70,7 @@ import {
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useToast } from '@/hooks/use-toast';
-import { cn } from '@/lib/utils';
+import { cn, normalizeSearch } from '@/lib/utils';
 import { getProductsForSchool } from '@/lib/productPricing';
 import { printPOSSale } from '@/lib/posPrinterService';
 import { CashOpeningModal } from '@/components/cash-register/CashOpeningModal';
@@ -651,12 +651,16 @@ const POS = () => {
       console.log('🔍 Buscando estudiantes con query:', query);
       console.log('🏫 Filtrando por sede:', userSchoolId);
       
-      // Construir la consulta base
+      const nq = normalizeSearch(query); // sin acentos ni mayúsculas
+      const orFilter = nq !== query.toLowerCase()
+        ? `full_name.ilike.%${query}%,full_name.ilike.%${nq}%`
+        : `full_name.ilike.%${query}%`;
+
       let studentsQuery = supabase
         .from('students')
         .select('id, full_name, photo_url, balance, grade, section, free_account, limit_type, daily_limit, weekly_limit, monthly_limit, school_id')
         .eq('is_active', true)
-        .ilike('full_name', `%${query}%`);
+        .or(orFilter);
       
       // Si el usuario tiene una sede asignada, filtrar solo estudiantes de esa sede
       if (userSchoolId) {
@@ -720,11 +724,15 @@ const POS = () => {
       console.log('🔍 Buscando profesores con query:', query);
       console.log('🏫 Filtrando por sede:', userSchoolId);
       
-      // Construir la consulta base
+      const nq = normalizeSearch(query);
+      const orFilter = nq !== query.toLowerCase()
+        ? `full_name.ilike.%${query}%,full_name.ilike.%${nq}%`
+        : `full_name.ilike.%${query}%`;
+
       let teachersQuery = supabase
         .from('teacher_profiles_with_schools')
         .select('*')
-        .ilike('full_name', `%${query}%`);
+        .or(orFilter);
       
       // Si el usuario tiene una sede asignada, filtrar profesores de esa sede
       if (userSchoolId) {
