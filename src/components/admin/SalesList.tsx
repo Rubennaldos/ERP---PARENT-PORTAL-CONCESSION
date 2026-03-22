@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRole } from '@/hooks/useRole';
@@ -30,6 +30,7 @@ import {
   Receipt,
   ChevronLeft,
   ChevronRight,
+  ChevronDown,
   Building2,
   Filter
 } from "lucide-react";
@@ -149,6 +150,9 @@ export const SalesList = () => {
   
   // Selección múltiple
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+
+  // Acordeón — claves expandidas (s-{id} | t-{id} | g-{nombre})
+  const [expandedClients, setExpandedClients] = useState<Set<string>>(new Set());
   
   // Modal de detalles
   const [showDetails, setShowDetails] = useState(false);
@@ -797,6 +801,51 @@ export const SalesList = () => {
     return filteredTransactions.reduce((sum, t) => sum + Math.abs(t.amount), 0);
   };
 
+  // ── Agrupar filteredTransactions por cliente ──────────────────────────────
+  interface ClientGroup {
+    key:          string;
+    name:         string;
+    isLunch:      boolean;
+    isGeneric:    boolean;
+    transactions: Transaction[];
+    total:        number;
+  }
+
+  const clientGroups = useMemo<ClientGroup[]>(() => {
+    const map = new Map<string, ClientGroup>();
+    for (const t of filteredTransactions) {
+      let key: string;
+      let name: string;
+      if (t.student_id) {
+        key  = `s-${t.student_id}`;
+        name = t.student?.full_name || t.client_name || 'Alumno';
+      } else if (t.teacher_id) {
+        key  = `t-${t.teacher_id}`;
+        name = t.teacher?.full_name || 'Profesor';
+      } else {
+        const cn = t.client_name?.trim() || 'CLIENTE GENÉRICO';
+        key  = `g-${cn.toLowerCase()}`;
+        name = cn;
+      }
+      if (!map.has(key)) {
+        map.set(key, { key, name, isLunch: false, isGeneric: !t.student_id && !t.teacher_id, transactions: [], total: 0 });
+      }
+      const g = map.get(key)!;
+      g.transactions.push(t);
+      g.total += Math.abs(t.amount);
+    }
+    // Ordenar grupos: por nombre
+    return [...map.values()].sort((a, b) => a.name.localeCompare(b.name, 'es'));
+  }, [filteredTransactions]);
+
+  const toggleClientGroup = (key: string) => {
+    setExpandedClients(prev => {
+      const next = new Set(prev);
+      next.has(key) ? next.delete(key) : next.add(key);
+      return next;
+    });
+  };
+
   // Mostrar loading mientras verifica permisos
   if (permissions.loading) {
     return (
@@ -1104,132 +1153,137 @@ export const SalesList = () => {
                 </div>
               ) : (
                 <div className="grid grid-cols-1 gap-3">
-                  {filteredTransactions.map((t) => (
-                    <Card 
-                      key={t.id} 
-                      className={`hover:shadow-md transition-all border-l-4 ${
-                        selectedIds.has(t.id) ? 'bg-blue-50 border-blue-500' : ''
-                      }`}
-                      style={{
-                        borderLeftColor: t.payment_status === 'cancelled' ? '#ef4444' : '#10b981'
-                      }}
-                    >
-                      <CardContent className="p-4">
-                        <div className="flex items-center gap-3">
-                          <Checkbox
-                            checked={selectedIds.has(t.id)}
-                            onCheckedChange={() => toggleSelection(t.id)}
-                          />
-                          
-                          <div className="flex-1">
-                            {/* Primera línea: Ticket, Fecha y Hora - MÁS GRANDE */}
-                            <div className="flex items-center gap-3 mb-3">
-                              <Badge variant="outline" className="font-mono text-base font-black px-4 py-1.5 bg-slate-100 border-2">
-                                📄 {t.ticket_code || '---'}
-                              </Badge>
-                              <span className="text-sm text-muted-foreground font-bold flex items-center gap-1.5">
-                                <Clock className="h-4 w-4" />
-                                {format(new Date(t.created_at), "dd/MM/yyyy HH:mm", { locale: es })}
-                              </span>
-                              {t.payment_status === 'cancelled' && (
-                                <Badge variant="destructive" className="text-xs font-bold">ANULADA</Badge>
-                              )}
-                            </div>
-
-                            {/* Segunda línea: Sede (MÁS VISIBLE) y Tipo de Documento */}
-                            <div className="flex items-center gap-2 mb-2">
-                              {t.school && (
-                                <Badge 
-                                  variant="default" 
-                                  className="text-xs font-semibold flex items-center gap-1 bg-gradient-to-r from-blue-500 to-purple-500"
-                                >
-                                  <Building2 className="h-3.5 w-3.5" />
-                                  {t.school.name}
-                                </Badge>
-                              )}
-                              {t.document_type && t.document_type !== 'ticket' && (
-                                <Badge variant="secondary" className="text-[10px]">
-                                  {t.document_type.toUpperCase()}
-                                </Badge>
-                              )}
-                            </div>
-                            
-                            {/* Tercera línea: Cliente - MÁS GRANDE */}
-                            <div className="flex items-center gap-2 mb-2">
-                              <User className="h-5 w-5 text-emerald-600" />
-                              <span className="text-base font-bold text-slate-900">
-                                CLIENTE: {t.client_name || t.student?.full_name || t.teacher?.full_name || 'GENÉRICO'}
-                              </span>
-                            </div>
-                            
-                            {/* Cuarta línea: Cajero Responsable */}
-                            <div className="flex items-center gap-2">
-                              <Badge variant="outline" className="text-[10px] bg-amber-50 border-amber-300 text-amber-700">
-                                👤 Cajero: {t.profiles?.full_name || t.profiles?.email || 'Sistema'}
-                              </Badge>
-                            </div>
+                  {clientGroups.map((group) => {
+                    const isExpanded = expandedClients.has(group.key);
+                    return (
+                      <div
+                        key={group.key}
+                        className="rounded-xl border border-slate-200 overflow-hidden transition-all"
+                      >
+                        {/* ── Cabecera del grupo (una fila por cliente) ── */}
+                        <button
+                          onClick={() => toggleClientGroup(group.key)}
+                          className="w-full text-left bg-white px-4 py-3 flex items-center gap-3 hover:bg-slate-50 transition-colors"
+                        >
+                          {/* Avatar */}
+                          <div className="h-9 w-9 rounded-full bg-gradient-to-br from-emerald-100 to-teal-200 flex items-center justify-center flex-shrink-0 text-emerald-800 font-black text-sm">
+                            {group.name.charAt(0).toUpperCase()}
                           </div>
-                          
-                          <div className="text-right">
-                            <p className="text-2xl font-black text-emerald-600">
-                              S/ {Math.abs(t.amount).toFixed(2)}
+
+                          {/* Nombre + tipo */}
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <p className="font-bold text-slate-900 text-sm truncate">
+                                {group.name}
+                              </p>
+                              {group.isGeneric && (
+                                <span className="text-[9px] bg-slate-100 text-slate-500 border border-slate-300 px-1.5 py-0.5 rounded-full font-semibold">Genérico</span>
+                              )}
+                            </div>
+                            <p className="text-[11px] text-slate-400">
+                              {group.transactions.length} venta{group.transactions.length !== 1 ? 's' : ''} · {format(selectedDate, "dd/MM/yyyy", { locale: es })}
                             </p>
-                            <div className="flex gap-1 mt-2">
-                              {/* Botón Ver Detalles */}
-                              <Button 
-                                variant="outline" 
-                                size="sm"
-                                className="h-8 gap-1 border-blue-200 hover:bg-blue-50 text-blue-700"
-                                onClick={() => handleViewDetails(t)}
-                                title="Ver detalles de la venta"
-                              >
-                                <Eye className="h-3.5 w-3.5" />
-                              </Button>
-
-                              {/* Botón Reimprimir */}
-                              {permissions.canPrint && (
-                                <Button 
-                                  variant="outline" 
-                                  size="sm"
-                                  className="h-8 gap-1 border-emerald-200 hover:bg-emerald-50 text-emerald-700"
-                                  onClick={() => handleReprint(t)}
-                                  title="Reimprimir ticket"
-                                >
-                                  <Printer className="h-3.5 w-3.5" />
-                                </Button>
-                              )}
-
-                              {t.payment_status !== 'cancelled' && (
-                                <>
-                                  {permissions.canEdit && (
-                                    <Button 
-                                      variant="ghost" 
-                                      size="sm"
-                                      className="h-8 w-8 p-0 hover:bg-blue-50"
-                                      onClick={() => handleOpenEditClient(t)}
-                                      title="Editar datos del cliente"
-                                    >
-                                      <Edit className="h-4 w-4 text-blue-600" />
-                                    </Button>
-                                  )}
-                                  {/* Tachito: siempre visible */}
-                                  <Button 
-                                    variant="ghost" 
-                                    size="sm"
-                                    className="h-8 w-8 p-0 hover:bg-red-50"
-                                    onClick={() => handleOpenAnnul(t)}
-                                    title="Anular venta"
-                                  >
-                                    <Trash2 className="h-4 w-4 text-red-600" />
-                                  </Button>
-                                </>
-                              )}
-                            </div>
                           </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
+
+                          {/* Total del cliente */}
+                          <p className="text-lg font-black text-emerald-600 flex-shrink-0">
+                            S/ {group.total.toFixed(2)}
+                          </p>
+
+                          {/* Chevron */}
+                          <ChevronDown className={`h-4 w-4 text-slate-400 flex-shrink-0 transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`} />
+                        </button>
+
+                        {/* ── Filas individuales (acordeón) ── */}
+                        {isExpanded && (
+                          <div className="border-t border-slate-100 bg-slate-50/60 divide-y divide-slate-100">
+                            {group.transactions.map((t) => (
+                              <div
+                                key={t.id}
+                                className={`px-4 py-3 flex items-center gap-3 border-l-4 bg-white ${
+                                  selectedIds.has(t.id) ? 'bg-blue-50' : ''
+                                }`}
+                                style={{ borderLeftColor: t.payment_status === 'cancelled' ? '#ef4444' : '#10b981' }}
+                              >
+                                <Checkbox
+                                  checked={selectedIds.has(t.id)}
+                                  onCheckedChange={() => toggleSelection(t.id)}
+                                />
+
+                                <div className="flex-1 min-w-0">
+                                  {/* Ticket + fecha */}
+                                  <div className="flex items-center gap-2 mb-1 flex-wrap">
+                                    <Badge variant="outline" className="font-mono text-xs font-black px-2 py-0.5 bg-slate-100 border">
+                                      {t.ticket_code || '---'}
+                                    </Badge>
+                                    <span className="text-xs text-slate-500 flex items-center gap-1">
+                                      <Clock className="h-3 w-3" />
+                                      {format(new Date(t.created_at), "HH:mm", { locale: es })}
+                                    </span>
+                                    {t.payment_status === 'cancelled' && (
+                                      <Badge variant="destructive" className="text-[9px] font-bold">ANULADA</Badge>
+                                    )}
+                                    {t.school && canViewAllSchools && (
+                                      <Badge className="text-[9px] bg-gradient-to-r from-blue-500 to-purple-500 flex items-center gap-1">
+                                        <Building2 className="h-2.5 w-2.5" />{t.school.name}
+                                      </Badge>
+                                    )}
+                                  </div>
+
+                                  {/* Descripción + cajero */}
+                                  <div className="flex items-center gap-2 flex-wrap">
+                                    <span className="text-xs text-slate-600 truncate max-w-[200px]">{t.description || '—'}</span>
+                                    <Badge variant="outline" className="text-[9px] bg-amber-50 border-amber-200 text-amber-700">
+                                      {t.profiles?.full_name || t.profiles?.email || 'Sistema'}
+                                    </Badge>
+                                  </div>
+                                </div>
+
+                                {/* Monto + acciones */}
+                                <div className="text-right flex-shrink-0">
+                                  <p className="text-base font-black text-emerald-600 mb-1">
+                                    S/ {Math.abs(t.amount).toFixed(2)}
+                                  </p>
+                                  <div className="flex gap-1 justify-end">
+                                    <Button variant="outline" size="sm" className="h-7 w-7 p-0 border-blue-200 hover:bg-blue-50 text-blue-700" onClick={() => handleViewDetails(t)} title="Ver detalles">
+                                      <Eye className="h-3 w-3" />
+                                    </Button>
+                                    {permissions.canPrint && (
+                                      <Button variant="outline" size="sm" className="h-7 w-7 p-0 border-emerald-200 hover:bg-emerald-50 text-emerald-700" onClick={() => handleReprint(t)} title="Reimprimir">
+                                        <Printer className="h-3 w-3" />
+                                      </Button>
+                                    )}
+                                    {t.payment_status !== 'cancelled' && (
+                                      <>
+                                        {permissions.canEdit && (
+                                          <Button variant="ghost" size="sm" className="h-7 w-7 p-0 hover:bg-blue-50" onClick={() => handleOpenEditClient(t)} title="Editar cliente">
+                                            <Edit className="h-3 w-3 text-blue-600" />
+                                          </Button>
+                                        )}
+                                        <Button variant="ghost" size="sm" className="h-7 w-7 p-0 hover:bg-red-50" onClick={() => handleOpenAnnul(t)} title="Anular">
+                                          <Trash2 className="h-3 w-3 text-red-600" />
+                                        </Button>
+                                      </>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+
+                  {/* Total visible */}
+                  <div className="bg-slate-800 rounded-xl px-5 py-3 flex items-center justify-between">
+                    <span className="text-sm text-slate-300 font-semibold">
+                      {clientGroups.length} cliente{clientGroups.length !== 1 ? 's' : ''} · {filteredTransactions.length} venta{filteredTransactions.length !== 1 ? 's' : ''}
+                    </span>
+                    <span className="text-xl font-black text-white">
+                      S/ {getTotalSales().toFixed(2)}
+                    </span>
+                  </div>
                 </div>
               )}
             </TabsContent>
