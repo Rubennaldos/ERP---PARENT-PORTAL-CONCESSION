@@ -11,20 +11,24 @@ import {
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 
+// ── Constantes ──────────────────────────────────────────────────────────────
+
+const PAGE_SIZE = 50; // máx eventos por página — UI no se congela
+
 // ── Tipos ──────────────────────────────────────────────────────────────────
 
 interface LedgerEvent {
-  event_id:       string;
-  event_type:     string;  // 'purchase' | 'recharge'
-  source:         string;  // 'pos' | 'historical_kiosk_entry' | 'recharge_request' | ...
-  amount:         number;  // SIGNED: positivo = ingreso, negativo = gasto
-  description:    string;
-  event_date:     string;
-  payment_status: string;
-  ticket_code:    string | null;
-  reference_code: string | null;
-  voucher_url:    string | null;
-  running_balance?: number; // calculado en cliente
+  event_id:        string;
+  event_type:      string;
+  source:          string;
+  amount:          number;
+  description:     string;
+  event_date:      string;
+  payment_status:  string;
+  ticket_code:     string | null;
+  reference_code:  string | null;
+  voucher_url:     string | null;
+  running_balance?: number; // calculado en cliente, NUNCA viene del servidor
 }
 
 export interface StudentLedgerGroup {
@@ -32,8 +36,8 @@ export interface StudentLedgerGroup {
   student_name:     string;
   school_name:      string;
   current_balance:  number;
-  historical_count: number;   // nº de ventas históricas
-  historical_total: number;   // suma de montos históricos
+  historical_count: number;
+  historical_total: number;
   free_account:     boolean;
 }
 
@@ -46,7 +50,6 @@ interface Props {
 
 const isHistorical  = (e: LedgerEvent) => e.source === 'historical_kiosk_entry' || e.ticket_code?.startsWith('HIS-');
 const isRecharge    = (e: LedgerEvent) => e.event_type === 'recharge' || e.source === 'recharge_request';
-const isPosPurchase = (e: LedgerEvent) => !isHistorical(e) && !isRecharge(e);
 
 function eventStyle(e: LedgerEvent): { border: string; bg: string; icon: JSX.Element; label?: JSX.Element } {
   if (isRecharge(e)) return {
@@ -67,33 +70,78 @@ function eventStyle(e: LedgerEvent): { border: string; bg: string; icon: JSX.Ele
   };
 }
 
+// ── Running balance — cálculo HACIA ATRÁS (FIX 2) ─────────────────────────
+//
+// Los eventos llegan en orden DESC (más reciente primero).
+// El primer evento (índice 0) SIEMPRE muestra el saldo DESPUÉS de ejecutarse =
+// el saldo actual real del alumno (anchor).
+//
+// Para el evento[i] (i > 0):
+//   running[i] = running[i-1] - events[i-1].amount
+//   (quitamos el efecto del evento más reciente para retroceder en el tiempo)
+//
+// Garantía matemática: running[0] = current_balance SIEMPRE, incluso cuando el
+// historial está paginado y no tenemos todos los eventos desde el inicio.
+//
+function applyRunningBalance(
+  events:         LedgerEvent[],
+  anchorBalance:  number,       // balance DESPUÉS del evento[0]
+): LedgerEvent[] {
+  return events.map((e, i) => {
+    const rb = i === 0
+      ? anchorBalance
+      : events[i - 1].running_balance! - events[i - 1].amount;
+    return { ...e, running_balance: rb };
+  });
+}
+
 // ── Componente ─────────────────────────────────────────────────────────────
 
 export const StudentLedgerRow = ({ group, canViewAll }: Props) => {
   const [expanded,      setExpanded]      = useState(false);
   const [timeline,      setTimeline]      = useState<LedgerEvent[]>([]);
   const [loadingLedger, setLoadingLedger] = useState(false);
+  const [loadingMore,   setLoadingMore]   = useState(false);
   const [ledgerLoaded,  setLedgerLoaded]  = useState(false);
+  const [hasMore,       setHasMore]       = useState(false);
+  const [offset,        setOffset]        = useState(0);
 
   const balanceNegative = group.current_balance < 0;
 
+  // ── Carga de una página del ledger ─────────────────────────────────────
+  const fetchPage = async (pageOffset: number, prevLast?: LedgerEvent) => {
+    const { data, error } = await supabase.rpc('get_student_ledger', {
+      p_student_id: group.student_id,
+      p_limit:      PAGE_SIZE + 1, // +1 para detectar si hay más sin cost extra
+      p_offset:     pageOffset,
+    });
+    if (error) throw error;
+
+    const raw       = (data || []) as LedgerEvent[];
+    const moreExist = raw.length > PAGE_SIZE;
+    const pageData  = raw.slice(0, PAGE_SIZE);   // quitar el +1 si vino
+
+    // Anchor:
+    //   · Página 1 → group.current_balance (saldo real de students.balance)
+    //   · Página N → prevLast.running_balance - prevLast.amount
+    //     (retrocedemos un paso más allá del último evento visible)
+    const anchor = prevLast
+      ? prevLast.running_balance! - prevLast.amount
+      : group.current_balance;
+
+    const enriched = applyRunningBalance(pageData, anchor);
+    return { enriched, moreExist };
+  };
+
+  // ── Expandir / colapsar ────────────────────────────────────────────────
   const toggleExpand = async () => {
     if (!expanded && !ledgerLoaded) {
       setLoadingLedger(true);
       try {
-        const { data, error } = await supabase.rpc('get_student_ledger', {
-          p_student_id: group.student_id,
-        });
-        if (error) throw error;
-
-        // Calcular running balance cronológico (data ya viene ASC por event_date)
-        let running = 0;
-        const enriched: LedgerEvent[] = (data || []).map((e: LedgerEvent) => {
-          running += e.amount;
-          return { ...e, running_balance: running };
-        });
-
-        setTimeline(enriched.reverse()); // mostrar más reciente arriba
+        const { enriched, moreExist } = await fetchPage(0);
+        setTimeline(enriched);
+        setHasMore(moreExist);
+        setOffset(PAGE_SIZE);
         setLedgerLoaded(true);
       } catch (err) {
         console.error('Error cargando ledger:', err);
@@ -102,6 +150,23 @@ export const StudentLedgerRow = ({ group, canViewAll }: Props) => {
       }
     }
     setExpanded(v => !v);
+  };
+
+  // ── Cargar más (paginación hacia atrás en el tiempo) ──────────────────
+  const handleLoadMore = async () => {
+    if (loadingMore || !hasMore) return;
+    setLoadingMore(true);
+    try {
+      const prevLast             = timeline[timeline.length - 1];
+      const { enriched, moreExist } = await fetchPage(offset, prevLast);
+      setTimeline(prev => [...prev, ...enriched]);
+      setHasMore(moreExist);
+      setOffset(prev => prev + PAGE_SIZE);
+    } catch (err) {
+      console.error('Error cargando más movimientos:', err);
+    } finally {
+      setLoadingMore(false);
+    }
   };
 
   return (
@@ -140,7 +205,7 @@ export const StudentLedgerRow = ({ group, canViewAll }: Props) => {
           </span>
         </div>
 
-        {/* Saldo actual — muy visible, rojo si negativo */}
+        {/* Saldo actual — muy visible */}
         <div className={cn(
           'flex-shrink-0 rounded-xl px-3 py-1.5 text-center min-w-[90px]',
           balanceNegative
@@ -178,7 +243,6 @@ export const StudentLedgerRow = ({ group, canViewAll }: Props) => {
       {expanded && (
         <div className="border-t border-slate-100 bg-slate-50/50 px-4 py-3 space-y-1.5">
 
-          {/* Alerta si saldo negativo */}
           {balanceNegative && (
             <div className="flex items-center gap-2 bg-red-50 border border-red-200 rounded-xl px-3 py-2 mb-3 text-xs text-red-700">
               <AlertTriangle className="h-4 w-4 flex-shrink-0" />
@@ -195,11 +259,14 @@ export const StudentLedgerRow = ({ group, canViewAll }: Props) => {
                 <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-emerald-500 inline-block"/>Recarga</span>
                 <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-red-400 inline-block"/>Compra POS</span>
                 <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-amber-400 inline-block"/>Venta Histórica</span>
+                {hasMore && (
+                  <span className="text-slate-300">· Mostrando {timeline.length} movimientos más recientes</span>
+                )}
               </div>
 
               {/* Eventos */}
               {timeline.map((event) => {
-                const style = eventStyle(event);
+                const style    = eventStyle(event);
                 const isIncome = event.amount > 0;
                 return (
                   <div
@@ -209,10 +276,8 @@ export const StudentLedgerRow = ({ group, canViewAll }: Props) => {
                       style.border, style.bg,
                     )}
                   >
-                    {/* Icono tipo */}
                     <div className="mt-0.5">{style.icon}</div>
 
-                    {/* Descripción + fecha */}
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-1.5 flex-wrap">
                         <span className="font-semibold text-slate-700 truncate max-w-[260px]">
@@ -263,7 +328,21 @@ export const StudentLedgerRow = ({ group, canViewAll }: Props) => {
                 );
               })}
 
-              {/* Footer: saldo final */}
+              {/* Botón "Cargar más" (paginación) */}
+              {hasMore && (
+                <button
+                  onClick={handleLoadMore}
+                  disabled={loadingMore}
+                  className="w-full mt-2 py-2 text-xs text-slate-500 border border-dashed border-slate-300 rounded-xl hover:bg-slate-100 hover:text-slate-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                >
+                  {loadingMore
+                    ? <><Loader2 className="h-3 w-3 animate-spin" />Cargando más movimientos...</>
+                    : <>↓ Cargar {PAGE_SIZE} movimientos anteriores</>
+                  }
+                </button>
+              )}
+
+              {/* Footer: saldo real anclado (siempre correcto) */}
               <div className={cn(
                 'flex items-center justify-between rounded-xl px-4 py-2.5 mt-2 border text-sm font-bold',
                 balanceNegative
@@ -275,7 +354,7 @@ export const StudentLedgerRow = ({ group, canViewAll }: Props) => {
                     ? <AlertTriangle className="h-4 w-4" />
                     : <CheckCircle2  className="h-4 w-4" />
                   }
-                  Saldo actual
+                  Saldo actual real
                 </span>
                 <span className="text-lg font-black">
                   {group.current_balance < 0 ? '-' : ''}S/ {Math.abs(group.current_balance).toFixed(2)}
