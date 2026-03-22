@@ -189,6 +189,7 @@ const POS = () => {
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
   const [students, setStudents] = useState<Student[]>([]);
   const [studentAccountStatuses, setStudentAccountStatuses] = useState<Map<string, { canPurchase: boolean; statusText: string; statusColor: string; reason?: string; limitInfo?: { hasLimit: boolean; limitType: string; limitAmount: number; spentAmount: number; remaining: number; periodText: string; renewalText: string } }>>(new Map());
+  const [isSearchingPOS, setIsSearchingPOS] = useState(false); // spinner mientras consulta Supabase
   const [showStudentResults, setShowStudentResults] = useState(false);
   // Estado del tope del estudiante seleccionado (para validación en tiempo real)
   const [selectedStudentLimitInfo, setSelectedStudentLimitInfo] = useState<{ hasLimit: boolean; limitType: string; limitAmount: number; spentAmount: number; remaining: number; periodText: string; renewalText: string } | null>(null);
@@ -355,14 +356,17 @@ const POS = () => {
       setStudents([]);
       setTeachers([]);
       setShowStudentResults(false);
+      setIsSearchingPOS(false);
       return;
     }
     if (studentSearch.trim().length < 2) {
       setStudents([]);
       setTeachers([]);
       setShowStudentResults(false);
+      setIsSearchingPOS(false);
       return;
     }
+    setIsSearchingPOS(true); // mostrar spinner mientras espera el debounce + red
     const timer = setTimeout(() => {
       searchStudents(studentSearch);
       searchTeachers(studentSearch);
@@ -648,118 +652,107 @@ const POS = () => {
 
   const searchStudents = async (query: string) => {
     try {
-      console.log('🔍 Buscando estudiantes con query:', query);
-      console.log('🏫 Filtrando por sede:', userSchoolId);
-      
-      const nq = normalizeSearch(query); // sin acentos ni mayúsculas
-      const orFilter = nq !== query.toLowerCase()
-        ? `full_name.ilike.%${query}%,full_name.ilike.%${nq}%`
-        : `full_name.ilike.%${query}%`;
+      // ── Escapa wildcards de LIKE para evitar resultados inesperados ──────
+      const safeQuery = query.replace(/%/g, '\\%').replace(/_/g, '\\_');
+      const nq        = normalizeSearch(safeQuery); // sin acentos ni mayúsculas
+
+      // SIEMPRE enviamos los dos patrones en OR:
+      //   1. query original   → encuentra nombres escritos tal cual (con tilde)
+      //   2. query normalizado → encuentra nombres sin tilde cuando el usuario tipeó con tilde
+      // Limitación conocida: si la BD almacena "José" y el cajero escribe "jose",
+      // PostgreSQL ilike no normaliza acentos en BD; eso requiere `unaccent` a nivel DB.
+      const orFilter = `full_name.ilike.%${safeQuery}%,full_name.ilike.%${nq}%`;
 
       let studentsQuery = supabase
         .from('students')
         .select('id, full_name, photo_url, balance, grade, section, free_account, limit_type, daily_limit, weekly_limit, monthly_limit, school_id')
         .eq('is_active', true)
         .or(orFilter);
-      
-      // Si el usuario tiene una sede asignada, filtrar solo estudiantes de esa sede
+
       if (userSchoolId) {
         studentsQuery = studentsQuery.eq('school_id', userSchoolId);
-        console.log('✅ Aplicando filtro de sede:', userSchoolId);
-      } else {
-        console.warn('⚠️ Usuario sin sede asignada, mostrando todos los estudiantes');
-      }
-      
-      const { data, error } = await studentsQuery.limit(5);
-
-      if (error) {
-        console.error('❌ Error en consulta de estudiantes:', error);
-        throw error;
       }
 
-      console.log('✅ Estudiantes encontrados:', data?.length || 0);
-      setStudents(data || []);
+      const { data, error } = await studentsQuery.limit(8); // máx 8 alumnos — UI no se congela
 
-      // Calcular estado de cuenta para cada estudiante (con manejo robusto de errores)
-      if (data && data.length > 0) {
+      if (error) throw error;
+
+      // Post-filtro cliente: elimina duplicados que el OR puede traer y aplica
+      // normalización completa para el caso BD-con-acento / cajero-sin-acento
+      const seen = new Set<string>();
+      const deduped = (data || []).filter(s => {
+        if (seen.has(s.id)) return false;
+        seen.add(s.id);
+        return normalizeSearch(s.full_name).includes(nq);
+      });
+
+      setStudents(deduped);
+
+      if (deduped.length > 0) {
         const statusMap = new Map();
-        
-        // Procesar cada estudiante de forma segura
-        const statusPromises = data.map(async (student) => {
+        await Promise.all(deduped.map(async (student) => {
           try {
             const status = await getAccountStatus(student);
             statusMap.set(student.id, status);
-          } catch (err) {
-            console.warn(`⚠️ Error calculando estado para ${student.full_name}:`, err);
-            // Estado por defecto si falla
+          } catch {
             statusMap.set(student.id, {
               canPurchase: true,
               statusText: `💰 Saldo: S/ ${student.balance?.toFixed(2) || '0.00'}`,
               statusColor: 'text-emerald-600'
             });
           }
-        });
-
-        await Promise.all(statusPromises);
+        }));
         setStudentAccountStatuses(statusMap);
       }
     } catch (error: any) {
-      console.error('❌ Error crítico buscando estudiantes:', error);
-      console.error('Detalles del error:', {
-        message: error.message,
-        details: error.details,
-        hint: error.hint,
-        code: error.code
-      });
+      console.error('❌ Error buscando estudiantes:', error);
       toast({
         variant: 'destructive',
         title: 'Error al buscar estudiantes',
         description: error.message || 'No se pudo realizar la búsqueda'
       });
+    } finally {
+      setIsSearchingPOS(false); // apagar spinner siempre, éxito o error
     }
   };
 
   const searchTeachers = async (query: string) => {
     try {
-      console.log('🔍 Buscando profesores con query:', query);
-      console.log('🏫 Filtrando por sede:', userSchoolId);
-      
-      const nq = normalizeSearch(query);
-      const orFilter = nq !== query.toLowerCase()
-        ? `full_name.ilike.%${query}%,full_name.ilike.%${nq}%`
-        : `full_name.ilike.%${query}%`;
+      const safeQuery = query.replace(/%/g, '\\%').replace(/_/g, '\\_');
+      const nq        = normalizeSearch(safeQuery);
+      const orFilter  = `full_name.ilike.%${safeQuery}%,full_name.ilike.%${nq}%`;
 
       let teachersQuery = supabase
         .from('teacher_profiles_with_schools')
         .select('*')
         .or(orFilter);
-      
-      // Si el usuario tiene una sede asignada, filtrar profesores de esa sede
+
       if (userSchoolId) {
         teachersQuery = teachersQuery.or(`school_1_id.eq.${userSchoolId},school_2_id.eq.${userSchoolId}`);
-        console.log('✅ Aplicando filtro de sede:', userSchoolId);
-      } else {
-        console.warn('⚠️ Usuario sin sede asignada, mostrando todos los profesores');
-      }
-      
-      const { data, error } = await teachersQuery.limit(5);
-
-      if (error) {
-        console.error('❌ Error en consulta de profesores:', error);
-        throw error;
       }
 
-      console.log('✅ Profesores encontrados:', data?.length || 0);
-      // Filtrar entradas con full_name nulo para evitar errores de render
-      setTeachers((data || []).filter(t => t && t.full_name != null));
+      const { data, error } = await teachersQuery.limit(5); // máx 5 profesores
+
+      if (error) throw error;
+
+      // Post-filtro y deduplicación igual que en alumnos
+      const seen = new Set<string>();
+      const deduped = (data || []).filter(t => {
+        if (!t?.full_name || seen.has(t.id)) return false;
+        seen.add(t.id);
+        return normalizeSearch(t.full_name).includes(nq);
+      });
+
+      setTeachers(deduped);
     } catch (error: any) {
-      console.error('❌ Error crítico buscando profesores:', error);
+      console.error('❌ Error buscando profesores:', error);
       toast({
         variant: 'destructive',
         title: 'Error al buscar profesores',
         description: error.message || 'No se pudo realizar la búsqueda'
       });
     }
+    // No apaga isSearchingPOS aquí porque searchStudents ya lo apaga en su finally
   };
 
   // ✅ Función helper para calcular la info de tope de un estudiante
@@ -1966,7 +1959,18 @@ const POS = () => {
               />
             </div>
 
-            {showStudentResults && (students.length > 0 || teachers.length > 0) && (
+            {/* ── Spinner mientras busca ─────────────────────────────────────── */}
+            {isSearchingPOS && studentSearch.trim().length >= 2 && (
+              <div className="flex items-center gap-3 py-6 text-gray-500 text-sm">
+                <svg className="animate-spin h-5 w-5 text-emerald-500 flex-shrink-0" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
+                </svg>
+                Buscando "{studentSearch}"...
+              </div>
+            )}
+
+            {showStudentResults && !isSearchingPOS && (students.length > 0 || teachers.length > 0) && (
               <div className="space-y-2 max-h-96 overflow-y-auto">
                 {/* Sección alumnos */}
                 {students.map((student) => {
@@ -1990,6 +1994,20 @@ const POS = () => {
                     >
                       <div className="flex items-center gap-4">
                         <span className="text-xs font-bold px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full flex-shrink-0">Alumno</span>
+                        {/* Foto miniatura — diferenciador clave para homónimos */}
+                        {student.photo_url ? (
+                          <img
+                            src={student.photo_url}
+                            alt={student.full_name}
+                            className="h-9 w-9 rounded-full object-cover flex-shrink-0 border-2 border-gray-200"
+                          />
+                        ) : (
+                          <div className="h-9 w-9 rounded-full bg-emerald-100 flex items-center justify-center flex-shrink-0 border-2 border-emerald-200">
+                            <span className="text-emerald-700 text-xs font-bold">
+                              {student.full_name.charAt(0).toUpperCase()}
+                            </span>
+                          </div>
+                        )}
                         <div className="flex-1 min-w-0">
                           <p className={cn("font-bold text-lg", !canPurchase && "text-gray-500")}>
                             {student.full_name}
@@ -2077,7 +2095,7 @@ const POS = () => {
               </div>
             )}
 
-            {studentSearch.length >= 2 && students.length === 0 && teachers.length === 0 && (
+            {studentSearch.length >= 2 && !isSearchingPOS && students.length === 0 && teachers.length === 0 && (
               <div className="text-center py-8 text-gray-500">
                 <User className="h-16 w-16 mx-auto mb-3 opacity-30" />
                 <p>No se encontraron resultados para "{studentSearch}"</p>
