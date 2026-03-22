@@ -392,12 +392,20 @@ export function RechargeModal({
       }
       if (requestType === 'debt_payment' && paidTransactionIds && paidTransactionIds.length > 0) {
         const { data: existingDebt } = await supabase
-          .from('recharge_requests').select('id').eq('parent_id', user.id)
-          .eq('request_type', 'debt_payment').eq('status', 'pending').eq('student_id', studentId);
+          .from('recharge_requests')
+          .select('id, paid_transaction_ids')
+          .eq('parent_id', user.id)
+          .eq('request_type', 'debt_payment')
+          .eq('status', 'pending')
+          .eq('student_id', studentId);
         if (existingDebt && existingDebt.length > 0) {
-          toast({ variant: 'destructive', title: '⚠️ Ya enviado', description: 'Ya tienes un comprobante pendiente.' });
-          setLoading(false);
-          return;
+          const existingTxIds = existingDebt.flatMap((r: any) => r.paid_transaction_ids || []);
+          const overlap = paidTransactionIds.filter((id: string) => existingTxIds.includes(id));
+          if (overlap.length > 0) {
+            toast({ variant: 'destructive', title: '⚠️ Ya enviado', description: 'Ya tienes un comprobante pendiente para alguna de estas compras.' });
+            setLoading(false);
+            return;
+          }
         }
       }
 
