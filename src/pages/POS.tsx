@@ -66,7 +66,8 @@ import {
   Package,
   PackageOpen,
   Box,
-  FileText
+  FileText,
+  Pencil
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useToast } from '@/hooks/use-toast';
@@ -105,6 +106,7 @@ interface Product {
 interface CartItem {
   product: Product;
   quantity: number;
+  customPrice?: number; // precio modificado manualmente por el cajero
 }
 
 // Función para asignar iconos a categorías dinámicamente
@@ -212,6 +214,9 @@ const POS = () => {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
   const [insufficientBalance, setInsufficientBalance] = useState(false);
+  // Estado para edicion inline de precio en el carrito
+  const [editingPriceId, setEditingPriceId] = useState<string | null>(null);
+  const [editingPriceValue, setEditingPriceValue] = useState<string>('');
 
   // Estados de pago mejorados (Cliente Genérico)
   const [paymentMethod, setPaymentMethod] = useState<string | null>(null); // 'efectivo', 'yape_qr', 'yape_numero', 'plin_qr', 'plin_numero', 'tarjeta', 'transferencia', 'mixto'
@@ -962,6 +967,8 @@ const POS = () => {
     setSelectedTeacher(null);
     setTeacherSearch('');
     setCart([]);
+    setEditingPriceId(null);
+    setEditingPriceValue('');
     setProductSearch('');
     setSelectedCategory('todos');
     setShowStudentResults(false);
@@ -1148,8 +1155,22 @@ const POS = () => {
     setCart(cart.filter(item => item.product.id !== productId));
   };
 
+  /** Devuelve el precio efectivo del item (customPrice tiene precedencia) */
+  const getItemPrice = (item: CartItem): number =>
+    item.customPrice !== undefined ? item.customPrice : item.product.price;
+
+  /** Actualiza el precio personalizado de un item en el carrito */
+  const updateItemPrice = (productId: string, newPrice: number) => {
+    if (isNaN(newPrice) || newPrice < 0) return;
+    setCart(prev => prev.map(item =>
+      item.product.id === productId
+        ? { ...item, customPrice: newPrice }
+        : item
+    ));
+  };
+
   const getTotal = () => {
-    return cart.reduce((sum, item) => sum + (item.product.price * item.quantity), 0);
+    return cart.reduce((sum, item) => sum + (getItemPrice(item) * item.quantity), 0);
   };
 
   const canCheckout = () => {
@@ -1242,8 +1263,8 @@ const POS = () => {
             product_id:   item.product.id,
             product_name: item.product.name,
             quantity:     item.quantity,
-            unit_price:   item.product.price,
-            subtotal:     item.product.price * item.quantity,
+            unit_price:   getItemPrice(item),
+            subtotal:     getItemPrice(item) * item.quantity,
           })),
           cash_given:       parseFloat(cashGiven) || undefined,
           payment_metadata: { source: 'pos_offline' },
@@ -1418,8 +1439,8 @@ const POS = () => {
               product_id: item.product.id,
               product_name: item.product.name,
               quantity: item.quantity,
-              unit_price: item.product.price,
-              subtotal: item.product.price * item.quantity,
+              unit_price: getItemPrice(item),
+              subtotal: getItemPrice(item) * item.quantity,
             }));
             const { error: itemsError } = await supabase.from('transaction_items').insert(items);
             if (itemsError) console.warn('⚠️ Error insertando items (no crítico):', itemsError.message);
@@ -1459,8 +1480,8 @@ const POS = () => {
             product_id: item.product.id,
             product_name: item.product.name,
             quantity: item.quantity,
-            unit_price: item.product.price,
-            subtotal: item.product.price * item.quantity,
+            unit_price: getItemPrice(item),
+            subtotal: getItemPrice(item) * item.quantity,
           }));
           const { error: itemsError } = await supabase.from('transaction_items').insert(items);
           if (itemsError) throw itemsError;
@@ -1472,8 +1493,8 @@ const POS = () => {
           product_name: item.product.name,
           barcode: item.product.barcode || null,
           quantity: item.quantity,
-          price: item.product.price,
-          subtotal: item.product.price * item.quantity,
+          price: getItemPrice(item),
+          subtotal: getItemPrice(item) * item.quantity,
         }));
 
         await supabase
@@ -1533,8 +1554,8 @@ const POS = () => {
           product_id: item.product.id,
           product_name: item.product.name,
           quantity: item.quantity,
-          unit_price: item.product.price,
-          subtotal: item.product.price * item.quantity,
+          unit_price: getItemPrice(item),
+          subtotal: getItemPrice(item) * item.quantity,
         }));
 
         await supabase.from('transaction_items').insert(items);
@@ -1545,8 +1566,8 @@ const POS = () => {
           product_name: item.product.name,
           barcode: item.product.barcode || null,
           quantity: item.quantity,
-          price: item.product.price,
-          subtotal: item.product.price * item.quantity,
+          price: getItemPrice(item),
+          subtotal: getItemPrice(item) * item.quantity,
         }));
 
         await supabase
@@ -1603,8 +1624,8 @@ const POS = () => {
           product_id: item.product.id,
           product_name: item.product.name,
           quantity: item.quantity,
-          unit_price: item.product.price,
-          subtotal: item.product.price * item.quantity,
+          unit_price: getItemPrice(item),
+          subtotal: getItemPrice(item) * item.quantity,
         }));
 
         await supabase.from('transaction_items').insert(items);
@@ -1615,8 +1636,8 @@ const POS = () => {
           product_name: item.product.name,
           barcode: item.product.barcode || null,
           quantity: item.quantity,
-          price: item.product.price,
-          subtotal: item.product.price * item.quantity,
+          price: getItemPrice(item),
+          subtotal: getItemPrice(item) * item.quantity,
         }));
 
         await supabase
@@ -2433,10 +2454,62 @@ const POS = () => {
                             <Plus className="h-2.5 w-2.5 sm:h-4 sm:w-4" />
                           </button>
                         </div>
-                        <p className="text-[10px] sm:text-sm font-bold text-emerald-600">
-                          S/ {(item.product.price * item.quantity).toFixed(2)}
-                        </p>
+                        {/* Precio editable */}
+                        <div className="flex items-center gap-0.5">
+                          {editingPriceId === item.product.id ? (
+                            <div className="flex items-center gap-0.5">
+                              <span className="text-[9px] sm:text-xs font-semibold text-gray-500">S/</span>
+                              <input
+                                type="number"
+                                min="0"
+                                step="0.10"
+                                value={editingPriceValue}
+                                onChange={e => setEditingPriceValue(e.target.value)}
+                                onKeyDown={e => {
+                                  if (e.key === 'Enter') {
+                                    const v = parseFloat(editingPriceValue);
+                                    if (!isNaN(v) && v >= 0) updateItemPrice(item.product.id, v);
+                                    setEditingPriceId(null);
+                                  }
+                                  if (e.key === 'Escape') setEditingPriceId(null);
+                                }}
+                                onBlur={() => {
+                                  const v = parseFloat(editingPriceValue);
+                                  if (!isNaN(v) && v >= 0) updateItemPrice(item.product.id, v);
+                                  setEditingPriceId(null);
+                                }}
+                                autoFocus
+                                className="w-14 sm:w-16 text-right border border-amber-400 rounded px-1 py-0.5 text-[10px] sm:text-sm font-bold text-amber-700 focus:outline-none focus:ring-1 focus:ring-amber-400"
+                              />
+                            </div>
+                          ) : (
+                            <button
+                              onClick={() => {
+                                setEditingPriceId(item.product.id);
+                                setEditingPriceValue(getItemPrice(item).toFixed(2));
+                              }}
+                              className="flex items-center gap-0.5 group"
+                              title="Modificar precio"
+                            >
+                              <span className={`text-[10px] sm:text-sm font-bold ${item.customPrice !== undefined ? 'text-amber-600' : 'text-emerald-600'}`}>
+                                S/ {(getItemPrice(item) * item.quantity).toFixed(2)}
+                              </span>
+                              {item.customPrice !== undefined && (
+                                <span className="text-[8px] line-through text-gray-400 ml-0.5">
+                                  {item.product.price.toFixed(2)}
+                                </span>
+                              )}
+                              <Pencil className="h-2.5 w-2.5 sm:h-3 sm:w-3 text-gray-400 group-hover:text-amber-500 ml-0.5 transition-colors" />
+                            </button>
+                          )}
+                        </div>
                       </div>
+                      {/* Indicador de precio unitario cuando hay precio personalizado */}
+                      {item.customPrice !== undefined && (
+                        <p className="text-[8px] text-amber-600 mt-0.5 text-right">
+                          Precio mod.: S/ {getItemPrice(item).toFixed(2)} c/u
+                        </p>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -3059,7 +3132,7 @@ const POS = () => {
                       {item.quantity}x {item.product.name}
                     </span>
                     <span className="font-bold text-gray-900">
-                      S/ {(item.product.price * item.quantity).toFixed(2)}
+                      S/ {(getItemPrice(item) * item.quantity).toFixed(2)}
                     </span>
                   </div>
                 ))}
@@ -3165,8 +3238,8 @@ const POS = () => {
                 <div key={idx} style={{ marginBottom: '8px' }}>
                   <p style={{ margin: '0', fontWeight: 'bold' }}>{item.product.name}</p>
                   <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span>{item.quantity} x S/ {item.product.price.toFixed(2)}</span>
-                    <span style={{ fontWeight: 'bold' }}>S/ {(item.product.price * item.quantity).toFixed(2)}</span>
+                    <span>{item.quantity} x S/ {getItemPrice(item).toFixed(2)}</span>
+                    <span style={{ fontWeight: 'bold' }}>S/ {(getItemPrice(item) * item.quantity).toFixed(2)}</span>
                   </div>
                 </div>
               ))}
