@@ -10,9 +10,11 @@ export function cn(...inputs: ClassValue[]) {
  * "María" → "maria" | "HÉCTOR" → "hector" | "Año" → "ano"
  */
 export function normalizeSearch(text: string): string {
-  return text
-    .normalize('NFD')                         // descompone caracteres: "á" → "a" + acento
-    .replace(/[\u0300-\u036f]/g, '')          // elimina los acentos/diacríticos
+  if (!text) return '';
+  return String(text)
+    .normalize('NFKC') // compatibilidad Unicode (ej. variantes de espacios / caracteres)
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '') // quita marcas diacríticas (tildes, etc.)
     .toLowerCase()
     .trim();
 }

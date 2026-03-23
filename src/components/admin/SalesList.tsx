@@ -55,10 +55,11 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
-import { format, startOfDay, endOfDay, addDays, subDays } from "date-fns";
+import { format, startOfDay, endOfDay, addDays, subDays, startOfWeek, endOfWeek, startOfMonth, endOfMonth, isSameDay } from "date-fns";
 import { es } from "date-fns/locale";
 import { useToast } from "@/hooks/use-toast";
 import { ThermalTicket } from "@/components/pos/ThermalTicket";
+import { normalizeSearch } from "@/lib/utils";
 
 interface School {
   id: string;
@@ -137,7 +138,10 @@ export const SalesList = () => {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [activeTab, setActiveTab] = useState('today');
-  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+  const [dateRange, setDateRange] = useState<{ from: Date; to: Date }>({
+    from: startOfDay(new Date()),
+    to: endOfDay(new Date()),
+  });
   
   // Filtro de tipo de venta (POS, Almuerzos, Todas)
   const [salesFilter, setSalesFilter] = useState<'all' | 'pos' | 'lunch'>('all');
@@ -205,7 +209,7 @@ export const SalesList = () => {
     if (!permissions.loading && permissions.canView) {
       fetchTransactions();
     }
-  }, [activeTab, selectedDate, selectedSchool, userSchoolId, permissions.loading, permissions.canView]); // ✅ Agregar userSchoolId
+  }, [activeTab, dateRange, selectedSchool, userSchoolId, permissions.loading, permissions.canView]); // ✅ Agregar userSchoolId
 
   const checkPermissions = async () => {
     if (!user || !role) {
@@ -355,17 +359,17 @@ export const SalesList = () => {
       console.log('🚀 fetchTransactions INICIADO con salesFilter:', salesFilter);
       
       // Ajustar fechas para timezone de Perú (UTC-5)
-      // Buscar todo el día en hora local + margen para timezone
-      const start = new Date(selectedDate);
+      const start = new Date(dateRange.from);
       start.setHours(0, 0, 0, 0);
       const startDate = start.toISOString();
       
-      const end = new Date(selectedDate);
+      const end = new Date(dateRange.to);
       end.setHours(23, 59, 59, 999);
       const endDate = end.toISOString();
 
       console.log('🔍 INICIANDO BÚSQUEDA DE TRANSACCIONES:', {
-        date: format(selectedDate, 'dd/MM/yyyy'),
+        from: format(dateRange.from, 'dd/MM/yyyy'),
+        to: format(dateRange.to, 'dd/MM/yyyy'),
         activeTab,
         selectedSchool,
         salesFilter,
@@ -777,7 +781,7 @@ export const SalesList = () => {
     return false;
   };
 
-  // Búsqueda inteligente
+  // Búsqueda inteligente sin distinción de acentos
   const filteredTransactions = transactions.filter(t => {
     // Primero filtrar por tipo de venta
     if (salesFilter === 'pos' && isLunchTransaction(t)) return false;  // POS: excluir almuerzos
@@ -786,13 +790,13 @@ export const SalesList = () => {
     // Luego filtrar por búsqueda
     if (!searchTerm.trim()) return true;
     
-    const search = searchTerm.toLowerCase();
+    const search = normalizeSearch(searchTerm);
     return (
-      t.ticket_code?.toLowerCase().includes(search) ||
-      t.student?.full_name?.toLowerCase().includes(search) ||
-      t.teacher?.full_name?.toLowerCase().includes(search) || // ✅ Incluir nombre de profesor en búsqueda
-      t.client_name?.toLowerCase().includes(search) ||
-      t.description?.toLowerCase().includes(search) ||
+      normalizeSearch(t.ticket_code || '').includes(search) ||
+      normalizeSearch(t.student?.full_name || '').includes(search) ||
+      normalizeSearch(t.teacher?.full_name || '').includes(search) ||
+      normalizeSearch(t.client_name || '').includes(search) ||
+      normalizeSearch(t.description || '').includes(search) ||
       Math.abs(t.amount).toString().includes(search)
     );
   });
@@ -864,8 +868,8 @@ export const SalesList = () => {
   return (
     <div className="space-y-4">
       <Card className="border shadow-sm">
-        <CardHeader className="pb-3">
-          <div className="flex flex-col md:flex-row justify-between md:items-center gap-4">
+        <CardHeader className="pb-3 space-y-3">
+          <div className="flex flex-col md:flex-row justify-between md:items-start gap-4">
             <div>
               <CardTitle className="text-xl flex items-center gap-2">
                 <ShoppingCart className="h-5 w-5 text-emerald-600" />
@@ -873,53 +877,12 @@ export const SalesList = () => {
               </CardTitle>
               <CardDescription className="flex items-center gap-2 mt-1">
                 <CalendarIcon className="h-3 w-3" />
-                {format(selectedDate, "EEEE, dd 'de' MMMM yyyy", { locale: es })}
+                {isSameDay(dateRange.from, dateRange.to)
+                  ? format(dateRange.from, "EEEE, dd 'de' MMMM yyyy", { locale: es })
+                  : `${format(dateRange.from, "dd/MM/yyyy", { locale: es })} — ${format(dateRange.to, "dd/MM/yyyy", { locale: es })}`}
               </CardDescription>
             </div>
-            <div className="flex flex-wrap items-center gap-2">
-              {/* Filtro de Fecha */}
-              <div className="flex items-center bg-muted rounded-lg p-1 mr-2">
-                <Button 
-                  variant="ghost" 
-                  size="icon" 
-                  className="h-8 w-8"
-                  onClick={() => setSelectedDate(prev => subDays(prev, 1))}
-                >
-                  <ChevronLeft className="h-4 w-4" />
-                </Button>
-                
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button 
-                      variant="ghost" 
-                      size="sm" 
-                      className="h-8 font-bold px-2 hover:bg-transparent"
-                    >
-                      {format(selectedDate, "dd/MM/yyyy")}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="end">
-                    <Calendar
-                      mode="single"
-                      selected={selectedDate}
-                      onSelect={(date) => date && setSelectedDate(date)}
-                      initialFocus
-                      locale={es}
-                    />
-                  </PopoverContent>
-                </Popover>
-
-                <Button 
-                  variant="ghost" 
-                  size="icon" 
-                  className="h-8 w-8"
-                  onClick={() => setSelectedDate(prev => addDays(prev, 1))}
-                  disabled={startOfDay(selectedDate).getTime() >= startOfDay(new Date()).getTime()}
-                >
-                  <ChevronRight className="h-4 w-4" />
-                </Button>
-              </div>
-
+            <div className="flex flex-wrap items-center gap-2 shrink-0">
               {selectedIds.size > 0 && (
                 <>
                   <Badge variant="secondary" className="text-sm">
@@ -938,6 +901,108 @@ export const SalesList = () => {
                 <ArrowUpDown className="h-4 w-4 mr-2" />
                 Actualizar
               </Button>
+            </div>
+          </div>
+
+          {/* Barra visible: rango de fechas (no queda oculta en layout estrecho) */}
+          <div
+            className="w-full rounded-lg border-2 border-amber-300/80 bg-amber-50 dark:bg-amber-950/30 px-3 py-2.5 shadow-sm"
+            role="region"
+            aria-label="Período de consulta de ventas"
+          >
+            <p className="text-[11px] font-bold uppercase tracking-wide text-amber-900 dark:text-amber-100 mb-2">
+              Período de consulta — elige un día, semana, mes o rango en el calendario
+            </p>
+            <div className="flex flex-col sm:flex-row sm:flex-wrap items-stretch sm:items-center gap-2">
+              {/* Día anterior / siguiente (solo cuando es un solo día; mismo gesto que antes) */}
+              {isSameDay(dateRange.from, dateRange.to) && (
+                <div className="flex items-center justify-center bg-muted/80 rounded-md p-0.5 shrink-0">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8"
+                    onClick={() => {
+                      const d = subDays(dateRange.from, 1);
+                      setDateRange({ from: startOfDay(d), to: endOfDay(d) });
+                    }}
+                    aria-label="Día anterior"
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                  </Button>
+                  <span className="text-xs font-semibold px-1 min-w-[4.5rem] text-center tabular-nums">
+                    {format(dateRange.from, 'dd/MM/yyyy')}
+                  </span>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8"
+                    onClick={() => {
+                      const d = addDays(dateRange.from, 1);
+                      setDateRange({ from: startOfDay(d), to: endOfDay(d) });
+                    }}
+                    disabled={startOfDay(dateRange.from).getTime() >= startOfDay(new Date()).getTime()}
+                    aria-label="Día siguiente"
+                  >
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </div>
+              )}
+
+              <div className="flex flex-wrap items-center gap-1.5 flex-1">
+                <Button
+                  variant={isSameDay(dateRange.from, dateRange.to) && isSameDay(dateRange.from, new Date()) ? 'default' : 'outline'}
+                  size="sm"
+                  className="h-8 text-xs font-semibold"
+                  onClick={() => setDateRange({ from: startOfDay(new Date()), to: endOfDay(new Date()) })}
+                >
+                  Hoy
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-8 text-xs font-semibold"
+                  onClick={() => setDateRange({ from: startOfWeek(new Date(), { locale: es }), to: endOfWeek(new Date(), { locale: es }) })}
+                >
+                  Esta semana
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-8 text-xs font-semibold"
+                  onClick={() => setDateRange({ from: startOfMonth(new Date()), to: endOfMonth(new Date()) })}
+                >
+                  Este mes completo
+                </Button>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="secondary" size="sm" className="h-8 text-xs font-semibold">
+                      <CalendarIcon className="h-3.5 w-3.5 mr-1.5" />
+                      {isSameDay(dateRange.from, dateRange.to)
+                        ? `Calendario: ${format(dateRange.from, 'dd/MM/yyyy')}`
+                        : `Rango: ${format(dateRange.from, 'dd/MM/yy')} → ${format(dateRange.to, 'dd/MM/yy')}`}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0 max-w-[100vw] sm:max-w-none" align="start">
+                    <p className="text-xs text-muted-foreground px-3 pt-2 pb-1">
+                      Toca dos fechas para definir el rango (inicio y fin).
+                    </p>
+                    <Calendar
+                      mode="range"
+                      selected={{ from: dateRange.from, to: dateRange.to }}
+                      onSelect={(range) => {
+                        if (range?.from) {
+                          setDateRange({ from: startOfDay(range.from), to: endOfDay(range.to || range.from) });
+                        }
+                      }}
+                      initialFocus
+                      locale={es}
+                      numberOfMonths={2}
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
             </div>
           </div>
         </CardHeader>
@@ -987,7 +1052,7 @@ export const SalesList = () => {
           <div className="relative mb-6">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
             <Input
-              placeholder="🔍 Buscar: ticket, cliente, monto..."
+              placeholder="Buscar sin tildes: ticket, cliente, monto… (ej. maria = María)"
               className="pl-10 h-12 text-base border-2 focus:border-emerald-500"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
@@ -1140,10 +1205,10 @@ export const SalesList = () => {
                     {searchTerm 
                       ? 'No se encontraron resultados' 
                       : salesFilter === 'pos' 
-                        ? `No hay ventas de cafetería para ${format(selectedDate, "dd/MM/yyyy", { locale: es })}` 
+                        ? `No hay ventas de cafetería para ${isSameDay(dateRange.from, dateRange.to) ? format(dateRange.from, "dd/MM/yyyy", { locale: es }) : `${format(dateRange.from, "dd/MM/yyyy")} - ${format(dateRange.to, "dd/MM/yyyy")}`}` 
                         : salesFilter === 'lunch' 
-                          ? `No hay ventas de almuerzos para ${format(selectedDate, "dd/MM/yyyy", { locale: es })}` 
-                          : `No hay ventas para ${format(selectedDate, "dd/MM/yyyy", { locale: es })}`}
+                          ? `No hay ventas de almuerzos para ${isSameDay(dateRange.from, dateRange.to) ? format(dateRange.from, "dd/MM/yyyy", { locale: es }) : `${format(dateRange.from, "dd/MM/yyyy")} - ${format(dateRange.to, "dd/MM/yyyy")}`}` 
+                          : `No hay ventas para ${isSameDay(dateRange.from, dateRange.to) ? format(dateRange.from, "dd/MM/yyyy", { locale: es }) : `${format(dateRange.from, "dd/MM/yyyy")} - ${format(dateRange.to, "dd/MM/yyyy")}`}`}
                   </p>
                   {transactions.length > 0 && filteredTransactions.length === 0 && (
                     <p className="text-xs text-muted-foreground mt-2">
@@ -1181,7 +1246,7 @@ export const SalesList = () => {
                               )}
                             </div>
                             <p className="text-[11px] text-slate-400">
-                              {group.transactions.length} venta{group.transactions.length !== 1 ? 's' : ''} · {format(selectedDate, "dd/MM/yyyy", { locale: es })}
+                              {group.transactions.length} venta{group.transactions.length !== 1 ? 's' : ''} · {isSameDay(dateRange.from, dateRange.to) ? format(dateRange.from, "dd/MM/yyyy", { locale: es }) : `${format(dateRange.from, "dd/MM/yy")} - ${format(dateRange.to, "dd/MM/yy")}`}
                             </p>
                           </div>
 
