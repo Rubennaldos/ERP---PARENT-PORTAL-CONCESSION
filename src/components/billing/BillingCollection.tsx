@@ -1,77 +1,44 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
-import { useRole } from '@/hooks/useRole';
 import { useToast } from '@/hooks/use-toast';
-import { useViewAsStore } from '@/stores/viewAsStore';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { YapeLogo } from '@/components/ui/YapeLogo';
-import { PlinLogo } from '@/components/ui/PlinLogo';
-// Select de Radix removido - se usa <select> nativo para evitar error removeChild en algunos navegadores
+import { Badge } from '@/components/ui/badge';
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogFooter,
 } from '@/components/ui/dialog';
-import { 
-  DollarSign,
-  Users,
-  Send,
-  Download,
-  Copy,
-  CheckCircle2,
-  Search,
-  Filter,
-  Calendar,
-  Building2,
-  Loader2,
-  FileText,
-  MessageSquare,
-  AlertTriangle,
-  AlertCircle,
-  History,
+import {
   Eye,
-  User
+  Copy,
+  Search,
+  Loader2,
+  CheckCircle2,
+  DollarSign,
+  History,
+  Users,
+  Check,
+  RefreshCw,
 } from 'lucide-react';
-// Tabs de Radix removido - se usa tabs nativo para evitar error removeChild en algunos navegadores
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import jsPDF from 'jspdf';
-import 'jspdf-autotable';
-import { generateBillingPDF } from '@/utils/pdfGenerator';
-import maracuyaLogo from '@/assets/maracuya-logo.png';
+import { normalizeSearch } from '@/lib/utils';
 
-interface School {
-  id: string;
-  name: string;
-  code: string;
-}
-
-interface BillingPeriod {
-  id: string;
-  period_name: string;
-  start_date: string;
-  end_date: string;
-  school_id: string;
-}
-
+// ──────────────────────────────────────────────────────────────────────────────
+// Types
+// ──────────────────────────────────────────────────────────────────────────────
 interface Debtor {
-  id: string; // student_id, teacher_id, o 'manual_' + nombre
-  client_name: string; // Nombre del deudor (alumno, profesor, o cliente manual)
-  client_type: 'student' | 'teacher' | 'manual'; // Tipo de cliente
-  parent_id?: string; // Solo para estudiantes
-  parent_name?: string; // Solo para estudiantes
-  parent_phone?: string; // Solo para estudiantes
-  parent_email?: string; // Solo para estudiantes
+  id: string;
+  client_name: string;
+  client_type: 'student' | 'teacher' | 'manual';
+  parent_name?: string;
+  parent_phone?: string;
+  parent_email?: string;
   school_id: string;
   school_name: string;
   total_amount: number;
@@ -79,317 +46,108 @@ interface Debtor {
   transactions: any[];
 }
 
+// ──────────────────────────────────────────────────────────────────────────────
+// Component
+// ──────────────────────────────────────────────────────────────────────────────
 export const BillingCollection = () => {
   const { user } = useAuth();
-  const { role } = useRole();
   const { toast } = useToast();
 
+  // ── Core state ──
   const [loading, setLoading] = useState(true);
-  const [schools, setSchools] = useState<School[]>([]);
-  const [periods, setPeriods] = useState<BillingPeriod[]>([]);
   const [debtors, setDebtors] = useState<Debtor[]>([]);
   const [paidTransactions, setPaidTransactions] = useState<any[]>([]);
   const [loadingPaid, setLoadingPaid] = useState(false);
+  const [paidLoaded, setPaidLoaded] = useState(false);
   const [activeTab, setActiveTab] = useState<'cobrar' | 'pagos'>('cobrar');
   const [userSchoolId, setUserSchoolId] = useState<string | null>(null);
-  const [showDetailsModal, setShowDetailsModal] = useState(false);
-  const [selectedTransaction, setSelectedTransaction] = useState<any>(null);
-  
-  // Filtros
-  const [selectedSchool, setSelectedSchool] = useState<string>('all');
-  const [selectedPeriod, setSelectedPeriod] = useState<string>('all');
   const [searchTerm, setSearchTerm] = useState('');
-  const [untilDate, setUntilDate] = useState<string>(''); // Nueva fecha límite
-  
-  // Selección múltiple
-  const [selectedDebtors, setSelectedDebtors] = useState<Set<string>>(new Set());
-  
-  // 🆕 Selección de transacciones individuales por deudor
-  const [selectedTransactionsByDebtor, setSelectedTransactionsByDebtor] = useState<Map<string, Set<string>>>(new Map());
-  
-  // Modal de pago
+
+  // ── Checklist de "cobrado" (local, para esta sesión) ──
+  const [checkedDebtors, setCheckedDebtors] = useState<Set<string>>(new Set());
+
+  // ── Modal de detalle ──
+  const [detailDebtor, setDetailDebtor] = useState<Debtor | null>(null);
+
+  // ── Modal de pago ──
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [currentDebtor, setCurrentDebtor] = useState<Debtor | null>(null);
   const [paymentData, setPaymentData] = useState({
     paid_amount: 0,
     payment_method: 'efectivo',
     operation_number: '',
-    document_type: 'ticket' as 'ticket' | 'boleta' | 'factura',
     notes: '',
   });
   const [saving, setSaving] = useState(false);
 
-  // Modal de envío masivo
-  const [showMassiveModal, setShowMassiveModal] = useState(false);
-  const [generatingExport, setGeneratingExport] = useState(false);
-  const [canViewAllSchools, setCanViewAllSchools] = useState(false);
+  // ── Permisos ──
   const [canCollect, setCanCollect] = useState(false);
 
-  // Verificar permisos al cargar
+  // ──────────────────────────────────────────────────────────────────────────
+  // Init
+  // ──────────────────────────────────────────────────────────────────────────
   useEffect(() => {
-    checkPermissions();
-  }, [user, role]);
+    initUser();
+  }, [user]);
 
-  const checkPermissions = async () => {
-    if (!user || !role) return;
-
-    try {
-      console.log('🔍 Verificando permisos de Cobranzas/Cobrar para rol:', role);
-
-      // Admin General tiene todos los permisos
-      if (role === 'admin_general') {
-        setCanViewAllSchools(true);
-        setCanCollect(true);
-        return;
-      }
-
-      // Para otros roles, consultar la BD
-      const { data, error } = await supabase
-        .from('role_permissions')
-        .select(`
-          granted,
-          permissions (
-            module,
-            action
-          )
-        `)
-        .eq('role', role)
-        .eq('granted', true);
-
-      if (error) {
-        console.error('❌ Error consultando permisos:', error);
-        return;
-      }
-
-      console.log('📦 Permisos obtenidos para Cobrar:', data);
-
-      let canViewAll = false;
-      let canCollectPerm = false;
-
-      data?.forEach((perm: any) => {
-        const permission = perm.permissions;
-        if (permission?.module === 'cobranzas') {
-          if (permission.action === 'cobrar_todas_sedes') {
-            canCollectPerm = true;
-            canViewAll = true;
-          } else if (permission.action === 'cobrar_su_sede') {
-            canCollectPerm = true;
-            canViewAll = false;
-          } else if (permission.action === 'cobrar_personalizado') {
-            canCollectPerm = true;
-            // TODO: Implementar sedes personalizadas
-          }
-        }
-      });
-
-      console.log('✅ Permisos de Cobrar:', { canCollectPerm, canViewAll });
-      setCanViewAllSchools(canViewAll);
-      setCanCollect(canCollectPerm);
-
-    } catch (error) {
-      console.error('Error checking permissions:', error);
-    }
-  };
-
-  useEffect(() => {
-    console.log('🎬 [BillingCollection] Componente montado');
-    fetchSchools();
-    fetchUserSchool();
-  }, []);
-
-  useEffect(() => {
-    console.log('🔄 [BillingCollection] selectedSchool o untilDate cambió:', selectedSchool, 'userSchoolId:', userSchoolId, 'canViewAllSchools:', canViewAllSchools, 'untilDate:', untilDate);
-    
-    // Cargar períodos
-    if (selectedSchool) {
-      fetchPeriods();
-    }
-    
-    // Cargar deudores:
-    // - Si es admin_general (canViewAllSchools), puede cargar inmediatamente
-    // - Si NO es admin_general, espera a que userSchoolId esté disponible
-    if (canViewAllSchools || (userSchoolId !== null && !canViewAllSchools)) {
-      const timer = setTimeout(() => {
-        console.log('⏰ [BillingCollection] Ejecutando fetchDebtors después de debounce');
-        fetchDebtors();
-      }, 300);
-      
-      return () => {
-        console.log('🧹 [BillingCollection] Limpiando timer');
-        clearTimeout(timer);
-      };
-    } else {
-      console.log('⏸️ [BillingCollection] Esperando userSchoolId...');
-    }
-  }, [selectedSchool, userSchoolId, canViewAllSchools, untilDate]);
-
-  const fetchSchools = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('schools')
-        .select('*')
-        .order('name');
-      
-      if (error) throw error;
-      setSchools(data || []);
-    } catch (error) {
-      console.error('Error fetching schools:', error);
-    }
-  };
-
-  const fetchUserSchool = async () => {
+  const initUser = async () => {
     if (!user) return;
-    
-    try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('school_id')
-        .eq('id', user.id)
-        .single();
-      
-      if (error) throw error;
-      setUserSchoolId(data?.school_id || null);
-      
-      if (!canViewAllSchools && data?.school_id) {
-        setSelectedSchool(data.school_id);
-        fetchPeriods(data.school_id);
-      }
-    } catch (error) {
-      console.error('Error fetching user school:', error);
+    const { data } = await supabase
+      .from('profiles')
+      .select('school_id, role')
+      .eq('id', user.id)
+      .single();
+    if (data) {
+      setUserSchoolId(data.school_id || null);
+      const adminRoles = ['admin_general', 'admin_sede', 'cajero', 'supervisor'];
+      setCanCollect(adminRoles.includes(data.role));
     }
   };
 
-  const fetchPeriods = async (schoolId?: string) => {
-    console.log('📅 [BillingCollection] fetchPeriods llamado');
-    try {
-      const targetSchoolId = schoolId || (canViewAllSchools && selectedSchool !== 'all' ? selectedSchool : userSchoolId);
-      
-      if (!targetSchoolId && !canViewAllSchools) return;
-
-      let query = supabase
-        .from('billing_periods')
-        .select('*')
-        .eq('status', 'open')
-        .order('start_date', { ascending: false });
-
-      if (targetSchoolId) {
-        query = query.eq('school_id', targetSchoolId);
-      }
-
-      const { data, error } = await query;
-
-      if (error) throw error;
-      setPeriods(data || []);
-    } catch (error) {
-      console.error('Error fetching periods:', error);
+  useEffect(() => {
+    if (userSchoolId !== undefined) {
+      fetchDebtors();
     }
-  };
+  }, [userSchoolId]);
 
+  useEffect(() => {
+    if (activeTab === 'pagos' && !paidLoaded) {
+      fetchPaidTransactions();
+    }
+  }, [activeTab]);
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // Fetch deudores
+  // ──────────────────────────────────────────────────────────────────────────
   const fetchDebtors = async () => {
     try {
       setLoading(true);
-      console.log('🔍 [BillingCollection] Iniciando fetchDebtors...');
 
-      // Determinar el school_id a filtrar
-      const schoolIdFilter = !canViewAllSchools || selectedSchool !== 'all' 
-        ? (selectedSchool !== 'all' ? selectedSchool : userSchoolId)
-        : null;
-
-      console.log('🔍 [BillingCollection] schoolIdFilter:', schoolIdFilter);
-
-      // CONSULTA MEJORADA: Incluir estudiantes, profesores y clientes manuales
-      // Solo transacciones PENDIENTES o PARCIALES (NO pagadas)
       let query = supabase
         .from('transactions')
         .select(`
           *,
           students(id, full_name, parent_id),
           teacher_profiles(id, full_name),
-          schools(id, name)
+          schools(id, name),
+          transaction_items(id, product_name, quantity, unit_price, subtotal)
         `)
-        .eq('type', 'purchase')
-        .in('payment_status', ['pending', 'partial']) // Excluir 'paid'
-        .order('created_at', { ascending: false }); // ✅ Más reciente primero
+        .neq('type', 'recharge')
+        .in('payment_status', ['pending', 'partial'])
+        .order('created_at', { ascending: false });
 
-      // Filtrar por fecha límite si está definida
-      if (untilDate) {
-        const localDate = new Date(untilDate);
-        localDate.setHours(23, 59, 59, 999);
-        const isoDate = localDate.toISOString();
-        query = query.lte('created_at', isoDate);
-        console.log('📅 [BillingCollection] Filtrando hasta:', untilDate, '→', isoDate);
-      }
-
-      if (schoolIdFilter) {
-        query = query.eq('school_id', schoolIdFilter);
+      if (userSchoolId) {
+        query = query.eq('school_id', userSchoolId);
       }
 
       const { data: transactions, error } = await query;
+      if (error) throw error;
 
-      console.log('📊 [BillingCollection] Transacciones:', { 
-        count: transactions?.length || 0,
-        error,
-        sample: transactions?.[0]
-      });
-
-      if (error) {
-        console.error('❌ [BillingCollection] Error:', error);
-        throw error;
-      }
-
-      // 🆕 BUSCAR PEDIDOS DE ALMUERZO CONFIRMADOS SIN TRANSACCIONES
-      console.log('🍽️ [BillingCollection] Buscando pedidos de almuerzo sin transacciones...');
-      
-      let lunchOrdersQuery = supabase
-        .from('lunch_orders')
-        .select(`
-          id,
-          order_date,
-          created_at,
-          student_id,
-          teacher_id,
-          manual_name,
-          payment_method,
-          school_id,
-          category_id,
-          quantity,
-          final_price,
-          base_price,
-          students(id, full_name, parent_id, school_id),
-          teacher_profiles(id, full_name, school_id_1),
-          schools(id, name),
-          lunch_categories(id, name, price)
-        `)
-        .in('status', ['confirmed', 'delivered']) // Pedidos confirmados Y entregados aparecen en cobranzas (si no están pagados)
-        .eq('is_cancelled', false);
-
-      // Filtrar por fecha límite si está definida
-      if (untilDate) {
-        const localDate = new Date(untilDate);
-        localDate.setHours(23, 59, 59, 999);
-        const dateStr = localDate.toISOString().split('T')[0];
-        lunchOrdersQuery = lunchOrdersQuery.lte('order_date', dateStr);
-      }
-
-      // NO filtrar por school_id aquí porque los pedidos pueden no tenerlo
-      // El filtro se hará después de obtener los datos
-      const { data: lunchOrders, error: lunchOrdersError } = await lunchOrdersQuery;
-
-      if (lunchOrdersError) {
-        console.error('❌ [BillingCollection] Error fetching lunch orders:', lunchOrdersError);
-      } else {
-        console.log('🍽️ [BillingCollection] Pedidos de almuerzo encontrados:', lunchOrders?.length || 0);
-      }
-
-      // 🔥 FILTRAR TRANSACCIONES DE PEDIDOS CANCELADOS (OPTIMIZADO)
-      console.log('🔍 [BillingCollection] Filtrando transacciones de pedidos cancelados...');
-      
-      // Obtener todos los lunch_order_ids de las transacciones
+      // Obtener IDs de pedidos cancelados
       const lunchOrderIds = transactions
         ?.map((t: any) => t.metadata?.lunch_order_id)
         .filter(Boolean) || [];
-      
-      // Si hay transacciones con lunch_order_id, verificar cuáles están cancelados
+
       let cancelledOrderIds = new Set<string>();
       if (lunchOrderIds.length > 0) {
         const { data: cancelledOrders } = await supabase
@@ -397,509 +155,386 @@ export const BillingCollection = () => {
           .select('id')
           .in('id', lunchOrderIds)
           .eq('is_cancelled', true);
-        
         cancelledOrderIds = new Set(cancelledOrders?.map((o: any) => o.id) || []);
-        console.log('❌ [BillingCollection] Pedidos cancelados encontrados:', cancelledOrderIds.size);
       }
-      
-      // Filtrar transacciones, excluyendo las de pedidos cancelados
+
       const validTransactions = transactions?.filter((t: any) => {
-        if (t.metadata?.lunch_order_id && cancelledOrderIds.has(t.metadata.lunch_order_id)) {
-          console.log(`⏭️ [BillingCollection] Transacción ${t.id} es de pedido cancelado, omitiendo`);
-          return false;
-        }
+        if (t.metadata?.lunch_order_id && cancelledOrderIds.has(t.metadata.lunch_order_id)) return false;
         return true;
       }) || [];
-      
-      console.log('✅ [BillingCollection] Transacciones válidas (no canceladas):', validTransactions.length);
-      
-      // 🔥 BUSCAR TAMBIÉN TRANSACCIONES PAID PARA EVITAR DUPLICADOS
-      console.log('💰 [BillingCollection] Buscando transacciones PAID de lunch_orders...');
-      
-      // 🔧 FIX CRÍTICO: Buscar TODAS las transacciones PAID (con Y sin metadata)
-      // Las transacciones viejas sin metadata también deben detectarse por descripción
-      // ⚠️ FIX: Supabase tiene límite default de 1000 rows → forzar .limit() alto
-      let paidQuery = supabase
+
+      // Buscar transacciones PAID para evitar duplicados en lunch_orders
+      let paidLunchSet = new Set<string>();
+      const { data: paidTxs } = await supabase
         .from('transactions')
-        .select('id, metadata, teacher_id, student_id, manual_client_name, description, created_at')
+        .select('metadata')
         .eq('type', 'purchase')
         .eq('payment_status', 'paid')
-        .limit(100000); // 🔧 FIX: Evitar truncamiento silencioso de Supabase (default: 1000)
-      
-      if (schoolIdFilter) {
-        paidQuery = paidQuery.eq('school_id', schoolIdFilter);
-      }
-      
-      const { data: paidLunchTransactions } = await paidQuery;
-      
-      console.log('💰 [BillingCollection] Transacciones PAID encontradas:', paidLunchTransactions?.length || 0);
-      
-      // Obtener IDs de pedidos que ya tienen transacciones asociadas (PENDING O PAID)
+        .not('metadata', 'is', null)
+        .limit(100000);
+      paidTxs?.forEach((t: any) => {
+        if (t.metadata?.lunch_order_id) paidLunchSet.add(t.metadata.lunch_order_id);
+      });
+
+      // Pedidos de almuerzo confirmados sin transacción
+      let lunchOrdersQuery = supabase
+        .from('lunch_orders')
+        .select(`
+          id, order_date, created_at, student_id, teacher_id, manual_name,
+          payment_method, school_id, category_id, quantity, final_price, base_price,
+          students(id, full_name, parent_id, school_id),
+          teacher_profiles(id, full_name, school_id_1),
+          schools(id, name),
+          lunch_categories(id, name, price)
+        `)
+        .in('status', ['confirmed', 'delivered'])
+        .eq('is_cancelled', false);
+
+      const { data: lunchOrders } = await lunchOrdersQuery;
+
       const existingOrderKeys = new Set<string>();
-      
-      // Método 1: Por metadata.lunch_order_id (transacciones virtuales convertidas a reales)
       validTransactions.forEach((t: any) => {
-        if (t.metadata?.lunch_order_id) {
-          existingOrderKeys.add(t.metadata.lunch_order_id);
-        }
+        if (t.metadata?.lunch_order_id) existingOrderKeys.add(t.metadata.lunch_order_id);
       });
-      
-      // Agregar también los IDs de transacciones PAID
-      paidLunchTransactions?.forEach((t: any) => {
-        if (t.metadata?.lunch_order_id) {
-          existingOrderKeys.add(t.metadata.lunch_order_id);
-          console.log(`✅ [BillingCollection] Pedido ${t.metadata.lunch_order_id} ya tiene transacción PAID, omitiendo`);
-        }
-      });
-      
-      // Método 2: Por coincidencia de teacher_id/student_id + fecha EN DESCRIPCIÓN (para transacciones sin metadata)
-      // 🔧 FIX CRÍTICO: Antes comparábamos created_at con order_date, pero cuando un profesor
-      // pide almuerzos para varios días en una sola sesión, TODOS tienen el mismo created_at.
-      // Ahora extraemos la fecha del PEDIDO desde la descripción de la transacción.
-      // 🔧 FIX v2: Ahora busca TANTO en transacciones PENDING como PAID (sin metadata)
-      // para evitar crear virtuales de pedidos que YA fueron pagados sin metadata.
-      
-      // Combinar pending + paid para búsqueda por descripción
-      const allTransactionsForMatching = [
-        ...validTransactions, 
-        ...(paidLunchTransactions || [])
-      ];
-      
-      lunchOrders?.forEach((order: any) => {
-        // Si ya está en existingOrderKeys (por metadata), no buscar más
-        if (existingOrderKeys.has(order.id)) return;
-        
-        const orderDate = order.order_date; // Formato: "2026-02-09"
-        
-        // Formatear la fecha del pedido para buscarla en la descripción
-        const orderDateFormatted = new Date(orderDate + 'T12:00:00').toLocaleDateString('es-PE', { 
-          day: 'numeric', 
-          month: 'long' 
-        }); // "9 de febrero", "11 de febrero", etc.
-        
-        const hasMatchingTransaction = allTransactionsForMatching.some((t: any) => {
-          const descMatches = t.description?.includes('Almuerzo') || t.description?.includes('almuerzo');
-          if (!descMatches) return false;
-          
-          // Verificar que la transacción es del mismo cliente
-          const sameTeacher = order.teacher_id && t.teacher_id === order.teacher_id;
-          const sameStudent = order.student_id && t.student_id === order.student_id;
-          // 🔧 FIX: También verificar clientes manuales (sin teacher_id ni student_id)
-          const sameManual = order.manual_name && t.manual_client_name && 
-            order.manual_name.toLowerCase().trim() === t.manual_client_name.toLowerCase().trim();
-          
-          if (!sameTeacher && !sameStudent && !sameManual) return false;
-          
-          // 🔧 Verificar si la descripción contiene la fecha del pedido
-          // Esto funciona con descripciones como "Almuerzo - Menú Light - 11 de febrero"
-          if (t.description?.includes(orderDateFormatted)) {
-            return true;
-          }
-          
-          // Fallback: comparar created_at con order_date (solo para mismo día exacto)
-          const transDate = t.created_at.split('T')[0];
-          if (transDate === orderDate) {
-            return true;
-          }
-          
-          return false;
-        });
-        
-        if (hasMatchingTransaction) {
-          existingOrderKeys.add(order.id);
-          console.log(`✅ [BillingCollection] Pedido ${order.id} (${orderDate}) tiene transacción (pending O paid, sin metadata), omitiendo virtual`);
-        }
-      });
-      
-      console.log('📋 [BillingCollection] Total de pedidos con transacción (pending o paid):', existingOrderKeys.size);
 
-      // Crear transacciones virtuales para pedidos sin transacciones
+      // Crear transacciones virtuales para pedidos de almuerzo sin tx
       const virtualTransactions: any[] = [];
-      
-      if (lunchOrders && lunchOrders.length > 0) {
-        // Obtener todos los school_ids posibles (del pedido, estudiante o profesor)
-        const allSchoolIds = new Set<string>();
-        lunchOrders.forEach((o: any) => {
-          if (o.school_id) allSchoolIds.add(o.school_id);
-          if (o.students?.school_id) allSchoolIds.add(o.students.school_id);
-          if (o.teacher_profiles?.school_id_1) allSchoolIds.add(o.teacher_profiles.school_id_1);
+      lunchOrders?.forEach((order: any) => {
+        if (existingOrderKeys.has(order.id) || paidLunchSet.has(order.id)) return;
+
+        const price = order.final_price || order.base_price || order.lunch_categories?.price || 0;
+        const filterSchoolId = userSchoolId;
+        const orderSchoolId = order.school_id || order.students?.school_id || order.teacher_profiles?.school_id_1;
+        if (filterSchoolId && orderSchoolId && orderSchoolId !== filterSchoolId) return;
+
+        const student = order.students;
+        const teacher = order.teacher_profiles;
+        const school = order.schools;
+        const categoryName = order.lunch_categories?.name || 'Almuerzo';
+
+        virtualTransactions.push({
+          id: `lunch_${order.id}`,
+          type: 'purchase',
+          payment_status: 'pending',
+          amount: -price,
+          description: `${categoryName} - ${format(new Date(order.order_date + 'T12:00:00'), "d 'de' MMMM", { locale: es })}`,
+          created_at: order.created_at,
+          student_id: order.student_id || null,
+          teacher_id: order.teacher_id || null,
+          manual_client_name: order.manual_name || null,
+          school_id: order.school_id || orderSchoolId,
+          students: student || null,
+          teacher_profiles: teacher || null,
+          schools: school || null,
+          transaction_items: [],
+          metadata: {
+            source: 'lunch_order',
+            lunch_order_id: order.id,
+            order_date: order.order_date,
+            category: categoryName,
+          },
         });
-        
-        const { data: lunchConfigs } = await supabase
-          .from('lunch_configuration')
-          .select('school_id, lunch_price')
-          .in('school_id', Array.from(allSchoolIds));
+      });
 
-        const configMap = new Map();
-        lunchConfigs?.forEach((c: any) => {
-          configMap.set(c.school_id, c.lunch_price);
-        });
-
-        lunchOrders.forEach((order: any) => {
-          // Verificar si este pedido ya tiene una transacción
-          if (existingOrderKeys.has(order.id)) {
-            console.log(`⏭️ [BillingCollection] Pedido ${order.id} ya tiene transacción, omitiendo`);
-            return; // Saltar este pedido
-          }
-          
-          let unitPrice = 0;
-          let schoolId = order.school_id;
-          const orderQuantity = order.quantity || 1;
-
-          // Obtener precio: primero final_price (ya incluye qty), luego calcular
-          if (order.final_price && order.final_price > 0) {
-            // final_price ya incluye quantity * base_price
-            unitPrice = order.final_price; // Ya es el total
-          } else if (order.lunch_categories?.price) {
-            unitPrice = order.lunch_categories.price * orderQuantity;
-          } else if (schoolId && configMap.has(schoolId)) {
-            unitPrice = configMap.get(schoolId) * orderQuantity;
-          } else {
-            unitPrice = 7.50 * orderQuantity; // Precio por defecto
-          }
-
-          // Determinar school_id si no está en el pedido
-          if (!schoolId) {
-            if (order.students?.school_id) {
-              schoolId = order.students.school_id;
-            } else if (order.teacher_profiles?.school_id_1) {
-              schoolId = order.teacher_profiles.school_id_1;
-            }
-          }
-
-          // Aplicar filtro de school_id si está configurado (después de determinar el school_id correcto)
-          if (schoolIdFilter && schoolId !== schoolIdFilter) {
-            console.log(`⏭️ [BillingCollection] Pedido ${order.id} no coincide con filtro de sede (${schoolId} vs ${schoolIdFilter}), omitiendo`);
-            return; // Saltar este pedido
-          }
-
-          // 🔑 Si es cliente manual que YA PAGÓ (método != pagar_luego), NO crear deuda virtual
-          if (order.manual_name && order.payment_method && order.payment_method !== 'pagar_luego') {
-            console.log(`✅ [BillingCollection] Pedido ${order.id} manual ya pagado con ${order.payment_method}, omitiendo`);
-            return; // No crear transacción virtual - el cliente ya pagó
-          }
-
-          // Crear transacción virtual solo si el pedido tiene un cliente identificado
-          if (order.student_id || order.teacher_id || order.manual_name) {
-            // Mejorar la descripción para incluir el tipo de menú
-            const menuName = order.lunch_categories?.name || order.menu_item || 'Menú';
-            const dateFormatted = new Date(order.order_date + 'T12:00:00').toLocaleDateString('es-PE', { 
-              day: 'numeric', 
-              month: 'long',
-              year: 'numeric'
-            });
-            
-            virtualTransactions.push({
-              id: `lunch_${order.id}`, // ID virtual
-              type: 'purchase',
-              amount: -Math.abs(unitPrice), // Negativo = deuda (ya incluye quantity)
-              payment_status: 'pending',
-              description: `Almuerzo - ${menuName}${orderQuantity > 1 ? ` (${orderQuantity}x)` : ''} - ${dateFormatted}`,
-              student_id: order.student_id || null,
-              teacher_id: order.teacher_id || null,
-              manual_client_name: order.manual_name || null,
-              school_id: schoolId,
-              created_at: order.created_at || (order.order_date ? order.order_date + 'T12:00:00-05:00' : new Date().toISOString()),
-              students: order.students || null,
-              teacher_profiles: order.teacher_profiles || null,
-              schools: order.schools || null,
-              metadata: { 
-                lunch_order_id: order.id, 
-                source: 'lunch_order',
-                order_date: order.order_date,
-                menu_name: menuName
-              }
-            });
-          }
-        });
-
-        console.log('💰 [BillingCollection] Transacciones virtuales creadas:', virtualTransactions.length);
-      }
-
-      // Combinar transacciones reales (ya filtradas arriba) con virtuales
       const allTransactions = [...validTransactions, ...virtualTransactions];
 
-      // 🆕 Obtener información del creador (created_by) para transacciones del tab "¡Cobrar!"
-      const creatorIds = [...new Set(allTransactions.map((t: any) => t.created_by).filter(Boolean))];
-      let debtorCreatedByMap = new Map();
-      
-      if (creatorIds.length > 0) {
-        // Buscar en profiles
-        const { data: creatorProfiles } = await supabase
-          .from('profiles')
-          .select(`
-            id, full_name, email, role, school_id,
-            schools:school_id(id, name)
-          `)
-          .in('id', creatorIds);
-        
-        if (creatorProfiles) {
-          creatorProfiles.forEach((p: any) => {
-            debtorCreatedByMap.set(p.id, {
-              ...p,
-              school_name: p.schools?.name || null
-            });
-          });
-        }
+      // Buscar parents para enriquecer datos
+      const parentIds = [...new Set(
+        allTransactions
+          .filter((t: any) => t.students?.parent_id)
+          .map((t: any) => t.students.parent_id)
+      )];
 
-        // También buscar en teacher_profiles
-        const { data: creatorTeachers } = await supabase
-          .from('teacher_profiles')
-          .select('id, full_name, school_id_1, schools:school_id_1(id, name)')
-          .in('id', creatorIds);
-        
-        if (creatorTeachers) {
-          creatorTeachers.forEach((tp: any) => {
-            if (debtorCreatedByMap.has(tp.id)) {
-              const existing = debtorCreatedByMap.get(tp.id);
-              debtorCreatedByMap.set(tp.id, {
-                ...existing,
-                teacher_school_name: tp.schools?.name || null,
-                teacher_school_id: tp.school_id_1
-              });
-            } else {
-              debtorCreatedByMap.set(tp.id, {
-                id: tp.id,
-                full_name: tp.full_name,
-                role: 'teacher',
-                school_id: tp.school_id_1,
-                school_name: tp.schools?.name || null
-              });
-            }
-          });
-        }
-      }
-
-      // Agregar created_by_profile a cada transacción
-      allTransactions.forEach((t: any) => {
-        if (t.created_by && debtorCreatedByMap.has(t.created_by)) {
-          t.created_by_profile = debtorCreatedByMap.get(t.created_by);
-        }
-      });
-
-      // 🆕 Obtener fecha de creación original del pedido (lunch_order.created_at)
-      // Para transacciones reales que tienen lunch_order_id en metadata
-      const lunchOrderIdsForDates = allTransactions
-        .filter((t: any) => t.metadata?.lunch_order_id && !t.id?.toString().startsWith('lunch_'))
-        .map((t: any) => t.metadata.lunch_order_id)
-        .filter(Boolean);
-      
-      if (lunchOrderIdsForDates.length > 0) {
-        const { data: orderDates } = await supabase
-          .from('lunch_orders')
-          .select('id, created_at')
-          .in('id', lunchOrderIdsForDates);
-        
-        if (orderDates) {
-          const orderDatesMap = new Map(orderDates.map((o: any) => [o.id, o.created_at]));
-          allTransactions.forEach((t: any) => {
-            if (t.metadata?.lunch_order_id && orderDatesMap.has(t.metadata.lunch_order_id)) {
-              t.metadata.order_created_at = orderDatesMap.get(t.metadata.lunch_order_id);
-            }
-          });
-        }
-      }
-      
-      // Para transacciones virtuales, la fecha de creación ya está en created_at (viene del lunch_order)
-      allTransactions.forEach((t: any) => {
-        if (t.id?.toString().startsWith('lunch_') && t.created_at && !t.metadata?.order_created_at) {
-          t.metadata = { ...t.metadata, order_created_at: t.created_at };
-        }
-      });
-
-      // Obtener IDs únicos de padres (solo para estudiantes)
-      const parentIds = [...new Set(allTransactions
-        .filter((t: any) => t.student_id && t.students?.parent_id)
-        .map((t: any) => t.students.parent_id)
-        .filter(Boolean))];
-
-      console.log('👤 [BillingCollection] Parent IDs:', parentIds);
-
-      // Obtener datos de los padres (solo si hay parentIds)
-      let parentProfiles: any[] = [];
+      let parentMap = new Map<string, any>();
       if (parentIds.length > 0) {
-        const { data, error: parentError } = await supabase
-          .from('parent_profiles')
-          .select('user_id, full_name, phone_1')
-          .in('user_id', parentIds);
-
-        if (parentError) {
-          console.error('❌ [BillingCollection] Error fetching parent profiles:', parentError);
-        } else {
-          parentProfiles = data || [];
-          console.log('👤 [BillingCollection] Parent profiles encontrados:', parentProfiles.length);
-        }
+        const { data: parents } = await supabase
+          .from('profiles')
+          .select('id, full_name, phone, email')
+          .in('id', parentIds);
+        parents?.forEach((p: any) => parentMap.set(p.id, p));
       }
 
-      // Crear mapa de padres para acceso rápido
-      const parentMap = new Map();
-      parentProfiles?.forEach((p: any) => {
-        parentMap.set(p.user_id, p);
-      });
+      // Agrupar por deudor
+      const debtorMap = new Map<string, Debtor>();
 
-      console.log('🗺️ [BillingCollection] Parent map size:', parentMap.size);
-
-      // Agrupar por cliente (estudiante, profesor, o manual)
-      const debtorsMap: { [key: string]: Debtor } = {};
-
-      allTransactions?.forEach((transaction: any) => {
-        let clientId: string;
+      allTransactions.forEach((tx: any) => {
+        let debtorId: string;
         let clientName: string;
         let clientType: 'student' | 'teacher' | 'manual';
-        let parentData = null;
+        let parentId: string | undefined;
+        let parentInfo: any = null;
+        const schoolName = tx.schools?.name || 'Sin sede';
+        const schoolId = tx.school_id || '';
 
-        // Determinar el tipo de cliente
-        if (transaction.student_id && transaction.students) {
-          // Estudiante
-          clientId = transaction.student_id;
-          clientName = transaction.students.full_name;
+        if (tx.student_id && tx.students?.full_name) {
+          debtorId = tx.student_id;
+          clientName = tx.students.full_name;
           clientType = 'student';
-          parentData = parentMap.get(transaction.students.parent_id);
-        } else if (transaction.teacher_id && transaction.teacher_profiles) {
-          // Profesor
-          clientId = transaction.teacher_id;
-          clientName = transaction.teacher_profiles.full_name;
+          parentId = tx.students.parent_id;
+          parentInfo = parentId ? parentMap.get(parentId) : null;
+        } else if (tx.teacher_id && tx.teacher_profiles?.full_name) {
+          debtorId = tx.teacher_id;
+          clientName = tx.teacher_profiles.full_name;
           clientType = 'teacher';
-        } else if (transaction.manual_client_name) {
-          // Cliente manual (sin cuenta)
-          clientId = `manual_${transaction.manual_client_name}`;
-          clientName = transaction.manual_client_name;
+        } else if (tx.manual_client_name) {
+          debtorId = `manual_${tx.manual_client_name}`;
+          clientName = tx.manual_client_name;
           clientType = 'manual';
         } else {
-          // Transacción sin cliente identificado, saltar
-          return;
+          return; // skip
         }
 
-        if (!debtorsMap[clientId]) {
-          debtorsMap[clientId] = {
-            id: clientId,
+        if (debtorMap.has(debtorId)) {
+          const existing = debtorMap.get(debtorId)!;
+          existing.total_amount += Math.abs(tx.amount);
+          existing.transaction_count += 1;
+          existing.transactions.push(tx);
+        } else {
+          debtorMap.set(debtorId, {
+            id: debtorId,
             client_name: clientName,
             client_type: clientType,
-            parent_id: parentData?.user_id || '',
-            parent_name: parentData?.full_name || '',
-            parent_phone: parentData?.phone_1 || '',
-            parent_email: '', // Email no disponible por ahora
-            school_id: transaction.school_id,
-            school_name: transaction.schools?.name || '',
-            total_amount: 0,
-            transaction_count: 0,
-            transactions: [],
-          };
+            parent_name: parentInfo?.full_name,
+            parent_phone: parentInfo?.phone,
+            parent_email: parentInfo?.email,
+            school_id: schoolId,
+            school_name: schoolName,
+            total_amount: Math.abs(tx.amount),
+            transaction_count: 1,
+            transactions: [tx],
+          });
         }
-
-        debtorsMap[clientId].total_amount += Math.abs(transaction.amount);
-        debtorsMap[clientId].transaction_count += 1;
-        debtorsMap[clientId].transactions.push(transaction);
       });
 
-      const debtorsArray = Object.values(debtorsMap);
-      
-      // ✅ ORDENAR: Deudores por fecha más reciente (transacción más nueva primero)
-      debtorsArray.sort((a, b) => {
-        const aLatest = Math.max(...a.transactions.map(t => new Date(t.created_at).getTime()));
-        const bLatest = Math.max(...b.transactions.map(t => new Date(t.created_at).getTime()));
-        return bLatest - aLatest;
-      });
-      
-      console.log('👥 [BillingCollection] Deudores encontrados:', debtorsArray.length);
-      console.log('👥 [BillingCollection] Muestra:', debtorsArray[0]);
-      
-      setDebtors(debtorsArray);
-    } catch (error) {
+      const sortedDebtors = Array.from(debtorMap.values()).sort(
+        (a, b) => b.total_amount - a.total_amount
+      );
+      setDebtors(sortedDebtors);
+    } catch (error: any) {
       console.error('Error fetching debtors:', error);
-      toast({
-        variant: 'destructive',
-        title: 'Error',
-        description: 'No se pudieron cargar los deudores',
-      });
+      toast({ variant: 'destructive', title: 'Error', description: 'No se pudieron cargar las deudas' });
     } finally {
       setLoading(false);
     }
   };
 
-  const filteredDebtors = debtors.filter(debtor => {
-    if (!searchTerm) return true;
-    const search = searchTerm.toLowerCase();
-    return (
-      debtor.client_name.toLowerCase().includes(search) ||
-      debtor.parent_name?.toLowerCase().includes(search) ||
-      debtor.parent_email?.toLowerCase().includes(search)
-    );
-  });
+  // ──────────────────────────────────────────────────────────────────────────
+  // Fetch pagos realizados
+  // ──────────────────────────────────────────────────────────────────────────
+  const fetchPaidTransactions = async () => {
+    try {
+      setLoadingPaid(true);
 
-  // ✅ Filtrar pagos realizados por término de búsqueda (MEJORADO)
-  const filteredPaidTransactions = paidTransactions.filter(transaction => {
-    if (!searchTerm) return true;
-    const search = searchTerm.toLowerCase();
-    
-    const clientName = transaction.students?.full_name || 
-                       transaction.teacher_profiles?.full_name || 
-                       transaction.manual_client_name || 
-                       '';
-    const schoolName = transaction.schools?.name || '';
-    const creatorName = transaction.created_by_profile?.full_name || '';
-    
-    return (
-      clientName.toLowerCase().includes(search) ||
-      schoolName.toLowerCase().includes(search) ||
-      creatorName.toLowerCase().includes(search) ||
-      transaction.description?.toLowerCase().includes(search) ||
-      transaction.ticket_code?.toLowerCase().includes(search) ||
-      transaction.operation_number?.toLowerCase().includes(search)
-    );
-  });
+      let query = supabase
+        .from('transactions')
+        .select(`
+          *,
+          students(id, full_name),
+          teacher_profiles(id, full_name),
+          transaction_items(id, product_name, quantity, unit_price, subtotal)
+        `)
+        .eq('type', 'purchase')
+        .eq('payment_status', 'paid')
+        .order('created_at', { ascending: false })
+        .limit(500);
 
-  const toggleSelection = (id: string) => {
-    const newSelected = new Set(selectedDebtors);
-    if (newSelected.has(id)) {
-      newSelected.delete(id);
-    } else {
-      newSelected.add(id);
+      if (userSchoolId) query = query.eq('school_id', userSchoolId);
+
+      const { data, error } = await query;
+      if (error) throw error;
+
+      // Filtrar pedidos cancelados
+      const lunchOrderIds = data?.map((t: any) => t.metadata?.lunch_order_id).filter(Boolean) || [];
+      let cancelledIds = new Set<string>();
+      if (lunchOrderIds.length > 0) {
+        const { data: cancelled } = await supabase
+          .from('lunch_orders').select('id').in('id', lunchOrderIds).eq('is_cancelled', true);
+        cancelledIds = new Set(cancelled?.map((o: any) => o.id) || []);
+      }
+
+      const valid = data?.filter((t: any) => {
+        if (t.metadata?.lunch_order_id && cancelledIds.has(t.metadata.lunch_order_id)) return false;
+        return true;
+      }) || [];
+
+      setPaidTransactions(valid);
+      setPaidLoaded(true);
+    } catch (error: any) {
+      toast({ variant: 'destructive', title: 'Error', description: 'No se pudieron cargar los pagos' });
+    } finally {
+      setLoadingPaid(false);
     }
-    setSelectedDebtors(newSelected);
   };
 
-  const selectAll = () => {
-    if (selectedDebtors.size === filteredDebtors.length) {
-      setSelectedDebtors(new Set());
-    } else {
-      setSelectedDebtors(new Set(filteredDebtors.map(d => d.id)));
+  // ──────────────────────────────────────────────────────────────────────────
+  // Filtrado
+  // ──────────────────────────────────────────────────────────────────────────
+  const filteredDebtors = useMemo(() => {
+    if (!searchTerm) return debtors;
+    const norm = normalizeSearch(searchTerm);
+    return debtors.filter(d =>
+      normalizeSearch(d.client_name).includes(norm) ||
+      normalizeSearch(d.parent_name || '').includes(norm)
+    );
+  }, [debtors, searchTerm]);
+
+  const filteredPaid = useMemo(() => {
+    if (!searchTerm) return paidTransactions;
+    const norm = normalizeSearch(searchTerm);
+    return paidTransactions.filter(t => {
+      const name = t.students?.full_name || t.teacher_profiles?.full_name || t.manual_client_name || '';
+      return normalizeSearch(name).includes(norm) ||
+        (t.ticket_code || '').toLowerCase().includes(norm);
+    });
+  }, [paidTransactions, searchTerm]);
+
+  const totalDebt = useMemo(() => filteredDebtors.reduce((s, d) => s + d.total_amount, 0), [filteredDebtors]);
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // Helpers de "fuente de verdad" — nombres reales de productos
+  // ──────────────────────────────────────────────────────────────────────────
+
+  /** Dado un item de transaction_items, devuelve un nombre legible */
+  const cleanProductName = (raw: string): string => {
+    if (!raw) return 'Producto';
+    // Quitar prefijos técnicos
+    return raw
+      .replace(/^(product_|item_)/i, '')
+      .replace(/^\d+\s*[-–—]\s*/, '')   // quita "1 - ", "2 - "
+      .trim();
+  };
+
+  /**
+   * Devuelve las líneas de detalle de una transacción.
+   * Fuente de verdad: transaction_items (nombres reales de productos).
+   * Fallback: descripción legible.
+   */
+  const getTxProductLines = (tx: any): Array<{ name: string; qty: number; subtotal: number }> => {
+    const items = tx.transaction_items as Array<any> | null | undefined;
+
+    // 1) Usar transaction_items si existen
+    if (items && items.length > 0) {
+      // Agregar por nombre de producto (en caso de duplicados)
+      const map = new Map<string, { qty: number; subtotal: number }>();
+      items.forEach((it: any) => {
+        const name = cleanProductName(it.product_name || 'Producto');
+        const existing = map.get(name);
+        if (existing) {
+          existing.qty += it.quantity || 1;
+          existing.subtotal += it.subtotal ?? Math.abs(it.unit_price ?? 0) * (it.quantity ?? 1);
+        } else {
+          map.set(name, {
+            qty: it.quantity || 1,
+            subtotal: it.subtotal ?? Math.abs(it.unit_price ?? 0) * (it.quantity ?? 1),
+          });
+        }
+      });
+      return Array.from(map.entries()).map(([name, v]) => ({ name, qty: v.qty, subtotal: v.subtotal }));
     }
+
+    // 2) Almuerzo virtual (sin transaction_items)
+    if (tx.metadata?.source === 'lunch_order' || tx.description?.toLowerCase().includes('almuerzo')) {
+      const label = tx.metadata?.category
+        ? `🍽️ ${tx.metadata.category}`
+        : '🍽️ Almuerzo';
+      const dateStr = tx.metadata?.order_date
+        ? format(new Date(tx.metadata.order_date + 'T12:00:00'), "d 'de' MMM", { locale: es })
+        : '';
+      return [{ name: dateStr ? `${label} — ${dateStr}` : label, qty: 1, subtotal: Math.abs(tx.amount) }];
+    }
+
+    // 3) Venta histórica
+    if (tx.metadata?.source === 'historical_kiosk_entry') {
+      return [{ name: '📋 Consumo histórico kiosco', qty: 1, subtotal: Math.abs(tx.amount) }];
+    }
+
+    // 4) Fallback: limpiar descripción genérica
+    let desc = tx.description || 'Consumo';
+    desc = desc
+      .replace(/Compra POS \(Cuenta Libre\)\s*[-–—]?\s*Total:\s*S\/\s*[\d.]+/i, 'Consumo Kiosco')
+      .replace(/Compra POS\s*[-–—]?\s*Total:\s*S\/\s*[\d.]+/i, 'Consumo Kiosco')
+      .replace(/Compra Profesor:\s*.+\s*[-–—]\s*\d+ items?/i, 'Consumo Kiosco')
+      .replace(/\s*[-–—]\s*Total:\s*S\/\s*[\d.]+/i, '')
+      .trim();
+    return [{ name: desc || 'Consumo Kiosco', qty: 1, subtotal: Math.abs(tx.amount) }];
+  };
+
+  /**
+   * Agrega todas las líneas de producto de un deudor (todas sus transacciones).
+   * Si el mismo producto aparece en múltiples tickets, suma cantidades y subtotales.
+   */
+  const getDebtorProductSummary = (
+    debtor: Debtor,
+  ): Array<{ name: string; qty: number; subtotal: number }> => {
+    const map = new Map<string, { qty: number; subtotal: number }>();
+    debtor.transactions.forEach(tx => {
+      getTxProductLines(tx).forEach(({ name, qty, subtotal }) => {
+        const existing = map.get(name);
+        if (existing) {
+          existing.qty += qty;
+          existing.subtotal += subtotal;
+        } else {
+          map.set(name, { qty, subtotal });
+        }
+      });
+    });
+    return Array.from(map.entries()).map(([name, v]) => ({ name, qty: v.qty, subtotal: v.subtotal }));
+  };
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // Acciones
+  // ──────────────────────────────────────────────────────────────────────────
+  const toggleChecked = (id: string) => {
+    setCheckedDebtors(prev => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  };
+
+  const copyMessage = (debtor: Debtor) => {
+    const recipientName =
+      debtor.client_type === 'student'
+        ? debtor.parent_name || 'Padre/Madre de familia'
+        : debtor.client_name;
+
+    const productLines = getDebtorProductSummary(debtor);
+
+    const lines: string[] = [
+      `*Recordatorio de Pago - ${
+        debtor.client_type === 'student' ? debtor.client_name : debtor.client_name
+      }*`,
+      '',
+      `Estimado(a) ${recipientName},`,
+      '',
+      debtor.client_type === 'student'
+        ? `El alumno *${debtor.client_name}* tiene consumos pendientes en Maracuyá:`
+        : `Tiene consumos pendientes en Maracuyá:`,
+      '',
+      `Monto Total: *S/ ${debtor.total_amount.toFixed(2)}*`,
+      '',
+      'Detalle:',
+      ...productLines.map(p =>
+        p.qty > 1
+          ? `- ${p.qty}x ${p.name} — S/ ${p.subtotal.toFixed(2)}`
+          : `- ${p.name} — S/ ${p.subtotal.toFixed(2)}`
+      ),
+      '',
+      'Para cancelar, acérquese a administración o contáctenos.',
+      'Gracias 🙏',
+    ];
+
+    navigator.clipboard.writeText(lines.join('\n'));
+    toast({ title: '📋 Copiado', description: 'Mensaje listo para WhatsApp' });
+    setCheckedDebtors(prev => new Set(prev).add(debtor.id));
   };
 
   const handleOpenPayment = (debtor: Debtor) => {
-    // 🆕 Filtrar solo transacciones seleccionadas (si hay alguna seleccionada)
-    // 🔧 FIX: Usar debtor.id que ES el student_id, teacher_id o manual_name
-    const debtorKey = debtor.id;
-    const selectedTxIds = selectedTransactionsByDebtor.get(debtorKey);
-    
-    let transactionsToPayAmount: number;
-    let transactionsToPay: any[];
-    
-    if (selectedTxIds && selectedTxIds.size > 0) {
-      // Si hay transacciones seleccionadas, cobrar solo esas
-      transactionsToPay = debtor.transactions.filter((t: any) => selectedTxIds.has(t.id));
-      transactionsToPayAmount = transactionsToPay.reduce((sum: number, t: any) => sum + Math.abs(t.amount), 0);
-      console.log(`💰 Cobrando ${selectedTxIds.size} transacciones seleccionadas: S/ ${transactionsToPayAmount}`);
-    } else {
-      // Si no hay selección, cobrar todas
-      transactionsToPay = debtor.transactions;
-      transactionsToPayAmount = debtor.total_amount;
-      console.log(`💰 Cobrando todas las transacciones: S/ ${transactionsToPayAmount}`);
-    }
-    
-    // Guardar el deudor con las transacciones filtradas
-    setCurrentDebtor({
-      ...debtor,
-      transactions: transactionsToPay,
-      total_amount: transactionsToPayAmount
-    });
-    
+    setCurrentDebtor(debtor);
     setPaymentData({
-      paid_amount: transactionsToPayAmount, // Por defecto pago completo de las seleccionadas
+      paid_amount: debtor.total_amount,
       payment_method: 'efectivo',
       operation_number: '',
-      document_type: 'ticket',
       notes: '',
     });
     setShowPaymentModal(true);
@@ -908,2179 +543,549 @@ export const BillingCollection = () => {
   const handleRegisterPayment = async () => {
     if (!currentDebtor || !user) return;
 
-    if (paymentData.paid_amount <= 0 || paymentData.paid_amount > currentDebtor.total_amount) {
-      toast({
-        variant: 'destructive',
-        title: 'Error',
-        description: 'El monto debe ser mayor a 0 y menor o igual al total',
-      });
+    if (paymentData.paid_amount <= 0) {
+      toast({ variant: 'destructive', title: 'Error', description: 'El monto debe ser mayor a 0' });
       return;
     }
-
-    // ✅ VALIDACIÓN: Número de operación obligatorio (excepto efectivo)
-    if (['yape', 'plin', 'transferencia', 'tarjeta'].includes(paymentData.payment_method) && !paymentData.operation_number) {
-      toast({
-        variant: 'destructive',
-        title: 'Número de Operación Obligatorio',
-        description: 'Debe ingresar el número de operación para este método de pago',
-      });
+    if (['yape', 'plin', 'transferencia'].includes(paymentData.payment_method) && !paymentData.operation_number) {
+      toast({ variant: 'destructive', title: 'Nº de operación requerido', description: 'Ingresa el número de operación' });
       return;
     }
 
     setSaving(true);
-    
     try {
-      console.log('💰 [BillingCollection] Iniciando registro de pago...', currentDebtor);
-      
-      // Separar transacciones reales de virtuales
-      const realTransactions = currentDebtor.transactions.filter((t: any) => 
-        !t.id?.toString().startsWith('lunch_')
-      );
-      const virtualTransactions = currentDebtor.transactions.filter((t: any) => 
-        t.id?.toString().startsWith('lunch_')
-      );
-      
-      console.log('📊 [BillingCollection] Transacciones reales:', realTransactions.length, 'virtuales:', virtualTransactions.length);
+      const realTxs = currentDebtor.transactions.filter((t: any) => !t.id?.toString().startsWith('lunch_'));
+      const virtualTxs = currentDebtor.transactions.filter((t: any) => t.id?.toString().startsWith('lunch_'));
+      const totalTx = currentDebtor.transactions.length;
+      let counter = 0;
 
-      // 1. ACTUALIZAR transacciones reales existentes (que ya están en la BD)
-      if (realTransactions.length > 0) {
-        const realIds = realTransactions.map((t: any) => t.id);
-        console.log('🔄 [BillingCollection] Actualizando transacciones reales:', realIds);
+      const makeOpNumber = (base: string | null) => {
+        if (!base) return null;
+        counter++;
+        return totalTx === 1 ? base : `${base}-${counter}`;
+      };
 
-        const { error: updateError } = await supabase
+      // Actualizar transacciones reales
+      for (const tx of realTxs) {
+        const { error } = await supabase
           .from('transactions')
           .update({
             payment_status: 'paid',
             payment_method: paymentData.payment_method,
-            operation_number: paymentData.operation_number || null,
-            created_by: user.id, // 🔧 FIX: Registrar quién cobró
+            operation_number: makeOpNumber(paymentData.operation_number || null),
+            created_by: user.id,
           })
-          .in('id', realIds);
-
-        if (updateError) {
-          console.error('❌ [BillingCollection] Error actualizando transacciones:', updateError);
-          throw updateError;
-        }
-        
-        console.log('✅ [BillingCollection] Transacciones reales actualizadas:', realIds.length);
+          .eq('id', tx.id);
+        if (error) throw error;
       }
 
-      // 2. CREAR transacciones reales NUEVAS para las virtuales (pedidos de almuerzo sin transacción)
-      if (virtualTransactions.length > 0) {
-        console.log('💰 [BillingCollection] Creando transacciones reales para pedidos de almuerzo...');
-        
-        // 🎫 Generar ticket_code para las transacciones de almuerzo
-        let ticketCodeBase = '';
+      // Crear transacciones para pedidos virtuales (almuerzo)
+      if (virtualTxs.length > 0) {
+        let ticketBase = '';
         try {
-          const { data: ticketNumber, error: ticketError } = await supabase
-            .rpc('get_next_ticket_number', { p_user_id: user.id });
-          
-          if (!ticketError && ticketNumber) {
-            ticketCodeBase = ticketNumber;
-          }
-        } catch (err) {
-          console.log('⚠️ [BillingCollection] No se pudo generar ticket_code via RPC, usando fallback');
+          const { data: tNum } = await supabase.rpc('get_next_ticket_number', { p_user_id: user.id });
+          if (tNum) ticketBase = tNum;
+        } catch {}
+        if (!ticketBase) ticketBase = `COB-${Date.now()}`;
+
+        // Anti-duplicado
+        const lunchIds = virtualTxs.map((vt: any) => vt.metadata?.lunch_order_id).filter(Boolean);
+        let existingSet = new Set<string>();
+        if (lunchIds.length > 0) {
+          const { data: exTx } = await supabase
+            .from('transactions').select('metadata').eq('type', 'purchase')
+            .not('metadata', 'is', null).limit(100000);
+          exTx?.forEach((t: any) => { if (t.metadata?.lunch_order_id) existingSet.add(t.metadata.lunch_order_id); });
         }
-        
-        // Fallback: generar código de ticket basado en timestamp
-        if (!ticketCodeBase) {
-          const now = new Date();
-          const dateStr = now.toISOString().slice(0,10).replace(/-/g,'');
-          const timeStr = now.toTimeString().slice(0,8).replace(/:/g,'');
-          ticketCodeBase = `COB-${dateStr}-${timeStr}`;
-        }
-        
-        // 🔧 ANTI-DUPLICADO: Verificar que no existan transacciones reales para estos lunch_orders
-        const lunchOrderIds = virtualTransactions
-          .map((vt: any) => vt.metadata?.lunch_order_id)
-          .filter(Boolean);
-        
-        let existingLunchOrderIds = new Set<string>();
-        if (lunchOrderIds.length > 0) {
-          // 🔧 FIX: Buscar solo transacciones de tipo purchase con metadata, con límite alto
-          const { data: existingTx } = await supabase
-            .from('transactions')
-            .select('metadata')
-            .eq('type', 'purchase')
-            .not('metadata', 'is', null)
-            .limit(100000); // FIX: Evitar truncamiento silencioso
-          
-          if (existingTx) {
-            existingTx.forEach((tx: any) => {
-              if (tx.metadata?.lunch_order_id && lunchOrderIds.includes(tx.metadata.lunch_order_id)) {
-                existingLunchOrderIds.add(tx.metadata.lunch_order_id);
-              }
-            });
-          }
-          console.log(`🔍 [BillingCollection] lunch_orders que YA tienen transacción real: ${existingLunchOrderIds.size}`);
-        }
-        
-        let ticketCounter = 0;
-        const transactionsToCreate = virtualTransactions
-          .filter((vt: any) => {
-            // 🔧 FILTRAR: No crear si ya existe una transacción real para este lunch_order
-            if (vt.metadata?.lunch_order_id && existingLunchOrderIds.has(vt.metadata.lunch_order_id)) {
-              console.log(`⏭️ [BillingCollection] Omitiendo duplicado para lunch_order: ${vt.metadata.lunch_order_id}`);
-              return false;
-            }
-            return true;
-          })
+
+        let tCounter = 0;
+        const toCreate = virtualTxs
+          .filter((vt: any) => !existingSet.has(vt.metadata?.lunch_order_id))
           .map((vt: any) => {
-            ticketCounter++;
-            // 🎫 Generar ticket_code único: base + sufijo si hay múltiples
-            const ticketCode = virtualTransactions.length > 1 
-              ? `${ticketCodeBase}-${ticketCounter}` 
-              : ticketCodeBase;
-            
-            const transaction: any = {
+            tCounter++;
+            return {
               type: 'purchase',
               amount: vt.amount,
               payment_status: 'paid',
               payment_method: paymentData.payment_method,
-              operation_number: paymentData.operation_number || null,
+              operation_number: makeOpNumber(paymentData.operation_number || null),
               description: vt.description,
               student_id: vt.student_id || null,
               teacher_id: vt.teacher_id || null,
               manual_client_name: vt.manual_client_name || null,
               school_id: vt.school_id,
-              // ✅ FIX: NO establecer created_at manualmente → DB auto-asigna NOW()
-              // Esto corrige el bug donde todos los pagos mostraban 19:00
-              // La fecha del pedido se mantiene en metadata.order_date
               created_by: user.id,
-              ticket_code: ticketCode, // 🎫 Siempre con ticket
+              ticket_code: virtualTxs.length > 1 ? `${ticketBase}-${tCounter}` : ticketBase,
+              metadata: vt.metadata || null,
             };
-            
-            // Agregar metadata con lunch_order_id
-            if (vt.metadata) {
-              transaction.metadata = vt.metadata;
-            }
-            
-            return transaction;
           });
 
-        if (transactionsToCreate.length > 0) {
-          const { data: createdTransactions, error: createError } = await supabase
-            .from('transactions')
-            .insert(transactionsToCreate)
-            .select();
-
-          if (createError) {
-            console.error('❌ [BillingCollection] Error creando transacciones:', createError);
-            throw createError;
-          }
-
-          console.log('✅ [BillingCollection] Transacciones nuevas creadas:', createdTransactions?.length);
-        } else {
-          console.log('⚠️ [BillingCollection] Todas las virtuales ya tenían transacción real, nada que crear');
+        if (toCreate.length > 0) {
+          const { error } = await supabase.from('transactions').insert(toCreate);
+          if (error) throw error;
         }
 
-        // 🔧 FIX CRÍTICO: Marcar los lunch_orders como 'delivered' para evitar duplicados
-        // Esto previene que un pedido cobrado vuelva a aparecer como virtual
-        const lunchOrderIdsToDeliver = virtualTransactions
-          .map((vt: any) => vt.metadata?.lunch_order_id)
-          .filter(Boolean);
-        
-        if (lunchOrderIdsToDeliver.length > 0) {
-          console.log('📦 [BillingCollection] Marcando lunch_orders como delivered:', lunchOrderIdsToDeliver);
-          const { error: deliverError } = await supabase
-            .from('lunch_orders')
-            .update({ 
-              status: 'delivered',
-              delivered_at: new Date().toISOString(),
-            })
-            .in('id', lunchOrderIdsToDeliver);
-          
-          if (deliverError) {
-            console.error('⚠️ [BillingCollection] Error marcando lunch_orders como delivered:', deliverError);
-            // No lanzar error - el pago ya se registró, esto es secundario
-          } else {
-            console.log('✅ [BillingCollection] lunch_orders marcados como delivered');
-          }
+        // Marcar lunch_orders como delivered
+        const toDeliver = virtualTxs.map((vt: any) => vt.metadata?.lunch_order_id).filter(Boolean);
+        if (toDeliver.length > 0) {
+          await supabase.from('lunch_orders')
+            .update({ status: 'delivered', delivered_at: new Date().toISOString() })
+            .in('id', toDeliver);
         }
       }
 
-      // 🔧 FIX: También marcar lunch_orders de transacciones REALES como 'delivered'
-      if (realTransactions.length > 0) {
-        const realLunchOrderIds = realTransactions
-          .map((t: any) => t.metadata?.lunch_order_id)
-          .filter(Boolean);
-        
-        if (realLunchOrderIds.length > 0) {
-          console.log('📦 [BillingCollection] Marcando lunch_orders de transacciones reales como delivered:', realLunchOrderIds);
-          const { error: deliverRealError } = await supabase
-            .from('lunch_orders')
-            .update({ 
-              status: 'delivered',
-              delivered_at: new Date().toISOString(),
-            })
-            .in('id', realLunchOrderIds);
-          
-          if (deliverRealError) {
-            console.error('⚠️ [BillingCollection] Error marcando lunch_orders reales como delivered:', deliverRealError);
-          } else {
-            console.log('✅ [BillingCollection] lunch_orders reales marcados como delivered');
-          }
-        }
+      // Marcar lunch_orders de reales como delivered
+      const realLunchIds = realTxs.map((t: any) => t.metadata?.lunch_order_id).filter(Boolean);
+      if (realLunchIds.length > 0) {
+        await supabase.from('lunch_orders')
+          .update({ status: 'delivered', delivered_at: new Date().toISOString() })
+          .in('id', realLunchIds);
       }
 
-      toast({
-        title: '✅ Pago registrado',
-        description: `Se registró el pago de S/ ${paymentData.paid_amount.toFixed(2)} con ${paymentData.payment_method}`,
-      });
-
-      // Cerrar modal y limpiar
+      toast({ title: '✅ Pago registrado', description: `S/ ${paymentData.paid_amount.toFixed(2)} con ${paymentData.payment_method}` });
       setShowPaymentModal(false);
       setCurrentDebtor(null);
-      setPaymentData({
-        paid_amount: 0,
-        payment_method: 'efectivo',
-        operation_number: '',
-        document_type: 'ticket',
-        notes: '',
-      });
-      
-      // Recargar deudores para actualizar la lista
-      console.log('🔄 [BillingCollection] Recargando deudores después del pago...');
+      // Marcar como cobrado
+      setCheckedDebtors(prev => new Set(prev).add(currentDebtor.id));
       await fetchDebtors();
     } catch (error: any) {
-      console.error('Error registering payment:', error);
-      toast({
-        variant: 'destructive',
-        title: 'Error al registrar pago',
-        description: error.message || 'Error desconocido',
-      });
+      toast({ variant: 'destructive', title: 'Error al registrar pago', description: error.message });
     } finally {
       setSaving(false);
     }
   };
 
-  const copyMessage = (debtor: Debtor) => {
-    const period = selectedPeriod !== 'all' ? periods.find(p => p.id === selectedPeriod) : null;
-    const periodText = period ? `del período: ${period.period_name}` : 'pendiente';
-    
-    let clientLine = '';
-    let recipientLine = '';
-    
-    if (debtor.client_type === 'student') {
-      clientLine = `El alumno *${debtor.client_name}* tiene un consumo ${periodText}`;
-      recipientLine = `Estimado(a) ${debtor.parent_name || 'Padre/Madre de familia'}`;
-    } else if (debtor.client_type === 'teacher') {
-      clientLine = `El profesor *${debtor.client_name}* tiene un consumo ${periodText}`;
-      recipientLine = `Estimado(a) Profesor(a) ${debtor.client_name}`;
-    } else {
-      clientLine = `*${debtor.client_name}* tiene un consumo ${periodText}`;
-      recipientLine = `Estimado(a) ${debtor.client_name}`;
-    }
-    
-    const message = `🔔 *COBRANZA MARACUYÁ*
-
-${recipientLine}
-
-${clientLine}
-
-💰 Monto Total: S/ ${debtor.total_amount.toFixed(2)}
-
-📎 Adjuntamos el detalle completo.
-
-Para pagar, contacte con administración.
-Gracias.`;
-
-    navigator.clipboard.writeText(message);
-    toast({
-      title: '📋 Mensaje copiado',
-      description: 'El mensaje se copió al portapapeles',
-    });
+  // ──────────────────────────────────────────────────────────────────────────
+  // Render helpers
+  // ──────────────────────────────────────────────────────────────────────────
+  const clientTypeLabel = (type: string) => {
+    if (type === 'teacher') return <Badge variant="outline" className="text-[10px] border-indigo-300 text-indigo-700">Profesor</Badge>;
+    if (type === 'manual') return <Badge variant="outline" className="text-[10px] border-gray-300 text-gray-600">Genérico</Badge>;
+    return <Badge variant="outline" className="text-[10px] border-blue-300 text-blue-700">Alumno</Badge>;
   };
 
-  const generatePDF = async (debtor: Debtor) => {
-    const period = selectedPeriod !== 'all' ? periods.find(p => p.id === selectedPeriod) : null;
-    
-    let periodName: string;
-    let startDate: string;
-    let endDate: string;
-    
-    if (period) {
-      periodName = period.period_name;
-      startDate = period.start_date;
-      endDate = period.end_date;
-    } else {
-      // Usar las fechas de las transacciones
-      periodName = 'Cuenta Pendiente';
-      const dates = debtor.transactions.map(t => new Date(t.created_at));
-      if (dates.length > 0) {
-        startDate = new Date(Math.min(...dates.map(d => d.getTime()))).toISOString();
-        endDate = new Date(Math.max(...dates.map(d => d.getTime()))).toISOString();
-      } else {
-        const now = new Date().toISOString();
-        startDate = now;
-        endDate = now;
-      }
-    }
-
-    // Intentar obtener el logo en base64
-    let logoBase64 = '';
-    try {
-      const response = await fetch(maracuyaLogo);
-      const blob = await response.blob();
-      logoBase64 = await new Promise((resolve) => {
-        const reader = new FileReader();
-        reader.onloadend = () => resolve(reader.result as string);
-        reader.readAsDataURL(blob);
-      });
-    } catch (error) {
-      console.error('Error cargando logo para PDF:', error);
-    }
-
-    generateBillingPDF({
-      student_name: debtor.client_name,
-      parent_name: debtor.parent_name,
-      parent_phone: debtor.parent_phone,
-      school_name: debtor.school_name,
-      period_name: periodName,
-      start_date: startDate,
-      end_date: endDate,
-      transactions: debtor.transactions.map(t => ({
-        id: t.id,
-        created_at: t.created_at,
-        ticket_code: t.ticket_code,
-        description: t.description || 'Consumo',
-        amount: t.amount,
-      })),
-      total_amount: debtor.total_amount,
-      pending_amount: debtor.total_amount,
-      logo_base64: logoBase64
-    });
-
-    toast({
-      title: '✅ PDF generado',
-      description: `Estado de cuenta de ${debtor.client_name}`,
-    });
-  };
-
-  const generateWhatsAppExport = () => {
-    const period = selectedPeriod !== 'all' ? periods.find(p => p.id === selectedPeriod) : null;
-    const selectedDebtorsList = filteredDebtors.filter(d => selectedDebtors.has(d.id));
-
-    if (selectedDebtorsList.length === 0) {
-      toast({
-        variant: 'destructive',
-        title: 'Error',
-        description: 'Selecciona al menos un deudor',
-      });
-      return;
-    }
-
-    // Generar intervalos aleatorios entre 15 y 300 segundos
-    const messages = selectedDebtorsList.map((debtor, index) => {
-      const delay = Math.floor(Math.random() * (300 - 15 + 1)) + 15; // 15-300 segundos
-
-      return {
-        index: index + 1,
-        phone: debtor.parent_phone,
-        parent_name: debtor.parent_name,
-        student_name: debtor.client_name,
-        amount: debtor.total_amount.toFixed(2),
-        period: period?.period_name || 'Cuenta Pendiente',
-        message: `🔔 *COBRANZA MARACUYÁ*\n\nEstimado(a) ${debtor.parent_name}\n\nEl alumno *${debtor.student_name}* tiene un consumo pendiente${period ? ` del período: ${period.period_name}` : ''}\n\n💰 Monto Total: S/ ${debtor.total_amount.toFixed(2)}\n\n📎 Adjuntamos el detalle completo.\n\nPara pagar, contacte con administración.\nGracias.`,
-        delay_seconds: delay,
-        pdf_url: '', // Se generará después
-      };
-    });
-
-    // Descargar como JSON
-    const dataStr = JSON.stringify(messages, null, 2);
-    const dataBlob = new Blob([dataStr], { type: 'application/json' });
-    const url = URL.createObjectURL(dataBlob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `cobranzas_${period?.period_name || 'todas'}_${format(new Date(), 'yyyyMMdd_HHmmss')}.json`;
-    link.click();
-
-    toast({
-      title: '✅ Exportación generada',
-      description: `${messages.length} mensajes con intervalos aleatorios (15-300 seg)`,
-    });
-  };
-
-  const generateMassivePDFs = async () => {
-    const selectedDebtorsList = filteredDebtors.filter(d => selectedDebtors.has(d.id));
-
-    if (selectedDebtorsList.length === 0) {
-      toast({
-        variant: 'destructive',
-        title: 'Error',
-        description: 'Selecciona al menos un deudor',
-      });
-      return;
-    }
-
-    toast({
-      title: '📄 Generando PDFs...',
-      description: `Procesando ${selectedDebtorsList.length} documento(s)`,
-    });
-
-    // Cargar logo una sola vez
-    let logoBase64 = '';
-    try {
-      const response = await fetch(maracuyaLogo);
-      const blob = await response.blob();
-      logoBase64 = await new Promise((resolve) => {
-        const reader = new FileReader();
-        reader.onloadend = () => resolve(reader.result as string);
-        reader.readAsDataURL(blob);
-      });
-    } catch (error) {
-      console.error('Error cargando logo:', error);
-    }
-
-    // Generar PDFs con pequeño delay entre cada uno
-    for (let i = 0; i < selectedDebtorsList.length; i++) {
-      const debtor = selectedDebtorsList[i];
-      
-      const period = selectedPeriod !== 'all' ? periods.find(p => p.id === selectedPeriod) : null;
-      const periodName = period ? period.period_name : 'Todas las deudas';
-      
-      // Calcular fechas reales basadas en las transacciones si no hay período
-      let startDate: string;
-      let endDate: string;
-      
-      if (period) {
-        startDate = period.start_date;
-        endDate = period.end_date;
-      } else {
-        // Usar las fechas de las transacciones del deudor
-        const dates = debtor.transactions.map(t => new Date(t.created_at));
-        if (dates.length > 0) {
-          startDate = new Date(Math.min(...dates.map(d => d.getTime()))).toISOString();
-          endDate = new Date(Math.max(...dates.map(d => d.getTime()))).toISOString();
-        } else {
-          // Fallback: usar fecha actual
-          const now = new Date().toISOString();
-          startDate = now;
-          endDate = now;
-        }
-      }
-
-      generateBillingPDF({
-        student_name: debtor.client_name,
-        parent_name: debtor.parent_name,
-        parent_phone: debtor.parent_phone,
-        school_name: debtor.school_name,
-        period_name: periodName,
-        start_date: startDate,
-        end_date: endDate,
-        transactions: debtor.transactions.map(t => ({
-          id: t.id,
-          created_at: t.created_at,
-          ticket_code: t.ticket_code,
-          description: t.description || 'Consumo',
-          amount: t.amount,
-        })),
-        total_amount: debtor.total_amount,
-        pending_amount: debtor.total_amount,
-        logo_base64: logoBase64
-      });
-
-      // Pequeño delay entre PDFs para evitar bloqueo del navegador
-      if (i < selectedDebtorsList.length - 1) {
-        await new Promise(resolve => setTimeout(resolve, 500));
-      }
-    }
-
-    toast({
-      title: '✅ PDFs generados',
-      description: `Se generaron ${selectedDebtorsList.length} documentos exitosamente`,
-    });
-  };
-
-  const currentPeriod = selectedPeriod !== 'all' ? periods.find(p => p.id === selectedPeriod) : null;
-
-  // Función para obtener el cargo y descripción completa del usuario
-  const getUserRoleDescription = (profile: any, schoolName: string) => {
-    if (!profile) return null;
-    
-    const name = profile.full_name || profile.email || 'Usuario';
-    // Usar el school_name del perfil si existe, si no, usar el que viene de la transacción
-    const finalSchoolName = profile.school_name || profile.teacher_school_name || schoolName;
-    let roleDescription = '';
-    
-    switch (profile.role) {
-      case 'admin_general':
-        roleDescription = `Administrador General`;
-        break;
-      case 'supervisor_red':
-        roleDescription = `Supervisor de Red`;
-        break;
-      case 'gestor_unidad':
-        roleDescription = `Gestor de Unidad - ${finalSchoolName}`;
-        break;
-      case 'operador_caja':
-        roleDescription = `Cajero - ${finalSchoolName}`;
-        break;
-      case 'kitchen':
-        roleDescription = `Cocina - ${finalSchoolName}`;
-        break;
-      case 'teacher':
-        roleDescription = `Profesor - ${finalSchoolName}`;
-        break;
-      case 'parent':
-        roleDescription = `Padre de Familia`;
-        break;
-      default:
-        // Para roles desconocidos, mostrar el rol tal cual
-        roleDescription = `${profile.role || 'Usuario'} - ${finalSchoolName}`;
-    }
-    
-    return {
-      name,
-      role: roleDescription,
-      fullDescription: `${name} (${roleDescription})`
-    };
-  };
-
-  // Función para obtener pagos realizados
-  const fetchPaidTransactions = async () => {
-    try {
-      setLoadingPaid(true);
-      
-      const schoolIdFilter = !canViewAllSchools || selectedSchool !== 'all' 
-        ? (selectedSchool !== 'all' ? selectedSchool : userSchoolId)
-        : null;
-
-      let query = supabase
-        .from('transactions')
-        .select(`
-          *,
-          students(id, full_name, parent_id),
-          teacher_profiles(id, full_name),
-          schools(id, name)
-        `)
-        .eq('type', 'purchase')
-        .eq('payment_status', 'paid')
-        .order('created_at', { ascending: false })
-        .limit(100000); // 🔧 FIX: Evitar truncamiento silencioso (default: 1000)
-
-      if (schoolIdFilter) {
-        query = query.eq('school_id', schoolIdFilter);
-      }
-
-      // Filtrar por fecha si está definida
-      if (untilDate) {
-        const localDate = new Date(untilDate);
-        localDate.setHours(23, 59, 59, 999);
-        const isoDate = localDate.toISOString();
-        query = query.lte('created_at', isoDate);
-      }
-
-      const { data, error } = await query;
-
-      if (error) throw error;
-
-      // 🔥 FILTRAR TRANSACCIONES DE PEDIDOS CANCELADOS (OPTIMIZADO)
-      const lunchOrderIds = data
-        ?.map((t: any) => t.metadata?.lunch_order_id)
-        .filter(Boolean) || [];
-      
-      let cancelledOrderIds = new Set<string>();
-      if (lunchOrderIds.length > 0) {
-        const { data: cancelledOrders } = await supabase
-          .from('lunch_orders')
-          .select('id')
-          .in('id', lunchOrderIds)
-          .eq('is_cancelled', true);
-        
-        cancelledOrderIds = new Set(cancelledOrders?.map((o: any) => o.id) || []);
-      }
-      
-      const validTransactions = data?.filter((t: any) => {
-        if (t.metadata?.lunch_order_id && cancelledOrderIds.has(t.metadata.lunch_order_id)) {
-          return false;
-        }
-        return true;
-      }) || [];
-
-      // 🆕 Obtener información del creador (created_by) manualmente
-      const userIds = [...new Set(validTransactions.map((t: any) => t.created_by).filter(Boolean))];
-      let createdByMap = new Map();
-      
-      if (userIds.length > 0) {
-        // Buscar en profiles con school_id
-        const { data: profiles } = await supabase
-          .from('profiles')
-          .select(`
-            id, 
-            full_name, 
-            email, 
-            role, 
-            school_id,
-            schools:school_id(id, name)
-          `)
-          .in('id', userIds);
-        
-        if (profiles) {
-          profiles.forEach((p: any) => {
-            createdByMap.set(p.id, {
-              ...p,
-              school_name: p.schools?.name || null
-            });
-          });
-        }
-
-        // También buscar en teacher_profiles por si el created_by es un profesor
-        const { data: teacherProfiles } = await supabase
-          .from('teacher_profiles')
-          .select('id, full_name, school_id_1, schools:school_id_1(id, name)')
-          .in('id', userIds);
-        
-        if (teacherProfiles) {
-          teacherProfiles.forEach((tp: any) => {
-            // Si ya existe en profiles, enriquecer con datos de teacher
-            if (createdByMap.has(tp.id)) {
-              const existing = createdByMap.get(tp.id);
-              createdByMap.set(tp.id, {
-                ...existing,
-                teacher_school_name: tp.schools?.name || null,
-                teacher_school_id: tp.school_id_1
-              });
-            } else {
-              // Si no existe en profiles, agregarlo como teacher
-              createdByMap.set(tp.id, {
-                id: tp.id,
-                full_name: tp.full_name,
-                role: 'teacher',
-                school_id: tp.school_id_1,
-                school_name: tp.schools?.name || null
-              });
-            }
-          });
-        }
-      }
-
-      // Agregar la información del creador a cada transacción
-      const transactionsWithCreator = validTransactions.map((t: any) => ({
-        ...t,
-        created_by_profile: createdByMap.get(t.created_by) || null
-      }));
-
-      console.log('[BillingCollection] 📊 Transacciones cargadas:', transactionsWithCreator.length);
-      console.log('[BillingCollection] 🔍 Ejemplo de transacción completa:', transactionsWithCreator[0]);
-      console.log('[BillingCollection] 👤 created_by_profile:', transactionsWithCreator[0]?.created_by_profile);
-      console.log('[BillingCollection] 🗺️ Mapa de creadores (primeros 3):', Array.from(createdByMap.entries()).slice(0, 3));
-
-      setPaidTransactions(transactionsWithCreator);
-    } catch (error) {
-      console.error('Error fetching paid transactions:', error);
-      toast({
-        title: 'Error',
-        description: 'No se pudieron cargar los pagos realizados',
-        variant: 'destructive',
-      });
-    } finally {
-      setLoadingPaid(false);
-    }
-  };
-
-  // Cargar pagos realizados cuando cambia la pestaña
-  useEffect(() => {
-    if (activeTab === 'pagos' && (canViewAllSchools || userSchoolId)) {
-      fetchPaidTransactions();
-    }
-  }, [activeTab, selectedSchool, untilDate, canViewAllSchools, userSchoolId]);
-
-  // Generar comprobante de pago en PDF
-  const generatePaymentReceipt = async (transaction: any) => {
-    try {
-      const doc = new jsPDF();
-      
-      // Cargar logo
-      let logoBase64 = '';
-      try {
-        const response = await fetch(maracuyaLogo);
-        const blob = await response.blob();
-        logoBase64 = await new Promise((resolve) => {
-          const reader = new FileReader();
-          reader.onloadend = () => resolve(reader.result as string);
-          reader.readAsDataURL(blob);
-        });
-      } catch (error) {
-        console.error('Error cargando logo:', error);
-      }
-
-      const pageWidth = doc.internal.pageSize.width;
-      const pageHeight = doc.internal.pageSize.height;
-
-      // Logo y header
-      if (logoBase64) {
-        doc.addImage(logoBase64, 'PNG', 15, 15, 30, 30);
-      }
-
-      // Título
-      doc.setFontSize(20);
-      doc.setTextColor(34, 139, 34); // Verde
-      doc.text('COMPROBANTE DE PAGO', pageWidth / 2, 25, { align: 'center' });
-
-      // Subtítulo
-      doc.setFontSize(12);
-      doc.setTextColor(100, 100, 100);
-      doc.text('Maracuyá - Sistema de Cobranzas', pageWidth / 2, 32, { align: 'center' });
-
-      // Línea separadora
-      doc.setDrawColor(34, 139, 34);
-      doc.setLineWidth(0.5);
-      doc.line(15, 50, pageWidth - 15, 50);
-
-      // Información del pago
-      doc.setFontSize(10);
-      doc.setTextColor(0, 0, 0);
-      
-      let yPos = 60;
-      
-      // Fecha de pago
-      doc.setFont('helvetica', 'bold');
-      doc.text('FECHA DE PAGO:', 15, yPos);
-      doc.setFont('helvetica', 'normal');
-      doc.text(format(new Date(transaction.created_at), "dd/MM/yyyy", { locale: es }), 70, yPos);
-      yPos += 7;
-
-      // Hora de pago
-      doc.setFont('helvetica', 'bold');
-      doc.text('HORA DE PAGO:', 15, yPos);
-      doc.setFont('helvetica', 'normal');
-      doc.text(format(new Date(transaction.created_at), "HH:mm:ss", { locale: es }), 70, yPos);
-      yPos += 7;
-
-      // Cliente
-      const clientName = transaction.students?.full_name || 
-                        transaction.teacher_profiles?.full_name || 
-                        transaction.manual_client_name || 
-                        'Cliente Generico Sin Cuenta';
-      doc.setFont('helvetica', 'bold');
-      doc.text('CLIENTE:', 15, yPos);
-      doc.setFont('helvetica', 'normal');
-      doc.text(clientName, 70, yPos);
-      yPos += 7;
-
-      // Tipo de cliente
-      const clientType = transaction.student_id ? 'Estudiante' : 
-                        transaction.teacher_id ? 'Profesor' : 
-                        transaction.manual_client_name ? 'Cliente Sin Cuenta' : 'Cliente Generico Sin Cuenta';
-      doc.setFont('helvetica', 'bold');
-      doc.text('CATEGORIA:', 15, yPos);
-      doc.setFont('helvetica', 'normal');
-      doc.text(clientType, 70, yPos);
-      yPos += 7;
-
-      // Sede
-      const schoolName = transaction.schools?.name || 'Sin sede';
-      doc.setFont('helvetica', 'bold');
-      doc.text('SEDE:', 15, yPos);
-      doc.setFont('helvetica', 'normal');
-      doc.text(schoolName, 70, yPos);
-      yPos += 7;
-
-      // Registrado por (si existe) - CON CARGO COMPLETO
-      if (transaction.created_by_profile) {
-        const userInfo = getUserRoleDescription(
-          transaction.created_by_profile, 
-          transaction.schools?.name || 'Sin sede'
-        );
-        if (userInfo) {
-          doc.setFont('helvetica', 'bold');
-          doc.text('REGISTRADO POR:', 15, yPos);
-          doc.setFont('helvetica', 'normal');
-          doc.text(userInfo.name, 70, yPos);
-          yPos += 7;
-
-          doc.setFont('helvetica', 'bold');
-          doc.text('CARGO:', 15, yPos);
-          doc.setFont('helvetica', 'normal');
-          const roleText = doc.splitTextToSize(userInfo.role, pageWidth - 80);
-          doc.text(roleText, 70, yPos);
-          yPos += 7 * roleText.length;
-        }
-      }
-
-      // Método de pago
-      doc.setFont('helvetica', 'bold');
-      doc.text('MÉTODO DE PAGO:', 15, yPos);
-      doc.setFont('helvetica', 'normal');
-      const methodText = transaction.payment_method 
-        ? transaction.payment_method === 'teacher_account' ? 'CUENTA PROFESOR' : transaction.payment_method
-        : transaction.ticket_code ? 'PAGO DIRECTO EN CAJA' : 'NO REGISTRADO';
-      doc.text(methodText.toUpperCase(), 70, yPos);
-      yPos += 7;
-
-      // Número de ticket (si existe)
-      if (transaction.ticket_code) {
-        doc.setFont('helvetica', 'bold');
-        doc.text('Nº TICKET:', 15, yPos);
-        doc.setFont('helvetica', 'normal');
-        doc.text(transaction.ticket_code, 70, yPos);
-        yPos += 7;
-      }
-
-      // Número de operación (si existe)
-      if (transaction.operation_number) {
-        doc.setFont('helvetica', 'bold');
-        doc.text('Nº OPERACIÓN:', 15, yPos);
-        doc.setFont('helvetica', 'normal');
-        doc.text(transaction.operation_number, 70, yPos);
-        yPos += 7;
-      }
-
-      // Tipo de documento (si existe)
-      if (transaction.document_type) {
-        doc.setFont('helvetica', 'bold');
-        doc.text('TIPO DOCUMENTO:', 15, yPos);
-        doc.setFont('helvetica', 'normal');
-        doc.text(transaction.document_type.toUpperCase(), 70, yPos);
-        yPos += 7;
-      }
-
-      yPos += 3;
-
-      // 🍽️ DETALLE DE CONSUMO - MUY DESTACADO CON RECUADRO AZUL
-      doc.setFillColor(59, 130, 246); // Azul
-      doc.rect(15, yPos - 2, pageWidth - 30, 8, 'F');
-      doc.setFontSize(11);
-      doc.setFont('helvetica', 'bold');
-      doc.setTextColor(255, 255, 255);
-      doc.text('🍽️ DETALLE DE CONSUMO', 18, yPos + 4);
-      
-      yPos += 12;
-      
-      // Descripción del consumo en recuadro blanco
-      doc.setFillColor(240, 245, 255); // Azul muy claro
-      doc.setDrawColor(59, 130, 246);
-      doc.setLineWidth(0.5);
-      
-      doc.setFont('helvetica', 'normal');
-      doc.setFontSize(10);
-      doc.setTextColor(0, 0, 0);
-      const description = transaction.description || 'Sin descripción';
-      const descriptionLines = doc.splitTextToSize(description, pageWidth - 40);
-      const descHeight = descriptionLines.length * 5 + 8;
-      
-      doc.rect(15, yPos - 2, pageWidth - 30, descHeight, 'FD');
-      doc.text(descriptionLines, 20, yPos + 3);
-      yPos += descHeight + 5;
-
-      // Línea separadora
-      doc.setDrawColor(200, 200, 200);
-      doc.setLineWidth(0.3);
-      doc.line(15, yPos, pageWidth - 15, yPos);
-      yPos += 10;
-
-      // Monto pagado (destacado)
-      doc.setFillColor(34, 139, 34);
-      doc.rect(15, yPos - 5, pageWidth - 30, 15, 'F');
-      
-      doc.setFontSize(14);
-      doc.setFont('helvetica', 'bold');
-      doc.setTextColor(255, 255, 255);
-      doc.text('MONTO PAGADO:', 20, yPos + 5);
-      doc.setFontSize(18);
-      doc.text(`S/ ${Math.abs(transaction.amount).toFixed(2)}`, pageWidth - 20, yPos + 5, { align: 'right' });
-      
-      yPos += 25;
-
-      // Footer
-      doc.setFontSize(8);
-      doc.setTextColor(100, 100, 100);
-      doc.setFont('helvetica', 'italic');
-      
-      const footerY = pageHeight - 30;
-      doc.text('Este es un comprobante interno generado por el sistema Maracuyá', pageWidth / 2, footerY, { align: 'center' });
-      doc.text(`Generado el: ${format(new Date(), "dd/MM/yyyy 'a las' HH:mm", { locale: es })}`, pageWidth / 2, footerY + 5, { align: 'center' });
-      doc.text('Para consultas: contacto@maracuya.com', pageWidth / 2, footerY + 10, { align: 'center' });
-
-      // Guardar PDF
-      const fileName = `Comprobante_Pago_${clientName.replace(/\s+/g, '_')}_${format(new Date(transaction.created_at), 'ddMMyyyy_HHmm')}.pdf`;
-      doc.save(fileName);
-
-      toast({
-        title: '✅ Comprobante generado',
-        description: `Se descargó el comprobante de pago exitosamente`,
-      });
-    } catch (error) {
-      console.error('Error generando comprobante:', error);
-      toast({
-        variant: 'destructive',
-        title: 'Error',
-        description: 'No se pudo generar el comprobante de pago',
-      });
-    }
-  };
-
+  // ──────────────────────────────────────────────────────────────────────────
+  // Render
+  // ──────────────────────────────────────────────────────────────────────────
   return (
-    <div className="space-y-6">
-      {/* Alerta de API SUNAT no conectado */}
-      <Alert className="bg-amber-50 border-amber-200">
-        <AlertTriangle className="h-5 w-5 text-amber-600" />
-        <AlertDescription className="text-amber-900">
-          <strong>⚠️ API de Facturación SUNAT aún no conectado</strong>
-          <br />
-          Por el momento, los documentos se generarán como comprobantes internos. 
-          Próximamente se habilitará la facturación electrónica oficial.
-        </AlertDescription>
-      </Alert>
+    <div className="max-w-3xl mx-auto space-y-4 p-4">
 
-      {/* Filtros */}
-      <Card>
-        <CardContent className="p-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            {/* Sede */}
-            {canViewAllSchools && (
-              <div className="space-y-2">
-                <Label>Sede</Label>
-                <select
-                  value={selectedSchool}
-                  onChange={(e) => setSelectedSchool(e.target.value)}
-                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                >
-                  <option value="all">Todas las Sedes</option>
-                  {schools.map((school) => (
-                    <option key={school.id} value={school.id}>
-                      {school.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            )}
+      {/* ── Tabs ── */}
+      <div className="grid grid-cols-2 bg-gray-100 p-1 rounded-xl">
+        <button
+          onClick={() => setActiveTab('cobrar')}
+          className={`flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-semibold transition-all ${
+            activeTab === 'cobrar' ? 'bg-white shadow text-gray-900' : 'text-gray-500 hover:text-gray-700'
+          }`}
+        >
+          <DollarSign className="h-4 w-4" />
+          ¡Cobrar!
+          {debtors.length > 0 && (
+            <span className="bg-red-500 text-white text-[10px] font-bold rounded-full px-1.5 py-0.5 min-w-[18px] text-center">
+              {debtors.length}
+            </span>
+          )}
+        </button>
+        <button
+          onClick={() => setActiveTab('pagos')}
+          className={`flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-semibold transition-all ${
+            activeTab === 'pagos' ? 'bg-white shadow text-gray-900' : 'text-gray-500 hover:text-gray-700'
+          }`}
+        >
+          <History className="h-4 w-4" />
+          Cobros Realizados
+        </button>
+      </div>
 
-            {/* Período (OPCIONAL) */}
-            <div className="space-y-2">
-              <Label>Período de Cobranza (Opcional)</Label>
-              <select
-                value={selectedPeriod || 'all'}
-                onChange={(e) => setSelectedPeriod(e.target.value === 'all' ? '' : e.target.value)}
-                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-              >
-                <option value="all">Todas las deudas</option>
-                {periods.map((period) => (
-                  <option key={period.id} value={period.id}>
-                    {period.period_name}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {/* NUEVO: Filtro de fecha límite */}
-            <div className="space-y-2">
-              <Label className="flex items-center gap-2">
-                <Calendar className="h-4 w-4" />
-                Cobrar hasta:
-              </Label>
-              <div className="flex gap-2">
-                <Input
-                  type="date"
-                  value={untilDate}
-                  onChange={(e) => setUntilDate(e.target.value)}
-                  className="flex-1"
-                  placeholder="Seleccionar fecha límite"
-                />
-                <Button
-                  variant="default"
-                  className="bg-blue-600 hover:bg-blue-700 whitespace-nowrap"
-                  onClick={() => {
-                    const today = new Date();
-                    const localDate = today.toISOString().split('T')[0];
-                    setUntilDate(localDate);
-                  }}
-                >
-                  📅 Hasta Hoy
-                </Button>
-              </div>
-              {untilDate && (
-                <p className="text-xs text-gray-500">
-                  Filtrando hasta el {format(new Date(untilDate + 'T00:00:00'), 'dd/MM/yyyy', { locale: es })} 
-                  {(() => {
-                    const today = new Date();
-                    const filterDate = new Date(untilDate + 'T00:00:00');
-                    if (filterDate < today) {
-                      return ' ⚠️ (Puede que falten pedidos de fechas posteriores)';
-                    }
-                    return '';
-                  })()}
-                </p>
-              )}
-            </div>
-
-            {/* Buscador */}
-            <div className="space-y-2">
-              <Label>Buscar</Label>
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-                <Input
-                  placeholder="Nombre, profesor, sede..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10"
-                />
-              </div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {loading ? (
-        <div className="flex items-center justify-center py-12">
-          <Loader2 className="h-8 w-8 animate-spin text-red-600" />
-          <p className="ml-3 text-gray-600">Cargando deudores...</p>
+      {/* ── Buscador + Refresh ── */}
+      <div className="flex gap-2">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+          <Input
+            placeholder="Buscar nombre…"
+            value={searchTerm}
+            onChange={e => setSearchTerm(e.target.value)}
+            className="pl-9"
+          />
         </div>
-      ) : (
-        <>
-          {/* Acciones masivas */}
-          {filteredDebtors.length > 0 && (
-            <Card className="bg-gradient-to-r from-orange-50 to-red-50 border-orange-200">
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-4">
-                    <Checkbox
-                      checked={selectedDebtors.size === filteredDebtors.length && filteredDebtors.length > 0}
-                      onCheckedChange={selectAll}
-                    />
-                    <span className="font-semibold text-gray-900">
-                      {selectedDebtors.size} de {filteredDebtors.length} seleccionados
-                    </span>
-                    <Badge variant="secondary">
-                      Total: S/ {filteredDebtors
-                        .filter(d => selectedDebtors.has(d.id))
-                        .reduce((sum, d) => sum + d.total_amount, 0)
-                        .toFixed(2)}
-                    </Badge>
-                  </div>
+        <Button
+          variant="outline"
+          size="icon"
+          onClick={() => {
+            if (activeTab === 'cobrar') { fetchDebtors(); }
+            else { setPaidLoaded(false); fetchPaidTransactions(); }
+          }}
+          title="Actualizar"
+        >
+          <RefreshCw className="h-4 w-4" />
+        </Button>
+      </div>
 
-                  <div className="flex gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      disabled={selectedDebtors.size === 0}
-                      onClick={generateWhatsAppExport}
-                    >
-                      <Download className="h-4 w-4 mr-2" />
-                      Exportar WhatsApp
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      disabled={selectedDebtors.size === 0}
-                      onClick={generateMassivePDFs}
-                    >
-                      <FileText className="h-4 w-4 mr-2" />
-                      PDFs Masivos
-                    </Button>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+      {/* ═══════════════════════════════════════════════
+          TAB 1 — ¡COBRAR!
+      ═══════════════════════════════════════════════ */}
+      {activeTab === 'cobrar' && (
+        <>
+          {/* Resumen */}
+          {!loading && filteredDebtors.length > 0 && (
+            <div className="flex items-center justify-between bg-red-50 border border-red-200 rounded-xl px-4 py-3">
+              <div className="flex items-center gap-2">
+                <Users className="h-4 w-4 text-red-500" />
+                <span className="text-sm text-red-700 font-medium">{filteredDebtors.length} deudores</span>
+              </div>
+              <span className="text-lg font-black text-red-700">S/ {totalDebt.toFixed(2)}</span>
+            </div>
           )}
 
-          {/* Pestañas: Cobrar / Pagos Realizados - Sin Radix */}
-          <div className="w-full">
-            <div className="grid w-full grid-cols-2 mb-6 bg-muted p-1 rounded-lg">
-              <button
-                onClick={() => setActiveTab('cobrar')}
-                className={`flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-md transition-all ${
-                  activeTab === 'cobrar'
-                    ? 'bg-background text-foreground shadow-sm'
-                    : 'text-muted-foreground hover:text-foreground'
-                }`}
-              >
-                <DollarSign className="h-4 w-4" />
-                ¡Cobrar!
-              </button>
-              <button
-                onClick={() => setActiveTab('pagos')}
-                className={`flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-md transition-all ${
-                  activeTab === 'pagos'
-                    ? 'bg-background text-foreground shadow-sm'
-                    : 'text-muted-foreground hover:text-foreground'
-                }`}
-              >
-                <History className="h-4 w-4" />
-                Pagos Realizados
-              </button>
+          {/* Lista */}
+          {loading ? (
+            <div className="flex items-center justify-center py-16">
+              <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
             </div>
-
-            {activeTab === 'cobrar' && (
-            <div className="mt-0">
-              {/* Lista de deudores */}
-              {filteredDebtors.length === 0 ? (
-            <Card>
-              <CardContent className="py-12 text-center">
-                <CheckCircle2 className="h-16 w-16 mx-auto mb-4 text-green-500" />
-                <h3 className="text-lg font-semibold text-gray-700 mb-2">
-                  ¡Sin deudas pendientes!
-                </h3>
-                <p className="text-gray-500">
-                  No hay consumos sin facturar en el período seleccionado
-                </p>
-              </CardContent>
-            </Card>
+          ) : filteredDebtors.length === 0 ? (
+            <div className="text-center py-16 text-gray-400">
+              <CheckCircle2 className="h-12 w-12 mx-auto mb-3 text-emerald-400" />
+              <p className="font-semibold text-gray-600">¡Sin deudas pendientes!</p>
+            </div>
           ) : (
-            <div className="grid grid-cols-1 gap-4">
-              {filteredDebtors.map((debtor) => {
-                // Calcular fechas mín y máx de las transacciones
-                const dates = debtor.transactions.map(t => new Date(t.created_at));
-                const minDate = dates.length > 0 ? new Date(Math.min(...dates.map(d => d.getTime()))) : null;
-                const maxDate = dates.length > 0 ? new Date(Math.max(...dates.map(d => d.getTime()))) : null;
-
+            <div className="space-y-2">
+              {filteredDebtors.map(debtor => {
+                const isChecked = checkedDebtors.has(debtor.id);
                 return (
-                  <Card key={debtor.id} className="hover:shadow-lg transition-shadow border-l-4 border-l-red-500">
-                    <CardContent className="p-5">
-                      <div className="flex items-start gap-4">
-                        <Checkbox
-                          checked={selectedDebtors.has(debtor.id)}
-                          onCheckedChange={() => toggleSelection(debtor.id)}
-                          className="mt-1"
-                        />
+                  <div
+                    key={debtor.id}
+                    className={`flex items-center gap-3 p-3 rounded-xl border-2 transition-all ${
+                      isChecked
+                        ? 'border-emerald-300 bg-emerald-50'
+                        : 'border-gray-200 bg-white hover:border-gray-300'
+                    }`}
+                  >
+                    {/* Checkbox de cobrado */}
+                    <Checkbox
+                      checked={isChecked}
+                      onCheckedChange={() => toggleChecked(debtor.id)}
+                      title="Marcar como cobrado/notificado"
+                      className="flex-shrink-0"
+                    />
 
-                        <div className="flex-1">
-                          {/* Header con nombre y monto */}
-                          <div className="flex items-start justify-between mb-3">
-                            <div className="flex-1">
-                              <div className="flex items-center gap-2 mb-1">
-                                <h3 className="font-bold text-xl text-gray-900">{debtor.client_name}</h3>
-                                {debtor.client_type === 'teacher' && (
-                                  <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200">
-                                    👨‍🏫 Profesor
-                                  </Badge>
-                                )}
-                                {debtor.client_type === 'manual' && (
-                                  <Badge variant="outline" className="bg-orange-50 text-orange-700 border-orange-200">
-                                    📝 Sin Cuenta
-                                  </Badge>
-                                )}
-                              </div>
-                              {debtor.client_type === 'student' && debtor.parent_name && (
-                                <>
-                                  <p className="text-sm text-gray-600 mt-1">
-                                    👤 Padre: <span className="font-semibold">{debtor.parent_name}</span>
-                                  </p>
-                                  {debtor.parent_phone && (
-                                    <p className="text-sm text-gray-600">
-                                      📱 {debtor.parent_phone}
-                                    </p>
-                                  )}
-                                </>
-                              )}
-                              {/* SIEMPRE mostrar la sede */}
-                              <div className="flex items-center gap-2 text-sm font-semibold text-blue-700 mt-1 bg-blue-50 px-2 py-1 rounded-md inline-flex">
-                                <Building2 className="h-4 w-4" />
-                                {debtor.school_name}
-                              </div>
-                            </div>
-                            <div className="text-right">
-                              <p className="text-3xl font-bold text-red-600">
-                                S/ {debtor.total_amount.toFixed(2)}
-                              </p>
-                              <Badge variant="destructive" className="mt-1">
-                                {debtor.transaction_count} consumo(s)
-                              </Badge>
-                            </div>
-                          </div>
-
-                          {/* Información de fechas y comprobantes */}
-                          <div className="bg-gray-50 rounded-lg p-3 mb-3 space-y-2">
-                            <div className="grid grid-cols-2 gap-3 text-sm">
-                              <div>
-                                <p className="text-gray-500">📅 Primer consumo:</p>
-                                <p className="font-semibold text-gray-900">
-                                  {minDate ? format(minDate, "dd/MM/yyyy 'a las' HH:mm", { locale: es }) : 'N/A'}
-                                </p>
-                              </div>
-                              <div>
-                                <p className="text-gray-500">📅 Último consumo:</p>
-                                <p className="font-semibold text-gray-900">
-                                  {maxDate ? format(maxDate, "dd/MM/yyyy 'a las' HH:mm", { locale: es }) : 'N/A'}
-                                </p>
-                              </div>
-                            </div>
-                            
-                            {/* Desglose de transacciones */}
-                            <details className="cursor-pointer">
-                              <summary className="text-sm font-semibold text-blue-600 hover:text-blue-700">
-                                Ver detalles de {debtor.transaction_count} transacción(es) ▼
-                              </summary>
-                              <div className="mt-2">
-                                {/* Botón para seleccionar todas */}
-                                <button
-                                  onClick={() => {
-                                    const debtorKey = debtor.id;
-                                    const newMap = new Map(selectedTransactionsByDebtor);
-                                    const currentSelection = newMap.get(debtorKey);
-                                    const allSelected = currentSelection && currentSelection.size === debtor.transactions.length;
-                                    
-                                    if (allSelected) {
-                                      // Deseleccionar todas
-                                      newMap.set(debtorKey, new Set());
-                                    } else {
-                                      // Seleccionar todas
-                                      const allTxIds = new Set(debtor.transactions.map((t: any) => t.id));
-                                      newMap.set(debtorKey, allTxIds);
-                                    }
-                                    
-                                    setSelectedTransactionsByDebtor(newMap);
-                                  }}
-                                  className="text-xs text-blue-600 hover:text-blue-700 underline mb-2"
-                                >
-                                  {(() => {
-                                    const debtorKey = debtor.id;
-                                    const currentSelection = selectedTransactionsByDebtor.get(debtorKey);
-                                    const allSelected = currentSelection && currentSelection.size === debtor.transactions.length;
-                                    return allSelected ? 'Deseleccionar todas' : 'Seleccionar todas';
-                                  })()}
-                                </button>
-                                
-                                <div className="space-y-1 max-h-40 overflow-y-auto">
-                                  {debtor.transactions.map((t: any, idx: number) => {
-                                    const debtorKey = debtor.id;
-                                    const isSelected = selectedTransactionsByDebtor.get(debtorKey)?.has(t.id) || false;
-                                    
-                                    return (
-                                      <div key={t.id} className="text-xs bg-white p-2 rounded border flex items-start gap-2 hover:bg-blue-50 transition-colors">
-                                        <input
-                                          type="checkbox"
-                                          checked={isSelected}
-                                          onChange={(e) => {
-                                            e.stopPropagation();
-                                            const newMap = new Map(selectedTransactionsByDebtor);
-                                            if (!newMap.has(debtorKey)) {
-                                              newMap.set(debtorKey, new Set());
-                                            }
-                                            const txSet = newMap.get(debtorKey)!;
-                                            
-                                            if (e.target.checked) {
-                                              txSet.add(t.id);
-                                            } else {
-                                              txSet.delete(t.id);
-                                            }
-                                            
-                                            setSelectedTransactionsByDebtor(newMap);
-                                          }}
-                                          className="mt-0.5 cursor-pointer"
-                                        />
-                                        <div 
-                                          className="flex-1 cursor-pointer"
-                                          onClick={() => {
-                                            const txForModal = {
-                                              ...t,
-                                              client_name: debtor.client_name,
-                                              client_type: debtor.client_type,
-                                              parent_name: debtor.parent_name,
-                                              parent_phone: debtor.parent_phone,
-                                              school_name: debtor.school_name
-                                            };
-                                            setSelectedTransaction(txForModal);
-                                            setShowDetailsModal(true);
-                                          }}
-                                        >
-                                          <div className="flex items-center justify-between">
-                                            <div className="flex items-center gap-1.5 flex-wrap">
-                                              <span className="font-semibold text-blue-600 hover:text-blue-700">#{idx + 1}</span>
-                                              {/* Mostrar fecha del pedido si viene del metadata, si no de la descripción */}
-                                              {t.metadata?.order_date ? (
-                                                <span className="bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded text-[10px] font-bold">
-                                                  📅 {format(new Date(t.metadata.order_date + 'T12:00:00'), "d MMM", { locale: es })}
-                                                </span>
-                                              ) : null}
-                                              {t.metadata?.menu_name && (
-                                                <span className="bg-purple-100 text-purple-800 px-1.5 py-0.5 rounded text-[10px] font-medium">
-                                                  {t.metadata.menu_name}
-                                                </span>
-                                              )}
-                                            </div>
-                                            <span className="text-red-600 font-bold">S/ {Math.abs(t.amount).toFixed(2)}</span>
-                                          </div>
-                                          <div className="text-gray-600 mt-0.5 text-[10px]">
-                                            {t.description} • {format(new Date(t.created_at), 'dd/MM HH:mm', { locale: es })}
-                                            {t.ticket_code && (
-                                              <span className="ml-1 text-indigo-700 font-bold">• 🎫 {t.ticket_code}</span>
-                                            )}
-                                          </div>
-                                        </div>
-                                      </div>
-                                    );
-                                  })}
-                                </div>
-                              </div>
-                            </details>
-                          </div>
-
-                          {/* Botones de acción */}
-                          <div className="flex flex-wrap gap-2">
-                            <Button
-                              size="sm"
-                              variant="default"
-                              className="bg-green-600 hover:bg-green-700"
-                              onClick={() => handleOpenPayment(debtor)}
-                            >
-                              <DollarSign className="h-4 w-4 mr-1" />
-                              Cobrar
-                            </Button>
-
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => copyMessage(debtor)}
-                            >
-                              <Copy className="h-4 w-4 mr-1" />
-                              Copiar Mensaje
-                            </Button>
-
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => generatePDF(debtor)}
-                            >
-                              <FileText className="h-4 w-4 mr-1" />
-                              PDF
-                            </Button>
-                          </div>
-                        </div>
+                    {/* Nombre + tipo */}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <p className={`font-semibold text-sm truncate ${isChecked ? 'line-through text-gray-400' : 'text-gray-900'}`}>
+                          {debtor.client_name}
+                        </p>
+                        {clientTypeLabel(debtor.client_type)}
+                        {isChecked && (
+                          <Badge className="bg-emerald-100 text-emerald-700 border-emerald-300 text-[10px]">
+                            <Check className="h-2.5 w-2.5 mr-0.5" />
+                            Notificado
+                          </Badge>
+                        )}
                       </div>
-                    </CardContent>
-                  </Card>
+                      {debtor.client_type === 'student' && debtor.parent_name && (
+                        <p className="text-[11px] text-gray-500 truncate">👤 {debtor.parent_name}</p>
+                      )}
+                      <p className="text-[11px] text-gray-400">{debtor.transaction_count} consumo(s)</p>
+                    </div>
+
+                    {/* Monto */}
+                    <span className="text-base font-black text-red-600 flex-shrink-0 tabular-nums">
+                      S/ {debtor.total_amount.toFixed(2)}
+                    </span>
+
+                    {/* Acciones */}
+                    <div className="flex gap-1 flex-shrink-0">
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="h-8 w-8 text-gray-500 hover:text-blue-600 hover:bg-blue-50"
+                        title="Ver detalle"
+                        onClick={() => setDetailDebtor(debtor)}
+                      >
+                        <Eye className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="h-8 w-8 text-gray-500 hover:text-emerald-600 hover:bg-emerald-50"
+                        title="Copiar para WhatsApp"
+                        onClick={() => copyMessage(debtor)}
+                      >
+                        <Copy className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
                 );
               })}
             </div>
           )}
-            </div>
-            )}
 
-            {activeTab === 'pagos' && (
-            <div className="mt-0">
-              {/* Lista de pagos realizados */}
-              {loadingPaid ? (
-                <Card>
-                  <CardContent className="py-12 text-center">
-                    <Loader2 className="h-8 w-8 mx-auto mb-4 animate-spin text-blue-600" />
-                    <p className="text-gray-500">Cargando pagos realizados...</p>
-                  </CardContent>
-                </Card>
-              ) : filteredPaidTransactions.length === 0 ? (
-                <Card>
-                  <CardContent className="py-12 text-center">
-                    <CheckCircle2 className="h-16 w-16 mx-auto mb-4 text-gray-400" />
-                    <h3 className="text-lg font-semibold text-gray-700 mb-2">
-                      {searchTerm ? 'No se encontraron resultados' : 'No hay pagos registrados'}
-                    </h3>
-                    <p className="text-gray-500">
-                      {searchTerm ? 'Intenta con otro término de búsqueda' : 'Los pagos realizados aparecerán aquí'}
-                    </p>
-                  </CardContent>
-                </Card>
-              ) : (
-                <div className="grid grid-cols-1 gap-4">
-                  {filteredPaidTransactions.map((transaction) => {
-                    // Determinar el nombre del cliente
-                    let clientName = transaction.students?.full_name || 
-                                     transaction.teacher_profiles?.full_name || 
-                                     transaction.manual_client_name || 
-                                     null;
-                    
-                    // Si no hay nombre, es una venta de cocina genérica
-                    const isGenericSale = !clientName && !transaction.student_id && !transaction.teacher_id;
-                    if (isGenericSale) {
-                      clientName = '🛒 Cliente Genérico Sin Cuenta';
-                    }
-                    
-                    const clientType = transaction.student_id ? 'student' : 
-                                      transaction.teacher_id ? 'teacher' : 
-                                      isGenericSale ? 'generic' : 'manual';
-                    const schoolName = transaction.schools?.name || 'Sin sede';
-
-                    return (
-                      <Card key={transaction.id} className="hover:shadow-lg transition-shadow border-l-4 border-l-green-500">
-                        <CardContent className="p-5">
-                          <div className="flex items-start justify-between">
-                            <div className="flex-1">
-                              <div className="flex items-center gap-2 mb-2">
-                                <h3 className="font-bold text-xl text-gray-900">{clientName}</h3>
-                                {clientType === 'teacher' && (
-                                  <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200">
-                                    👨‍🏫 Profesor
-                                  </Badge>
-                                )}
-                                {clientType === 'generic' && (
-                                  <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
-                                    🛒 Sin Cliente
-                                  </Badge>
-                                )}
-                                {clientType === 'manual' && (
-                                  <Badge variant="outline" className="bg-orange-50 text-orange-700 border-orange-200">
-                                    📝 Sin Cuenta
-                                  </Badge>
-                                )}
-                                <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
-                                  ✅ Pagado
-                                </Badge>
-                              </div>
-                              
-                              <div className="flex items-center gap-2 text-sm font-semibold text-blue-700 mt-1 bg-blue-50 px-2 py-1 rounded-md inline-flex mb-3">
-                                <Building2 className="h-4 w-4" />
-                                {schoolName}
-                              </div>
-
-                              <div className="bg-gray-50 rounded-lg p-3 space-y-2">
-                                {/* 🍽️ DETALLE DE CONSUMO - Lo más importante primero */}
-                                <div className="bg-white border-l-4 border-l-blue-500 rounded-md p-3 mb-3">
-                                  <p className="text-gray-500 text-sm font-semibold mb-1">🍽️ Detalle de Consumo:</p>
-                                  <p className="font-bold text-gray-900 text-base">
-                                    {transaction.description || 'Sin descripción'}
-                                  </p>
-                                </div>
-
-                                <div className="grid grid-cols-2 gap-3 text-sm">
-                                  <div>
-                                    <p className="text-gray-500">📅 Fecha de pago:</p>
-                                    <p className="font-semibold text-gray-900">
-                                      {format(new Date(transaction.created_at), "dd/MM/yyyy", { locale: es })}
-                                    </p>
-                                  </div>
-                                  <div>
-                                    <p className="text-gray-500">🕐 Hora de pago:</p>
-                                    <p className="font-semibold text-gray-900">
-                                      {format(new Date(transaction.created_at), "HH:mm", { locale: es })}
-                                    </p>
-                                  </div>
-                                  <div>
-                                    <p className="text-gray-500">💳 Método de pago:</p>
-                                    <p className="font-semibold text-gray-900 capitalize">
-                                      {transaction.payment_method 
-                                        ? transaction.payment_method === 'teacher_account' 
-                                          ? 'Cuenta Profesor' 
-                                          : transaction.payment_method
-                                        : transaction.ticket_code 
-                                          ? 'Pago directo en caja' 
-                                          : 'Método no registrado'}
-                                    </p>
-                                    {!transaction.payment_method && (
-                                      <p className="text-xs text-amber-600 mt-0.5">
-                                        ⚠️ Transacción anterior al sistema de cobros
-                                      </p>
-                                    )}
-                                  </div>
-                                  {transaction.operation_number && (
-                                    <div>
-                                      <p className="text-gray-500">🔢 N° de operación:</p>
-                                      <p className="font-semibold text-gray-900">
-                                        {transaction.operation_number}
-                                      </p>
-                                    </div>
-                                  )}
-                                  {transaction.ticket_code && (
-                                    <div>
-                                      <p className="text-gray-500">🎫 N° de ticket:</p>
-                                      <p className="font-bold text-indigo-700">
-                                        {transaction.ticket_code}
-                                      </p>
-                                    </div>
-                                  )}
-                                </div>
-                                
-                                {transaction.created_by_profile && (() => {
-                                  const userInfo = getUserRoleDescription(
-                                    transaction.created_by_profile, 
-                                    transaction.schools?.name || 'Sin sede'
-                                  );
-                                  return userInfo ? (
-                                    <div className="border-t pt-2 mt-2">
-                                      <p className="text-gray-500 text-sm">👤 Registrado por:</p>
-                                      <p className="font-semibold text-gray-900">{userInfo.name}</p>
-                                      <p className="text-xs text-gray-600 mt-1">{userInfo.role}</p>
-                                    </div>
-                                  ) : null;
-                                })()}
-
-                                {transaction.document_type && (
-                                  <div className="border-t pt-2 mt-2">
-                                    <p className="text-gray-500 text-sm">📄 Tipo de documento:</p>
-                                    <p className="font-semibold text-gray-900 capitalize">
-                                      {transaction.document_type}
-                                    </p>
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-                            
-                            <div className="text-right ml-4 flex flex-col items-end">
-                              <p className="text-3xl font-bold text-green-600 mb-2">
-                                S/ {Math.abs(transaction.amount).toFixed(2)}
-                              </p>
-                              <div className="flex flex-col gap-2 w-full mt-3">
-                                <Button
-                                  onClick={() => {
-                                    console.log('[BillingCollection] 🔍 Abriendo detalles de transacción:', transaction);
-                                    console.log('[BillingCollection] 📞 operation_number:', transaction.operation_number);
-                                    setSelectedTransaction(transaction);
-                                    setShowDetailsModal(true);
-                                  }}
-                                  variant="outline"
-                                  size="sm"
-                                  className="w-full border-blue-600 text-blue-600 hover:bg-blue-50"
-                                >
-                                  <Eye className="h-4 w-4 mr-2" />
-                                  Ver Detalles
-                                </Button>
-                                <Button
-                                  onClick={() => generatePaymentReceipt(transaction)}
-                                  variant="outline"
-                                  size="sm"
-                                  className="w-full border-green-600 text-green-600 hover:bg-green-50"
-                                >
-                                  <Download className="h-4 w-4 mr-2" />
-                                  Comprobante
-                                </Button>
-                              </div>
-                            </div>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-            )}
-          </div>
+          {/* Leyenda checklist */}
+          {!loading && filteredDebtors.length > 0 && (
+            <p className="text-[11px] text-gray-400 text-center">
+              ☑ Marca el checkbox cuando notifiques o cobres al deudor. Se reinicia al salir.
+            </p>
+          )}
         </>
       )}
 
-      {/* Modal de Registro de Pago - REDISEÑADO */}
-      <Dialog open={showPaymentModal} onOpenChange={setShowPaymentModal}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="text-2xl font-bold flex items-center gap-3">
-              <DollarSign className="h-7 w-7 text-green-600" />
-              Registrar Pago
-            </DialogTitle>
-            <DialogDescription asChild>
-              <div className="mt-3 p-4 bg-blue-50 rounded-lg space-y-1">
-                <div className="flex items-center gap-2">
-                  <div className="font-semibold text-gray-900">
-                    {currentDebtor?.client_type === 'student' && '👨‍🎓 Estudiante: '}
-                    {currentDebtor?.client_type === 'teacher' && '👨‍🏫 Profesor: '}
-                    {currentDebtor?.client_type === 'manual' && '📝 Cliente: '}
-                    {currentDebtor?.client_name}
+      {/* ═══════════════════════════════════════════════
+          TAB 2 — COBROS REALIZADOS
+      ═══════════════════════════════════════════════ */}
+      {activeTab === 'pagos' && (
+        <>
+          {loadingPaid ? (
+            <div className="flex items-center justify-center py-16">
+              <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
+            </div>
+          ) : filteredPaid.length === 0 ? (
+            <div className="text-center py-16 text-gray-400">
+              <History className="h-12 w-12 mx-auto mb-3 opacity-30" />
+              <p className="font-medium">Sin cobros registrados</p>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {filteredPaid.map(tx => {
+                const clientName =
+                  tx.students?.full_name ||
+                  tx.teacher_profiles?.full_name ||
+                  tx.manual_client_name ||
+                  'Cliente genérico';
+                const isTeacher = !!tx.teacher_id;
+                return (
+                  <div key={tx.id} className="flex items-center gap-3 p-3 rounded-xl border border-emerald-200 bg-emerald-50">
+                    <CheckCircle2 className="h-5 w-5 text-emerald-500 flex-shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <p className="font-semibold text-sm text-gray-900 truncate">{clientName}</p>
+                      <p className="text-[11px] text-gray-500 truncate">{tx.description}</p>
+                      <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                        <span className="text-[10px] text-gray-400">
+                          {format(new Date(tx.created_at), "d MMM yyyy · HH:mm", { locale: es })}
+                        </span>
+                        {tx.ticket_code && (
+                          <span className="text-[10px] font-mono bg-gray-100 text-gray-600 px-1.5 rounded">
+                            {tx.ticket_code}
+                          </span>
+                        )}
+                        {tx.payment_method && (
+                          <span className="text-[10px] text-indigo-600 font-medium capitalize">
+                            {tx.payment_method}
+                          </span>
+                        )}
+                        {isTeacher && (
+                          <Badge variant="outline" className="text-[9px] border-indigo-300 text-indigo-600">
+                            Profesor
+                          </Badge>
+                        )}
+                      </div>
+                    </div>
+                    <span className="text-sm font-black text-emerald-700 flex-shrink-0 tabular-nums">
+                      S/ {Math.abs(tx.amount).toFixed(2)}
+                    </span>
                   </div>
-                </div>
-                {currentDebtor?.client_type === 'student' && currentDebtor.parent_name && (
-                  <div className="font-semibold text-gray-900">👤 Padre: {currentDebtor.parent_name}</div>
-                )}
-                <div className="text-2xl font-bold text-red-600 mt-2">Total a Cobrar: S/ {currentDebtor?.total_amount.toFixed(2)}</div>
-                <div className="text-sm text-gray-600">{currentDebtor?.transaction_count} consumo(s) pendiente(s)</div>
-              </div>
-            </DialogDescription>
+                );
+              })}
+            </div>
+          )}
+        </>
+      )}
+
+      {/* ═══════════════════════════════════════════════
+          MODAL — Detalle de deuda
+      ═══════════════════════════════════════════════ */}
+      <Dialog open={!!detailDebtor} onOpenChange={open => { if (!open) setDetailDebtor(null); }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-base font-bold">
+              Detalle — {detailDebtor?.client_name}
+            </DialogTitle>
           </DialogHeader>
 
-          <div className="space-y-6 mt-4">
-            {/* Monto a Pagar - MUY GRANDE Y VISIBLE */}
-            <Card className="bg-green-50 border-green-200">
-              <CardContent className="p-6">
-                <Label className="text-xl font-bold mb-4 block">💰 Monto a Pagar *</Label>
-                <div className="relative">
-                  <span className="absolute left-6 top-1/2 -translate-y-1/2 text-7xl font-black text-green-700">S/</span>
-                  <Input
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    max={currentDebtor?.total_amount || 0}
-                    value={paymentData.paid_amount || ''}
-                    onChange={(e) => setPaymentData(prev => ({ ...prev, paid_amount: parseFloat(e.target.value) || 0 }))}
-                    style={{ fontSize: '5rem', paddingLeft: '140px' }}
-                    className="font-black h-32 text-center border-4 border-green-500 focus:border-green-600 focus:ring-4 focus:ring-green-200"
-                    placeholder="0.00"
-                    autoFocus
-                  />
-                </div>
-                {currentDebtor && paymentData.paid_amount < currentDebtor.total_amount && paymentData.paid_amount > 0 && (
-                  <Alert className="mt-3 bg-orange-50 border-orange-200">
-                    <AlertTriangle className="h-4 w-4 text-orange-600" />
-                    <AlertDescription className="text-orange-900">
-                      <strong>Pago Parcial</strong> - Restante: S/ {(currentDebtor.total_amount - paymentData.paid_amount).toFixed(2)}
-                    </AlertDescription>
-                  </Alert>
-                )}
-              </CardContent>
-            </Card>
-
-            {/* Método de Pago - BOTONES GRANDES */}
+          {detailDebtor && (
             <div className="space-y-3">
-              <Label className="text-lg font-semibold">💳 Método de Pago *</Label>
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                <Button
-                  type="button"
-                  variant={paymentData.payment_method === 'efectivo' ? 'default' : 'outline'}
-                  className={`h-20 text-lg ${paymentData.payment_method === 'efectivo' ? 'bg-green-600 hover:bg-green-700' : ''}`}
-                  onClick={() => setPaymentData(prev => ({ ...prev, payment_method: 'efectivo' }))}
-                >
-                  <div className="flex flex-col items-center gap-1">
-                    <span className="text-2xl">💵</span>
-                    <span>Efectivo</span>
-                  </div>
-                </Button>
-                <Button
-                  type="button"
-                  variant={paymentData.payment_method === 'yape' ? 'default' : 'outline'}
-                  className={`h-20 text-lg ${paymentData.payment_method === 'yape' ? 'bg-[#6C1C8C] hover:bg-[#5A1773]' : ''}`}
-                  onClick={() => setPaymentData(prev => ({ ...prev, payment_method: 'yape' }))}
-                >
-                  <div className="flex flex-col items-center gap-1">
-                    <YapeLogo className="w-10 h-10" />
-                    <span>Yape</span>
-                  </div>
-                </Button>
-                <Button
-                  type="button"
-                  variant={paymentData.payment_method === 'plin' ? 'default' : 'outline'}
-                  className={`h-20 text-lg ${paymentData.payment_method === 'plin' ? 'bg-[#00D4D8] hover:bg-[#00B8BC] text-gray-900' : ''}`}
-                  onClick={() => setPaymentData(prev => ({ ...prev, payment_method: 'plin' }))}
-                >
-                  <div className="flex flex-col items-center gap-1">
-                    <PlinLogo className="w-10 h-10" />
-                    <span>Plin</span>
-                  </div>
-                </Button>
-                <Button
-                  type="button"
-                  variant={paymentData.payment_method === 'transferencia' ? 'default' : 'outline'}
-                  className={`h-20 text-lg ${paymentData.payment_method === 'transferencia' ? 'bg-indigo-600 hover:bg-indigo-700' : ''}`}
-                  onClick={() => setPaymentData(prev => ({ ...prev, payment_method: 'transferencia' }))}
-                >
-                  <div className="flex flex-col items-center gap-1">
-                    <span className="text-2xl">🏦</span>
-                    <span>Transferencia</span>
-                  </div>
-                </Button>
-                <Button
-                  type="button"
-                  variant={paymentData.payment_method === 'tarjeta' ? 'default' : 'outline'}
-                  className={`h-20 text-lg ${paymentData.payment_method === 'tarjeta' ? 'bg-gray-700 hover:bg-gray-800' : ''}`}
-                  onClick={() => setPaymentData(prev => ({ ...prev, payment_method: 'tarjeta' }))}
-                >
-                  <div className="flex flex-col items-center gap-1">
-                    <span className="text-2xl">💳</span>
-                    <span>Tarjeta</span>
-                  </div>
-                </Button>
+              {/* Info del deudor */}
+              <div className="bg-gray-50 rounded-lg p-3 text-sm space-y-1">
+                {detailDebtor.client_type === 'student' && detailDebtor.parent_name && (
+                  <p className="text-gray-600"><span className="font-medium">Padre/Madre:</span> {detailDebtor.parent_name}</p>
+                )}
+                {detailDebtor.parent_phone && (
+                  <p className="text-gray-600"><span className="font-medium">Teléfono:</span> {detailDebtor.parent_phone}</p>
+                )}
+                <p className="text-gray-600"><span className="font-medium">Total deuda:</span> <span className="text-red-600 font-black">S/ {detailDebtor.total_amount.toFixed(2)}</span></p>
               </div>
-            </div>
 
-            {/* Número de Operación - OBLIGATORIO */}
-            {['yape', 'plin', 'transferencia', 'tarjeta'].includes(paymentData.payment_method) && (
-              <div className="space-y-2">
-                <Label className="text-base font-semibold">
-                  🔢 Número de Operación *
-                  <span className="text-red-600 ml-1">(OBLIGATORIO)</span>
-                </Label>
-                <Input
-                  placeholder="Ej: 123456789"
-                  value={paymentData.operation_number}
-                  onChange={(e) => setPaymentData(prev => ({ ...prev, operation_number: e.target.value }))}
-                  className="h-12 text-lg border-2"
-                  required
-                />
-                {!paymentData.operation_number && (
-                  <p className="text-sm text-red-600 bg-red-50 p-2 rounded">
-                    ⚠️ El número de operación es obligatorio para este método de pago
+              {/* Línea de transacciones con nombres reales de productos */}
+              <div className="space-y-2 max-h-72 overflow-y-auto">
+                {detailDebtor.transactions.map((tx: any, i: number) => {
+                  const productLines = getTxProductLines(tx);
+                  const txDate = format(new Date(tx.created_at), "d MMM yyyy", { locale: es });
+                  const isLunch = tx.metadata?.source === 'lunch_order' || tx.description?.toLowerCase().includes('almuerzo');
+                  return (
+                    <div key={i} className="border border-gray-100 rounded-lg overflow-hidden">
+                      {/* Cabecera del ticket */}
+                      <div className="flex items-center justify-between bg-gray-50 px-3 py-1.5">
+                        <div className="flex items-center gap-2">
+                          <span className="text-[10px] text-gray-400">{txDate}</span>
+                          {tx.ticket_code && (
+                            <span className="text-[10px] font-mono bg-white border border-gray-200 text-gray-500 px-1.5 rounded">
+                              {tx.ticket_code}
+                            </span>
+                          )}
+                          {isLunch && (
+                            <span className="text-[10px] bg-orange-100 text-orange-700 px-1.5 rounded font-medium">
+                              Almuerzo
+                            </span>
+                          )}
+                        </div>
+                        <span className="text-sm font-bold text-red-600">
+                          S/ {Math.abs(tx.amount).toFixed(2)}
+                        </span>
+                      </div>
+                      {/* Productos */}
+                      <div className="px-3 py-1.5 space-y-0.5">
+                        {productLines.map((p, pi) => (
+                          <div key={pi} className="flex justify-between items-center text-xs text-gray-700">
+                            <span className="flex-1 truncate">
+                              {p.qty > 1 && (
+                                <span className="font-semibold text-gray-500 mr-1">{p.qty}×</span>
+                              )}
+                              {p.name}
+                            </span>
+                            <span className="text-gray-500 ml-2 flex-shrink-0">
+                              S/ {p.subtotal.toFixed(2)}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Resumen de productos totales del deudor */}
+              {detailDebtor.transactions.length > 1 && (
+                <div className="border-t border-dashed border-gray-200 pt-2 space-y-1">
+                  <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide">
+                    Resumen total
                   </p>
+                  {getDebtorProductSummary(detailDebtor).map((p, i) => (
+                    <div key={i} className="flex justify-between text-xs text-gray-700">
+                      <span className="flex-1 truncate">
+                        {p.qty > 1 && <span className="font-semibold text-gray-500 mr-1">{p.qty}×</span>}
+                        {p.name}
+                      </span>
+                      <span className="font-medium text-red-600 ml-2 flex-shrink-0">
+                        S/ {p.subtotal.toFixed(2)}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Acciones del modal */}
+              <div className="flex gap-2 pt-2">
+                <Button
+                  variant="outline"
+                  className="flex-1 gap-2"
+                  onClick={() => { copyMessage(detailDebtor); setDetailDebtor(null); }}
+                >
+                  <Copy className="h-4 w-4" />
+                  Copiar WhatsApp
+                </Button>
+                {canCollect && (
+                  <Button
+                    className="flex-1 gap-2 bg-emerald-600 hover:bg-emerald-700"
+                    onClick={() => { setDetailDebtor(null); handleOpenPayment(detailDebtor); }}
+                  >
+                    <DollarSign className="h-4 w-4" />
+                    Registrar Pago
+                  </Button>
                 )}
               </div>
-            )}
-
-            {/* Tipo de Documento - BOTONES */}
-            <div className="space-y-3">
-              <Label className="text-lg font-semibold">📄 Tipo de Documento</Label>
-              <div className="grid grid-cols-3 gap-3">
-                <Button
-                  type="button"
-                  variant={paymentData.document_type === 'ticket' ? 'default' : 'outline'}
-                  className={`h-16 text-base ${paymentData.document_type === 'ticket' ? 'bg-blue-600 hover:bg-blue-700' : ''}`}
-                  onClick={() => setPaymentData(prev => ({ ...prev, document_type: 'ticket' }))}
-                >
-                  🎫 Ticket
-                </Button>
-                <div className="relative">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="h-16 text-base opacity-50 cursor-not-allowed w-full"
-                    disabled
-                  >
-                    📄 Boleta
-                  </Button>
-                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                    <Badge variant="destructive" className="text-xs">Requiere API SUNAT</Badge>
-                  </div>
-                </div>
-                <div className="relative">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="h-16 text-base opacity-50 cursor-not-allowed w-full"
-                    disabled
-                  >
-                    📋 Factura
-                  </Button>
-                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                    <Badge variant="destructive" className="text-xs">Requiere API SUNAT</Badge>
-                  </div>
-                </div>
-              </div>
-              <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded p-2">
-                ⚠️ <strong>Boleta</strong> y <strong>Factura</strong> requieren conexión con la API de SUNAT. 
-                Por ahora solo está disponible <strong>Ticket</strong> (comprobante interno).
-              </p>
             </div>
-
-            {/* Notas */}
-            <div className="space-y-2">
-              <Label className="text-base font-semibold">📝 Notas (Opcional)</Label>
-              <Input
-                placeholder="Observaciones adicionales..."
-                value={paymentData.notes}
-                onChange={(e) => setPaymentData(prev => ({ ...prev, notes: e.target.value }))}
-                className="h-12"
-              />
-            </div>
-          </div>
-
-          <DialogFooter className="mt-6 gap-3">
-            <Button 
-              variant="outline" 
-              onClick={() => setShowPaymentModal(false)}
-              className="h-12 text-base px-8"
-            >
-              Cancelar
-            </Button>
-            <Button 
-              onClick={handleRegisterPayment} 
-              disabled={saving || paymentData.paid_amount <= 0} 
-              className="bg-green-600 hover:bg-green-700 h-12 text-base px-8"
-            >
-              {saving ? (
-                <>
-                  <Loader2 className="h-5 w-5 mr-2 animate-spin" />
-                  Procesando...
-                </>
-              ) : (
-                <>
-                  <CheckCircle2 className="h-5 w-5 mr-2" />
-                  Registrar Pago (S/ {paymentData.paid_amount.toFixed(2)})
-                </>
-              )}
-            </Button>
-          </DialogFooter>
+          )}
         </DialogContent>
       </Dialog>
 
-      {/* Modal de Detalles Completos */}
-      <Dialog open={showDetailsModal} onOpenChange={setShowDetailsModal}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-          {selectedTransaction && (() => {
-            const isPending = selectedTransaction.payment_status === 'pending' || selectedTransaction.payment_status === 'partial';
-            const isPaid = selectedTransaction.payment_status === 'paid';
-            
-            const clientName = selectedTransaction.client_name ||
-                             selectedTransaction.students?.full_name || 
-                             selectedTransaction.teacher_profiles?.full_name || 
-                             selectedTransaction.manual_client_name || 
-                             '🛒 Cliente Genérico Sin Cuenta';
-            const clientType = selectedTransaction.client_type === 'student' ? 'Estudiante' :
-                              selectedTransaction.client_type === 'teacher' ? 'Profesor' :
-                              selectedTransaction.client_type === 'manual' ? 'Cliente Sin Cuenta' :
-                              selectedTransaction.student_id ? 'Estudiante' : 
-                              selectedTransaction.teacher_id ? 'Profesor' : 
-                              selectedTransaction.manual_client_name ? 'Cliente Sin Cuenta' : 'Cliente Genérico Sin Cuenta';
-            const schoolName = selectedTransaction.school_name || 
-                              selectedTransaction.schools?.name || 
-                              'Sin sede';
-            const userInfo = selectedTransaction.created_by_profile ? 
-                            getUserRoleDescription(selectedTransaction.created_by_profile, schoolName) : 
-                            null;
-            
-            // Determinar si tiene cuenta en el sistema
-            const hasAccount = !!(selectedTransaction.student_id || selectedTransaction.teacher_id);
-            const accountEmail = selectedTransaction.teacher_profiles?.email || 
-                                selectedTransaction.students?.email || null;
-            
-            // Determinar quién hizo el pedido - SIEMPRE mostrar nombre y cómo lo hizo
-            const getOriginInfo = () => {
-              // CASO 1: created_by = el mismo profesor → Él lo creó desde su perfil
-              if (selectedTransaction.created_by && selectedTransaction.created_by === selectedTransaction.teacher_id) {
-                const teacherName = selectedTransaction.teacher_profiles?.full_name || 
-                                   selectedTransaction.client_name || clientName;
-                return {
-                  createdByName: teacherName,
-                  createdByRole: 'Profesor',
-                  createdByMethod: 'Creó el pedido desde su perfil en la plataforma',
-                  icon: '👨‍🏫'
-                };
-              }
-              
-              // CASO 2: created_by = el mismo estudiante
-              if (selectedTransaction.created_by && selectedTransaction.created_by === selectedTransaction.student_id) {
-                const studentName = selectedTransaction.students?.full_name || 
-                                   selectedTransaction.client_name || clientName;
-                return {
-                  createdByName: studentName,
-                  createdByRole: 'Estudiante',
-                  createdByMethod: 'Creó el pedido desde su perfil en la plataforma',
-                  icon: '🎒'
-                };
-              }
-              
-              // CASO 3: created_by = otro usuario (admin, cajero, gestor, etc.)
-              if (selectedTransaction.created_by && userInfo) {
-                return {
-                  createdByName: userInfo.name,
-                  createdByRole: userInfo.role,
-                  createdByMethod: 'Lo registró desde el sistema de administración',
-                  icon: '🏢'
-                };
-              }
-              
-              // CASO 4: created_by existe pero no tenemos el perfil cargado
-              if (selectedTransaction.created_by) {
-                return {
-                  createdByName: 'Usuario del sistema',
-                  createdByRole: 'No se pudo cargar el perfil',
-                  createdByMethod: 'Registrado desde el sistema',
-                  icon: '🏢'
-                };
-              }
-              
-              // CASO 5: created_by = null + teacher_id → El profesor lo pidió desde su cuenta
-              if (!selectedTransaction.created_by && selectedTransaction.teacher_id) {
-                const teacherName = selectedTransaction.teacher_profiles?.full_name || 
-                                   selectedTransaction.client_name || clientName;
-                return {
-                  createdByName: teacherName,
-                  createdByRole: 'Profesor',
-                  createdByMethod: 'Creó el pedido desde su perfil en la plataforma',
-                  icon: '👨‍🏫'
-                };
-              }
-              
-              // CASO 6: created_by = null + student_id
-              if (!selectedTransaction.created_by && selectedTransaction.student_id) {
-                const studentName = selectedTransaction.students?.full_name || 
-                                   selectedTransaction.client_name || clientName;
-                return {
-                  createdByName: studentName,
-                  createdByRole: 'Estudiante',
-                  createdByMethod: 'Creó el pedido desde su perfil en la plataforma',
-                  icon: '🎒'
-                };
-              }
-              
-              // CASO 7: Venta manual sin cuenta
-              if (selectedTransaction.manual_client_name) {
-                return {
-                  createdByName: selectedTransaction.manual_client_name,
-                  createdByRole: 'Cliente sin cuenta',
-                  createdByMethod: 'Venta registrada en caja',
-                  icon: '🛒'
-                };
-              }
-              
-              // CASO 8: Sin información
-              return {
-                createdByName: 'Sistema',
-                createdByRole: 'Automático',
-                createdByMethod: 'Generado automáticamente por el sistema',
-                icon: '⚙️'
-              };
-            };
-            
-            const originInfo = getOriginInfo();
+      {/* ═══════════════════════════════════════════════
+          MODAL — Registrar pago
+      ═══════════════════════════════════════════════ */}
+      <Dialog open={showPaymentModal} onOpenChange={open => { if (!open) { setShowPaymentModal(false); setCurrentDebtor(null); } }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="text-base font-bold">
+              Registrar Pago — {currentDebtor?.client_name}
+            </DialogTitle>
+          </DialogHeader>
 
-            return (
-              <>
-                <DialogHeader>
-                  <DialogTitle className="text-2xl font-bold flex items-center gap-3">
-                    {isPending ? (
-                      <>
-                        <AlertCircle className="h-7 w-7 text-red-600" />
-                        <span className="text-red-700">Detalles de Deuda Pendiente</span>
-                      </>
-                    ) : (
-                      <>
-                        <Eye className="h-7 w-7 text-blue-600" />
-                        Detalles Completos del Pago
-                      </>
-                    )}
-                  </DialogTitle>
-                </DialogHeader>
-                
-                <div className="space-y-4 mt-4">
-                  {/* Estado de la transacción */}
-                  {isPending && (
-                    <div className="bg-red-50 border-2 border-red-300 rounded-lg p-3 text-center">
-                      <span className="text-red-700 font-bold text-lg">⏳ DEUDA PENDIENTE DE PAGO</span>
-                    </div>
-                  )}
-                  
-                  {/* Cliente */}
-                  <div className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg p-4 border border-blue-200">
-                    <h3 className="font-bold text-lg text-gray-900 mb-2">👤 Cliente</h3>
-                    <div className="space-y-2">
-                      <div className="flex justify-between">
-                        <span className="text-gray-600">Nombre:</span>
-                        <span className="font-semibold text-gray-900">{clientName}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-gray-600">Categoría:</span>
-                        <span className="font-semibold text-gray-900">{clientType}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-gray-600">Sede:</span>
-                        <span className="font-semibold text-gray-900">{schoolName}</span>
-                      </div>
-                      <div className="flex justify-between items-center">
-                        <span className="text-gray-600">Cuenta:</span>
-                        {hasAccount ? (
-                          <span className="font-semibold text-green-700 flex items-center gap-1">
-                            ✅ Tiene cuenta en el sistema
-                          </span>
-                        ) : (
-                          <span className="font-semibold text-red-600 flex items-center gap-1">
-                            ❌ No tiene cuenta
-                          </span>
-                        )}
-                      </div>
-                      {hasAccount && accountEmail && (
-                        <div className="flex justify-between">
-                          <span className="text-gray-600">Email:</span>
-                          <span className="font-semibold text-gray-900 text-sm">{accountEmail}</span>
-                        </div>
-                      )}
-                    </div>
-                  </div>
+          {currentDebtor && (
+            <div className="space-y-4">
+              {/* Monto */}
+              <div>
+                <label className="text-sm font-medium text-gray-700 block mb-1">Monto (S/)</label>
+                <Input
+                  type="number"
+                  step="0.10"
+                  min="0.01"
+                  max={currentDebtor.total_amount}
+                  value={paymentData.paid_amount}
+                  onChange={e => setPaymentData(p => ({ ...p, paid_amount: parseFloat(e.target.value) || 0 }))}
+                />
+                <p className="text-[11px] text-gray-400 mt-0.5">Total deuda: S/ {currentDebtor.total_amount.toFixed(2)}</p>
+              </div>
 
-                  {/* Información del Monto y Estado */}
-                  <div className={`rounded-lg p-4 border ${isPending 
-                    ? 'bg-gradient-to-r from-red-50 to-orange-50 border-red-200' 
-                    : 'bg-gradient-to-r from-green-50 to-emerald-50 border-green-200'}`}>
-                    <h3 className="font-bold text-lg text-gray-900 mb-2">
-                      {isPending ? '💰 Información de la Deuda' : '💳 Información del Pago'}
-                    </h3>
-                    <div className="space-y-2">
-                      <div className="flex justify-between">
-                        <span className="text-gray-600">Monto:</span>
-                        <span className={`font-bold text-2xl ${isPending ? 'text-red-600' : 'text-green-600'}`}>
-                          S/ {Math.abs(selectedTransaction.amount).toFixed(2)}
-                        </span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-gray-600">Estado:</span>
-                        {isPending ? (
-                          <span className="font-bold text-red-600 bg-red-100 px-3 py-1 rounded-full text-sm">
-                            ⏳ Pendiente de Pago
-                          </span>
-                        ) : (
-                          <span className="font-bold text-green-600 bg-green-100 px-3 py-1 rounded-full text-sm">
-                            ✅ Pagado
-                          </span>
-                        )}
-                      </div>
-                      {isPaid && (
-                        <div className="flex justify-between">
-                          <span className="text-gray-600">Método de pago:</span>
-                          <span className="font-semibold text-gray-900 capitalize">
-                            {selectedTransaction.payment_method 
-                              ? selectedTransaction.payment_method === 'teacher_account' 
-                                ? 'Cuenta Profesor' 
-                                : selectedTransaction.payment_method
-                              : selectedTransaction.ticket_code 
-                                ? 'Pago directo en caja' 
-                                : 'Método no registrado'}
-                          </span>
-                        </div>
-                      )}
-                      {isPaid && (
-                        <div className="flex justify-between items-start">
-                          <span className="text-gray-600">Fecha y hora:</span>
-                          <div className="text-right">
-                            <p className="font-semibold text-gray-900">
-                              {format(new Date(selectedTransaction.created_at), "dd/MM/yyyy", { locale: es })}
-                            </p>
-                            <p className="text-sm text-gray-600">
-                              {format(new Date(selectedTransaction.created_at), "HH:mm:ss", { locale: es })}
-                            </p>
-                          </div>
-                        </div>
-                      )}
-                      {selectedTransaction.operation_number && (
-                        <div className="flex justify-between">
-                          <span className="text-gray-600">Nº de operación:</span>
-                          <span className="font-semibold text-gray-900">{selectedTransaction.operation_number}</span>
-                        </div>
-                      )}
-                      {selectedTransaction.ticket_code && (
-                        <div className="flex justify-between">
-                          <span className="text-gray-600">🎫 Nº de ticket:</span>
-                          <span className="font-bold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded">{selectedTransaction.ticket_code}</span>
-                        </div>
-                      )}
-                    </div>
-                  </div>
+              {/* Método de pago */}
+              <div>
+                <label className="text-sm font-medium text-gray-700 block mb-1">Método de pago</label>
+                <select
+                  value={paymentData.payment_method}
+                  onChange={e => setPaymentData(p => ({ ...p, payment_method: e.target.value }))}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="efectivo">💵 Efectivo</option>
+                  <option value="yape">💜 Yape</option>
+                  <option value="plin">💚 Plin</option>
+                  <option value="transferencia">🏦 Transferencia</option>
+                </select>
+              </div>
 
-                  {/* 🍽️ Detalle de Consumo */}
-                  <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-4 border-2 border-blue-300 shadow-md">
-                    <h3 className="font-bold text-xl text-gray-900 mb-3 flex items-center gap-2">
-                      🍽️ Detalle de Consumo
-                    </h3>
-                    
-                    {/* Fechas e información del consumo */}
-                    <div className="space-y-1.5 bg-white/60 rounded-lg p-3">
-                      {/* Descripción del consumo */}
-                      <div className="flex justify-between text-sm">
-                        <span className="text-gray-600">📝 Descripción:</span>
-                        <span className="font-semibold text-gray-800 text-right max-w-[60%]">
-                          {selectedTransaction.description || 'Sin descripción'}
-                        </span>
-                      </div>
-                      {/* Fecha del almuerzo (para qué día es) */}
-                      {selectedTransaction.metadata?.order_date && (
-                        <div className="flex justify-between text-sm">
-                          <span className="text-gray-600">📅 Almuerzo para el día:</span>
-                          <span className="font-bold text-blue-800">
-                            {format(new Date(selectedTransaction.metadata.order_date + 'T12:00:00'), "EEEE d 'de' MMMM yyyy", { locale: es })}
-                          </span>
-                        </div>
-                      )}
-                      {/* Fecha de creación del pedido (cuándo el profesor/padre hizo el pedido) */}
-                      {selectedTransaction.metadata?.order_created_at && (
-                        <div className="flex justify-between text-sm">
-                          <span className="text-gray-600">🛒 Pedido registrado el:</span>
-                          <span className="font-semibold text-green-800">
-                            {format(new Date(selectedTransaction.metadata.order_created_at), "dd/MM/yyyy 'a las' HH:mm", { locale: es })}
-                          </span>
-                        </div>
-                      )}
-                      {!selectedTransaction.metadata?.order_created_at && selectedTransaction.metadata?.source && (
-                        <div className="flex justify-between text-sm">
-                          <span className="text-gray-600">🛒 Pedido registrado el:</span>
-                          <span className="font-medium text-orange-600 italic">
-                            No se registró la fecha de creación
-                          </span>
-                        </div>
-                      )}
-                      {/* Fecha de registro / confirmación del pedido */}
-                      <div className="flex justify-between text-sm">
-                        <span className="text-gray-600">
-                          {selectedTransaction.payment_status === 'paid' ? '✅ Pedido confirmado el:' : '🕐 Pedido registrado el:'}
-                        </span>
-                        <span className={`font-semibold ${selectedTransaction.payment_status === 'paid' ? 'text-green-700' : 'text-amber-700'}`}>
-                          {format(new Date(selectedTransaction.created_at), "dd/MM/yyyy 'a las' HH:mm", { locale: es })}
-                        </span>
-                      </div>
-                      {/* Categoría del menú */}
-                      {selectedTransaction.metadata?.menu_name && (
-                        <div className="flex justify-between text-sm">
-                          <span className="text-gray-600">🍽️ Categoría:</span>
-                          <span className="font-bold text-purple-800">
-                            {selectedTransaction.metadata.menu_name}
-                          </span>
-                        </div>
-                      )}
-                      {/* Origen */}
-                      {selectedTransaction.metadata?.source && (
-                        <div className="flex justify-between text-sm">
-                          <span className="text-gray-600">📱 Origen:</span>
-                          <span className="font-medium text-gray-700">
-                            {selectedTransaction.metadata.source === 'unified_calendar_teacher' ? 'Calendario del Profesor' :
-                             selectedTransaction.metadata.source === 'unified_calendar_v2_teacher' ? 'Calendario del Profesor' :
-                             selectedTransaction.metadata.source === 'unified_calendar_parent' ? 'Calendario del Padre/Madre' :
-                             selectedTransaction.metadata.source === 'unified_calendar_v2_parent' ? 'Calendario del Padre/Madre' :
-                             selectedTransaction.metadata.source === 'teacher_calendar' ? 'Perfil del Profesor' :
-                             selectedTransaction.metadata.source === 'parent_calendar' ? 'Perfil del Padre/Madre' :
-                             selectedTransaction.metadata.source === 'admin_order' ? 'Pedido del Administrador' :
-                             selectedTransaction.metadata.source === 'physical_order' ? 'Pedido presencial (Cocina)' :
-                             selectedTransaction.metadata.source === 'physical_order_wizard' ? 'Pedido presencial (Cocina)' :
-                             selectedTransaction.metadata.source === 'physical_order_wizard_fiado' ? 'Pedido presencial - Pagar luego' :
-                             selectedTransaction.metadata.source === 'physical_order_wizard_paid' ? 'Pedido presencial - Pagado' :
-                             selectedTransaction.metadata.source === 'lunch_orders_confirm' ? 'Confirmado desde Pedidos de Almuerzo' :
-                             selectedTransaction.metadata.source === 'lunch_order' ? 'Pedido de Almuerzo' :
-                             selectedTransaction.metadata.source === 'lunch_fast' ? 'Pedido rápido de Almuerzo' :
-                             selectedTransaction.metadata.source || 'No especificado'}
-                          </span>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* 📋 Quién realizó el pedido */}
-                  <div className="bg-gradient-to-r from-amber-50 to-orange-50 rounded-lg p-4 border border-amber-200">
-                    <h3 className="font-bold text-lg text-gray-900 mb-2">
-                      📋 {isPending ? 'Responsable del Pedido' : 'Registrado por'}
-                    </h3>
-                    <div className="space-y-2">
-                      <div className="flex justify-between items-center">
-                        <span className="text-gray-600">Nombre:</span>
-                        <span className="font-bold text-gray-900 text-lg flex items-center gap-2">
-                          {originInfo.icon} {originInfo.createdByName}
-                        </span>
-                      </div>
-                      <div className="flex justify-between items-center">
-                        <span className="text-gray-600">Cargo:</span>
-                        <span className="font-semibold text-blue-700">
-                          {originInfo.createdByRole}
-                        </span>
-                      </div>
-                      <div className="flex justify-between items-start">
-                        <span className="text-gray-600">Medio:</span>
-                        <span className="font-semibold text-gray-700 text-sm text-right">
-                          {originInfo.createdByMethod}
-                        </span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-gray-600">ID de transacción:</span>
-                        <span className="font-mono text-xs text-gray-500">{selectedTransaction.id}</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Botón PDF */}
-                  {isPaid ? (
-                    <Button
-                      onClick={() => {
-                        generatePaymentReceipt(selectedTransaction);
-                        setShowDetailsModal(false);
-                      }}
-                      className="w-full bg-green-600 hover:bg-green-700 h-12"
-                    >
-                      <Download className="h-4 w-4 mr-2" />
-                      Descargar Comprobante de Pago PDF
-                    </Button>
-                  ) : (
-                    <Button
-                      onClick={() => {
-                        generatePDF({
-                          id: selectedTransaction.teacher_id || selectedTransaction.student_id || 'manual',
-                          client_name: clientName,
-                          client_type: clientType === 'Estudiante' ? 'student' : clientType === 'Profesor' ? 'teacher' : 'manual',
-                          school_id: selectedTransaction.school_id,
-                          school_name: schoolName,
-                          total_amount: Math.abs(selectedTransaction.amount),
-                          transaction_count: 1,
-                          transactions: [selectedTransaction],
-                        } as Debtor);
-                        setShowDetailsModal(false);
-                      }}
-                      className="w-full bg-red-600 hover:bg-red-700 h-12"
-                    >
-                      <Download className="h-4 w-4 mr-2" />
-                      Descargar Estado de Deuda PDF
-                    </Button>
-                  )}
+              {/* N° Operación */}
+              {['yape', 'plin', 'transferencia'].includes(paymentData.payment_method) && (
+                <div>
+                  <label className="text-sm font-medium text-gray-700 block mb-1">N° de operación <span className="text-red-500">*</span></label>
+                  <Input
+                    placeholder="Ej: 123456789"
+                    value={paymentData.operation_number}
+                    onChange={e => setPaymentData(p => ({ ...p, operation_number: e.target.value }))}
+                  />
                 </div>
-              </>
-            );
-          })()}
+              )}
+
+              {/* Notas */}
+              <div>
+                <label className="text-sm font-medium text-gray-700 block mb-1">Notas (opcional)</label>
+                <Input
+                  placeholder="Observaciones…"
+                  value={paymentData.notes}
+                  onChange={e => setPaymentData(p => ({ ...p, notes: e.target.value }))}
+                />
+              </div>
+            </div>
+          )}
+
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => { setShowPaymentModal(false); setCurrentDebtor(null); }}>
+              Cancelar
+            </Button>
+            <Button
+              onClick={handleRegisterPayment}
+              disabled={saving}
+              className="bg-emerald-600 hover:bg-emerald-700 gap-2"
+            >
+              {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
+              Confirmar Pago
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
