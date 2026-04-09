@@ -1,5 +1,8 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { useRole } from '@/hooks/useRole';
+import { usePreviewStore } from '@/stores/previewStore';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
@@ -10,7 +13,8 @@ import {
   Home,
   Wallet,
   UtensilsCrossed,
-  Calendar
+  Calendar,
+  ShoppingBag,
 } from 'lucide-react';
 import maracuyaLogo from '@/assets/maracuya-logo.png';
 import { supabase } from '@/lib/supabase';
@@ -30,6 +34,7 @@ import { ParentDataForm } from '@/components/parent/ParentDataForm';
 import { NFCRequestModal } from '@/components/parent/NFCRequestModal';
 import { KioskAccountModal } from '@/components/parent/KioskAccountModal';
 import { MaintenanceScreen } from '@/components/parent/MaintenanceScreen';
+import { OnlineStore } from '@/components/store/OnlineStore';
 import { useOnboardingCheck } from '@/hooks/useOnboardingCheck';
 
 interface Student {
@@ -51,8 +56,23 @@ interface Student {
 
 const Index = () => {
   const { user, signOut } = useAuth();
+  const { role } = useRole();
+  const navigate = useNavigate();
   const { toast } = useToast();
   const { isChecking } = useOnboardingCheck();
+
+  // ── Modo Preview: admin viendo el portal como un padre ──
+  const { previewUserId, previewName, previewRole, clearPreview } = usePreviewStore();
+  const ADMIN_ROLES = ['admin_general', 'superadmin', 'supervisor_red', 'gestor_unidad'];
+  const isAdminPreview = !!(previewUserId && previewRole === 'parent' && ADMIN_ROLES.includes(role || ''));
+  const effectiveUserId = isAdminPreview ? previewUserId : (user?.id ?? '');
+
+  // Si el admin llega aquí sin preview activo, redirigir a su ruta normal
+  useEffect(() => {
+    if (role && ADMIN_ROLES.includes(role) && !isAdminPreview) {
+      navigate('/dashboard', { replace: true });
+    }
+  }, [role, isAdminPreview]);
   
   const [students, setStudents] = useState<Student[]>([]);
   const [studentDebts, setStudentDebts] = useState<Record<string, number>>({});
@@ -115,13 +135,13 @@ const Index = () => {
   };
 
   const fetchParentProfile = async () => {
-    if (!user) return;
+    if (!effectiveUserId) return;
     try {
       // ✅ Solo columnas que siempre existen en parent_profiles
       const { data: parentProfileData, error: ppError } = await supabase
         .from('parent_profiles')
         .select('full_name, school_id')
-        .eq('user_id', user.id)
+        .eq('user_id', effectiveUserId)
         .maybeSingle();
 
       // Intentar también photo_consent por separado (puede no existir aún)
@@ -133,7 +153,7 @@ const Index = () => {
         const { data: consentData } = await supabase
           .from('parent_profiles')
           .select('photo_consent')
-          .eq('user_id', user.id)
+          .eq('user_id', effectiveUserId)
           .maybeSingle();
 
         if (consentData?.photo_consent === true) {
@@ -147,7 +167,7 @@ const Index = () => {
         const { data: profileData } = await supabase
           .from('profiles')
           .select('full_name, school_id')
-          .eq('id', user.id)
+          .eq('id', effectiveUserId)
           .single();
         
         if (profileData) {
@@ -163,13 +183,15 @@ const Index = () => {
   };
 
   const checkOnboardingStatus = async () => {
-    if (!user) return;
+    if (!effectiveUserId) return;
+    // En modo preview el admin no debe ver/modificar onboarding del padre
+    if (isAdminPreview) return;
     try {
       // ✅ Query robusta: solo campos que sabemos que existen
       const { data: parentData, error: parentError } = await supabase
         .from('parent_profiles')
         .select('full_name, dni, phone_1, address')
-        .eq('user_id', user.id)
+        .eq('user_id', effectiveUserId)
         .maybeSingle();
 
       if (parentError) {
@@ -192,7 +214,7 @@ const Index = () => {
       const { data, error } = await supabase
         .from('profiles')
         .select('free_account_onboarding_completed')
-        .eq('id', user.id)
+        .eq('id', effectiveUserId)
         .single();
       
       if (error) {
@@ -211,19 +233,19 @@ const Index = () => {
   };
 
   const handleOnboardingComplete = async () => {
-    if (!user) return;
+    if (!effectiveUserId || isAdminPreview) return;
     try {
       await supabase
         .from('profiles')
         .update({ free_account_onboarding_completed: true })
-        .eq('id', user.id);
+        .eq('id', effectiveUserId);
       
       setShowOnboarding(false);
       
       const { data: studentsData } = await supabase
         .from('students')
         .select('id')
-        .eq('parent_id', user.id)
+        .eq('parent_id', effectiveUserId)
         .limit(1);
       
       if (!studentsData || studentsData.length === 0) {
@@ -245,14 +267,14 @@ const Index = () => {
   };
 
   const fetchStudents = async () => {
-    if (!user) return;
+    if (!effectiveUserId) return;
     
     try {
       setLoading(true);
       const { data, error } = await supabase
         .from('students')
         .select('*, school:schools(id, name)')
-        .eq('parent_id', user.id)
+        .eq('parent_id', effectiveUserId)
         .eq('is_active', true)
         .order('full_name', { ascending: true });
 
@@ -382,6 +404,24 @@ const Index = () => {
 
   return (
     <div className="min-h-screen bg-[#FAFAF9] pb-20 sm:pb-24">
+
+      {/* ── Banner de modo preview (solo admin) ── */}
+      {isAdminPreview && (
+        <div className="bg-amber-500 text-white px-4 py-2 flex items-center justify-between text-sm font-medium sticky top-0 z-50">
+          <div className="flex items-center gap-2">
+            <span>👁</span>
+            <span>Vista previa como padre/tutor: <strong>{previewName}</strong></span>
+            <span className="opacity-70 text-xs">— Solo lectura, sin cambios</span>
+          </div>
+          <button
+            onClick={() => { clearPreview(); navigate('/cobranzas'); }}
+            className="bg-white/20 hover:bg-white/30 rounded-lg px-3 py-1 text-xs font-semibold transition-colors"
+          >
+            ← Volver a Cobranzas
+          </button>
+        </div>
+      )}
+
       {/* Header */}
       <header className="bg-white border-b border-stone-200/50 sticky top-0 z-40 shadow-sm backdrop-blur-sm bg-white/95">
         <div className="max-w-7xl mx-auto px-3 sm:px-4 md:px-6 py-3 sm:py-4 md:py-5">
@@ -480,7 +520,7 @@ const Index = () => {
 
         {/* Pestaña Pagos */}
         <div className={activeTab !== 'pagos' ? 'hidden' : ''}>
-          {user?.id && <PaymentsTab userId={user.id} />}
+          {effectiveUserId && <PaymentsTab userId={effectiveUserId} />}
         </div>
 
         {/* Pestaña Almuerzos */}
@@ -517,17 +557,17 @@ const Index = () => {
                   </TabsList>
                   
                   <TabsContent value="hacer-pedido" className="mt-4 sm:mt-6">
-                    {user && parentProfileData && (
+                    {effectiveUserId && parentProfileData && (
                       <UnifiedLunchCalendarV2 
                         userType="parent"
-                        userId={user.id}
+                        userId={effectiveUserId}
                         userSchoolId={parentProfileData.school_id || ''}
                       />
                     )}
                   </TabsContent>
                   
                   <TabsContent value="mis-pedidos" className="mt-4 sm:mt-6">
-                    <ParentLunchOrders parentId={user.id} />
+                    <ParentLunchOrders parentId={effectiveUserId} />
                   </TabsContent>
                 </Tabs>
               </div>
@@ -609,10 +649,24 @@ const Index = () => {
         />
       )}
 
+      {activeTab === 'tienda' && (
+        <OnlineStore
+          userId={user?.id || ''}
+          userName={parentName || user?.email || ''}
+          schoolId={parentProfileData?.school_id || students[0]?.school_id || null}
+          userType="parent"
+          students={students.map(s => ({
+            id: s.id,
+            full_name: s.full_name,
+            school_id: s.school_id,
+          }))}
+        />
+      )}
+
       {/* Navegación Inferior Fija */}
       <nav className="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-md border-t border-stone-200/50 shadow-lg z-50">
         <div className="max-w-7xl mx-auto px-1 sm:px-2">
-          <div className="grid grid-cols-4 gap-0.5 sm:gap-1">
+          <div className="grid grid-cols-5 gap-0.5 sm:gap-1">
             <button
               onClick={() => setActiveTab('alumnos')}
               className={`flex flex-col items-center justify-center py-2.5 sm:py-3 transition-all duration-200 rounded-lg ${
@@ -635,6 +689,18 @@ const Index = () => {
             >
               <UtensilsCrossed className="h-5 w-5 sm:h-6 sm:w-6 mb-0.5 sm:mb-1" />
               <span className="text-[10px] sm:text-xs font-normal tracking-wide">Almuerzos</span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('tienda')}
+              className={`flex flex-col items-center justify-center py-2.5 sm:py-3 transition-all duration-200 rounded-lg relative ${
+                activeTab === 'tienda'
+                  ? 'text-violet-700 bg-violet-50'
+                  : 'text-stone-400 hover:text-violet-600 hover:bg-violet-50/30'
+              }`}
+            >
+              <ShoppingBag className="h-5 w-5 sm:h-6 sm:w-6 mb-0.5 sm:mb-1" />
+              <span className="text-[10px] sm:text-xs font-normal tracking-wide">Tienda</span>
             </button>
 
             <button

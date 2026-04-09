@@ -155,12 +155,30 @@ export function RechargeModal({
           .from('students').select('school_id').eq('id', studentId).single();
         resolvedSchoolId = student?.school_id || null;
       }
-      if (!resolvedSchoolId) return;
-      const { data: config } = await supabase
+
+      if (!resolvedSchoolId) {
+        // Sin school_id no podemos saber la config — dejamos paymentConfig en null
+        // para mostrar el mensaje "Contacta a la administración"
+        console.warn('RechargeModal: no se pudo determinar school_id para', studentId);
+        return;
+      }
+
+      const { data: config, error } = await supabase
         .from('billing_config')
         .select('yape_number, yape_holder, yape_enabled, plin_number, plin_holder, plin_enabled, bank_account_info, bank_account_holder, transferencia_enabled, bank_name, bank_account_number, bank_cci, show_payment_info')
         .eq('school_id', resolvedSchoolId)
-        .single();
+        .maybeSingle();    // maybeSingle: no lanza error si no hay fila
+
+      if (error) {
+        console.error('Error al cargar billing_config:', error.message);
+        toast({
+          variant: 'destructive',
+          title: 'Error al cargar medios de pago',
+          description: 'Verifica tu conexión e intenta de nuevo.',
+        });
+        return;
+      }
+
       setPaymentConfig(config || null);
     } catch (err) {
       console.error('Error al cargar config de pagos:', err);

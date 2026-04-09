@@ -10,6 +10,7 @@ import { WelcomeHeader } from '@/components/WelcomeHeader';
 import { ViewAsSelector } from '@/components/ViewAsSelector';
 import { VersionBadge } from '@/components/VersionBadge';
 import { UserProfileMenu } from '@/components/admin/UserProfileMenu';
+import { TodayOrdersWidget } from '@/components/kds/TodayOrdersWidget';
 import { 
   ShoppingCart, 
   DollarSign, 
@@ -299,6 +300,18 @@ const Dashboard = () => {
           is_enabled: false,
           status: 'functional' as const,
         },
+        {
+          id: '15',
+          code: 'nfc_management',
+          name: 'Gestión NFC y Recargas',
+          description: 'Registro de tarjetas NFC y recargas manuales de saldo',
+          icon: 'CreditCard',
+          color: 'blue',
+          route: '/nfc-management',
+          is_active: true,
+          is_enabled: false,
+          status: 'functional' as const,
+        },
       ];
 
       // Admin General tiene acceso a TODO
@@ -577,6 +590,7 @@ const Dashboard = () => {
         </div>
 
       </main>
+      <TodayOrdersWidget />
     </div>
   );
 };

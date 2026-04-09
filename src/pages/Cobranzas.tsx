@@ -40,7 +40,7 @@ interface TabPermissions {
   statistics: boolean;
   config: boolean;
   vouchers: boolean;
-  recharge: boolean;
+  recharge?: boolean; // Movido a Gestión NFC
   historical: boolean;
 }
 
@@ -236,7 +236,6 @@ const Cobranzas = () => {
     permissions.collect,
     // permissions.reports — eliminado de la UI
     permissions.vouchers,
-    permissions.recharge,
     permissions.historical,
     permissions.config,
   ].filter(Boolean).length;
@@ -330,19 +329,6 @@ const Cobranzas = () => {
                       )}
                     </button>
                   )}
-                  {permissions.recharge && (
-                    <button
-                      onClick={() => setActiveTab('recharge')}
-                      className={`flex items-center justify-center gap-2 py-3 text-sm font-medium rounded-md transition-all ${
-                        activeTab === 'recharge'
-                          ? 'bg-background text-foreground shadow-sm'
-                          : 'text-muted-foreground hover:text-foreground'
-                      }`}
-                    >
-                      <PlusCircle className="h-4 w-4" />
-                      Recargas
-                    </button>
-                  )}
                   {permissions.historical && (
                     <button
                       onClick={() => setActiveTab('historical')}
@@ -417,19 +403,6 @@ const Cobranzas = () => {
                       )}
                     </button>
                   )}
-                  {permissions.recharge && (
-                    <button
-                      onClick={() => setActiveTab('recharge')}
-                      className={`flex items-center gap-1.5 px-3 py-2.5 text-xs font-medium rounded-md transition-all whitespace-nowrap ${
-                        activeTab === 'recharge'
-                          ? 'bg-background text-foreground shadow-sm'
-                          : 'text-muted-foreground hover:text-foreground'
-                      }`}
-                    >
-                      <PlusCircle className="h-3.5 w-3.5" />
-                      Recargas
-                    </button>
-                  )}
                   {permissions.historical && (
                     <button
                       onClick={() => setActiveTab('historical')}
@@ -486,13 +459,6 @@ const Cobranzas = () => {
               {activeTab === 'vouchers' && permissions.vouchers && (
                 <div className="mt-4 sm:mt-6">
                   <VoucherApproval />
-                </div>
-              )}
-
-              {/* Recargas Manuales Tab */}
-              {activeTab === 'recharge' && permissions.recharge && (
-                <div className="mt-4 sm:mt-6">
-                  <ManualRechargeTab />
                 </div>
               )}
 

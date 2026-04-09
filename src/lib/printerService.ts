@@ -8,6 +8,22 @@ import qz from 'qz-tray';
 import { setupQZBasic } from './qzConfig';
 import { setupQZSigning } from './qzSigning';
 
+// Suprimir el TypeError interno de qz-tray cuando el WebSocket se cierra
+// antes de que onopen dispare (Cannot read properties of null 'established')
+if (typeof window !== 'undefined') {
+  window.addEventListener('error', (event: ErrorEvent) => {
+    if (event.message && event.message.includes("'established'")) {
+      event.preventDefault();
+    }
+  }, true);
+  window.addEventListener('unhandledrejection', (event: PromiseRejectionEvent) => {
+    const msg = String(event.reason);
+    if (msg.includes("'established'") || msg.includes('QZ Tray')) {
+      event.preventDefault();
+    }
+  });
+}
+
 // Comandos ESC/POS para impresoras térmicas
 export const ESC_POS = {
   // Inicialización
@@ -242,28 +258,28 @@ export const printTicketHTML = async (
  */
 export const isQZTrayAvailable = async (): Promise<boolean> => {
   try {
+    if (!qz || !qz.websocket) return false;
     if (qz.websocket.isActive()) {
       console.log('✅ QZ Tray ya está activo');
       return true;
     }
-    
     console.log('🔍 Verificando disponibilidad de QZ Tray...');
-    
-    // 🔐 Intentar con firma digital primero
     try {
       setupQZSigning();
       await qz.websocket.connect();
       console.log('✅ QZ Tray disponible con firma digital');
       return true;
-    } catch (signingError) {
-      // Fallback: modo básico
-      setupQZBasic();
-      await qz.websocket.connect();
-      console.log('✅ QZ Tray disponible en modo básico');
-      return true;
+    } catch {
+      try {
+        setupQZBasic();
+        await qz.websocket.connect();
+        console.log('✅ QZ Tray disponible en modo básico');
+        return true;
+      } catch {
+        return false;
+      }
     }
-  } catch (error) {
-    console.error('❌ QZ Tray no está disponible:', error);
+  } catch {
     return false;
   }
 };

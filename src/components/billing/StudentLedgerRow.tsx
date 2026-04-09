@@ -194,17 +194,6 @@ export const StudentLedgerRow = ({ group, canViewAll }: Props) => {
           )}
         </div>
 
-        {/* Resumen compacto */}
-        <div className="hidden sm:flex items-center gap-4 text-xs text-slate-500 flex-shrink-0">
-          <span className="flex items-center gap-1">
-            <History className="h-3 w-3 text-amber-500" />
-            {group.historical_count} venta{group.historical_count !== 1 ? 's' : ''} hist.
-          </span>
-          <span className="text-amber-700 font-semibold">
-            S/ {group.historical_total.toFixed(2)}
-          </span>
-        </div>
-
         {/* Saldo actual — muy visible */}
         <div className={cn(
           'flex-shrink-0 rounded-xl px-3 py-1.5 text-center min-w-[90px]',

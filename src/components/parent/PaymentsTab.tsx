@@ -104,6 +104,7 @@ export const PaymentsTab = ({ userId }: PaymentsTabProps) => {
   const [paymentModalData, setPaymentModalData] = useState<{
     studentName: string;
     studentId: string;
+    schoolId?: string;
     currentBalance: number;
     amount: number;
     requestType: 'debt_payment';
@@ -373,6 +374,7 @@ export const PaymentsTab = ({ userId }: PaymentsTabProps) => {
     setPaymentModalData({
       studentName: debt.student_name,
       studentId: debt.student_id,
+      schoolId: debt.school_id || undefined,
       currentBalance: debt.student_balance,
       amount,
       requestType: 'debt_payment',
@@ -394,6 +396,7 @@ export const PaymentsTab = ({ userId }: PaymentsTabProps) => {
     setPaymentModalData({
       studentName: debts.map(d => d.student_name).join(', '),
       studentId: first.student_id,
+      schoolId: first.school_id || undefined,
       currentBalance: first.student_balance,
       amount: total,
       requestType: 'debt_payment',
@@ -975,6 +978,7 @@ export const PaymentsTab = ({ userId }: PaymentsTabProps) => {
           onClose={() => { setShowPaymentModal(false); setPaymentModalData(null); fetchDebts(); }}
           studentName={paymentModalData.studentName}
           studentId={paymentModalData.studentId}
+          schoolId={paymentModalData.schoolId}
           currentBalance={paymentModalData.currentBalance}
           accountType="free_account"
           onRecharge={async () => {}}

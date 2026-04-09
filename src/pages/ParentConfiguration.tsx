@@ -8,7 +8,8 @@ import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
-import { Search, Users, BarChart3, FileText, Plus, Edit, Download, Baby, UserCircle, ArrowLeft, Mail, Phone, MapPin, CreditCard, Wallet, User2, IdCard } from 'lucide-react';
+import { Search, Users, BarChart3, FileText, Plus, Edit, Download, Baby, UserCircle, ArrowLeft, Mail, Phone, MapPin, CreditCard, Wallet, User2, IdCard, Bell } from 'lucide-react';
+import { ComunicadosTab } from '@/components/admin/ComunicadosTab';
 import { ParentAnalyticsDashboard } from '@/components/admin/ParentAnalyticsDashboard';
 import { StudentsManagementTab } from '@/components/admin/StudentsManagementTab';
 import { supabase } from '@/lib/supabase';
@@ -884,7 +885,7 @@ const ParentConfiguration = () => {
 
         {/* Tabs principales */}
         <Tabs defaultValue="parents" className="w-full">
-          <TabsList className="grid w-full grid-cols-5 bg-white/90 backdrop-blur-sm border-2 border-emerald-200 rounded-xl p-1 shadow-md">
+          <TabsList className="grid w-full grid-cols-6 bg-white/90 backdrop-blur-sm border-2 border-emerald-200 rounded-xl p-1 shadow-md">
             <TabsTrigger value="parents" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-emerald-500 data-[state=active]:to-teal-500 data-[state=active]:text-white">
               <Users className="h-4 w-4 mr-2" />
               Gestión de Padres

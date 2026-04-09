@@ -1,7 +1,9 @@
 import { useState, useEffect, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
+import { usePreviewStore } from '@/stores/previewStore';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -24,6 +26,9 @@ import {
   Users,
   Check,
   RefreshCw,
+  KeyRound,
+  ArrowLeft,
+  ChevronRight,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -36,6 +41,7 @@ interface Debtor {
   id: string;
   client_name: string;
   client_type: 'student' | 'teacher' | 'manual';
+  parent_id?: string;   // user_id del padre (para preview)
   parent_name?: string;
   parent_phone?: string;
   parent_email?: string;
@@ -52,6 +58,8 @@ interface Debtor {
 export const BillingCollection = () => {
   const { user } = useAuth();
   const { toast } = useToast();
+  const navigate = useNavigate();
+  const { setPreview } = usePreviewStore();
 
   // ── Core state ──
   const [loading, setLoading] = useState(true);
@@ -79,6 +87,13 @@ export const BillingCollection = () => {
     notes: '',
   });
   const [saving, setSaving] = useState(false);
+
+  // ── Estado de Cuenta (Tab 2) ──
+  const [statementClient, setStatementClient] = useState<{
+    id: string; name: string; type: 'student' | 'teacher' | 'manual';
+  } | null>(null);
+  const [statementEvents, setStatementEvents] = useState<any[]>([]);
+  const [loadingStatement, setLoadingStatement] = useState(false);
 
   // ── Permisos ──
   const [canCollect, setCanCollect] = useState(false);
@@ -294,6 +309,7 @@ export const BillingCollection = () => {
             id: debtorId,
             client_name: clientName,
             client_type: clientType,
+            parent_id: parentId || undefined,
             parent_name: parentInfo?.full_name,
             parent_phone: parentInfo?.phone,
             parent_email: parentInfo?.email,
@@ -367,6 +383,99 @@ export const BillingCollection = () => {
   };
 
   // ──────────────────────────────────────────────────────────────────────────
+  // Estado de Cuenta — carga historial completo de un cliente
+  // ──────────────────────────────────────────────────────────────────────────
+  const fetchClientStatement = async (client: {
+    id: string; name: string; type: 'student' | 'teacher' | 'manual';
+  }) => {
+    setLoadingStatement(true);
+    setStatementEvents([]);
+    try {
+      let txData: any[] = [];
+      let rrData: any[] = [];
+
+      if (client.type === 'student') {
+        const { data, error } = await supabase
+          .from('transactions')
+          .select('*')
+          .eq('student_id', client.id)
+          .neq('is_deleted', true)
+          .order('created_at', { ascending: true });
+        if (error) throw error;
+        txData = data || [];
+
+        const { data: rr } = await supabase
+          .from('recharge_requests')
+          .select('*')
+          .eq('student_id', client.id)
+          .eq('status', 'approved')
+          .order('created_at', { ascending: true });
+        rrData = rr || [];
+
+      } else if (client.type === 'teacher') {
+        const { data, error } = await supabase
+          .from('transactions')
+          .select('*')
+          .eq('teacher_id', client.id)
+          .neq('is_deleted', true)
+          .order('created_at', { ascending: true });
+        if (error) throw error;
+        txData = data || [];
+
+      } else {
+        const { data, error } = await supabase
+          .from('transactions')
+          .select('*')
+          .eq('manual_client_name', client.name)
+          .neq('is_deleted', true)
+          .order('created_at', { ascending: true });
+        if (error) throw error;
+        txData = data || [];
+      }
+
+      // Combinar y ordenar todas las fuentes cronológicamente
+      const events: any[] = [
+        ...txData.map(tx => ({
+          id: tx.id,
+          created_at: tx.created_at,
+          amount: tx.amount,
+          description: tx.description || (tx.type === 'recharge' ? 'Recarga' : 'Consumo'),
+          event_type: tx.type,
+          source: tx.metadata?.source || tx.type,
+          payment_status: tx.payment_status,
+          ticket_code: tx.ticket_code,
+          payment_method: tx.payment_method,
+          metadata: tx.metadata,
+        })),
+        ...rrData.map(rr => ({
+          id: rr.id,
+          created_at: rr.created_at,
+          amount: rr.amount,
+          description: `Recarga aprobada${rr.reference_code ? ` · Nº ${rr.reference_code}` : ''}${rr.payment_method ? ` (${rr.payment_method})` : ''}`,
+          event_type: 'recharge',
+          source: 'recharge_request',
+          payment_status: 'approved',
+          ticket_code: null,
+          payment_method: rr.payment_method,
+          metadata: null,
+        })),
+      ].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+
+      // Calcular saldo acumulado (running balance)
+      let balance = 0;
+      const enriched = events.map(e => {
+        balance += e.amount;
+        return { ...e, running_balance: balance };
+      });
+      setStatementEvents(enriched);
+    } catch (err: any) {
+      toast({ variant: 'destructive', title: 'Error', description: 'No se pudo cargar el estado de cuenta' });
+    } finally {
+      setLoadingStatement(false);
+    }
+  };
+
+  // ──────────────────────────────────────────────────────────────────────────
   // Filtrado
   // ──────────────────────────────────────────────────────────────────────────
   const filteredDebtors = useMemo(() => {
@@ -389,6 +498,30 @@ export const BillingCollection = () => {
   }, [paidTransactions, searchTerm]);
 
   const totalDebt = useMemo(() => filteredDebtors.reduce((s, d) => s + d.total_amount, 0), [filteredDebtors]);
+
+  // Clientes para el buscador de Estado de Cuenta (Tab 2)
+  const clientSearchResults = useMemo(() => {
+    if (activeTab !== 'pagos' || !searchTerm) return [];
+    const norm = normalizeSearch(searchTerm);
+    const map = new Map<string, { id: string; name: string; type: 'student' | 'teacher' | 'manual' }>();
+
+    debtors.forEach(d => {
+      if (normalizeSearch(d.client_name).includes(norm) || normalizeSearch(d.parent_name || '').includes(norm)) {
+        map.set(d.id, { id: d.id, name: d.client_name, type: d.client_type });
+      }
+    });
+
+    paidTransactions.forEach((tx: any) => {
+      const name = tx.students?.full_name || tx.teacher_profiles?.full_name || tx.manual_client_name || '';
+      if (name && normalizeSearch(name).includes(norm)) {
+        const id = tx.student_id || tx.teacher_id || `manual_${tx.manual_client_name}`;
+        const type: 'student' | 'teacher' | 'manual' = tx.student_id ? 'student' : tx.teacher_id ? 'teacher' : 'manual';
+        if (id && !map.has(id)) map.set(id, { id, name, type });
+      }
+    });
+
+    return Array.from(map.values());
+  }, [activeTab, searchTerm, debtors, paidTransactions]);
 
   // ──────────────────────────────────────────────────────────────────────────
   // Helpers de "fuente de verdad" — nombres reales de productos
@@ -542,110 +675,160 @@ export const BillingCollection = () => {
 
   const handleRegisterPayment = async () => {
     if (!currentDebtor || !user) return;
-
     if (paymentData.paid_amount <= 0) {
       toast({ variant: 'destructive', title: 'Error', description: 'El monto debe ser mayor a 0' });
-      return;
-    }
-    if (['yape', 'plin', 'transferencia'].includes(paymentData.payment_method) && !paymentData.operation_number) {
-      toast({ variant: 'destructive', title: 'Nº de operación requerido', description: 'Ingresa el número de operación' });
       return;
     }
 
     setSaving(true);
     try {
-      const realTxs = currentDebtor.transactions.filter((t: any) => !t.id?.toString().startsWith('lunch_'));
-      const virtualTxs = currentDebtor.transactions.filter((t: any) => t.id?.toString().startsWith('lunch_'));
-      const totalTx = currentDebtor.transactions.length;
-      let counter = 0;
+      // ── FIFO: ordenar TODOS los tickets de más antiguo a más reciente ──
+      const allTxsSorted = [...currentDebtor.transactions].sort((a, b) =>
+        new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+      );
+      const virtualTxs = allTxsSorted.filter((t: any) => t.id?.toString().startsWith('lunch_'));
 
-      const makeOpNumber = (base: string | null) => {
+      let remaining = paymentData.paid_amount;
+      let opCounter = 0;
+      const totalTxCount = allTxsSorted.length;
+
+      const makeOpNum = (base: string | null) => {
         if (!base) return null;
-        counter++;
-        return totalTx === 1 ? base : `${base}-${counter}`;
+        opCounter++;
+        return totalTxCount === 1 ? base : `${base}-${opCounter}`;
       };
 
-      // Actualizar transacciones reales
-      for (const tx of realTxs) {
-        const { error } = await supabase
-          .from('transactions')
-          .update({
-            payment_status: 'paid',
-            payment_method: paymentData.payment_method,
-            operation_number: makeOpNumber(paymentData.operation_number || null),
-            created_by: user.id,
-          })
-          .eq('id', tx.id);
-        if (error) throw error;
-      }
-
-      // Crear transacciones para pedidos virtuales (almuerzo)
+      // Pre-generar ticket base para pedidos virtuales
+      let ticketBase = '';
       if (virtualTxs.length > 0) {
-        let ticketBase = '';
         try {
           const { data: tNum } = await supabase.rpc('get_next_ticket_number', { p_user_id: user.id });
           if (tNum) ticketBase = tNum;
         } catch {}
         if (!ticketBase) ticketBase = `COB-${Date.now()}`;
+      }
 
-        // Anti-duplicado
-        const lunchIds = virtualTxs.map((vt: any) => vt.metadata?.lunch_order_id).filter(Boolean);
-        let existingSet = new Set<string>();
-        if (lunchIds.length > 0) {
-          const { data: exTx } = await supabase
-            .from('transactions').select('metadata').eq('type', 'purchase')
-            .not('metadata', 'is', null).limit(100000);
-          exTx?.forEach((t: any) => { if (t.metadata?.lunch_order_id) existingSet.add(t.metadata.lunch_order_id); });
-        }
+      // Anti-duplicado para pedidos de almuerzo
+      const lunchIds = virtualTxs.map((vt: any) => vt.metadata?.lunch_order_id).filter(Boolean);
+      let existingLunchSet = new Set<string>();
+      if (lunchIds.length > 0) {
+        const { data: exTx } = await supabase
+          .from('transactions').select('metadata').eq('type', 'purchase')
+          .not('metadata', 'is', null).limit(100000);
+        exTx?.forEach((t: any) => { if (t.metadata?.lunch_order_id) existingLunchSet.add(t.metadata.lunch_order_id); });
+      }
 
-        let tCounter = 0;
-        const toCreate = virtualTxs
-          .filter((vt: any) => !existingSet.has(vt.metadata?.lunch_order_id))
-          .map((vt: any) => {
-            tCounter++;
-            return {
-              type: 'purchase',
-              amount: vt.amount,
-              payment_status: 'paid',
-              payment_method: paymentData.payment_method,
-              operation_number: makeOpNumber(paymentData.operation_number || null),
-              description: vt.description,
-              student_id: vt.student_id || null,
-              teacher_id: vt.teacher_id || null,
-              manual_client_name: vt.manual_client_name || null,
-              school_id: vt.school_id,
-              created_by: user.id,
-              ticket_code: virtualTxs.length > 1 ? `${ticketBase}-${tCounter}` : ticketBase,
-              metadata: vt.metadata || null,
-            };
+      let ticketCounter = 0;
+      const lunchOrdersToDeliver: string[] = [];
+
+      // ── Aplicar FIFO ticket por ticket ──
+      for (const tx of allTxsSorted) {
+        if (remaining <= 0.001) break;
+
+        const txAmount = Math.abs(tx.amount);
+        const isVirtual = tx.id?.toString().startsWith('lunch_');
+        const lunchOrderId = tx.metadata?.lunch_order_id;
+
+        if (isVirtual) {
+          if (existingLunchSet.has(lunchOrderId)) continue;
+          ticketCounter++;
+          const tCode = virtualTxs.length > 1 ? `${ticketBase}-${ticketCounter}` : ticketBase;
+
+          const status = remaining >= txAmount ? 'paid' : 'partial';
+          const partialMeta = remaining < txAmount
+            ? { partial_paid_amount: remaining, partial_paid_at: new Date().toISOString() }
+            : {};
+
+          const { error } = await supabase.from('transactions').insert({
+            type: 'purchase',
+            amount: tx.amount,
+            payment_status: status,
+            payment_method: paymentData.payment_method,
+            operation_number: makeOpNum(paymentData.operation_number || null),
+            description: tx.description,
+            student_id: tx.student_id || null,
+            teacher_id: tx.teacher_id || null,
+            manual_client_name: tx.manual_client_name || null,
+            school_id: tx.school_id,
+            created_by: user.id,
+            ticket_code: tCode,
+            metadata: { ...(tx.metadata || {}), ...partialMeta },
           });
-
-        if (toCreate.length > 0) {
-          const { error } = await supabase.from('transactions').insert(toCreate);
           if (error) throw error;
-        }
+          if (lunchOrderId) lunchOrdersToDeliver.push(lunchOrderId);
+          remaining = remaining >= txAmount ? remaining - txAmount : 0;
 
-        // Marcar lunch_orders como delivered
-        const toDeliver = virtualTxs.map((vt: any) => vt.metadata?.lunch_order_id).filter(Boolean);
-        if (toDeliver.length > 0) {
-          await supabase.from('lunch_orders')
-            .update({ status: 'delivered', delivered_at: new Date().toISOString() })
-            .in('id', toDeliver);
+        } else {
+          // Transacción real: UPDATE
+          if (remaining >= txAmount) {
+            const { error } = await supabase
+              .from('transactions')
+              .update({
+                payment_status: 'paid',
+                payment_method: paymentData.payment_method,
+                operation_number: makeOpNum(paymentData.operation_number || null),
+                created_by: user.id,
+              })
+              .eq('id', tx.id);
+            if (error) throw error;
+            if (lunchOrderId) lunchOrdersToDeliver.push(lunchOrderId);
+            remaining -= txAmount;
+          } else {
+            // Pago parcial: marca el ticket como 'partial' y guarda cuánto se abonó
+            const { error } = await supabase
+              .from('transactions')
+              .update({
+                payment_status: 'partial',
+                payment_method: paymentData.payment_method,
+                operation_number: makeOpNum(paymentData.operation_number || null),
+                metadata: {
+                  ...(tx.metadata || {}),
+                  partial_paid_amount: remaining,
+                  partial_paid_at: new Date().toISOString(),
+                  partial_paid_by: user.id,
+                },
+              })
+              .eq('id', tx.id);
+            if (error) throw error;
+            if (lunchOrderId) lunchOrdersToDeliver.push(lunchOrderId);
+            remaining = 0;
+          }
         }
       }
 
-      // Marcar lunch_orders de reales como delivered
-      const realLunchIds = realTxs.map((t: any) => t.metadata?.lunch_order_id).filter(Boolean);
-      if (realLunchIds.length > 0) {
+      // Marcar lunch_orders como delivered
+      if (lunchOrdersToDeliver.length > 0) {
         await supabase.from('lunch_orders')
           .update({ status: 'delivered', delivered_at: new Date().toISOString() })
-          .in('id', realLunchIds);
+          .in('id', lunchOrdersToDeliver.filter(Boolean));
       }
 
-      toast({ title: '✅ Pago registrado', description: `S/ ${paymentData.paid_amount.toFixed(2)} con ${paymentData.payment_method}` });
+      // Si sobra dinero (pago > deuda) → acreditar excedente al balance del alumno
+      if (remaining > 0.01 && currentDebtor.client_type === 'student') {
+        try {
+          await supabase.rpc('process_manual_recharge', {
+            p_student_id:     currentDebtor.id,
+            p_amount:         remaining,
+            p_payment_method: paymentData.payment_method,
+            p_description:    `Excedente de cobro - ${format(new Date(), "d MMM yyyy", { locale: es })}`,
+            p_admin_id:       user.id,
+          });
+        } catch (exErr) {
+          console.error('Error aplicando excedente al saldo:', exErr);
+        }
+      }
+
+      let desc = `S/ ${paymentData.paid_amount.toFixed(2)} aplicado con ${paymentData.payment_method}`;
+      if (remaining > 0.01 && currentDebtor.client_type === 'student') {
+        desc += ` · S/ ${remaining.toFixed(2)} acreditado al saldo`;
+      } else if (remaining <= 0.001) {
+        const totalDebtDebtor = currentDebtor.total_amount;
+        if (paymentData.paid_amount < totalDebtDebtor) desc += ' (pago parcial — FIFO)';
+      }
+
+      toast({ title: '✅ Pago registrado', description: desc });
       setShowPaymentModal(false);
       setCurrentDebtor(null);
-      // Marcar como cobrado
       setCheckedDebtors(prev => new Set(prev).add(currentDebtor.id));
       await fetchDebtors();
     } catch (error: any) {
@@ -687,13 +870,16 @@ export const BillingCollection = () => {
           )}
         </button>
         <button
-          onClick={() => setActiveTab('pagos')}
+          onClick={() => {
+            setActiveTab('pagos');
+            if (!paidLoaded) fetchPaidTransactions();
+          }}
           className={`flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-semibold transition-all ${
             activeTab === 'pagos' ? 'bg-white shadow text-gray-900' : 'text-gray-500 hover:text-gray-700'
           }`}
         >
           <History className="h-4 w-4" />
-          Cobros Realizados
+          Estado de Cuenta
         </button>
       </div>
 
@@ -702,9 +888,15 @@ export const BillingCollection = () => {
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
           <Input
-            placeholder="Buscar nombre…"
+            placeholder={activeTab === 'pagos' ? 'Buscar cliente para estado de cuenta…' : 'Buscar nombre…'}
             value={searchTerm}
-            onChange={e => setSearchTerm(e.target.value)}
+            onChange={e => {
+              setSearchTerm(e.target.value);
+              if (activeTab === 'pagos' && statementClient) {
+                setStatementClient(null);
+                setStatementEvents([]);
+              }
+            }}
             className="pl-9"
           />
         </div>
@@ -813,6 +1005,26 @@ export const BillingCollection = () => {
                       >
                         <Copy className="h-4 w-4" />
                       </Button>
+                      {/* Botón de impersonación — solo para alumnos (con padre) y profesores */}
+                      {(debtor.client_type === 'teacher' || (debtor.client_type === 'student' && debtor.parent_id)) && (
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="h-8 w-8 text-gray-500 hover:text-amber-600 hover:bg-amber-50"
+                          title={debtor.client_type === 'teacher' ? 'Ver portal del profesor' : 'Ver portal del padre'}
+                          onClick={() => {
+                            if (debtor.client_type === 'teacher') {
+                              setPreview(debtor.id, debtor.client_name, 'teacher');
+                              navigate('/teacher');
+                            } else if (debtor.parent_id) {
+                              setPreview(debtor.parent_id, debtor.parent_name || debtor.client_name, 'parent');
+                              navigate('/');
+                            }
+                          }}
+                        >
+                          <KeyRound className="h-4 w-4" />
+                        </Button>
+                      )}
                     </div>
                   </div>
                 );
@@ -830,62 +1042,179 @@ export const BillingCollection = () => {
       )}
 
       {/* ═══════════════════════════════════════════════
-          TAB 2 — COBROS REALIZADOS
+          TAB 2 — ESTADO DE CUENTA
       ═══════════════════════════════════════════════ */}
       {activeTab === 'pagos' && (
         <>
-          {loadingPaid ? (
-            <div className="flex items-center justify-center py-16">
-              <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
-            </div>
-          ) : filteredPaid.length === 0 ? (
-            <div className="text-center py-16 text-gray-400">
-              <History className="h-12 w-12 mx-auto mb-3 opacity-30" />
-              <p className="font-medium">Sin cobros registrados</p>
-            </div>
-          ) : (
-            <div className="space-y-2">
-              {filteredPaid.map(tx => {
-                const clientName =
-                  tx.students?.full_name ||
-                  tx.teacher_profiles?.full_name ||
-                  tx.manual_client_name ||
-                  'Cliente genérico';
-                const isTeacher = !!tx.teacher_id;
-                return (
-                  <div key={tx.id} className="flex items-center gap-3 p-3 rounded-xl border border-emerald-200 bg-emerald-50">
-                    <CheckCircle2 className="h-5 w-5 text-emerald-500 flex-shrink-0" />
-                    <div className="flex-1 min-w-0">
-                      <p className="font-semibold text-sm text-gray-900 truncate">{clientName}</p>
-                      <p className="text-[11px] text-gray-500 truncate">{tx.description}</p>
-                      <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-                        <span className="text-[10px] text-gray-400">
-                          {format(new Date(tx.created_at), "d MMM yyyy · HH:mm", { locale: es })}
-                        </span>
-                        {tx.ticket_code && (
-                          <span className="text-[10px] font-mono bg-gray-100 text-gray-600 px-1.5 rounded">
-                            {tx.ticket_code}
-                          </span>
-                        )}
-                        {tx.payment_method && (
-                          <span className="text-[10px] text-indigo-600 font-medium capitalize">
-                            {tx.payment_method}
-                          </span>
-                        )}
-                        {isTeacher && (
-                          <Badge variant="outline" className="text-[9px] border-indigo-300 text-indigo-600">
-                            Profesor
-                          </Badge>
-                        )}
-                      </div>
-                    </div>
-                    <span className="text-sm font-black text-emerald-700 flex-shrink-0 tabular-nums">
-                      S/ {Math.abs(tx.amount).toFixed(2)}
-                    </span>
+          {statementClient ? (
+            /* ── Vista de estado de cuenta del cliente seleccionado ── */
+            <div className="space-y-3">
+              {/* Header con botón volver */}
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 px-2 text-gray-500 hover:text-gray-700"
+                  onClick={() => { setStatementClient(null); setStatementEvents([]); }}
+                >
+                  <ArrowLeft className="h-4 w-4 mr-1" />
+                  Volver
+                </Button>
+                <div className="flex-1 min-w-0">
+                  <p className="font-bold text-sm text-gray-900 truncate">{statementClient.name}</p>
+                  <p className="text-[11px] text-gray-400">Estado de cuenta completo</p>
+                </div>
+                {clientTypeLabel(statementClient.type)}
+              </div>
+
+              {loadingStatement ? (
+                <div className="flex justify-center py-10">
+                  <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
+                </div>
+              ) : statementEvents.length === 0 ? (
+                <div className="text-center py-12 text-gray-400">
+                  <History className="h-10 w-10 mx-auto mb-2 opacity-30" />
+                  <p className="text-sm font-medium">Sin movimientos registrados</p>
+                </div>
+              ) : (
+                <>
+                  {/* Cabecera de columnas */}
+                  <div className="grid grid-cols-[1fr_auto_auto] gap-2 px-3 py-1.5 text-[10px] font-semibold text-gray-400 uppercase tracking-wide border-b border-gray-100">
+                    <span>Descripción</span>
+                    <span className="text-right">Monto</span>
+                    <span className="text-right min-w-[74px]">Saldo</span>
                   </div>
-                );
-              })}
+
+                  <div className="space-y-1.5 max-h-[480px] overflow-y-auto pr-1">
+                    {statementEvents.map((event) => {
+                      const isRecharge = event.event_type === 'recharge' || event.source === 'recharge_request';
+                      const isIncome   = event.amount > 0;
+                      const isPending  = event.payment_status === 'pending';
+                      const isPartial  = event.payment_status === 'partial';
+                      const rb         = event.running_balance ?? 0;
+
+                      return (
+                        <div
+                          key={event.id}
+                          className={`grid grid-cols-[1fr_auto_auto] gap-2 items-start rounded-lg border-l-[3px] px-3 py-2 text-xs ${
+                            isRecharge || isIncome
+                              ? 'border-l-emerald-500 bg-emerald-50/70'
+                              : 'border-l-red-400 bg-red-50/40'
+                          }`}
+                        >
+                          {/* Descripción + fecha + tags */}
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <span className="font-medium text-gray-800 truncate max-w-[170px]">
+                                {event.description || (isRecharge ? 'Recarga' : 'Consumo')}
+                              </span>
+                              {isRecharge && (
+                                <span className="text-[9px] font-bold bg-emerald-100 text-emerald-700 border border-emerald-200 px-1.5 py-0.5 rounded-full">
+                                  Recarga
+                                </span>
+                              )}
+                              {isPending && (
+                                <span className="text-[9px] font-bold bg-orange-100 text-orange-700 border border-orange-300 px-1.5 py-0.5 rounded-full">
+                                  Pendiente
+                                </span>
+                              )}
+                              {isPartial && (
+                                <span className="text-[9px] font-bold bg-yellow-100 text-yellow-700 border border-yellow-300 px-1.5 py-0.5 rounded-full">
+                                  Parcial
+                                </span>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-2 mt-0.5 text-[10px] text-gray-400 flex-wrap">
+                              <span>{format(new Date(event.created_at), "d MMM yyyy · HH:mm", { locale: es })}</span>
+                              {event.ticket_code && (
+                                <span className="font-mono">{event.ticket_code}</span>
+                              )}
+                              {event.payment_method && (
+                                <span className="capitalize text-indigo-500">{event.payment_method}</span>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Monto */}
+                          <div className={`text-right font-bold text-sm whitespace-nowrap ${isIncome ? 'text-emerald-600' : 'text-red-500'}`}>
+                            {isIncome ? '+' : '-'}S/ {Math.abs(event.amount).toFixed(2)}
+                          </div>
+
+                          {/* Saldo acumulado */}
+                          <div className={`text-right min-w-[74px] font-semibold text-xs whitespace-nowrap ${rb < 0 ? 'text-red-500' : 'text-emerald-600'}`}>
+                            {rb < 0 ? '-' : ''}S/ {Math.abs(rb).toFixed(2)}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* Resumen final */}
+                  {(() => {
+                    const lastBalance = statementEvents[statementEvents.length - 1]?.running_balance ?? 0;
+                    return (
+                      <div className={`flex items-center justify-between rounded-xl px-4 py-2.5 mt-1 border text-sm font-bold ${
+                        lastBalance < 0
+                          ? 'bg-red-600 border-red-700 text-white'
+                          : 'bg-emerald-600 border-emerald-700 text-white'
+                      }`}>
+                        <span>{lastBalance < 0 ? '⚠ Saldo deudor' : '✓ Saldo a favor'}</span>
+                        <span>{lastBalance < 0 ? '-' : ''}S/ {Math.abs(lastBalance).toFixed(2)}</span>
+                      </div>
+                    );
+                  })()}
+                </>
+              )}
             </div>
+
+          ) : (
+            /* ── Buscador de clientes para Estado de Cuenta ── */
+            <>
+              {!searchTerm ? (
+                <div className="text-center py-14 text-gray-400">
+                  <History className="h-11 w-11 mx-auto mb-3 opacity-25" />
+                  <p className="font-semibold text-sm text-gray-500">Estado de Cuenta</p>
+                  <p className="text-xs mt-1 text-gray-400">
+                    Busca un cliente por nombre para ver su historial completo,<br />
+                    incluyendo consumos, pagos y recargas con saldo acumulado.
+                  </p>
+                </div>
+              ) : clientSearchResults.length === 0 ? (
+                <div className="text-center py-12 text-gray-400">
+                  <p className="text-sm">Sin resultados para "<strong className="text-gray-600">{searchTerm}</strong>"</p>
+                  <p className="text-xs mt-1">Intenta con el nombre del alumno o del padre</p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <p className="text-xs text-gray-400 px-1">
+                    {clientSearchResults.length} cliente{clientSearchResults.length !== 1 ? 's' : ''} encontrado{clientSearchResults.length !== 1 ? 's' : ''}
+                  </p>
+                  {clientSearchResults.map(client => (
+                    <button
+                      key={client.id}
+                      className="w-full flex items-center gap-3 p-3 rounded-xl border border-gray-200 bg-white hover:border-blue-300 hover:bg-blue-50 transition-all text-left"
+                      onClick={() => {
+                        setStatementClient(client);
+                        fetchClientStatement(client);
+                        if (!paidLoaded) fetchPaidTransactions();
+                      }}
+                    >
+                      <div className="h-8 w-8 rounded-full bg-gradient-to-br from-slate-200 to-slate-300 flex items-center justify-center text-slate-600 font-bold text-sm flex-shrink-0">
+                        {client.name.charAt(0).toUpperCase()}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-semibold text-sm text-gray-900 truncate">{client.name}</p>
+                        <p className="text-[11px] text-gray-400">
+                          {client.type === 'student' ? 'Alumno' : client.type === 'teacher' ? 'Profesor' : 'Cliente genérico'}
+                        </p>
+                      </div>
+                      {clientTypeLabel(client.type)}
+                      <ChevronRight className="h-4 w-4 text-gray-300 flex-shrink-0" />
+                    </button>
+                  ))}
+                </div>
+              )}
+            </>
           )}
         </>
       )}
@@ -1027,11 +1356,21 @@ export const BillingCollection = () => {
                   type="number"
                   step="0.10"
                   min="0.01"
-                  max={currentDebtor.total_amount}
                   value={paymentData.paid_amount}
                   onChange={e => setPaymentData(p => ({ ...p, paid_amount: parseFloat(e.target.value) || 0 }))}
+                  className="text-base font-semibold"
                 />
-                <p className="text-[11px] text-gray-400 mt-0.5">Total deuda: S/ {currentDebtor.total_amount.toFixed(2)}</p>
+                <div className="flex items-center justify-between mt-1">
+                  <p className="text-[11px] text-gray-400">Total deuda: S/ {currentDebtor.total_amount.toFixed(2)}</p>
+                  {paymentData.paid_amount > currentDebtor.total_amount + 0.01 && (
+                    <p className="text-[11px] text-emerald-600 font-medium">
+                      +S/ {(paymentData.paid_amount - currentDebtor.total_amount).toFixed(2)} al saldo
+                    </p>
+                  )}
+                </div>
+                <p className="text-[10px] text-indigo-500 mt-1">
+                  ⟳ El pago se aplicará automáticamente a los consumos más antiguos
+                </p>
               </div>
 
               {/* Método de pago */}
@@ -1049,10 +1388,10 @@ export const BillingCollection = () => {
                 </select>
               </div>
 
-              {/* N° Operación */}
+              {/* N° Operación — opcional */}
               {['yape', 'plin', 'transferencia'].includes(paymentData.payment_method) && (
                 <div>
-                  <label className="text-sm font-medium text-gray-700 block mb-1">N° de operación <span className="text-red-500">*</span></label>
+                  <label className="text-sm font-medium text-gray-700 block mb-1">N° de operación</label>
                   <Input
                     placeholder="Ej: 123456789"
                     value={paymentData.operation_number}

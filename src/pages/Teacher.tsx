@@ -1,6 +1,8 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { useRole } from '@/hooks/useRole';
+import { usePreviewStore } from '@/stores/previewStore';
 import { supabase } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -21,6 +23,7 @@ import { MyLunchOrders } from '@/components/teacher/MyLunchOrders';
 import { EditTeacherProfileModal } from '@/components/teacher/EditTeacherProfileModal';
 import { ChangePasswordModal } from '@/components/admin/ChangePasswordModal';
 import { RechargeModal } from '@/components/parent/RechargeModal';
+import { OnlineStore } from '@/components/store/OnlineStore';
 import jsPDF from 'jspdf';
 import maracuyaLogo from '@/assets/maracuya-logo.png';
 
@@ -40,12 +43,26 @@ interface TeacherProfile {
   onboarding_completed: boolean;
 }
 
-type TabType = 'home' | 'menu' | 'payments' | 'more';
+type TabType = 'home' | 'menu' | 'payments' | 'store' | 'more';
 
 export default function Teacher() {
   const { user, signOut } = useAuth();
+  const { role } = useRole();
   const navigate = useNavigate();
   const { toast } = useToast();
+
+  // ── Modo Preview: admin viendo el portal como un profesor ──
+  const { previewUserId, previewName, previewRole, clearPreview } = usePreviewStore();
+  const ADMIN_ROLES = ['admin_general', 'superadmin', 'supervisor_red', 'gestor_unidad'];
+  const isAdminPreview = !!(previewUserId && previewRole === 'teacher' && ADMIN_ROLES.includes(role || ''));
+  const effectiveUserId = isAdminPreview ? previewUserId : (user?.id ?? '');
+
+  // Si el admin llega sin preview activo, redirigir a dashboard
+  useEffect(() => {
+    if (role && ADMIN_ROLES.includes(role) && !isAdminPreview) {
+      navigate('/dashboard', { replace: true });
+    }
+  }, [role, isAdminPreview]);
 
   // Core state
   const [loading, setLoading] = useState(true);
@@ -86,8 +103,8 @@ export default function Teacher() {
 
   // ─── Effects ───
   useEffect(() => {
-    if (user) checkOnboardingStatus();
-  }, [user]);
+    if (effectiveUserId) checkOnboardingStatus();
+  }, [effectiveUserId]);
 
   useEffect(() => {
     if (!teacherProfile) return;
@@ -107,19 +124,19 @@ export default function Teacher() {
       const { data: profileView, error: viewError } = await supabase
         .from('teacher_profiles_with_schools')
         .select('*')
-        .eq('id', user?.id)
+        .eq('id', effectiveUserId)
         .maybeSingle();
 
       if (viewError) {
         const { data: rawProfile, error: rawError } = await supabase
           .from('teacher_profiles')
           .select(`*, school1:schools!teacher_profiles_school_id_1_fkey(id, name, code), school2:schools!teacher_profiles_school_id_2_fkey(id, name, code)`)
-          .eq('id', user?.id)
+          .eq('id', effectiveUserId)
           .maybeSingle();
 
         if (rawError) {
           const { data: minProfile } = await supabase
-            .from('teacher_profiles').select('*').eq('id', user?.id).maybeSingle();
+            .from('teacher_profiles').select('*').eq('id', effectiveUserId).maybeSingle();
           profile = minProfile ? {
             ...minProfile,
             school_1_id: minProfile.school_id_1,
@@ -404,6 +421,24 @@ export default function Teacher() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-blue-50">
+
+      {/* ── Banner de modo preview (solo admin) ── */}
+      {isAdminPreview && (
+        <div className="bg-amber-500 text-white px-4 py-2 flex items-center justify-between text-sm font-medium sticky top-0 z-50">
+          <div className="flex items-center gap-2">
+            <span>👁</span>
+            <span>Vista previa como profesor: <strong>{previewName}</strong></span>
+            <span className="opacity-70 text-xs">— Solo lectura, sin cambios</span>
+          </div>
+          <button
+            onClick={() => { clearPreview(); navigate('/cobranzas'); }}
+            className="bg-white/20 hover:bg-white/30 rounded-lg px-3 py-1 text-xs font-semibold transition-colors"
+          >
+            ← Volver a Cobranzas
+          </button>
+        </div>
+      )}
+
       {/* ═══════════════ COMPACT HEADER ═══════════════ */}
       <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-purple-100/50 shadow-sm">
         <div className="max-w-3xl mx-auto px-3 sm:px-4">
@@ -857,6 +892,17 @@ export default function Teacher() {
               </div>
             )}
 
+            {/* ══════ TAB: TIENDA ══════ */}
+            {activeTab === 'store' && teacherProfile && (
+              <OnlineStore
+                userId={user?.id || ''}
+                userName={teacherProfile.full_name}
+                schoolId={teacherProfile.school_1_id || null}
+                userType="teacher"
+                teacherProfileId={teacherProfile.id}
+              />
+            )}
+
             {/* ══════ TAB: MÁS ══════ */}
             {activeTab === 'more' && (
               <div className="space-y-3 animate-in fade-in duration-200">
@@ -936,7 +982,7 @@ export default function Teacher() {
       {/* ═══════════════ BOTTOM NAVIGATION ═══════════════ */}
       <nav className="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-md border-t border-purple-100/50 shadow-lg z-50">
         <div className="max-w-3xl mx-auto px-1 sm:px-2">
-          <div className="grid grid-cols-4 gap-0.5">
+          <div className="grid grid-cols-5 gap-0.5">
             <BottomTab
               icon={<Home className="h-5 w-5" />}
               label="Inicio"
@@ -948,6 +994,12 @@ export default function Teacher() {
               label="Menú"
               active={activeTab === 'menu'}
               onClick={() => setActiveTab('menu')}
+            />
+            <BottomTab
+              icon={<ShoppingBag className="h-5 w-5" />}
+              label="Tienda"
+              active={activeTab === 'store'}
+              onClick={() => setActiveTab('store')}
             />
             <BottomTab
               icon={<Wallet className="h-5 w-5" />}

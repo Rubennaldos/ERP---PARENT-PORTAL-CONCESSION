@@ -13,8 +13,8 @@
 CREATE OR REPLACE FUNCTION public.get_student_ledger(p_student_id UUID)
 RETURNS TABLE (
   event_id       UUID,
-  event_type     TEXT,   -- 'purchase' | 'recharge'
-  source         TEXT,   -- 'pos' | 'historical_kiosk_entry' | 'recharge_request' | otros
+  event_type     TEXT,
+  source         TEXT,
   amount         NUMERIC,
   description    TEXT,
   event_date     TIMESTAMPTZ,
@@ -28,7 +28,6 @@ SECURITY DEFINER
 STABLE
 AS $func$
 
-  -- ── Todas las transacciones del alumno ───────────────────────────────
   SELECT
     t.id                                            AS event_id,
     t.type                                          AS event_type,
@@ -46,7 +45,6 @@ AS $func$
 
   UNION ALL
 
-  -- ── Recargas aprobadas (tabla separada recharge_requests) ───────────
   SELECT
     rr.id                                           AS event_id,
     'recharge'                                      AS event_type,
@@ -61,7 +59,7 @@ AS $func$
            THEN ' (' || rr.payment_method || ')'
            ELSE '' END
     )                                               AS description,
-    COALESCE(rr.updated_at, rr.created_at)         AS event_date,
+    rr.created_at                                   AS event_date,
     rr.status                                       AS payment_status,
     NULL::TEXT                                      AS ticket_code,
     rr.reference_code,

@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Package, Tag, Percent, Plus, Pencil, Trash2, ArrowLeft, Camera, BarChart3, Download, TrendingUp, AlertTriangle, DollarSign, ShoppingCart, Loader2, Building2, FileSpreadsheet, FileDown } from 'lucide-react';
+import { Package, Tag, Percent, Plus, Pencil, Trash2, ArrowLeft, Camera, BarChart3, Download, TrendingUp, AlertTriangle, DollarSign, ShoppingCart, Loader2, Building2, FileSpreadsheet, FileDown, Globe } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useToast } from '@/hooks/use-toast';
 import { PriceMatrix } from '@/components/products/PriceMatrix';
@@ -40,6 +40,7 @@ interface Product {
   wholesale_price?: number;
   active: boolean;
   school_ids: string[];
+  available_online?: boolean;
 }
 
 interface School {
@@ -113,6 +114,7 @@ const Products = () => {
     wholesale_price: '',
     school_ids: [] as string[],
     applyToAllSchools: true,
+    available_online: false,
   });
 
   const [, forceUpdate] = useState({});
@@ -460,6 +462,7 @@ const Products = () => {
       wholesale_price: String(product.wholesale_price || ''),
       school_ids: product.school_ids || [],
       applyToAllSchools: (product.school_ids || []).length === schools.length,
+      available_online: product.available_online || false,
     };
     setCurrentCode(product.code || '');
     setEditingProductId(product.id);
@@ -531,6 +534,7 @@ const Products = () => {
         wholesale_qty: f.has_wholesale ? parseInt(f.wholesale_qty) : null,
         wholesale_price: f.has_wholesale ? parseFloat(f.wholesale_price) : null,
         school_ids: selectedSchools,
+        available_online: f.available_online,
       };
 
       if (editingProductId) {
@@ -586,6 +590,21 @@ const Products = () => {
                   onChange={e => { f.description = e.target.value; forceUpdate({}); }}
                   placeholder="Ej: Gaseosa refrescante de 500ml, ideal para el refrigerio" 
                   className="w-full h-20 px-3 py-2 text-base border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 mt-2"
+                />
+              </div>
+              {/* Toggle Tienda Virtual */}
+              <div className={`flex items-center gap-4 p-4 rounded-xl border-2 transition-all ${f.available_online ? 'border-violet-400 bg-violet-50' : 'border-gray-200 bg-gray-50'}`}>
+                <div className={`flex items-center justify-center w-10 h-10 rounded-full shrink-0 ${f.available_online ? 'bg-violet-600' : 'bg-gray-300'}`}>
+                  <Globe className="h-5 w-5 text-white" />
+                </div>
+                <div className="flex-1">
+                  <p className="text-base font-semibold text-gray-900">Mostrar en Tienda Virtual</p>
+                  <p className="text-xs text-muted-foreground">Los padres y profesores podrán ver y pedir este producto desde su portal</p>
+                </div>
+                <Switch
+                  checked={f.available_online}
+                  onCheckedChange={v => { f.available_online = v; forceUpdate({}); }}
+                  className="data-[state=checked]:bg-violet-600"
                 />
               </div>
               <div>
@@ -1282,7 +1301,15 @@ const Products = () => {
                       <CardHeader>
                         <div className="flex justify-between items-start">
                           <CardTitle className="text-lg">{product.name}</CardTitle>
-                          <Badge>{product.category}</Badge>
+                          <div className="flex flex-col items-end gap-1.5">
+                            <Badge>{product.category}</Badge>
+                            {product.available_online && (
+                              <Badge className="bg-violet-600 hover:bg-violet-700 text-white text-[10px] px-2 py-0.5 flex items-center gap-1">
+                                <Globe className="h-2.5 w-2.5" />
+                                Tienda Virtual
+                              </Badge>
+                            )}
+                          </div>
                         </div>
                         <CardDescription>Código: {product.code}</CardDescription>
                       </CardHeader>

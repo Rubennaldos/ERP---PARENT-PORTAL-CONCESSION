@@ -59,6 +59,7 @@ interface Product {
 interface SaleEntry {
   product: Product;
   quantity: number;
+  customPrice?: number;
 }
 
 interface HistoricalSalesFormProps {
@@ -232,7 +233,18 @@ export function HistoricalSalesForm({ schoolId, schoolName }: HistoricalSalesFor
 
   const removeFromCart = (productId: string) => setCart(prev => prev.filter(e => e.product.id !== productId));
 
-  const cartTotal = cart.reduce((sum, e) => sum + e.product.price * e.quantity, 0);
+  const updatePrice = (productId: string, value: string) => {
+    const parsed = parseFloat(value);
+    setCart(prev => prev.map(e =>
+      e.product.id === productId
+        ? { ...e, customPrice: isNaN(parsed) || parsed < 0 ? undefined : parsed }
+        : e
+    ));
+  };
+
+  const effectivePrice = (entry: SaleEntry) => entry.customPrice ?? entry.product.price;
+
+  const cartTotal = cart.reduce((sum, e) => sum + effectivePrice(e) * e.quantity, 0);
 
   const handleConfirm = async () => {
     if ((!selectedStudent && !selectedTeacher) || cart.length === 0 || !saleDate) return;
@@ -245,8 +257,8 @@ export function HistoricalSalesForm({ schoolId, schoolName }: HistoricalSalesFor
         items: cart.map(e => ({
           product_name: e.product.name,
           quantity: e.quantity,
-          unit_price: e.product.price,
-          subtotal: e.product.price * e.quantity,
+          unit_price: effectivePrice(e),
+          subtotal: effectivePrice(e) * e.quantity,
         })),
       };
 
@@ -268,8 +280,8 @@ export function HistoricalSalesForm({ schoolId, schoolName }: HistoricalSalesFor
           transaction_id: txId,
           product_name: e.product.name,
           quantity: e.quantity,
-          unit_price: e.product.price,
-          subtotal: e.product.price * e.quantity,
+          unit_price: effectivePrice(e),
+          subtotal: effectivePrice(e) * e.quantity,
         }));
         await supabase.from('transaction_items').insert(itemRows);
       }
@@ -605,27 +617,44 @@ export function HistoricalSalesForm({ schoolId, schoolName }: HistoricalSalesFor
 
             {/* Dropdown productos */}
             {showProductDropdown && filteredProducts.length > 0 && (
-              <div className="border border-slate-200 rounded-lg overflow-hidden max-h-40 overflow-y-auto divide-y divide-slate-100">
-                {filteredProducts.map((p, idx) => (
-                  <button
-                    key={p.id}
-                    onMouseDown={() => { addToCart(p); setActiveProductIdx(-1); }}
-                    className={`w-full text-left px-3 py-2 transition-colors flex items-center justify-between ${
-                      idx === activeProductIdx ? 'bg-slate-100' : 'hover:bg-slate-50 active:bg-slate-100'
-                    }`}
-                  >
-                    <div className="min-w-0 mr-2">
-                      <p className="text-xs font-semibold text-slate-800 truncate">{p.name}</p>
-                      <p className="text-[10px] text-slate-400">{p.category}</p>
-                    </div>
-                    <div className="flex items-center gap-1.5 shrink-0">
-                      <span className="text-xs font-bold text-emerald-600">S/ {p.price.toFixed(2)}</span>
-                      <div className="w-5 h-5 bg-slate-800 rounded-full flex items-center justify-center">
-                        <Plus className="h-3 w-3 text-white" />
+              <div className="border border-slate-200 rounded-lg overflow-hidden max-h-48 overflow-y-auto divide-y divide-slate-100">
+                {filteredProducts.map((p, idx) => {
+                  const inCart = cart.some(e => e.product.id === p.id);
+                  const isActive = idx === activeProductIdx;
+                  return (
+                    <button
+                      key={p.id}
+                      onMouseDown={() => { addToCart(p); setActiveProductIdx(-1); }}
+                      className={`w-full text-left px-3 py-2 transition-all flex items-center justify-between border-l-2 ${
+                        isActive
+                          ? 'bg-emerald-50 border-l-emerald-500'
+                          : inCart
+                          ? 'bg-green-50/70 border-l-green-400 hover:bg-green-100/60'
+                          : 'border-l-transparent hover:bg-slate-50 active:bg-slate-100'
+                      }`}
+                    >
+                      <div className="min-w-0 mr-2">
+                        <p className={`text-xs font-semibold truncate ${inCart ? 'text-green-800' : 'text-slate-800'}`}>
+                          {p.name}
+                        </p>
+                        <p className="text-[10px] text-slate-400">{p.category}</p>
                       </div>
-                    </div>
-                  </button>
-                ))}
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <span className={`text-xs font-bold ${inCart ? 'text-green-600' : 'text-emerald-600'}`}>
+                          S/ {p.price.toFixed(2)}
+                        </span>
+                        <div className={`w-5 h-5 rounded-full flex items-center justify-center ${
+                          inCart ? 'bg-green-500' : 'bg-slate-800'
+                        }`}>
+                          {inCart
+                            ? <Check className="h-3 w-3 text-white" />
+                            : <Plus className="h-3 w-3 text-white" />
+                          }
+                        </div>
+                      </div>
+                    </button>
+                  );
+                })}
               </div>
             )}
 
@@ -633,30 +662,59 @@ export function HistoricalSalesForm({ schoolId, schoolName }: HistoricalSalesFor
             {cart.length > 0 ? (
               <div className="space-y-1.5">
                 {cart.map(entry => (
-                  <div key={entry.product.id} className="flex items-center gap-2 bg-slate-50 rounded-lg px-2.5 py-2 border border-slate-100">
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs font-semibold text-slate-800 truncate">{entry.product.name}</p>
-                      <p className="text-[10px] text-slate-400">S/ {entry.product.price.toFixed(2)} c/u</p>
-                    </div>
-                    <div className="flex items-center gap-1 shrink-0">
-                      <button
-                        onClick={() => updateQty(entry.product.id, -1)}
-                        className="w-7 h-7 rounded-md bg-white border border-slate-200 flex items-center justify-center active:bg-slate-100"
-                      >
-                        <Minus className="h-3 w-3 text-slate-600" />
-                      </button>
-                      <span className="w-6 text-center text-xs font-bold text-slate-800">{entry.quantity}</span>
-                      <button
-                        onClick={() => updateQty(entry.product.id, 1)}
-                        className="w-7 h-7 rounded-md bg-slate-800 flex items-center justify-center active:bg-slate-700"
-                      >
-                        <Plus className="h-3 w-3 text-white" />
+                  <div key={entry.product.id} className="bg-slate-50 rounded-lg border border-slate-100 px-2.5 py-2 space-y-1.5">
+                    <div className="flex items-center gap-2">
+                      <p className="flex-1 text-xs font-semibold text-slate-800 truncate">{entry.product.name}</p>
+                      <button onClick={() => removeFromCart(entry.product.id)} className="text-slate-300 hover:text-red-500 transition-colors shrink-0">
+                        <Trash2 className="h-3.5 w-3.5" />
                       </button>
                     </div>
-                    <span className="text-xs font-bold text-emerald-600 w-14 text-right shrink-0">S/ {(entry.product.price * entry.quantity).toFixed(2)}</span>
-                    <button onClick={() => removeFromCart(entry.product.id)} className="text-slate-300 hover:text-red-500 transition-colors">
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </button>
+                    <div className="flex items-center gap-2">
+                      {/* Precio editable */}
+                      <div className="flex items-center gap-1 flex-1 min-w-0">
+                        <span className="text-[10px] text-slate-400 shrink-0">S/</span>
+                        <input
+                          type="number"
+                          min="0"
+                          step="0.10"
+                          value={entry.customPrice !== undefined ? entry.customPrice : entry.product.price}
+                          onChange={e => updatePrice(entry.product.id, e.target.value)}
+                          className={`w-20 h-7 text-xs font-bold text-center rounded border focus:outline-none focus:ring-1 focus:ring-slate-400 ${
+                            entry.customPrice !== undefined && entry.customPrice !== entry.product.price
+                              ? 'border-amber-400 bg-amber-50 text-amber-700'
+                              : 'border-slate-200 bg-white text-slate-800'
+                          }`}
+                        />
+                        <span className="text-[10px] text-slate-400 shrink-0">c/u</span>
+                        {entry.customPrice !== undefined && entry.customPrice !== entry.product.price && (
+                          <button
+                            onClick={() => updatePrice(entry.product.id, String(entry.product.price))}
+                            className="text-[9px] text-amber-500 hover:text-amber-700 underline shrink-0"
+                            title="Restaurar precio original"
+                          >
+                            orig.
+                          </button>
+                        )}
+                      </div>
+                      {/* Cantidad */}
+                      <div className="flex items-center gap-1 shrink-0">
+                        <button
+                          onClick={() => updateQty(entry.product.id, -1)}
+                          className="w-7 h-7 rounded-md bg-white border border-slate-200 flex items-center justify-center active:bg-slate-100"
+                        >
+                          <Minus className="h-3 w-3 text-slate-600" />
+                        </button>
+                        <span className="w-6 text-center text-xs font-bold text-slate-800">{entry.quantity}</span>
+                        <button
+                          onClick={() => updateQty(entry.product.id, 1)}
+                          className="w-7 h-7 rounded-md bg-slate-800 flex items-center justify-center active:bg-slate-700"
+                        >
+                          <Plus className="h-3 w-3 text-white" />
+                        </button>
+                      </div>
+                      {/* Subtotal */}
+                      <span className="text-xs font-bold text-emerald-600 w-14 text-right shrink-0">S/ {(effectivePrice(entry) * entry.quantity).toFixed(2)}</span>
+                    </div>
                   </div>
                 ))}
                 <div className="flex items-center justify-between bg-slate-800 rounded-lg px-3 py-2">
@@ -719,8 +777,11 @@ export function HistoricalSalesForm({ schoolId, schoolName }: HistoricalSalesFor
                   <div>
                     <span className="text-xs font-semibold text-slate-800">{entry.product.name}</span>
                     <span className="text-[10px] text-slate-400 ml-1.5">×{entry.quantity}</span>
+                    {entry.customPrice !== undefined && entry.customPrice !== entry.product.price && (
+                      <span className="text-[9px] text-amber-500 ml-1.5">(precio modificado)</span>
+                    )}
                   </div>
-                  <span className="text-xs font-bold text-slate-700">S/ {(entry.product.price * entry.quantity).toFixed(2)}</span>
+                  <span className="text-xs font-bold text-slate-700">S/ {(effectivePrice(entry) * entry.quantity).toFixed(2)}</span>
                 </div>
               ))}
             </div>

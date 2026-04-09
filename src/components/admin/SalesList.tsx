@@ -95,6 +95,7 @@ interface Transaction {
     order_date?: string;
     [key: string]: any;
   };
+  transaction_items?: TransactionItem[];
   student?: {
     id: string;
     full_name: string;
@@ -117,6 +118,14 @@ interface TransactionItem {
   quantity: number;
   unit_price: number;
   subtotal: number;
+}
+
+/** Genera un resumen compacto de los ítems: "1× Papas Inka, 2× Agua Cielo" */
+function buildItemsSummary(items: TransactionItem[] | undefined, description: string, maxChars = 80): string {
+  if (items && items.length > 0) {
+    return items.map(i => `${i.quantity}× ${i.product_name}`).join(', ');
+  }
+  return description || '—';
 }
 
 export const SalesList = () => {
@@ -382,6 +391,7 @@ export const SalesList = () => {
         .from('transactions')
         .select(`
           *,
+          transaction_items(id, product_name, quantity, unit_price, subtotal),
           student:students(id, full_name, balance),
           teacher:teacher_profiles(id, full_name),
           school:schools(id, name, code)
@@ -781,25 +791,67 @@ export const SalesList = () => {
     return false;
   };
 
-  // Búsqueda inteligente sin distinción de acentos
-  const filteredTransactions = transactions.filter(t => {
-    // Primero filtrar por tipo de venta
-    if (salesFilter === 'pos' && isLunchTransaction(t)) return false;  // POS: excluir almuerzos
-    if (salesFilter === 'lunch' && !isLunchTransaction(t)) return false; // Almuerzos: excluir POS
-    
-    // Luego filtrar por búsqueda
-    if (!searchTerm.trim()) return true;
-    
-    const search = normalizeSearch(searchTerm);
-    return (
-      normalizeSearch(t.ticket_code || '').includes(search) ||
-      normalizeSearch(t.student?.full_name || '').includes(search) ||
-      normalizeSearch(t.teacher?.full_name || '').includes(search) ||
-      normalizeSearch(t.client_name || '').includes(search) ||
-      normalizeSearch(t.description || '').includes(search) ||
-      Math.abs(t.amount).toString().includes(search)
-    );
-  });
+  // Detectar si el usuario está buscando por número de ticket
+  const trimmedSearch = searchTerm.trim();
+  const looksLikeTicket =
+    /^\d{1,6}$/.test(trimmedSearch) ||          // solo números: "610"
+    /^t-?\d+$/i.test(trimmedSearch);             // T-000610 o t610
+
+  /** Extrae la parte numérica sin ceros iniciales de un ticket_code.
+   *  "T-000610" → "610",  "T-001" → "1" */
+  const ticketNumericSuffix = (code: string): string =>
+    String(parseInt(code.replace(/^T-0*/i, '') || '0', 10));
+
+  // Búsqueda inteligente sin distinción de acentos + prioridad por ticket
+  const filteredTransactions = useMemo(() => {
+    const st = trimmedSearch;
+
+    const matches = transactions.filter(t => {
+      // Filtro por tipo de venta
+      if (salesFilter === 'pos'   && isLunchTransaction(t)) return false;
+      if (salesFilter === 'lunch' && !isLunchTransaction(t)) return false;
+
+      if (!st) return true;
+
+      const ticketCode = t.ticket_code || '';
+      const numSuffix  = ticketNumericSuffix(ticketCode);
+
+      // Búsqueda por número puro (ej: "610")
+      if (/^\d+$/.test(st)) {
+        if (numSuffix === String(parseInt(st, 10))) return true;
+        if (ticketCode.toLowerCase().endsWith(st.toLowerCase())) return true;
+      }
+
+      // Búsqueda general normalizada
+      const search = normalizeSearch(st);
+      return (
+        normalizeSearch(ticketCode).includes(search) ||
+        normalizeSearch(t.student?.full_name  || '').includes(search) ||
+        normalizeSearch(t.teacher?.full_name  || '').includes(search) ||
+        normalizeSearch(t.client_name         || '').includes(search) ||
+        normalizeSearch(t.description         || '').includes(search) ||
+        Math.abs(t.amount).toString().includes(search)
+      );
+    });
+
+    if (!st) return matches;
+
+    // Ordenar: coincidencia exacta de ticket primero
+    const stLow = st.toLowerCase();
+    const stNum = /^\d+$/.test(st) ? String(parseInt(st, 10)) : null;
+
+    return [...matches].sort((a, b) => {
+      const score = (t: Transaction): number => {
+        const code = (t.ticket_code || '').toLowerCase();
+        if (code === stLow) return 0;                                          // exacto completo
+        if (stNum && ticketNumericSuffix(t.ticket_code || '') === stNum) return 1; // exacto numérico
+        if (code.includes(stLow)) return 2;                                    // contiene
+        return 3;
+      };
+      return score(a) - score(b);
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [transactions, salesFilter, trimmedSearch]);
 
   const getTotalSales = () => {
     return filteredTransactions.reduce((sum, t) => sum + Math.abs(t.amount), 0);
@@ -1052,16 +1104,32 @@ export const SalesList = () => {
           <div className="relative mb-6">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
             <Input
-              placeholder="Buscar sin tildes: ticket, cliente, monto… (ej. maria = María)"
-              className="pl-10 h-12 text-base border-2 focus:border-emerald-500"
+              placeholder="Buscar: ticket (ej. T-000610 o solo 610), cliente, monto…"
+              className={`pl-10 h-12 text-base border-2 transition-colors ${
+                looksLikeTicket && searchTerm
+                  ? 'border-blue-400 focus:border-blue-500'
+                  : 'focus:border-emerald-500'
+              } ${searchTerm ? 'pr-36' : 'pr-4'}`}
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
             {searchTerm && (
-              <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                <Badge variant="secondary" className="text-xs">
-                  {filteredTransactions.length} resultados
+              <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1.5">
+                {looksLikeTicket && (
+                  <span className="text-[10px] font-bold bg-blue-100 text-blue-700 border border-blue-300 px-1.5 py-0.5 rounded-full">
+                    🎫 Ticket
+                  </span>
+                )}
+                <Badge variant="secondary" className="text-xs font-semibold">
+                  {filteredTransactions.length} {filteredTransactions.length === 1 ? 'resultado' : 'resultados'}
                 </Badge>
+                <button
+                  onClick={() => setSearchTerm('')}
+                  className="w-6 h-6 rounded-full bg-slate-200 hover:bg-red-100 hover:text-red-600 flex items-center justify-center transition-colors"
+                  title="Limpiar búsqueda"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
               </div>
             )}
           </div>
@@ -1202,15 +1270,22 @@ export const SalesList = () => {
                 <div className="text-center py-12">
                   <FileText className="h-16 w-16 mx-auto mb-3 text-muted-foreground opacity-30" />
                   <p className="text-muted-foreground">
-                    {searchTerm 
-                      ? 'No se encontraron resultados' 
-                      : salesFilter === 'pos' 
-                        ? `No hay ventas de cafetería para ${isSameDay(dateRange.from, dateRange.to) ? format(dateRange.from, "dd/MM/yyyy", { locale: es }) : `${format(dateRange.from, "dd/MM/yyyy")} - ${format(dateRange.to, "dd/MM/yyyy")}`}` 
-                        : salesFilter === 'lunch' 
-                          ? `No hay ventas de almuerzos para ${isSameDay(dateRange.from, dateRange.to) ? format(dateRange.from, "dd/MM/yyyy", { locale: es }) : `${format(dateRange.from, "dd/MM/yyyy")} - ${format(dateRange.to, "dd/MM/yyyy")}`}` 
+                    {searchTerm
+                      ? looksLikeTicket
+                        ? `No se encontró ningún ticket con esa numeración`
+                        : 'No se encontraron resultados para esa búsqueda'
+                      : salesFilter === 'pos'
+                        ? `No hay ventas de cafetería para ${isSameDay(dateRange.from, dateRange.to) ? format(dateRange.from, "dd/MM/yyyy", { locale: es }) : `${format(dateRange.from, "dd/MM/yyyy")} - ${format(dateRange.to, "dd/MM/yyyy")}`}`
+                        : salesFilter === 'lunch'
+                          ? `No hay ventas de almuerzos para ${isSameDay(dateRange.from, dateRange.to) ? format(dateRange.from, "dd/MM/yyyy", { locale: es }) : `${format(dateRange.from, "dd/MM/yyyy")} - ${format(dateRange.to, "dd/MM/yyyy")}`}`
                           : `No hay ventas para ${isSameDay(dateRange.from, dateRange.to) ? format(dateRange.from, "dd/MM/yyyy", { locale: es }) : `${format(dateRange.from, "dd/MM/yyyy")} - ${format(dateRange.to, "dd/MM/yyyy")}`}`}
                   </p>
-                  {transactions.length > 0 && filteredTransactions.length === 0 && (
+                  {searchTerm && looksLikeTicket && (
+                    <p className="text-xs text-slate-400 mt-2">
+                      Prueba ampliar el rango de fechas o verificar el número ingresado.
+                    </p>
+                  )}
+                  {transactions.length > 0 && filteredTransactions.length === 0 && !searchTerm && (
                     <p className="text-xs text-muted-foreground mt-2">
                       Hay {transactions.length} venta(s) en total. Prueba cambiando el filtro de tipo.
                     </p>
@@ -1276,11 +1351,12 @@ export const SalesList = () => {
                                 />
 
                                 <div className="flex-1 min-w-0">
-                                  {/* Ticket + fecha */}
+                                  {/* Ticket + hora + badges */}
                                   <div className="flex items-center gap-2 mb-1 flex-wrap">
-                                    <Badge variant="outline" className="font-mono text-xs font-black px-2 py-0.5 bg-slate-100 border">
+                                    {/* Ticket code prominente */}
+                                    <span className="font-mono text-xs font-black px-2 py-0.5 rounded-md bg-blue-600 text-white tracking-wide">
                                       {t.ticket_code || '---'}
-                                    </Badge>
+                                    </span>
                                     <span className="text-xs text-slate-500 flex items-center gap-1">
                                       <Clock className="h-3 w-3" />
                                       {format(new Date(t.created_at), "HH:mm", { locale: es })}
@@ -1293,15 +1369,15 @@ export const SalesList = () => {
                                         <Building2 className="h-2.5 w-2.5" />{t.school.name}
                                       </Badge>
                                     )}
-                                  </div>
-
-                                  {/* Descripción + cajero */}
-                                  <div className="flex items-center gap-2 flex-wrap">
-                                    <span className="text-xs text-slate-600 truncate max-w-[200px]">{t.description || '—'}</span>
                                     <Badge variant="outline" className="text-[9px] bg-amber-50 border-amber-200 text-amber-700">
                                       {t.profiles?.full_name || t.profiles?.email || 'Sistema'}
                                     </Badge>
                                   </div>
+
+                                  {/* Resumen de productos */}
+                                  <p className="text-xs text-slate-600 leading-snug line-clamp-2">
+                                    {buildItemsSummary(t.transaction_items, t.description)}
+                                  </p>
                                 </div>
 
                                 {/* Monto + acciones */}

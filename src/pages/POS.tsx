@@ -10,6 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { UserProfileMenu } from '@/components/admin/UserProfileMenu';
+import { TodayOrdersWidget } from '@/components/kds/TodayOrdersWidget';
 import {
   Dialog,
   DialogContent,
@@ -67,9 +68,11 @@ import {
   PackageOpen,
   Box,
   FileText,
+  FileDown,
   Pencil
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
+import { jsPDF } from 'jspdf';
 import { useToast } from '@/hooks/use-toast';
 import { cn, normalizeSearch } from '@/lib/utils';
 import { getProductsForSchool } from '@/lib/productPricing';
@@ -177,6 +180,7 @@ const POS = () => {
 
   // Estado para la sede del usuario (cajero)
   const [userSchoolId, setUserSchoolId] = useState<string | null>(null);
+  const [posSchoolName, setPosSchoolName] = useState('');
 
   // ── Guard de caja ────────────────────────────────────────────────
   const [cashGuardLoading, setCashGuardLoading] = useState(true);
@@ -243,6 +247,10 @@ const POS = () => {
   // NUEVO: Modal para seleccionar tipo de comprobante
   const [showDocumentTypeDialog, setShowDocumentTypeDialog] = useState(false);
   const [selectedDocumentType, setSelectedDocumentType] = useState('');
+  const [showPostSaleDialog, setShowPostSaleDialog] = useState(false);
+  const [completedTicketCode, setCompletedTicketCode] = useState('');
+  const activeMethodRef  = useRef<string | null>(null);
+  const pendingPrintRef  = useRef<any>(null);
 
   // Estado de ticket generado
   const [showTicketPrint, setShowTicketPrint] = useState(false);
@@ -347,8 +355,9 @@ const POS = () => {
     }
 
     if (productSearch.trim()) {
+      const searchNorm = normalizeSearch(productSearch);
       filtered = filtered.filter(p => 
-        (p.name || '').toLowerCase().includes(productSearch.toLowerCase())
+        normalizeSearch(p.name || '').includes(searchNorm)
       );
     }
 
@@ -555,6 +564,13 @@ const POS = () => {
       
       // Guardar el school_id del usuario para filtrar estudiantes
       setUserSchoolId(schoolId);
+
+      if (schoolId) {
+        const { data: sch } = await supabase.from('schools').select('name').eq('id', schoolId).maybeSingle();
+        setPosSchoolName(sch?.name || '');
+      } else {
+        setPosSchoolName('');
+      }
 
       // Usar la función de pricing inteligente
       const productsData = await getProductsForSchool(schoolId);
@@ -1212,6 +1228,127 @@ const POS = () => {
     return false;
   };
 
+  const getTemporaryReceiptClientLabel = (): string => {
+    if (clientMode === 'student' && selectedStudent) return selectedStudent.full_name;
+    if (clientMode === 'teacher' && selectedTeacher) return selectedTeacher.full_name as string;
+    if (clientMode === 'generic') return 'Cliente genérico';
+    return 'Sin cliente seleccionado';
+  };
+
+  /** PDF previo / fiado: no registra venta ni toca saldo */
+  const handleTemporaryReceiptPdf = () => {
+    if (cart.length === 0) {
+      toast({
+        title: 'Carrito vacío',
+        description: 'Agrega productos para generar el recibo.',
+      });
+      return;
+    }
+
+    const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+    const pageW = doc.internal.pageSize.getWidth();
+    const margin = 14;
+    let y = 18;
+
+    const addWrapped = (text: string, fontSize: number, bold: boolean) => {
+      doc.setFont('helvetica', bold ? 'bold' : 'normal');
+      doc.setFontSize(fontSize);
+      const maxW = pageW - margin * 2;
+      const lines = doc.splitTextToSize(text, maxW);
+      doc.text(lines, margin, y);
+      y += lines.length * (fontSize * 0.42) + 2;
+    };
+
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(15);
+    doc.text('RECIBO MOMENTÁNEO', margin, y);
+    y += 8;
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'normal');
+    doc.text('(No registra venta ni cobro en el sistema)', margin, y);
+    y += 6;
+
+    addWrapped(
+      'Comprobante orientativo para acuerdos con padres (ej. fiado). No reemplaza boleta fiscal ni ticket de venta registrada.',
+      9,
+      false,
+    );
+    y += 2;
+
+    const now = new Date();
+    const fechaStr = now.toLocaleString('es-PE', {
+      timeZone: 'America/Lima',
+      dateStyle: 'short',
+      timeStyle: 'short',
+    });
+
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+    doc.text(`Fecha: ${fechaStr} (Lima)`, margin, y);
+    y += 6;
+    if (posSchoolName) {
+      doc.text(`Sede: ${posSchoolName}`, margin, y);
+      y += 6;
+    }
+    if (full_name) {
+      doc.text(`Cajero: ${full_name}`, margin, y);
+      y += 6;
+    }
+    doc.text(`Cliente: ${getTemporaryReceiptClientLabel()}`, margin, y);
+    y += 8;
+
+    doc.setDrawColor(200);
+    doc.line(margin, y, pageW - margin, y);
+    y += 6;
+
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(10);
+    doc.text('Producto', margin, y);
+    doc.text('Cant.', pageW - margin - 52, y);
+    doc.text('Subtotal', pageW - margin, y, { align: 'right' });
+    y += 6;
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(9);
+
+    cart.forEach((item) => {
+      const sub = getItemPrice(item) * item.quantity;
+      const nameLines = doc.splitTextToSize(item.product.name, pageW - margin * 2 - 54);
+      const blockH = Math.max(nameLines.length * 4.2, 5);
+      if (y + blockH > 278) {
+        doc.addPage();
+        y = 20;
+      }
+      doc.text(nameLines, margin, y);
+      const midY = y + 3;
+      doc.text(String(item.quantity), pageW - margin - 52, midY);
+      doc.text(`S/ ${sub.toFixed(2)}`, pageW - margin, midY, { align: 'right' });
+      y += blockH + 2;
+    });
+
+    y += 4;
+    doc.line(margin, y, pageW - margin, y);
+    y += 8;
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(12);
+    doc.text(`TOTAL: S/ ${getTotal().toFixed(2)}`, margin, y);
+    y += 10;
+    doc.setFont('helvetica', 'italic');
+    doc.setFontSize(8);
+    addWrapped(
+      'Para registrar la venta oficial en el sistema use el botón COBRAR en el punto de venta.',
+      8,
+      false,
+    );
+
+    const slug = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}_${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}`;
+    doc.save(`recibo-momentaneo-${slug}.pdf`);
+
+    toast({
+      title: 'PDF generado',
+      description: 'Recibo momentáneo descargado. No se registró ninguna venta.',
+    });
+  };
+
   const handleCheckoutClick = () => {
     if (!canCheckout()) return;
 
@@ -1225,21 +1362,22 @@ const POS = () => {
     }
   };
 
-  const handleConfirmCheckout = async (shouldPrint: boolean = false) => {
-    // Procesar directamente (ya no hay segundo modal)
-    await processCheckout();
-    
-    // La impresión ahora la maneja posPrinterService automáticamente
-    // No necesitamos window.print() aquí ya que interfiere con el ticket HTML
-      
-    // Después de procesar, resetear automáticamente
-    setShowConfirmDialog(false);
+  const handleConfirmCheckout = async (_shouldPrint: boolean = false) => {
+    activeMethodRef.current = clientMode === 'teacher' ? 'teacher' : 'credito';
     setShowCreditConfirmDialog(false);
-    resetClient();
+    await processCheckout();
+  };
+
+  const handleQuickPay = async (method: string) => {
+    activeMethodRef.current = method;
+    setPaymentMethod(method);
+    setShowConfirmDialog(false);
+    await processCheckout();
   };
 
   const processCheckout = async () => {
     setIsProcessing(true);
+    const activeMethod = activeMethodRef.current ?? paymentMethod;
 
     try {
       const total = getTotal();
@@ -1257,7 +1395,7 @@ const POS = () => {
                         || null,
           cashier_id:      user!.id,
           total,
-          payment_method:  paymentMethod,
+          payment_method:  activeMethod,
           is_free_account: selectedStudent ? selectedStudent.free_account !== false : false,
           items: cart.map(item => ({
             product_id:   item.product.id,
@@ -1281,7 +1419,7 @@ const POS = () => {
           items:         cart,
           total,
           timestamp:     new Date(),
-          paymentMethod: paymentMethod || 'efectivo',
+          paymentMethod: activeMethod || 'efectivo',
           isOffline:     true,
         });
         setShowTicketPrint(true);
@@ -1397,8 +1535,8 @@ const POS = () => {
 
         // Crear transacción
         const studentPaymentDetails: any = {};
-        if (!isFreeAccount && paymentMethod) {
-          studentPaymentDetails.payment_method_detail = paymentMethod;
+        if (!isFreeAccount && activeMethod) {
+          studentPaymentDetails.payment_method_detail = activeMethod;
           if (transactionCode) studentPaymentDetails.operation_number = transactionCode;
           if (yapeNumber) studentPaymentDetails.yape_number = yapeNumber;
           if (plinNumber) studentPaymentDetails.plin_number = plinNumber;
@@ -1611,7 +1749,7 @@ const POS = () => {
             created_by: user?.id,
             ticket_code: ticketCode,
             payment_status: 'paid', // 🔥 Cliente genérico PAGA en el momento
-            payment_method: paymentMethod || 'efectivo', // Método de pago real
+            payment_method: activeMethod || 'efectivo', // Método de pago real
             metadata: genericPaymentDetails,
           })
           .select()
@@ -1650,7 +1788,7 @@ const POS = () => {
             total: total,
             subtotal: total,
             discount: 0,
-            payment_method: paymentMethod || 'cash',
+            payment_method: activeMethod || 'cash',
             cash_received: parseFloat(cashGiven) || total,
             change_given: (parseFloat(cashGiven) || total) - total,
             items: salesItems,
@@ -1671,14 +1809,11 @@ const POS = () => {
         duration: 2000,
       });
 
-      // 🖨️ IMPRIMIR AUTOMÁTICAMENTE según configuración
-      const schoolIdForPrint = selectedStudent?.school_id || selectedTeacher?.school_1_id || cashierProfile?.school_id;
-      
+      // Preparar datos de impresión para que el usuario decida
+      const schoolIdForPrint = selectedStudent?.school_id || (selectedTeacher as any)?.school_1_id || cashierProfile?.school_id;
       if (schoolIdForPrint) {
-        // Determinar tipo de venta y método de pago basado en clientMode
         let saleType: 'general' | 'credit' | 'teacher';
         let paymentMethodForPrint: 'cash' | 'card' | 'credit' | 'teacher';
-        
         if (clientMode === 'teacher') {
           saleType = 'teacher';
           paymentMethodForPrint = 'teacher';
@@ -1687,30 +1822,27 @@ const POS = () => {
           paymentMethodForPrint = 'credit';
         } else {
           saleType = 'general';
-          paymentMethodForPrint = (paymentMethod === 'card' ? 'card' : 'cash') as 'cash' | 'card';
+          paymentMethodForPrint = 'cash';
         }
-        
-        printPOSSale({
+        pendingPrintRef.current = {
           ticketCode,
           clientName: ticketInfo.clientName,
           cart,
           total,
           paymentMethod: paymentMethodForPrint,
-          saleType: saleType,
-          schoolId: schoolIdForPrint
-        }).catch(err => console.error('Error en impresión:', err));
+          saleType,
+          schoolId: schoolIdForPrint,
+        };
+      } else {
+        pendingPrintRef.current = null;
       }
 
-      // Guardar datos del ticket para imprimir si es necesario
       setTicketData(ticketInfo);
-      
-      // Cerrar modales
+      setCompletedTicketCode(ticketCode);
       setShowPaymentDialog(false);
-      
-      // Resetear POS automáticamente para siguiente venta
-      setTimeout(() => {
-        resetClient();
-      }, 500);
+      setShowConfirmDialog(false);
+      setShowCreditConfirmDialog(false);
+      setShowPostSaleDialog(true);
 
     } catch (error: any) {
       console.error('Error processing checkout:', error);
@@ -2596,6 +2728,20 @@ const POS = () => {
                   )}
 
                   <Button
+                    type="button"
+                    variant="outline"
+                    onClick={handleTemporaryReceiptPdf}
+                    disabled={cart.length === 0}
+                    className="w-full h-10 sm:h-12 text-xs sm:text-sm font-bold rounded-xl border-2 border-slate-500 text-slate-700 hover:bg-slate-100"
+                  >
+                    <FileDown className="h-4 w-4 mr-2 shrink-0" />
+                    Recibo momentáneo (PDF)
+                  </Button>
+                  <p className="text-[8px] sm:text-[10px] text-center text-slate-500 -mt-1 px-1">
+                    Sin registrar venta — útil para fiado o acuerdo con padres
+                  </p>
+
+                  <Button
                     onClick={handleCheckoutClick}
                     disabled={!canCheckout() || isProcessing}
                     className="w-full h-12 sm:h-16 lg:h-20 text-base sm:text-xl lg:text-2xl font-black rounded-xl shadow-lg bg-emerald-500 hover:bg-emerald-600 active:scale-95 disabled:bg-gray-300"
@@ -2614,475 +2760,57 @@ const POS = () => {
       )}
 
       {/* MODAL DE MEDIOS DE PAGO (CLIENTE GENÉRICO) */}
-      <Dialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      <Dialog open={showConfirmDialog} onOpenChange={(open) => { if (!open && !isProcessing) setShowConfirmDialog(false); }}>
+        <DialogContent className="max-w-sm">
           <DialogHeader>
             <DialogTitle className="text-2xl font-bold flex items-center gap-2">
               <CreditCard className="h-7 w-7 text-emerald-600" />
               Selecciona Método de Pago
             </DialogTitle>
           </DialogHeader>
-          
-          <div className="space-y-6">
-            {/* Resumen de Compra */}
-            <div className="bg-gradient-to-r from-slate-800 to-slate-900 text-white rounded-2xl p-6">
+
+          <div className="space-y-5">
+            {/* Resumen */}
+            <div className="bg-gradient-to-r from-slate-800 to-slate-900 text-white rounded-2xl p-5">
               <div className="flex justify-between items-center">
                 <div>
-                  <p className="text-sm text-gray-300 uppercase font-semibold mb-1">Total a Cobrar</p>
-                  <p className="text-5xl font-black">S/ {getTotal().toFixed(2)}</p>
+                  <p className="text-xs text-gray-300 uppercase font-semibold mb-1">Total a Cobrar</p>
+                  <p className="text-4xl font-black">S/ {getTotal().toFixed(2)}</p>
                 </div>
                 <div className="text-right">
                   <p className="text-xs text-gray-400">{cart.length} productos</p>
-                  <p className="text-lg font-bold text-emerald-400 mt-1">
-                    {clientMode === 'generic' ? 'Cliente Genérico' : selectedStudent?.full_name}
-                  </p>
+                  <p className="text-base font-bold text-emerald-400 mt-1">Cliente Genérico</p>
                 </div>
               </div>
             </div>
 
-            {/* Medios de Pago - Botones Grandes */}
-            <div className="space-y-3">
-              <p className="text-sm font-bold text-gray-700 uppercase tracking-wide mb-2">💳 Medios de Pago</p>
-              
-              <div className="grid grid-cols-2 gap-3">
-                {/* Efectivo */}
-                <button
-                  onClick={() => setPaymentMethod('efectivo')}
-                  className={`p-6 border-3 rounded-2xl transition-all hover:scale-105 hover:shadow-lg ${
-                    paymentMethod === 'efectivo'
-                      ? 'border-emerald-500 bg-emerald-50 shadow-emerald-200'
-                      : 'border-gray-200 hover:border-gray-300'
-                  }`}
-                >
-                  <div className="flex flex-col items-center gap-3">
-                    <Banknote className={`h-12 w-12 ${paymentMethod === 'efectivo' ? 'text-emerald-600' : 'text-gray-400'}`} />
-                    <span className={`text-lg font-bold ${paymentMethod === 'efectivo' ? 'text-emerald-700' : 'text-gray-700'}`}>
-                      Efectivo
-                    </span>
-                  </div>
-                </button>
-
-                {/* Yape QR */}
-                <button
-                  onClick={() => setPaymentMethod('yape_qr')}
-                  className={`p-6 border-3 rounded-2xl transition-all hover:scale-105 hover:shadow-lg ${
-                    paymentMethod === 'yape_qr'
-                      ? 'border-purple-500 bg-purple-50 shadow-purple-200'
-                      : 'border-gray-200 hover:border-gray-300'
-                  }`}
-                >
-                  <div className="flex flex-col items-center gap-3">
-                    <QrCode className={`h-12 w-12 ${paymentMethod === 'yape_qr' ? 'text-purple-600' : 'text-gray-400'}`} />
-                    <span className={`text-lg font-bold ${paymentMethod === 'yape_qr' ? 'text-purple-700' : 'text-gray-700'}`}>
-                      Yape (QR)
-                    </span>
-                  </div>
-                </button>
-
-                {/* Yape Número */}
-                <button
-                  onClick={() => setPaymentMethod('yape_numero')}
-                  className={`p-6 border-3 rounded-2xl transition-all hover:scale-105 hover:shadow-lg ${
-                    paymentMethod === 'yape_numero'
-                      ? 'border-purple-500 bg-purple-50 shadow-purple-200'
-                      : 'border-gray-200 hover:border-gray-300'
-                  }`}
-                >
-                  <div className="flex flex-col items-center gap-3">
-                    <Smartphone className={`h-12 w-12 ${paymentMethod === 'yape_numero' ? 'text-purple-600' : 'text-gray-400'}`} />
-                    <span className={`text-lg font-bold ${paymentMethod === 'yape_numero' ? 'text-purple-700' : 'text-gray-700'}`}>
-                      Yape (Número)
-                    </span>
-                  </div>
-                </button>
-
-                {/* Plin QR */}
-                <button
-                  onClick={() => setPaymentMethod('plin_qr')}
-                  className={`p-6 border-3 rounded-2xl transition-all hover:scale-105 hover:shadow-lg ${
-                    paymentMethod === 'plin_qr'
-                      ? 'border-pink-500 bg-pink-50 shadow-pink-200'
-                      : 'border-gray-200 hover:border-gray-300'
-                  }`}
-                >
-                  <div className="flex flex-col items-center gap-3">
-                    <QrCode className={`h-12 w-12 ${paymentMethod === 'plin_qr' ? 'text-pink-600' : 'text-gray-400'}`} />
-                    <span className={`text-lg font-bold ${paymentMethod === 'plin_qr' ? 'text-pink-700' : 'text-gray-700'}`}>
-                      Plin (QR)
-                    </span>
-                  </div>
-                </button>
-
-                {/* Plin Número */}
-                <button
-                  onClick={() => setPaymentMethod('plin_numero')}
-                  className={`p-6 border-3 rounded-2xl transition-all hover:scale-105 hover:shadow-lg ${
-                    paymentMethod === 'plin_numero'
-                      ? 'border-pink-500 bg-pink-50 shadow-pink-200'
-                      : 'border-gray-200 hover:border-gray-300'
-                  }`}
-                >
-                  <div className="flex flex-col items-center gap-3">
-                    <Smartphone className={`h-12 w-12 ${paymentMethod === 'plin_numero' ? 'text-pink-600' : 'text-gray-400'}`} />
-                    <span className={`text-lg font-bold ${paymentMethod === 'plin_numero' ? 'text-pink-700' : 'text-gray-700'}`}>
-                      Plin (Número)
-                    </span>
-                  </div>
-                </button>
-
-                {/* Tarjeta */}
-                <button
-                  onClick={() => setPaymentMethod('tarjeta')}
-                  className={`p-6 border-3 rounded-2xl transition-all hover:scale-105 hover:shadow-lg ${
-                    paymentMethod === 'tarjeta'
-                      ? 'border-blue-500 bg-blue-50 shadow-blue-200'
-                      : 'border-gray-200 hover:border-gray-300'
-                  }`}
-                >
-                  <div className="flex flex-col items-center gap-3">
-                    <CreditCard className={`h-12 w-12 ${paymentMethod === 'tarjeta' ? 'text-blue-600' : 'text-gray-400'}`} />
-                    <span className={`text-lg font-bold ${paymentMethod === 'tarjeta' ? 'text-blue-700' : 'text-gray-700'}`}>
-                      Tarjeta
-                    </span>
-                    <span className="text-xs text-gray-500">Visa/Mastercard</span>
-                  </div>
-                </button>
-
-                {/* Transferencia Bancaria */}
-                <button
-                  onClick={() => setPaymentMethod('transferencia')}
-                  className={`p-6 border-3 rounded-2xl transition-all hover:scale-105 hover:shadow-lg ${
-                    paymentMethod === 'transferencia'
-                      ? 'border-cyan-500 bg-cyan-50 shadow-cyan-200'
-                      : 'border-gray-200 hover:border-gray-300'
-                  }`}
-                >
-                  <div className="flex flex-col items-center gap-3">
-                    <Building2 className={`h-12 w-12 ${paymentMethod === 'transferencia' ? 'text-cyan-600' : 'text-gray-400'}`} />
-                    <span className={`text-lg font-bold ${paymentMethod === 'transferencia' ? 'text-cyan-700' : 'text-gray-700'}`}>
-                      Transferencia
-                    </span>
-                  </div>
-                </button>
-
-                {/* PAGO MIXTO */}
-                <button
-                  onClick={() => setPaymentMethod('mixto')}
-                  className={`p-6 border-3 rounded-2xl transition-all hover:scale-105 hover:shadow-lg ${
-                    paymentMethod === 'mixto'
-                      ? 'border-orange-500 bg-orange-50 shadow-orange-200'
-                      : 'border-gray-200 hover:border-gray-300'
-                  }`}
-                >
-                  <div className="flex flex-col items-center gap-3">
-                    <div className="relative">
-                      <CreditCard className={`h-12 w-12 ${paymentMethod === 'mixto' ? 'text-orange-600' : 'text-gray-400'}`} />
-                      <Banknote className={`h-6 w-6 absolute -bottom-1 -right-1 ${paymentMethod === 'mixto' ? 'text-orange-500' : 'text-gray-300'}`} />
-                    </div>
-                    <span className={`text-lg font-bold ${paymentMethod === 'mixto' ? 'text-orange-700' : 'text-gray-700'}`}>
-                      Pago Mixto
-                    </span>
-                    <span className="text-xs text-gray-500">Efectivo + Tarjeta</span>
-                  </div>
-                </button>
+            {isProcessing ? (
+              <div className="flex flex-col items-center justify-center py-8 gap-3">
+                <Loader2 className="h-10 w-10 animate-spin text-emerald-500" />
+                <p className="font-bold text-gray-700">Procesando venta…</p>
               </div>
-            </div>
-
-            {/* Campos adicionales según método seleccionado */}
-            
-            {/* EFECTIVO: Con cuánto paga */}
-            {paymentMethod === 'efectivo' && (
-              <div className="bg-emerald-50 border-2 border-emerald-300 rounded-xl p-5 space-y-4">
-                <div className="bg-white rounded-lg p-4 border-2 border-emerald-200">
-                  <p className="text-sm font-bold text-emerald-900 uppercase mb-1">Total a Cobrar</p>
-                  <p className="text-4xl font-black text-emerald-600">S/ {getTotal().toFixed(2)}</p>
+            ) : (
+              <>
+                <p className="text-sm font-bold text-gray-600 uppercase tracking-wide text-center">Selecciona cómo paga</p>
+                <div className="grid grid-cols-3 gap-3">
+                  <button onClick={() => handleQuickPay('efectivo')} className="flex flex-col items-center gap-2 p-5 border-2 border-emerald-300 bg-emerald-50 rounded-2xl hover:bg-emerald-100 hover:border-emerald-400 transition-all hover:scale-105 shadow-sm">
+                    <Banknote className="h-10 w-10 text-emerald-600" />
+                    <span className="text-sm font-bold text-emerald-800">Efectivo</span>
+                  </button>
+                  <button onClick={() => handleQuickPay('yape')} className="flex flex-col items-center gap-2 p-5 border-2 border-purple-300 bg-purple-50 rounded-2xl hover:bg-purple-100 hover:border-purple-400 transition-all hover:scale-105 shadow-sm">
+                    <QrCode className="h-10 w-10 text-purple-600" />
+                    <span className="text-sm font-bold text-purple-800">Yape</span>
+                  </button>
+                  <button onClick={() => handleQuickPay('plin')} className="flex flex-col items-center gap-2 p-5 border-2 border-pink-300 bg-pink-50 rounded-2xl hover:bg-pink-100 hover:border-pink-400 transition-all hover:scale-105 shadow-sm">
+                    <Smartphone className="h-10 w-10 text-pink-600" />
+                    <span className="text-sm font-bold text-pink-800">Plin</span>
+                  </button>
                 </div>
-                
-                <div>
-                  <Label className="text-base font-bold text-emerald-900 mb-2 block">¿Con cuánto paga el cliente?</Label>
-                  <Input
-                    type="number"
-                    step="0.50"
-                    value={cashGiven}
-                    onChange={(e) => setCashGiven(e.target.value)}
-                    onKeyDown={(e) => {
-                      // ENTER → Continuar (si el monto es suficiente)
-                      if (e.key === 'Enter' && parseFloat(cashGiven) >= getTotal()) {
-                        e.preventDefault();
-                        // Simular click en el botón CONTINUAR
-                        setShowConfirmDialog(false);
-                        setShowDocumentTypeDialog(true);
-                      }
-                    }}
-                    placeholder="Ej: 50.00"
-                    className="h-20 text-3xl font-bold text-center border-emerald-300"
-                    autoFocus
-                  />
-                  <p className="text-xs text-emerald-700 mt-2 text-center">
-                    💡 Ingresa el monto en efectivo que entrega el cliente
-                  </p>
-                </div>
-                
-                {parseFloat(cashGiven) > 0 && (
-                  <>
-                    {parseFloat(cashGiven) >= getTotal() ? (
-                      <div className="bg-gradient-to-r from-emerald-500 to-emerald-600 text-white rounded-2xl p-6 shadow-xl">
-                        <p className="text-sm font-bold uppercase mb-2 opacity-90">💵 Vuelto a Entregar</p>
-                        <p className="text-5xl font-black">
-                          S/ {(parseFloat(cashGiven) - getTotal()).toFixed(2)}
-                        </p>
-                      </div>
-                    ) : (
-                      <div className="bg-red-50 border-2 border-red-300 rounded-xl p-4">
-                        <p className="text-sm font-bold text-red-900">⚠️ Monto Insuficiente</p>
-                        <p className="text-sm text-red-700 mt-1">
-                          Falta: S/ {(getTotal() - parseFloat(cashGiven)).toFixed(2)}
-                        </p>
-                      </div>
-                    )}
-                  </>
-                )}
-              </div>
+                <Button variant="outline" onClick={() => { setShowConfirmDialog(false); setPaymentMethod(null); }} className="w-full">
+                  Cancelar
+                </Button>
+              </>
             )}
-            
-            {/* PAGO MIXTO: Dividir entre métodos */}
-            {paymentMethod === 'mixto' && (
-              <div className="bg-orange-50 border-2 border-orange-300 rounded-xl p-5 space-y-4">
-                <div className="bg-white rounded-lg p-4 border-2 border-orange-200">
-                  <div className="flex justify-between items-center">
-                    <div>
-                      <p className="text-sm font-bold text-orange-900 uppercase">Total a Cobrar</p>
-                      <p className="text-3xl font-black text-orange-600">S/ {getTotal().toFixed(2)}</p>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-sm font-bold text-gray-600">Pagado</p>
-                      <p className="text-2xl font-bold text-emerald-600">
-                        S/ {paymentSplits.reduce((sum, p) => sum + p.amount, 0).toFixed(2)}
-                      </p>
-                      <p className="text-xs font-bold text-red-600 mt-1">
-                        Falta: S/ {(getTotal() - paymentSplits.reduce((sum, p) => sum + p.amount, 0)).toFixed(2)}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Lista de pagos agregados */}
-                {paymentSplits.length > 0 && (
-                  <div className="space-y-2">
-                    <p className="text-sm font-bold text-orange-900">Métodos Agregados:</p>
-                    {paymentSplits.map((split, index) => (
-                      <div key={index} className="bg-white border-2 border-orange-200 rounded-lg p-3 flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                          {split.method === 'efectivo' && <Banknote className="h-5 w-5 text-emerald-600" />}
-                          {split.method === 'tarjeta' && <CreditCard className="h-5 w-5 text-blue-600" />}
-                          {split.method === 'yape' && <Smartphone className="h-5 w-5 text-purple-600" />}
-                          {split.method === 'plin' && <Smartphone className="h-5 w-5 text-pink-600" />}
-                          <span className="font-bold text-sm capitalize">{split.method}</span>
-                        </div>
-                        <div className="flex items-center gap-3">
-                          <span className="font-black text-lg">S/ {split.amount.toFixed(2)}</span>
-                          <button
-                            onClick={() => setPaymentSplits(paymentSplits.filter((_, i) => i !== index))}
-                            className="text-red-600 hover:bg-red-50 p-1 rounded"
-                          >
-                            <X className="h-5 w-5" />
-                          </button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                {/* Formulario para agregar método */}
-                {paymentSplits.reduce((sum, p) => sum + p.amount, 0) < getTotal() && (
-                  <div className="bg-white border-2 border-orange-300 rounded-lg p-4 space-y-3">
-                    <p className="text-sm font-bold text-orange-900">Agregar Método de Pago</p>
-                    
-                    <div className="grid grid-cols-4 gap-2">
-                      {['efectivo', 'tarjeta', 'yape', 'plin'].map((method) => (
-                        <button
-                          key={method}
-                          onClick={() => setCurrentSplitMethod(method)}
-                          className={`p-3 border-2 rounded-lg text-xs font-bold capitalize transition-all ${
-                            currentSplitMethod === method
-                              ? 'border-orange-500 bg-orange-100 text-orange-900'
-                              : 'border-gray-200 text-gray-600 hover:border-orange-300'
-                          }`}
-                        >
-                          {method}
-                        </button>
-                      ))}
-                    </div>
-
-                    <div>
-                      <Label className="text-sm font-bold text-gray-700">Monto</Label>
-                      <Input
-                        type="number"
-                        step="0.50"
-                        value={currentSplitAmount}
-                        onChange={(e) => setCurrentSplitAmount(e.target.value)}
-                        placeholder="0.00"
-                        className="h-12 text-xl font-bold text-center"
-                      />
-                    </div>
-
-                    <Button
-                      onClick={() => {
-                        if (currentSplitMethod && parseFloat(currentSplitAmount) > 0) {
-                          const amount = parseFloat(currentSplitAmount);
-                          const totalPaid = paymentSplits.reduce((sum, p) => sum + p.amount, 0);
-                          
-                          if (totalPaid + amount <= getTotal()) {
-                            setPaymentSplits([...paymentSplits, { method: currentSplitMethod, amount }]);
-                            setCurrentSplitMethod('');
-                            setCurrentSplitAmount('');
-                          } else {
-                            toast({
-                              variant: 'destructive',
-                              title: 'Error',
-                              description: 'El monto total no puede exceder el total a pagar',
-                            });
-                          }
-                        }
-                      }}
-                      disabled={!currentSplitMethod || !currentSplitAmount || parseFloat(currentSplitAmount) <= 0}
-                      className="w-full bg-orange-500 hover:bg-orange-600"
-                    >
-                      <Plus className="h-5 w-5 mr-2" />
-                      Agregar
-                    </Button>
-                  </div>
-                )}
-
-                {paymentSplits.reduce((sum, p) => sum + p.amount, 0) === getTotal() && (
-                  <div className="bg-emerald-50 border-2 border-emerald-500 rounded-xl p-4 text-center">
-                    <CheckCircle2 className="h-8 w-8 text-emerald-600 mx-auto mb-2" />
-                    <p className="font-bold text-emerald-900">¡Pago Completo!</p>
-                    <p className="text-sm text-emerald-700">Puedes proceder con la venta</p>
-                  </div>
-                )}
-              </div>
-            )}
-            
-            {paymentMethod === 'yape_numero' && (
-              <div className="bg-purple-50 border-2 border-purple-200 rounded-xl p-4">
-                <Label className="text-sm font-bold text-purple-900 mb-2 block">Número de Celular (Yape)</Label>
-                <Input
-                  type="text"
-                  value={yapeNumber}
-                  onChange={(e) => setYapeNumber(e.target.value)}
-                  placeholder="999 999 999"
-                  className="h-14 text-lg font-semibold"
-                  maxLength={9}
-                />
-              </div>
-            )}
-
-            {paymentMethod === 'plin_numero' && (
-              <div className="bg-pink-50 border-2 border-pink-200 rounded-xl p-4">
-                <Label className="text-sm font-bold text-pink-900 mb-2 block">Número de Celular (Plin)</Label>
-                <Input
-                  type="text"
-                  value={plinNumber}
-                  onChange={(e) => setPlinNumber(e.target.value)}
-                  placeholder="999 999 999"
-                  className="h-14 text-lg font-semibold"
-                  maxLength={9}
-                />
-              </div>
-            )}
-
-            {(paymentMethod === 'transferencia' || paymentMethod === 'yape_qr' || paymentMethod === 'plin_qr' || paymentMethod === 'tarjeta') && (
-              <div className={`border-2 rounded-xl p-4 ${
-                paymentMethod === 'tarjeta' 
-                  ? 'bg-blue-50 border-blue-200' 
-                  : 'bg-amber-50 border-amber-200'
-              }`}>
-                <Label className={`text-sm font-bold mb-2 block ${
-                  paymentMethod === 'tarjeta' ? 'text-blue-900' : 'text-amber-900'
-                }`}>
-                  {paymentMethod === 'tarjeta' ? 'Nº de Operación (Voucher)' : 'Código de Operación'}
-                </Label>
-                <Input
-                  type="text"
-                  value={transactionCode}
-                  onChange={(e) => setTransactionCode(e.target.value)}
-                  placeholder={paymentMethod === 'tarjeta' ? 'Ej: 123456' : 'Ej: OP12345678'}
-                  className="h-14 text-lg font-semibold uppercase"
-                />
-                <p className={`text-xs mt-2 ${
-                  paymentMethod === 'tarjeta' ? 'text-blue-700' : 'text-amber-700'
-                }`}>
-                  {paymentMethod === 'tarjeta' 
-                    ? 'Ingresa el número de operación del voucher de la tarjeta' 
-                    : 'Ingresa el código de la transacción para validar el pago'}
-                </p>
-              </div>
-            )}
-
-            {/* Botones de Acción */}
-            <div className="space-y-3">
-              <Button
-                onClick={() => {
-                  // Validar según método de pago
-                  if (paymentMethod === 'efectivo') {
-                    if (!cashGiven || parseFloat(cashGiven) < getTotal()) {
-                      toast({
-                        variant: 'destructive',
-                        title: 'Error',
-                        description: 'Ingresa el monto en efectivo que entrega el cliente',
-                      });
-                      return;
-                    }
-                  }
-                  
-                  if (paymentMethod === 'mixto') {
-                    const totalPaid = paymentSplits.reduce((sum, p) => sum + p.amount, 0);
-                    if (totalPaid < getTotal()) {
-                      toast({
-                        variant: 'destructive',
-                        title: 'Error',
-                        description: `Faltan S/ ${(getTotal() - totalPaid).toFixed(2)} por asignar`,
-                      });
-                      return;
-                    }
-                  }
-                  
-                  // Abrir modal de selección de comprobante
-                  setShowConfirmDialog(false);
-                  setShowDocumentTypeDialog(true);
-                }}
-                disabled={!paymentMethod || isProcessing}
-                className="w-full h-16 text-xl font-black bg-emerald-500 hover:bg-emerald-600 disabled:bg-gray-300"
-              >
-                {isProcessing ? (
-                  <>
-                    <Loader2 className="h-6 w-6 mr-2 animate-spin" />
-                    PROCESANDO...
-                  </>
-                ) : (
-                  <>
-                    <CheckCircle2 className="h-6 w-6 mr-2" />
-                    CONTINUAR
-                  </>
-                )}
-              </Button>
-
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setShowConfirmDialog(false);
-                  setPaymentMethod(null);
-                  setYapeNumber('');
-                  setPlinNumber('');
-                  setTransactionCode('');
-                  setRequiresInvoice(false);
-                }}
-                className="w-full h-12 text-base"
-              >
-                Cancelar
-              </Button>
-            </div>
           </div>
         </DialogContent>
       </Dialog>
@@ -3294,79 +3022,54 @@ const POS = () => {
         </Dialog>
       )}
 
-      {/* MODAL DE SELECCIÓN DE COMPROBANTE */}
-      <Dialog open={showDocumentTypeDialog} onOpenChange={setShowDocumentTypeDialog}>
-        <DialogContent className="sm:max-w-[700px]">
+      {/* MODAL POST-VENTA: Imprimir / Finalizar */}
+      <Dialog open={showPostSaleDialog} onOpenChange={() => {}}>
+        <DialogContent className="max-w-sm" onPointerDownOutside={(e) => e.preventDefault()}>
           <DialogHeader>
-            <DialogTitle className="text-2xl font-bold text-center">
-              Selecciona Tipo de Comprobante
+            <DialogTitle className="text-xl font-bold flex items-center gap-2 text-emerald-700">
+              <CheckCircle2 className="h-6 w-6 text-emerald-600" />
+              ¡Venta completada!
             </DialogTitle>
           </DialogHeader>
-          
-          <div className="grid grid-cols-3 gap-6 py-8">
-            {/* TICKET - DISPONIBLE */}
-            <button
-              onClick={() => {
-                setSelectedDocumentType('ticket');
-                setShowDocumentTypeDialog(false);
-                handleConfirmCheckout(true); // Procesar venta e imprimir
-              }}
-              className="flex flex-col items-center gap-4 p-8 border-4 border-emerald-300 bg-emerald-50 rounded-2xl hover:bg-emerald-100 hover:border-emerald-400 transition-all hover:scale-105 shadow-lg hover:shadow-xl"
-            >
-              <Receipt className="h-20 w-20 text-emerald-600" />
-              <div className="text-center">
-                <p className="font-black text-xl text-emerald-900">TICKET</p>
-                <p className="text-xs text-emerald-700 mt-2">Sin datos fiscales</p>
-                <p className="text-xs text-emerald-600 font-semibold mt-1">✓ Disponible</p>
-              </div>
-            </button>
-            
-            {/* BOLETA - PRÓXIMAMENTE */}
-            <button
-              disabled
-              className="flex flex-col items-center gap-4 p-8 border-4 border-gray-200 bg-gray-50 rounded-2xl opacity-50 cursor-not-allowed"
-            >
-              <Printer className="h-20 w-20 text-gray-400" />
-              <div className="text-center">
-                <p className="font-black text-xl text-gray-600">BOLETA</p>
-                <Badge variant="secondary" className="mt-2">Próximamente</Badge>
-                <p className="text-xs text-gray-500 mt-1">Requiere SUNAT</p>
-              </div>
-            </button>
-            
-            {/* FACTURA - PRÓXIMAMENTE */}
-            <button
-              disabled
-              className="flex flex-col items-center gap-4 p-8 border-4 border-gray-200 bg-gray-50 rounded-2xl opacity-50 cursor-not-allowed"
-            >
-              <FileText className="h-20 w-20 text-gray-400" />
-              <div className="text-center">
-                <p className="font-black text-xl text-gray-600">FACTURA</p>
-                <Badge variant="secondary" className="mt-2">Próximamente</Badge>
-                <p className="text-xs text-gray-500 mt-1">Requiere SUNAT</p>
-              </div>
-            </button>
+          <div className="space-y-5">
+            <div className="bg-emerald-50 border-2 border-emerald-200 rounded-xl p-4 text-center">
+              <p className="text-sm text-emerald-700 font-semibold uppercase tracking-wide mb-1">Ticket</p>
+              <p className="text-2xl font-black text-emerald-800">{completedTicketCode}</p>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <Button
+                className="h-14 bg-emerald-500 hover:bg-emerald-600 text-white font-bold"
+                onClick={async () => {
+                  setShowPostSaleDialog(false);
+                  if (pendingPrintRef.current) {
+                    try { await printPOSSale(pendingPrintRef.current); } catch(e) { console.warn('Print error:', e); }
+                  }
+                  pendingPrintRef.current = null;
+                  activeMethodRef.current = null;
+                  resetClient();
+                }}
+              >
+                <Printer className="h-5 w-5 mr-2" />
+                Imprimir Ticket
+              </Button>
+              <Button
+                variant="outline"
+                className="h-14 font-bold border-2 border-slate-300"
+                onClick={() => {
+                  setShowPostSaleDialog(false);
+                  pendingPrintRef.current = null;
+                  activeMethodRef.current = null;
+                  resetClient();
+                }}
+              >
+                <CheckCircle2 className="h-5 w-5 mr-2 text-slate-500" />
+                Finalizar
+              </Button>
+            </div>
           </div>
-
-          <div className="bg-blue-50 border-2 border-blue-200 rounded-xl p-4">
-            <p className="text-sm text-blue-900">
-              <strong>ℹ️ Nota:</strong> Por ahora solo está disponible la impresión de tickets. 
-              Boleta y Factura electrónicas estarán disponibles una vez conectado a SUNAT.
-            </p>
-          </div>
-
-          <Button
-            variant="outline"
-            onClick={() => {
-              setShowDocumentTypeDialog(false);
-              setShowConfirmDialog(true); // Volver al modal de pago
-            }}
-            className="w-full"
-          >
-            ← Volver a Métodos de Pago
-          </Button>
         </DialogContent>
       </Dialog>
+      <TodayOrdersWidget />
     </div>
     </>
   );

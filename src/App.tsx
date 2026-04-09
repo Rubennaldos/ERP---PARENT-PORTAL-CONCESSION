@@ -28,6 +28,7 @@ import SchoolAdmin from "./pages/SchoolAdmin";
 import AccessControl from "./pages/AccessControl";
 import CombosPromotions from "./pages/CombosPromotions";
 import CashRegisterPage from "./pages/CashRegister";
+import NFCManagement from "./pages/NFCManagement";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -48,21 +49,21 @@ const App = () => (
             <Route path="/register" element={<Navigate to="/auth" replace />} />
             <Route path="/onboarding" element={<Navigate to="/auth" replace />} />
             
-            {/* Dashboard de Padres - Solo para rol 'parent' */}
+            {/* Dashboard de Padres - Solo para rol 'parent' (+ admins en modo preview) */}
             <Route
               path="/"
               element={
-                <ProtectedRoute allowedRoles={['parent']}>
+                <ProtectedRoute allowedRoles={['parent', 'admin_general', 'superadmin', 'supervisor_red', 'gestor_unidad']}>
                   <Index />
                 </ProtectedRoute>
               }
             />
             
-            {/* Portal de Profesores - Solo para rol 'teacher' */}
+            {/* Portal de Profesores - Solo para rol 'teacher' (+ admins en modo preview) */}
             <Route
               path="/teacher"
               element={
-                <ProtectedRoute allowedRoles={['teacher']}>
+                <ProtectedRoute allowedRoles={['teacher', 'admin_general', 'superadmin', 'supervisor_red', 'gestor_unidad']}>
                   <Teacher />
                 </ProtectedRoute>
               }
@@ -244,6 +245,16 @@ const App = () => (
               }
             />
             
+            {/* Gestión NFC y Recargas */}
+            <Route
+              path="/nfc-management"
+              element={
+                <PermissionProtectedRoute moduleCode="nfc_management">
+                  <NFCManagement />
+                </PermissionProtectedRoute>
+              }
+            />
+
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>
