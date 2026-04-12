@@ -45,6 +45,26 @@ interface TeacherProfile {
 
 type TabType = 'home' | 'menu' | 'payments' | 'store' | 'more';
 
+/** Respuesta JSONB de get_final_account_balance (PostgREST puede devolver objeto o string). */
+function parseTotalDebtFromRpc(data: unknown): number {
+  if (data == null) return 0;
+  let obj: Record<string, unknown> | null = null;
+  if (typeof data === 'string') {
+    try {
+      obj = JSON.parse(data) as Record<string, unknown>;
+    } catch {
+      return 0;
+    }
+  } else if (typeof data === 'object') {
+    obj = data as Record<string, unknown>;
+  }
+  if (!obj) return 0;
+  const v = obj.total_debt;
+  if (typeof v === 'number' && !Number.isNaN(v)) return v;
+  if (typeof v === 'string') return parseFloat(v) || 0;
+  return 0;
+}
+
 export default function Teacher() {
   const { user, signOut } = useAuth();
   const { role } = useRole();
@@ -101,6 +121,20 @@ export default function Teacher() {
   } | null>(null);
   const [selectedPayTx, setSelectedPayTx] = useState<Set<string>>(new Set());
 
+  /** Fuente de verdad: misma RPC que Admin; usa UUID de teacher_profiles (no depender solo del useEffect). */
+  const fetchCurrentBalanceForTeacherId = async (teacherId: string) => {
+    try {
+      const { data, error } = await supabase.rpc('get_final_account_balance', {
+        p_target_id: teacherId,
+      });
+      if (error) throw error;
+      const totalDebt = parseTotalDebtFromRpc(data);
+      setCurrentBalance(totalDebt > 0 ? -totalDebt : 0);
+    } catch (e) {
+      console.error('Teacher balance RPC:', e);
+    }
+  };
+
   // ─── Effects ───
   useEffect(() => {
     if (effectiveUserId) checkOnboardingStatus();
@@ -108,8 +142,7 @@ export default function Teacher() {
 
   useEffect(() => {
     if (!teacherProfile?.id) return;
-    // Refuerzo: cargar balance apenas exista el id del perfil.
-    fetchCurrentBalance();
+    fetchCurrentBalanceForTeacherId(teacherProfile.id);
   }, [teacherProfile?.id]);
 
   useEffect(() => {
@@ -173,6 +206,8 @@ export default function Teacher() {
         return;
       }
       setTeacherProfile(profile);
+      // Balance en cuanto tenemos el id real (evita carrera con useEffect y deuda en 0).
+      await fetchCurrentBalanceForTeacherId(profile.id);
       // En vista previa (admin): nunca forzar onboarding ni modal con datos del admin mezclados
       if (!profile.onboarding_completed && !isAdminPreview) setShowOnboarding(true);
       setLoading(false);
@@ -210,17 +245,8 @@ export default function Teacher() {
   };
 
   const fetchCurrentBalance = async () => {
-    if (!teacherProfile) return;
-    try {
-      const { data, error } = await supabase.rpc('get_final_account_balance', {
-        p_target_id: teacherProfile.id,
-      });
-      if (error) throw error;
-      const totalDebt = Number((data as { total_debt?: number })?.total_debt ?? 0);
-      setCurrentBalance(totalDebt > 0 ? -totalDebt : 0);
-    } catch (error: any) {
-      console.error('Error balance:', error);
-    }
+    if (!teacherProfile?.id) return;
+    await fetchCurrentBalanceForTeacherId(teacherProfile.id);
   };
 
   const fetchPendingAndPaidTransactions = async () => {
