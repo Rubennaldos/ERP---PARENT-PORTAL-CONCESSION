@@ -198,7 +198,9 @@ export default function Teacher() {
         .order('created_at', { ascending: false });
       if (error) throw error;
       setPurchaseHistory(data || []);
-      setTotalSpent(data?.reduce((sum, t) => sum + Math.abs(t.amount), 0) || 0);
+      let spent = 0;
+      for (const t of data || []) spent += Math.abs(t.amount);
+      setTotalSpent(spent);
     } catch (error: any) {
       console.error('Error cargando historial:', error);
     }
@@ -207,14 +209,13 @@ export default function Teacher() {
   const fetchCurrentBalance = async () => {
     if (!teacherProfile) return;
     try {
-      const { data, error } = await supabase
-        .from('transactions')
-        .select('amount, payment_status')
-        .eq('teacher_id', teacherProfile.id)
-        .eq('is_deleted', false)
-        .or('payment_status.eq.pending,payment_status.is.null');
+      const { data, error } = await supabase.rpc('get_final_account_balance', {
+        p_student_id: null,
+        p_teacher_id: teacherProfile.id,
+      });
       if (error) throw error;
-      setCurrentBalance(data?.reduce((sum, t) => sum + t.amount, 0) || 0);
+      const totalDebt = Number((data as { total_debt?: number })?.total_debt ?? 0);
+      setCurrentBalance(totalDebt > 0 ? -totalDebt : 0);
     } catch (error: any) {
       console.error('Error balance:', error);
     }
@@ -230,7 +231,7 @@ export default function Teacher() {
           transaction_items (product_name, quantity, unit_price, subtotal)`)
         .eq('teacher_id', teacherProfile.id)
         .eq('type', 'purchase').eq('is_deleted', false)
-        .or('payment_status.eq.pending,payment_status.is.null')
+        .or('payment_status.eq.pending,payment_status.eq.partial,payment_status.is.null')
         .order('created_at', { ascending: false });
       if (pe) throw pe;
       setPendingTransactions(pending || []);
@@ -254,7 +255,7 @@ export default function Teacher() {
         const schoolsMap = new Map();
 
         if (cashierIds.length > 0) {
-          const { data: c } = await supabase.from('profiles').select('id, full_name, email').in('id', cashierIds);
+          const { data: c } = await supabase.from('profiles').select('id, full_name').in('id', cashierIds);
           c?.forEach((x: any) => cashiersMap.set(x.id, x));
         }
         if (schoolIds.length > 0) {
@@ -434,7 +435,8 @@ export default function Teacher() {
 
   // ─── Items shown in home history ───
   const visibleHistory = showAllHistory ? purchaseHistory : purchaseHistory.slice(0, 8);
-  const pendingTotal = filteredPending.reduce((s, t) => s + Math.abs(t.amount), 0);
+  let pendingTotal = 0;
+  for (const t of filteredPending) pendingTotal += Math.abs(t.amount);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-blue-50">
