@@ -15,8 +15,9 @@
 -- (tickets del kiosco histórico importados sin estado explícito).
 -- ============================================================
 
--- Primero, eliminar la firma anterior con dos parámetros si existe
+-- Eliminar firmas previas para evitar error al renombrar parámetros
 DROP FUNCTION IF EXISTS get_final_account_balance(UUID, UUID);
+DROP FUNCTION IF EXISTS get_final_account_balance(UUID);
 
 CREATE OR REPLACE FUNCTION get_final_account_balance(p_target_id UUID)
 RETURNS JSONB
