@@ -38,14 +38,15 @@ BEGIN
      WHERE id = p_student_id;
   END IF;
 
-  -- 2) Deuda de tickets en status 'pending' (no abonados en absoluto)
+  -- 2) Deuda de tickets en status 'pending' o NULL (kiosco histórico sin estado explícito)
+  --    NULL se trata como pendiente porque nunca se marcó como pagado.
   IF p_student_id IS NOT NULL THEN
     SELECT COALESCE(SUM(ABS(amount)), 0)
       INTO v_pending_debt
       FROM public.transactions
      WHERE student_id      = p_student_id
        AND type            = 'purchase'
-       AND payment_status  = 'pending'
+       AND (payment_status = 'pending' OR payment_status IS NULL)
        AND NOT COALESCE(is_deleted, false);
 
   ELSIF p_teacher_id IS NOT NULL THEN
@@ -54,7 +55,7 @@ BEGIN
       FROM public.transactions
      WHERE teacher_id      = p_teacher_id
        AND type            = 'purchase'
-       AND payment_status  = 'pending'
+       AND (payment_status = 'pending' OR payment_status IS NULL)
        AND NOT COALESCE(is_deleted, false);
   END IF;
 

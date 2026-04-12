@@ -108,11 +108,10 @@ export default function Teacher() {
 
   useEffect(() => {
     if (!teacherProfile) return;
+    // El balance siempre se carga: se muestra en home Y en payments
+    fetchCurrentBalance();
     if (activeTab === 'home') fetchPurchaseHistory();
-    if (activeTab === 'payments') {
-      fetchCurrentBalance();
-      fetchPendingAndPaidTransactions();
-    }
+    if (activeTab === 'payments') fetchPendingAndPaidTransactions();
   }, [activeTab, teacherProfile]);
 
   // ─── Data Fetching ───

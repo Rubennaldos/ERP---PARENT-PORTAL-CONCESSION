@@ -146,8 +146,9 @@ export const BillingCollection = () => {
           schools(id, name),
           transaction_items(id, product_name, quantity, unit_price, subtotal)
         `)
-        .neq('type', 'recharge')
-        .in('payment_status', ['pending', 'partial'])
+        .eq('type', 'purchase')
+        .not('is_deleted', 'eq', true)
+        .or('payment_status.eq.pending,payment_status.eq.partial,payment_status.is.null')
         .order('created_at', { ascending: false });
 
       if (userSchoolId) {
