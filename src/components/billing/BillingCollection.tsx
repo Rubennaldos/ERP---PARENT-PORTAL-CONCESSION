@@ -1032,14 +1032,14 @@ export const BillingCollection = () => {
                             key={ev.id}
                             className={`flex items-start gap-3 px-4 py-3 border-l-4 ${
                               isPaid
-                                ? 'bg-gray-50 border-l-transparent'
+                                ? 'bg-gray-50/80 border-l-transparent opacity-70'
                                 : isPartial
                                   ? 'bg-amber-50 border-l-amber-400'
                                   : 'bg-white border-l-red-500'
                             }`}
                           >
                             <div className="flex-shrink-0 mt-1">
-                              {isPaid    ? <CheckCircle2 className="h-4 w-4 text-gray-400" />
+                              {isPaid    ? <CheckCircle2 className="h-4 w-4 text-emerald-500" />
                               : isPartial ? <span className="text-amber-500 font-black text-sm leading-none">1/2</span>
                               :             <span className="h-2.5 w-2.5 rounded-full bg-red-500 inline-block" />}
                             </div>
@@ -1054,7 +1054,7 @@ export const BillingCollection = () => {
                               <div className="flex gap-2 mt-0.5 flex-wrap">
                                 <span className="text-[11px] text-gray-400">{format(new Date(ev.created_at), "d MMM yyyy", { locale: es })}</span>
                                 {isPartial && <span className="text-[10px] bg-amber-100 text-amber-700 border border-amber-200 px-1.5 rounded-full font-semibold">Parcial - resta S/ {remaining.toFixed(2)}</span>}
-                                {isPaid    && <span className="text-[10px] bg-gray-100 text-gray-500 border border-gray-200 px-1.5 rounded-full font-semibold">Pagado</span>}
+                                {isPaid    && <span className="text-[10px] bg-emerald-100 text-emerald-700 border border-emerald-200 px-1.5 rounded-full font-semibold">Pagado</span>}
                                 {isPendingRow && <span className="text-[10px] bg-red-100 text-red-700 border border-red-200 px-1.5 rounded-full font-semibold">Pendiente</span>}
                               </div>
                             </div>
@@ -1185,7 +1185,7 @@ export const BillingCollection = () => {
                       {debtor.client_type === 'student' && debtor.parent_name && (
                         <p className="text-[11px] text-gray-500 truncate">ðŸ‘¤ {debtor.parent_name}</p>
                       )}
-                      <p className="text-[11px] text-gray-400">{debtor.transaction_count} consumo(s)</p>
+                      <p className="text-[11px] text-gray-400">{debtor.transaction_count} consumo(s) pendientes</p>
                     </div>
 
                     {/* Monto */}

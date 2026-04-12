@@ -107,12 +107,16 @@ export default function Teacher() {
   }, [effectiveUserId]);
 
   useEffect(() => {
-    if (!teacherProfile) return;
-    // El balance siempre se carga: se muestra en home Y en payments
+    if (!teacherProfile?.id) return;
+    // Refuerzo: cargar balance apenas exista el id del perfil.
     fetchCurrentBalance();
+  }, [teacherProfile?.id]);
+
+  useEffect(() => {
+    if (!teacherProfile?.id) return;
     if (activeTab === 'home') fetchPurchaseHistory();
     if (activeTab === 'payments') fetchPendingAndPaidTransactions();
-  }, [activeTab, teacherProfile]);
+  }, [activeTab, teacherProfile?.id]);
 
   // ─── Data Fetching ───
   const checkOnboardingStatus = async () => {
