@@ -153,8 +153,14 @@ export const PaymentsTab = ({ userId }: PaymentsTabProps) => {
       const debtsData: StudentDebt[] = [];
 
       for (const student of students) {
-        // Incluir TANTO 'pending' COMO 'partial' — si solo se busca 'pending',
-        // los tickets con pago parcial registrado (status='partial') quedan invisibles
+        const { data: bal, error: rpcErr } = await supabase.rpc('get_final_account_balance', {
+          p_student_id: student.id,
+          p_teacher_id: null,
+        });
+        if (rpcErr) throw rpcErr;
+        const totalDebtRpc = Number((bal as { total_debt?: number })?.total_debt ?? 0);
+        if (totalDebtRpc <= 0.005) continue;
+
         const { data: transactions, error: transError } = await supabase
           .from('transactions')
           .select('*')
@@ -166,42 +172,40 @@ export const PaymentsTab = ({ userId }: PaymentsTabProps) => {
 
         if (transError) throw transError;
 
-        if (transactions && transactions.length > 0) {
-          // Para 'partial': el monto a pagar es ABS(amount) - partial_paid_amount
-          const calcNet = (t: any): number => {
-            const full = Math.abs(t.amount);
-            if (t.payment_status === 'partial') {
-              return Math.max(0, full - Number(t.metadata?.partial_paid_amount || 0));
-            }
-            return full;
-          };
+        const calcNet = (t: any): number => {
+          const full = Math.abs(t.amount);
+          if (t.payment_status === 'partial') {
+            return Math.max(0, full - Number(t.metadata?.partial_paid_amount || 0));
+          }
+          return full;
+        };
 
-          const totalDebt = transactions.reduce((s, t) => s + calcNet(t), 0);
-
-          // Solo agregar al listado si hay deuda real (puede que partial esté totalmente cubierto)
-          if (totalDebt > 0.005) {
-            debtsData.push({
-              student_id: student.id,
+        const pending_transactions: PendingTransaction[] = [];
+        for (const t of transactions || []) {
+          const net = calcNet(t);
+          if (net > 0.005) {
+            pending_transactions.push({
+              id: t.id,
+              student_id: t.student_id,
               student_name: student.full_name,
-              student_photo: student.photo_url,
-              student_balance: student.balance || 0,
-              school_id: student.school_id || null,
-              total_debt: totalDebt,
-              pending_transactions: transactions
-                .filter(t => calcNet(t) > 0.005)
-                .map(t => ({
-                  id: t.id,
-                  student_id: t.student_id,
-                  student_name: student.full_name,
-                  amount: calcNet(t),
-                  description: t.description,
-                  created_at: t.created_at,
-                  ticket_code: t.ticket_code,
-                  metadata: t.metadata,
-                })),
+              amount: net,
+              description: t.description,
+              created_at: t.created_at,
+              ticket_code: t.ticket_code,
+              metadata: t.metadata,
             });
           }
         }
+
+        debtsData.push({
+          student_id: student.id,
+          student_name: student.full_name,
+          student_photo: student.photo_url,
+          student_balance: student.balance || 0,
+          school_id: student.school_id || null,
+          total_debt: totalDebtRpc,
+          pending_transactions,
+        });
       }
 
       setDebts(debtsData);
@@ -379,14 +383,19 @@ export const PaymentsTab = ({ userId }: PaymentsTabProps) => {
 
   const getSelectedAmount = (debt: StudentDebt) => {
     const sel = selectedTxByStudent.get(debt.student_id) || new Set();
-    return debt.pending_transactions.filter(tx => sel.has(tx.id)).reduce((s, tx) => s + tx.amount, 0);
+    let s = 0;
+    for (const tx of debt.pending_transactions) {
+      if (sel.has(tx.id)) s += tx.amount;
+    }
+    return s;
   };
 
   const handlePaySelected = (debt: StudentDebt) => {
     const sel = selectedTxByStudent.get(debt.student_id) || new Set();
     if (sel.size === 0) { toast({ title: 'Selecciona al menos una deuda', variant: 'destructive' }); return; }
     const txs = debt.pending_transactions.filter(tx => sel.has(tx.id));
-    const amount = txs.reduce((s, tx) => s + tx.amount, 0);
+    let amount = 0;
+    for (const tx of txs) amount += tx.amount;
     const lunchOrderIds: string[] = [];
     const transactionIds: string[] = [];
     txs.forEach(tx => { transactionIds.push(tx.id); if (tx.metadata?.lunch_order_id) lunchOrderIds.push(tx.metadata.lunch_order_id); });
@@ -619,10 +628,14 @@ export const PaymentsTab = ({ userId }: PaymentsTabProps) => {
   };
 
   // ─────────────────────────────────────────────────
-  // Computed
+  // Computed (total_debt ya viene de get_final_account_balance por alumno)
   // ─────────────────────────────────────────────────
-  const totalDebt = debts.reduce((s, d) => s + d.total_debt, 0);
-  const totalPaidCount = paidHistory.reduce((s, h) => s + h.paid_transactions.length, 0);
+  let totalDebt = 0;
+  for (const d of debts) totalDebt += d.total_debt;
+  let totalPaidCount = 0;
+  for (const h of paidHistory) totalPaidCount += h.paid_transactions.length;
+  let pendingLineCount = 0;
+  for (const d of debts) pendingLineCount += d.pending_transactions.length;
 
   // ─────────────────────────────────────────────────
   // Loading
@@ -647,9 +660,9 @@ export const PaymentsTab = ({ userId }: PaymentsTabProps) => {
           <TabsTrigger value="por_pagar" className="flex items-center gap-2 text-sm font-semibold">
             <Clock className="h-4 w-4" />
             Por Pagar
-            {debts.reduce((s, d) => s + d.pending_transactions.length, 0) > 0 && (
+            {pendingLineCount > 0 && (
               <Badge className="bg-red-100 text-red-700 border-red-300 text-[10px] px-1.5 h-4">
-                {debts.reduce((s, d) => s + d.pending_transactions.length, 0)}
+                {pendingLineCount}
               </Badge>
             )}
           </TabsTrigger>
@@ -705,7 +718,7 @@ export const PaymentsTab = ({ userId }: PaymentsTabProps) => {
                       <p className="text-xs text-amber-700 font-semibold uppercase">Deuda Total Pendiente</p>
                       <p className="text-3xl font-black text-amber-900">S/ {totalDebt.toFixed(2)}</p>
                       <p className="text-xs text-amber-600 mt-0.5">
-                        {debts.reduce((s, d) => s + d.pending_transactions.length, 0)} compra(s) pendientes
+                        {pendingLineCount} compra(s) pendientes
                       </p>
                     </div>
                   </div>

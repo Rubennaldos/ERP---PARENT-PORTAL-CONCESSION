@@ -27,6 +27,7 @@ DECLARE
   v_partial_remaining NUMERIC := 0;
   v_total_debt        NUMERIC := 0;
   v_net_balance       NUMERIC := 0;
+  v_total_credits     NUMERIC := 0;
   v_tx                RECORD;
 BEGIN
   -- 1) Saldo en billetera (solo aplica a estudiantes prepago)
@@ -88,7 +89,24 @@ BEGIN
     END LOOP;
   END IF;
 
-  -- 4) Totales
+  -- 4) Abonos / créditos registrados en transactions (pagos explícitos y recargas)
+  IF p_student_id IS NOT NULL THEN
+    SELECT COALESCE(SUM(ABS(amount)), 0)
+      INTO v_total_credits
+      FROM public.transactions
+     WHERE student_id = p_student_id
+       AND type IN ('payment', 'recharge')
+       AND NOT COALESCE(is_deleted, false);
+  ELSIF p_teacher_id IS NOT NULL THEN
+    SELECT COALESCE(SUM(ABS(amount)), 0)
+      INTO v_total_credits
+      FROM public.transactions
+     WHERE teacher_id = p_teacher_id
+       AND type IN ('payment', 'recharge')
+       AND NOT COALESCE(is_deleted, false);
+  END IF;
+
+  -- 5) Totales
   v_total_debt  := v_pending_debt + v_partial_remaining;
   v_net_balance := v_wallet_balance - v_total_debt;
 
@@ -96,6 +114,7 @@ BEGIN
     'total_debt',          v_total_debt,
     'pending_debt',        v_pending_debt,
     'partial_remaining',   v_partial_remaining,
+    'total_credits',       v_total_credits,
     'wallet_balance',      v_wallet_balance,
     'net_balance',         v_net_balance,
     'is_debtor',           v_total_debt > 0

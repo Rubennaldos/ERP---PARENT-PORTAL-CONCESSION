@@ -34,6 +34,17 @@ import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { normalizeSearch } from '@/lib/utils';
 
+/** Respuesta de get_final_account_balance (fuente de verdad para montos) */
+type AccountBalanceRpc = {
+  total_debt: number;
+  total_credits?: number;
+  net_balance?: number;
+  wallet_balance?: number;
+  pending_debt?: number;
+  partial_remaining?: number;
+  is_debtor?: boolean;
+};
+
 // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // Types
 // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -74,6 +85,8 @@ export const BillingCollection = () => {
   const [selectedDebtor, setSelectedDebtor] = useState<Debtor | null>(null);
   const [statementEvents, setStatementEvents] = useState<any[]>([]);
   const [loadingStatement, setLoadingStatement] = useState(false);
+  /** Totales del estado de cuenta: solo desde RPC get_final_account_balance */
+  const [statementBalance, setStatementBalance] = useState<AccountBalanceRpc | null>(null);
 
   // â”€â”€ Modal de pago â”€â”€
   const [showPaymentModal, setShowPaymentModal] = useState(false);
@@ -246,25 +259,22 @@ export const BillingCollection = () => {
           .map((t: any) => t.students.parent_id)
       )];
 
-      let parentMap = new Map<string, any>();
+      let parentMap = new Map<string, { full_name: string | null; phone: string | null }>();
       if (parentIds.length > 0) {
-        // profiles solo tiene full_name y email; el teléfono vive en parent_profiles.phone_1
+        // public.profiles: solo columnas base (sin phone/email en esta BD)
         const [{ data: profileRows }, { data: parentProfileRows }] = await Promise.all([
-          supabase
-            .from('profiles')
-            .select('id, full_name, email')
-            .in('id', parentIds),
-          supabase
-            .from('parent_profiles')
-            .select('user_id, phone_1')
-            .in('user_id', parentIds),
+          supabase.from('profiles').select('id, full_name').in('id', parentIds),
+          supabase.from('parent_profiles').select('user_id, phone_1').in('user_id', parentIds),
         ]);
         const phoneMap = new Map<string, string>();
-        parentProfileRows?.forEach((pp: any) => {
+        parentProfileRows?.forEach((pp: { user_id: string; phone_1: string | null }) => {
           if (pp.phone_1) phoneMap.set(pp.user_id, pp.phone_1);
         });
-        profileRows?.forEach((p: any) =>
-          parentMap.set(p.id, { ...p, phone: phoneMap.get(p.id) ?? null }),
+        profileRows?.forEach((p: { id: string; full_name: string | null }) =>
+          parentMap.set(p.id, {
+            full_name: p.full_name,
+            phone: phoneMap.get(p.id) ?? null,
+          }),
         );
       }
 
@@ -298,15 +308,8 @@ export const BillingCollection = () => {
           return; // skip
         }
 
-        // Para transacciones parciales, solo contar lo que AÚN se debe
-        const netAmount =
-          tx.payment_status === 'partial'
-            ? Math.max(0, Math.abs(tx.amount) - Number(tx.metadata?.partial_paid_amount || 0))
-            : Math.abs(tx.amount);
-
         if (debtorMap.has(debtorId)) {
           const existing = debtorMap.get(debtorId)!;
-          existing.total_amount += netAmount;
           existing.transaction_count += 1;
           existing.transactions.push(tx);
         } else {
@@ -315,21 +318,51 @@ export const BillingCollection = () => {
             client_name: clientName,
             client_type: clientType,
             parent_id: parentId || undefined,
-            parent_name: parentInfo?.full_name,
-            parent_phone: parentInfo?.phone,
-            parent_email: parentInfo?.email,
+            parent_name: parentInfo?.full_name ?? undefined,
+            parent_phone: parentInfo?.phone ?? undefined,
+            parent_email: undefined,
             school_id: schoolId,
             school_name: schoolName,
-            total_amount: netAmount,
+            total_amount: 0,
             transaction_count: 1,
             transactions: [tx],
           });
         }
       });
 
-      const sortedDebtors = Array.from(debtorMap.values()).sort(
-        (a, b) => b.total_amount - a.total_amount
+      const rawList = Array.from(debtorMap.values());
+      const withRpc = await Promise.all(
+        rawList.map(async (d): Promise<Debtor> => {
+          if (d.client_type === 'manual') {
+            let total = 0;
+            for (const tx of d.transactions) {
+              if (tx.payment_status === 'partial') {
+                total += Math.max(
+                  0,
+                  Math.abs(tx.amount) - Number(tx.metadata?.partial_paid_amount || 0),
+                );
+              } else {
+                total += Math.abs(tx.amount);
+              }
+            }
+            return { ...d, total_amount: total };
+          }
+          const { data, error } = await supabase.rpc('get_final_account_balance', {
+            p_student_id: d.client_type === 'student' ? d.id : null,
+            p_teacher_id: d.client_type === 'teacher' ? d.id : null,
+          });
+          if (error) {
+            console.error('get_final_account_balance', error);
+            return { ...d, total_amount: 0 };
+          }
+          const row = data as AccountBalanceRpc | null;
+          return { ...d, total_amount: Number(row?.total_debt ?? 0) };
+        }),
       );
+
+      const sortedDebtors = withRpc
+        .filter((d) => d.total_amount > 0.005)
+        .sort((a, b) => b.total_amount - a.total_amount);
       setDebtors(sortedDebtors);
     } catch (error: any) {
       console.error('Error fetching debtors:', error);
@@ -347,7 +380,16 @@ export const BillingCollection = () => {
   }) => {
     setLoadingStatement(true);
     setStatementEvents([]);
+    setStatementBalance(null);
     try {
+      if (client.type === 'student' || client.type === 'teacher') {
+        const { data: bal, error: rpcErr } = await supabase.rpc('get_final_account_balance', {
+          p_student_id: client.type === 'student' ? client.id : null,
+          p_teacher_id: client.type === 'teacher' ? client.id : null,
+        });
+        if (!rpcErr && bal) setStatementBalance(bal as AccountBalanceRpc);
+      }
+
       let txData: any[] = [];
       let rrData: any[] = [];
 
@@ -392,9 +434,6 @@ export const BillingCollection = () => {
         const legacyPayments = (txByName || []).filter((t: any) => !existingIds.has(t.id));
         txData = [...(txById || []), ...legacyPayments]
           .sort((a: any, b: any) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
-
-        const typeCounts = txData.reduce((acc: any, t: any) => { acc[t.type] = (acc[t.type]||0)+1; return acc; }, {});
-        console.log('[DEBUG] txData para teacher:', txData.length, 'tipos:', typeCounts);
       } else {
         const { data, error } = await supabase
           .from('transactions')
@@ -507,17 +546,11 @@ export const BillingCollection = () => {
         metadata: null,
       }));
 
-      // Combinar y ordenar todas las fuentes cronolÃ³gicamente
-      const events: any[] = [...txEvents, ...rrEvents]
-        .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
-
-      // Calcular saldo acumulado (running balance)
-      let balance = 0;
-      const enriched = events.map(e => {
-        balance += e.amount;
-        return { ...e, running_balance: balance };
-      });
-      setStatementEvents(enriched);
+      // Combinar y ordenar todas las fuentes cronológicamente (sin sumar deuda en frontend)
+      const events: any[] = [...txEvents, ...rrEvents].sort(
+        (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
+      );
+      setStatementEvents(events);
     } catch (err: any) {
       toast({ variant: 'destructive', title: 'Error', description: 'No se pudo cargar el estado de cuenta' });
     } finally {
@@ -537,7 +570,11 @@ export const BillingCollection = () => {
     );
   }, [debtors, searchTerm]);
 
-  const totalDebt = useMemo(() => filteredDebtors.reduce((s, d) => s + d.total_amount, 0), [filteredDebtors]);
+  const totalDebt = useMemo(() => {
+    let s = 0;
+    for (const d of filteredDebtors) s += d.total_amount;
+    return s;
+  }, [filteredDebtors]);
 
   // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   // Helpers de "fuente de verdad" â€” nombres reales de productos
@@ -882,7 +919,12 @@ export const BillingCollection = () => {
             size="icon"
             className="h-9 w-9 flex-shrink-0"
             title="Volver a la lista"
-            onClick={() => { setSelectedDebtor(null); setStatementEvents([]); setSearchTerm(''); }}
+            onClick={() => {
+              setSelectedDebtor(null);
+              setStatementEvents([]);
+              setStatementBalance(null);
+              setSearchTerm('');
+            }}
           >
             <ArrowLeft className="h-4 w-4" />
           </Button>
@@ -894,7 +936,11 @@ export const BillingCollection = () => {
             value={searchTerm}
             onChange={e => {
               setSearchTerm(e.target.value);
-              if (selectedDebtor) { setSelectedDebtor(null); setStatementEvents([]); }
+              if (selectedDebtor) {
+                setSelectedDebtor(null);
+                setStatementEvents([]);
+                setStatementBalance(null);
+              }
             }}
             className="pl-9"
           />
@@ -961,18 +1007,9 @@ export const BillingCollection = () => {
             const debtRows    = statementEvents.filter(e => e.event_type === 'purchase');
             const paymentRows = statementEvents.filter(e => e.event_type === 'payment' || e.event_type === 'recharge');
 
-            // totalDebtAmt = solo lo que AÚN se debe (pending completo + restante de partial)
-            // Las compras ya pagadas (status=paid) aparecen en la tabla pero NO suman a la deuda activa
-            const totalDebtAmt = debtRows.reduce((s, e) => {
-              if (e.payment_status === 'paid') return s;
-              if (e.payment_status === 'partial') {
-                const partialPaid = Number(e.metadata?.partial_paid_amount || 0);
-                return s + Math.max(0, Math.abs(e.amount) - partialPaid);
-              }
-              return s + Math.abs(e.amount);
-            }, 0);
-            const totalPaidAmt = paymentRows.reduce((s, e) => s + Math.abs(e.amount), 0);
-            const netBalance   = totalPaidAmt - totalDebtAmt;
+            const totalDebtAmt = Number(statementBalance?.total_debt ?? 0);
+            const totalPaidAmt = Number(statementBalance?.total_credits ?? 0);
+            const netBalance = Number(statementBalance?.net_balance ?? 0);
             return (
               <div className="space-y-4">
                 {/* TABLA 1: Lo que debe */}
@@ -990,24 +1027,43 @@ export const BillingCollection = () => {
                         const isPartial = ev.payment_status === 'partial';
                         const partialPaid = Number(ev.metadata?.partial_paid_amount || 0);
                         const remaining   = Math.abs(ev.amount) - partialPaid;
+                        const isPendingRow = !isPaid && !isPartial;
                         return (
-                          <div key={ev.id} className={`flex items-start gap-3 px-4 py-3 ${isPaid ? 'bg-gray-50' : isPartial ? 'bg-amber-50' : 'bg-white'}`}>
+                          <div
+                            key={ev.id}
+                            className={`flex items-start gap-3 px-4 py-3 border-l-4 ${
+                              isPaid
+                                ? 'bg-gray-50 border-l-transparent'
+                                : isPartial
+                                  ? 'bg-amber-50 border-l-amber-400'
+                                  : 'bg-white border-l-red-500'
+                            }`}
+                          >
                             <div className="flex-shrink-0 mt-1">
                               {isPaid    ? <CheckCircle2 className="h-4 w-4 text-gray-400" />
                               : isPartial ? <span className="text-amber-500 font-black text-sm leading-none">1/2</span>
-                              :             <span className="h-2.5 w-2.5 rounded-full bg-red-400 inline-block" />}
+                              :             <span className="h-2.5 w-2.5 rounded-full bg-red-500 inline-block" />}
                             </div>
                             <div className="flex-1 min-w-0">
-                              <p className={`text-sm font-medium truncate ${isPaid ? 'text-gray-400 line-through decoration-2' : isPartial ? 'text-amber-700 line-through' : 'text-gray-800'}`}>
+                              <p className={`text-sm font-medium truncate ${
+                                isPaid ? 'text-gray-400 line-through decoration-2'
+                                  : isPartial ? 'text-amber-800'
+                                  : 'text-red-800 font-semibold'
+                              }`}>
                                 {ev.description || 'Consumo'}
                               </p>
                               <div className="flex gap-2 mt-0.5 flex-wrap">
                                 <span className="text-[11px] text-gray-400">{format(new Date(ev.created_at), "d MMM yyyy", { locale: es })}</span>
                                 {isPartial && <span className="text-[10px] bg-amber-100 text-amber-700 border border-amber-200 px-1.5 rounded-full font-semibold">Parcial - resta S/ {remaining.toFixed(2)}</span>}
                                 {isPaid    && <span className="text-[10px] bg-gray-100 text-gray-500 border border-gray-200 px-1.5 rounded-full font-semibold">Pagado</span>}
+                                {isPendingRow && <span className="text-[10px] bg-red-100 text-red-700 border border-red-200 px-1.5 rounded-full font-semibold">Pendiente</span>}
                               </div>
                             </div>
-                            <span className={`font-bold text-sm whitespace-nowrap flex-shrink-0 ${isPaid ? 'text-gray-400 line-through decoration-2' : isPartial ? 'text-amber-600' : 'text-red-600'}`}>
+                            <span className={`font-bold text-sm whitespace-nowrap flex-shrink-0 tabular-nums ${
+                              isPaid ? 'text-gray-400 line-through decoration-2'
+                                : isPartial ? 'text-amber-600'
+                                : 'text-red-600'
+                            }`}>
                               -S/ {Math.abs(ev.amount).toFixed(2)}
                             </span>
                           </div>
@@ -1052,14 +1108,16 @@ export const BillingCollection = () => {
                   )}
                 </div>
                 {/* FOOTER: Saldo neto */}
-                <div className={`flex items-center justify-between rounded-xl px-5 py-4 font-black shadow-sm ${netBalance < 0 ? 'bg-red-600 text-white' : 'bg-emerald-600 text-white'}`}>
+                <div className={`flex items-center justify-between rounded-xl px-5 py-4 font-black shadow-sm ${Number(statementBalance?.total_debt ?? 0) > 0.005 ? 'bg-red-600 text-white' : 'bg-emerald-600 text-white'}`}>
                   <div>
-                    <p className="text-[11px] uppercase tracking-widest opacity-80">{netBalance < 0 ? 'Aun debe' : 'Saldo a favor'}</p>
-                    <p className="text-xl">{netBalance < 0 ? '-' : '+'}S/ {Math.abs(netBalance).toFixed(2)}</p>
+                    <p className="text-[11px] uppercase tracking-widest opacity-80">
+                      {Number(statementBalance?.total_debt ?? 0) > 0.005 ? 'Deuda pendiente' : 'Sin deuda pendiente'}
+                    </p>
+                    <p className="text-xl">S/ {totalDebtAmt.toFixed(2)}</p>
                   </div>
-                  <div className="text-right text-[11px] opacity-80 space-y-0.5">
-                    <p>Consumos: S/ {totalDebtAmt.toFixed(2)}</p>
-                    <p>Abonos: +S/ {totalPaidAmt.toFixed(2)}</p>
+                  <div className="text-right text-[11px] opacity-80 space-y-0.5 font-medium">
+                    <p>Abonos y recargas (registrados): +S/ {totalPaidAmt.toFixed(2)}</p>
+                    <p>Saldo neto (billetera − deuda): {netBalance >= 0 ? '+' : ''}{netBalance.toFixed(2)}</p>
                   </div>
                 </div>
               </div>
