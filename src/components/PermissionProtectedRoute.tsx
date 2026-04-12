@@ -18,12 +18,18 @@ export function PermissionProtectedRoute({ children, moduleCode }: PermissionPro
   const [checking, setChecking] = useState(true);
 
   useEffect(() => {
-    checkModulePermission();
-  }, [user, role, moduleCode]);
+    if (!authLoading) checkModulePermission();
+  }, [user, role, moduleCode, authLoading]);
 
   const checkModulePermission = async () => {
-    if (!user || !role) {
+    // Si auth ya terminó de cargar y no hay usuario → redirigir
+    if (!user) {
       setChecking(false);
+      setHasPermission(false);
+      return;
+    }
+    // Si role todavía está cargando → esperar
+    if (!role) {
       return;
     }
 
@@ -96,8 +102,7 @@ export function PermissionProtectedRoute({ children, moduleCode }: PermissionPro
   };
 
   // Mostrar loader mientras se autentica o verifica permisos
-  // IMPORTANTE: También mostrar loader si hasPermission es null (aún no se ha verificado)
-  if (authLoading || roleLoading || checking || hasPermission === null) {
+  if (authLoading || roleLoading || checking || (hasPermission === null && (authLoading || roleLoading))) {
     console.log('⏳ Cargando...', { authLoading, roleLoading, checking, hasPermission });
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">

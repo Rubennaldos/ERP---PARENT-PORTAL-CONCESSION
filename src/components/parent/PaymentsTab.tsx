@@ -153,35 +153,54 @@ export const PaymentsTab = ({ userId }: PaymentsTabProps) => {
       const debtsData: StudentDebt[] = [];
 
       for (const student of students) {
+        // Incluir TANTO 'pending' COMO 'partial' — si solo se busca 'pending',
+        // los tickets con pago parcial registrado (status='partial') quedan invisibles
         const { data: transactions, error: transError } = await supabase
           .from('transactions')
           .select('*')
           .eq('student_id', student.id)
           .eq('type', 'purchase')
-          .eq('payment_status', 'pending')
+          .in('payment_status', ['pending', 'partial'])
+          .not('is_deleted', 'eq', true)
           .order('created_at', { ascending: false });
 
         if (transError) throw transError;
 
         if (transactions && transactions.length > 0) {
-          debtsData.push({
-            student_id: student.id,
-            student_name: student.full_name,
-            student_photo: student.photo_url,
-            student_balance: student.balance || 0,
-            school_id: student.school_id || null,
-            total_debt: transactions.reduce((s, t) => s + Math.abs(t.amount), 0),
-            pending_transactions: transactions.map(t => ({
-              id: t.id,
-              student_id: t.student_id,
+          // Para 'partial': el monto a pagar es ABS(amount) - partial_paid_amount
+          const calcNet = (t: any): number => {
+            const full = Math.abs(t.amount);
+            if (t.payment_status === 'partial') {
+              return Math.max(0, full - Number(t.metadata?.partial_paid_amount || 0));
+            }
+            return full;
+          };
+
+          const totalDebt = transactions.reduce((s, t) => s + calcNet(t), 0);
+
+          // Solo agregar al listado si hay deuda real (puede que partial esté totalmente cubierto)
+          if (totalDebt > 0.005) {
+            debtsData.push({
+              student_id: student.id,
               student_name: student.full_name,
-              amount: Math.abs(t.amount),
-              description: t.description,
-              created_at: t.created_at,
-              ticket_code: t.ticket_code,
-              metadata: t.metadata,
-            })),
-          });
+              student_photo: student.photo_url,
+              student_balance: student.balance || 0,
+              school_id: student.school_id || null,
+              total_debt: totalDebt,
+              pending_transactions: transactions
+                .filter(t => calcNet(t) > 0.005)
+                .map(t => ({
+                  id: t.id,
+                  student_id: t.student_id,
+                  student_name: student.full_name,
+                  amount: calcNet(t),
+                  description: t.description,
+                  created_at: t.created_at,
+                  ticket_code: t.ticket_code,
+                  metadata: t.metadata,
+                })),
+            });
+          }
         }
       }
 

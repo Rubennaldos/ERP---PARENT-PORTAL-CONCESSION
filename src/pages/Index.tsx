@@ -15,6 +15,7 @@ import {
   UtensilsCrossed,
   Calendar,
   ShoppingBag,
+  AlertTriangle,
 } from 'lucide-react';
 import maracuyaLogo from '@/assets/maracuya-logo.png';
 import { supabase } from '@/lib/supabase';
@@ -297,40 +298,27 @@ const Index = () => {
     }
   };
 
-  // ✅ Calcular deuda de cada estudiante — SOLO consumos de kiosco (excluye almuerzos)
+  // Fuente de verdad única: usa la RPC get_final_account_balance para cada alumno.
+  // No se filtra por metadata.source — cualquier compra pendiente/parcial es deuda real.
   const calculateStudentDebts = async (studentsData: Student[]) => {
     const debtsMap: Record<string, number> = {};
-    
-    for (const student of studentsData) {
-      try {
-        // Solo deudas del KIOSCO: excluye transacciones cuyo metadata.source sea de almuerzo
-        // Los almuerzos usan source: 'physical_order_wizard', 'parent_app', 'teacher_app', etc.
-        // El kiosco usa source: 'pos' y 'historical_kiosk_entry'
-        const { data: transactions } = await supabase
-          .from('transactions')
-          .select('amount, metadata')
-          .eq('student_id', student.id)
-          .eq('type', 'purchase')
-          .eq('payment_status', 'pending');
 
-        const kioskDebt = (transactions || [])
-          .filter(t => {
-            const src = t.metadata?.source as string | undefined;
-            // Incluir solo si la fuente es del kiosco o si no tiene source definido
-            // Excluir explícitamente todas las fuentes de almuerzo
-            const lunchSources = ['physical_order_wizard', 'parent_app', 'teacher_app', 'lunch', 'lunch_order'];
-            if (!src) return true; // Sin source → kiosco (comportamiento legacy)
-            return !lunchSources.includes(src);
-          })
-          .reduce((sum: number, t: any) => sum + Math.abs(t.amount), 0);
+    await Promise.all(
+      studentsData.map(async (student) => {
+        try {
+          const { data, error } = await supabase.rpc('get_final_account_balance', {
+            p_student_id: student.id,
+            p_teacher_id: null,
+          });
+          if (error) throw error;
+          debtsMap[student.id] = data?.total_debt ?? 0;
+        } catch (error) {
+          console.error(`Error calculating debt for student ${student.id}:`, error);
+          debtsMap[student.id] = 0;
+        }
+      }),
+    );
 
-        debtsMap[student.id] = kioskDebt;
-      } catch (error) {
-        console.error(`Error calculating debt for student ${student.id}:`, error);
-        debtsMap[student.id] = 0;
-      }
-    }
-    
     setStudentDebts(debtsMap);
   };
 
@@ -453,6 +441,16 @@ const Index = () => {
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-3 sm:px-4 md:px-6 py-4 sm:py-6 md:py-10">
+        <div className="mb-4 sm:mb-6 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5 sm:px-4 sm:py-3">
+          <div className="flex items-start gap-2.5">
+            <AlertTriangle className="h-4 w-4 text-amber-600 mt-0.5 flex-shrink-0" />
+            <p className="text-[11px] sm:text-xs text-amber-800 leading-relaxed">
+              Estamos presentando una incidencia temporal en la pasarela de pagos y en la visualizacion de deudas.
+              Nuestro equipo ya esta trabajando para solucionarlo. Si el monto mostrado no coincide con tu saldo real,
+              no te preocupes: lo regularizaremos a la brevedad.
+            </p>
+          </div>
+        </div>
         {/* Pestaña Alumnos */}
         <div className={activeTab !== 'alumnos' ? 'hidden' : ''}>
           <div className="space-y-6 sm:space-y-8">

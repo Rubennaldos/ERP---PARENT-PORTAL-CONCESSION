@@ -14,7 +14,7 @@ import {
   LogOut, User, ShoppingBag, UtensilsCrossed, Home, Loader2,
   DollarSign, CheckCircle2, Download, Filter, Wallet,
   ChevronDown, ChevronUp, Clock, Settings, Key, HelpCircle,
-  Menu as MenuIcon, Phone, Mail, Building2, XCircle, CreditCard
+  Menu as MenuIcon, Phone, Mail, Building2, XCircle, CreditCard, AlertTriangle
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { TeacherOnboardingModal } from '@/components/teacher/TeacherOnboardingModal';
@@ -156,14 +156,31 @@ export default function Teacher() {
         profile = profileView;
       }
 
-      if (!profile) { setShowOnboarding(true); setLoading(false); return; }
+      if (!profile) {
+        if (isAdminPreview) {
+          toast({
+            variant: 'destructive',
+            title: 'Sin perfil de profesor',
+            description: 'No hay fila en teacher_profiles para esta vista previa.',
+          });
+        } else {
+          setShowOnboarding(true);
+        }
+        setLoading(false);
+        return;
+      }
       setTeacherProfile(profile);
-      if (!profile.onboarding_completed) setShowOnboarding(true);
+      // En vista previa (admin): nunca forzar onboarding ni modal con datos del admin mezclados
+      if (!profile.onboarding_completed && !isAdminPreview) setShowOnboarding(true);
       setLoading(false);
     } catch (error: any) {
       console.error('Error verificando perfil:', error);
-      setShowOnboarding(true);
-      toast({ variant: 'destructive', title: 'Error', description: 'No se pudo cargar tu perfil.' });
+      if (!isAdminPreview) {
+        setShowOnboarding(true);
+        toast({ variant: 'destructive', title: 'Error', description: 'No se pudo cargar tu perfil.' });
+      } else {
+        toast({ variant: 'destructive', title: 'Error', description: 'No se pudo cargar el perfil en vista previa.' });
+      }
       setLoading(false);
     }
   };
@@ -465,7 +482,17 @@ export default function Teacher() {
 
       {/* ═══════════════ MAIN CONTENT ═══════════════ */}
       <main className="max-w-3xl mx-auto px-3 sm:px-4 pb-24 pt-3 sm:pt-4">
-        {teacherProfile && teacherProfile.onboarding_completed ? (
+        <div className="mb-3 sm:mb-4 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5 sm:px-4 sm:py-3">
+          <div className="flex items-start gap-2.5">
+            <AlertTriangle className="h-4 w-4 text-amber-600 mt-0.5 flex-shrink-0" />
+            <p className="text-[11px] sm:text-xs text-amber-800 leading-relaxed">
+              Estamos presentando una incidencia temporal en la pasarela de pagos y en la visualizacion de deudas.
+              Nuestro equipo ya esta trabajando para solucionarlo. Si el monto mostrado no coincide con tu saldo real,
+              no te preocupes: lo regularizaremos a la brevedad.
+            </p>
+          </div>
+        </div>
+        {teacherProfile && (teacherProfile.onboarding_completed || isAdminPreview) ? (
           <>
             {/* ══════ TAB: INICIO ══════ */}
             {activeTab === 'home' && (
@@ -895,7 +922,7 @@ export default function Teacher() {
             {/* ══════ TAB: TIENDA ══════ */}
             {activeTab === 'store' && teacherProfile && (
               <OnlineStore
-                userId={user?.id || ''}
+                userId={isAdminPreview ? teacherProfile.id : (user?.id || '')}
                 userName={teacherProfile.full_name}
                 schoolId={teacherProfile.school_1_id || null}
                 userType="teacher"
@@ -1019,7 +1046,7 @@ export default function Teacher() {
       </nav>
 
       {/* ═══════════════ MODALS ═══════════════ */}
-      {showOnboarding && (
+      {showOnboarding && !isAdminPreview && (
         <TeacherOnboardingModal open={showOnboarding} onComplete={handleOnboardingComplete} />
       )}
 
