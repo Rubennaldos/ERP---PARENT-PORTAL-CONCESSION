@@ -307,8 +307,7 @@ const Index = () => {
       studentsData.map(async (student) => {
         try {
           const { data, error } = await supabase.rpc('get_final_account_balance', {
-            p_student_id: student.id,
-            p_teacher_id: null,
+            p_target_id: student.id,
           });
           if (error) throw error;
           debtsMap[student.id] = data?.total_debt ?? 0;

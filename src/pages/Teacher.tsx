@@ -209,8 +209,7 @@ export default function Teacher() {
     if (!teacherProfile) return;
     try {
       const { data, error } = await supabase.rpc('get_final_account_balance', {
-        p_student_id: null,
-        p_teacher_id: teacherProfile.id,
+        p_target_id: teacherProfile.id,
       });
       if (error) throw error;
       const totalDebt = Number((data as { total_debt?: number })?.total_debt ?? 0);

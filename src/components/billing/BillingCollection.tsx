@@ -349,8 +349,7 @@ export const BillingCollection = () => {
             return { ...d, total_amount: total };
           }
           const { data, error } = await supabase.rpc('get_final_account_balance', {
-            p_student_id: d.client_type === 'student' ? d.id : null,
-            p_teacher_id: d.client_type === 'teacher' ? d.id : null,
+            p_target_id: d.id,
           });
           if (error) {
             console.error('get_final_account_balance', error);
@@ -385,8 +384,7 @@ export const BillingCollection = () => {
     try {
       if (client.type === 'student' || client.type === 'teacher') {
         const { data: bal, error: rpcErr } = await supabase.rpc('get_final_account_balance', {
-          p_student_id: client.type === 'student' ? client.id : null,
-          p_teacher_id: client.type === 'teacher' ? client.id : null,
+          p_target_id: client.id,
         });
         if (!rpcErr && bal) setStatementBalance(bal as AccountBalanceRpc);
       }

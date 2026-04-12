@@ -154,8 +154,7 @@ export const PaymentsTab = ({ userId }: PaymentsTabProps) => {
 
       for (const student of students) {
         const { data: bal, error: rpcErr } = await supabase.rpc('get_final_account_balance', {
-          p_student_id: student.id,
-          p_teacher_id: null,
+          p_target_id: student.id,
         });
         if (rpcErr) throw rpcErr;
         const totalDebtRpc = Number((bal as { total_debt?: number })?.total_debt ?? 0);
@@ -166,7 +165,7 @@ export const PaymentsTab = ({ userId }: PaymentsTabProps) => {
           .select('*')
           .eq('student_id', student.id)
           .eq('type', 'purchase')
-          .in('payment_status', ['pending', 'partial'])
+          .or('payment_status.eq.pending,payment_status.eq.partial,payment_status.is.null')
           .not('is_deleted', 'eq', true)
           .order('created_at', { ascending: false });
 
